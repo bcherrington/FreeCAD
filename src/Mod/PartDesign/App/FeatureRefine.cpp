@@ -90,6 +90,9 @@ TopoShape FeatureRefine::refineShapeIfActive(
         return shape.makeElementRefine();
     }
     catch (Standard_Failure& err) {
+        if (Part::isUserAbortFailure(err)) {
+            throw;
+        }
         if (onError == RefineErrorPolicy::Warn) {
             Base::Console().warning(fmt::format("Refine failed: {}", err.GetMessageString()).c_str());
         }

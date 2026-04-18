@@ -4360,7 +4360,11 @@ TopoShape& TopoShape::makeRefine(const TopoShape& shape, const char* op, RefineF
         return *this;
     }
     try {
-        BRepBuilderAPI_RefineModel mkRefine(shape.getShape());
+        BRepBuilderAPI_RefineModel mkRefine(
+            shape.getShape(),
+            BRepBuilderAPI_RefineModel::BuildMode::Deferred
+        );
+        Part::buildWithProgress(mkRefine);
         _Shape = mkRefine.Shape();
         return *this;
     }
