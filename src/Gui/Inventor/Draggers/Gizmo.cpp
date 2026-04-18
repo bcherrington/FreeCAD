@@ -136,6 +136,11 @@ bool Gizmo::isDelayedUpdateEnabled()
     );
 }
 
+void Gizmo::setDeferredUpdateHandler(std::function<void()> handler)
+{
+    deferredUpdateHandler = std::move(handler);
+}
+
 double Gizmo::getMultFactor()
 {
     return multFactor;
@@ -315,7 +320,12 @@ void LinearGizmo::draggingFinished()
 {
     if (isDelayedUpdateEnabled()) {
         property->blockSignals(false);
-        property->valueChanged(property->value().getValue());
+        if (deferredUpdateHandler) {
+            deferredUpdateHandler();
+        }
+        else {
+            property->valueChanged(property->value().getValue());
+        }
     }
 
     property->setFocus();
@@ -520,7 +530,12 @@ void RotationGizmo::draggingFinished()
 {
     if (isDelayedUpdateEnabled()) {
         property->blockSignals(false);
-        property->valueChanged(property->value().getValue());
+        if (deferredUpdateHandler) {
+            deferredUpdateHandler();
+        }
+        else {
+            property->valueChanged(property->value().getValue());
+        }
     }
 
     property->setFocus();
