@@ -2,6 +2,10 @@
 
 add_subdirectory(App)
 
+if(BUILD_GUI)
+    add_subdirectory(Gui)
+endif(BUILD_GUI)
+
 target_link_libraries(PartDesign_tests_run
         gtest_main
         ${Google_Tests_LIBS}
