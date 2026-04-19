@@ -4175,6 +4175,9 @@ TopoShape& TopoShape::makeElementGeneralFuse(
     }
 
     std::vector<TopoShape> shapes(_shapes);
+    constexpr std::size_t totalPhases = 3;
+    ScopedRecomputeProgress progressScope(op);
+    auto prepareScope = progressScope.makeStepScope(0, totalPhases, "Preparing general fuse...");
 
     BRepAlgoAPI_BuilderAlgo mkGFA;
     mkGFA.SetRunParallel(true);
@@ -4193,9 +4196,21 @@ TopoShape& TopoShape::makeElementGeneralFuse(
         FCBRepAlgoAPIHelper::setAutoFuzzy(&mkGFA);
     }
     mkGFA.SetNonDestructive(Standard_True);
+    prepareScope.complete();
+
+    auto buildScope = progressScope.makeStepScope(1, totalPhases, "Building general fuse...");
+    if (buildScope.wasCanceled()) {
+        FC_THROWM(Base::CADKernelError, "User aborted");
+    }
     Part::buildWithProgress(mkGFA);
+    buildScope.complete();
     if (!mkGFA.IsDone()) {
         FC_THROWM(Base::CADKernelError, "GeneralFuse failed");
+    }
+
+    auto mapScope = progressScope.makeStepScope(2, totalPhases, "Mapping general fuse...");
+    if (mapScope.wasCanceled()) {
+        FC_THROWM(Base::CADKernelError, "User aborted");
     }
     makeElementShape(mkGFA, shapes, op);
     modifies.resize(shapes.size());
@@ -4210,6 +4225,7 @@ TopoShape& TopoShape::makeElementGeneralFuse(
         }
         mapSubElementsTo(mod);
     }
+    mapScope.complete();
     return *this;
 }
 
@@ -4269,20 +4285,40 @@ TopoShape& TopoShape::makeElementXor(const std::vector<TopoShape>& shapes, const
         return *this;
     }
 
+    ScopedRecomputeProgress progressScope(op);
+    const std::size_t totalStages = (inputs.size() - 1) * 3;
+    std::size_t progressStage = 0;
     TopoShape result = inputs[0];
     for (size_t i = 1; i < inputs.size(); ++i) {
         // The final op is only applied on the very last iteration.
         const char* currentOp = (i == inputs.size() - 1) ? op : nullptr;
 
         // Step 1: Union(A, B) - intermediate result, no op code.
+        auto unionScope
+            = progressScope.makeStepScope(progressStage++, totalStages, "Building XOR union...");
+        if (unionScope.wasCanceled()) {
+            FC_THROWM(Base::CADKernelError, "User aborted");
+        }
         TopoShape tempUnion(0, Hasher);
         tempUnion.makeElementBoolean(Part::OpCodes::Fuse, {result, inputs[i]}, nullptr, tol);
+        unionScope.complete();
 
         // Step 2: Common(A, B) - intermediate result, no op code.
+        auto commonScope
+            = progressScope.makeStepScope(progressStage++, totalStages, "Building XOR common...");
+        if (commonScope.wasCanceled()) {
+            FC_THROWM(Base::CADKernelError, "User aborted");
+        }
         TopoShape tempCommon(0, Hasher);
         tempCommon.makeElementBoolean(Part::OpCodes::Common, {result, inputs[i]}, nullptr, tol);
+        commonScope.complete();
 
         // Step 3: Compute the final result for this iteration
+        auto finalScope
+            = progressScope.makeStepScope(progressStage++, totalStages, "Building XOR result...");
+        if (finalScope.wasCanceled()) {
+            FC_THROWM(Base::CADKernelError, "User aborted");
+        }
         if (tempCommon.isNull() || tempCommon.getShape().IsNull()) {
             // No intersection, XOR is the same as Union.
             // We still call the boolean op to get the correct history.
@@ -4292,6 +4328,7 @@ TopoShape& TopoShape::makeElementXor(const std::vector<TopoShape>& shapes, const
             // Final result is Cut(Union, Common).
             result.makeElementBoolean(Part::OpCodes::Cut, {tempUnion, tempCommon}, currentOp, tol);
         }
+        finalScope.complete();
     }
 
     *this = result;
@@ -5876,7 +5913,10 @@ TopoShape& TopoShape::makeElementBoolean(
         return makeElementXor(shapes, op, tolerance);
     }
 
-    bool buildShell = true;
+    bool buildShell = strcmp(maker, Part::OpCodes::Section) != 0;
+    ScopedRecomputeProgress progressScope(op);
+    const std::size_t totalPhases = buildShell ? 4 : 3;
+    auto prepareScope = progressScope.makeStepScope(0, totalPhases, "Preparing boolean...");
 
     std::vector<TopoShape> _shapes;
     if (strcmp(maker, Part::OpCodes::Fuse) == 0) {
@@ -5947,7 +5987,6 @@ TopoShape& TopoShape::makeElementBoolean(
     }
     else if (strcmp(maker, Part::OpCodes::Section) == 0) {
         mk.reset(new FCBRepAlgoAPI_Section);
-        buildShell = false;
     }
     else {
         FC_THROWM(Base::CADKernelError, "Unknown maker");
@@ -5979,14 +6018,32 @@ TopoShape& TopoShape::makeElementBoolean(
     else if (tolerance < 0.0) {
         FCBRepAlgoAPIHelper::setAutoFuzzy(mk.get());
     }
+    prepareScope.complete();
+
+    auto buildScope = progressScope.makeStepScope(1, totalPhases, "Building boolean...");
+    if (buildScope.wasCanceled()) {
+        FC_THROWM(Base::CADKernelError, "User aborted");
+    }
     Part::buildWithProgress(*mk);
+    buildScope.complete();
     if (App::currentRecomputeWasCanceled()) {
         FC_THROWM(Base::CADKernelError, "User aborted");
     }
+
+    auto mapScope = progressScope.makeStepScope(2, totalPhases, "Mapping boolean result...");
+    if (mapScope.wasCanceled()) {
+        FC_THROWM(Base::CADKernelError, "User aborted");
+    }
     makeElementShape(*mk, inputs, op);
+    mapScope.complete();
 
     if (buildShell) {
+        auto shellScope = progressScope.makeStepScope(3, totalPhases, "Building shell...");
+        if (shellScope.wasCanceled()) {
+            FC_THROWM(Base::CADKernelError, "User aborted");
+        }
         makeElementShell();
+        shellScope.complete();
     }
     return *this;
 }
