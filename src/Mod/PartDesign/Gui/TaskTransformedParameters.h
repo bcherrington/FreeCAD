@@ -25,6 +25,11 @@
 
 #pragma once
 
+#include <memory>
+#include <string>
+
+#include <QMetaObject>
+
 #include <Gui/ComboLinks.h>
 #include <Gui/DocumentObserver.h>
 #include <Gui/Selection/Selection.h>
@@ -35,7 +40,6 @@
 #include "TaskFeatureParameters.h"
 #include "TaskTransformedMessages.h"
 #include "ViewProviderTransformed.h"
-
 class QListWidget;
 
 class Ui_TaskTransformedParameters;
@@ -48,6 +52,10 @@ class Feature;
 namespace PartDesign
 {
 class Transformed;
+}
+namespace Gui
+{
+class AsyncPreviewSession;
 }
 
 namespace PartDesignGui
@@ -93,7 +101,23 @@ public:
     /// Exit the selection mode of the associated task panel
     void exitSelectionMode();
 
+    virtual void flushPendingRecompute();
+    void stopPendingRecompute();
+    void cancelPendingRecompute();
+    bool hasOutstandingRecompute() const;
+    void setDeferredClosePending(bool pending);
+    /// Recompute either this feature or the parent MultiTransform feature
+    void recomputeFeature();
+    void recomputeFeatureExactly();
+    bool isUpdateBlocked() const
+    {
+        return blockUpdate;
+    }
+
     static void removeItemFromListWidget(QListWidget* widget, const QString& itemstr);
+
+Q_SIGNALS:
+    void recomputeSettled();
 
 protected:
     /** Setup the standalone UI.
@@ -123,8 +147,9 @@ protected:
      */
     bool originalSelected(const Gui::SelectionChanges& msg);
 
-    /// Recompute either this feature or the parent MultiTransform feature
-    void recomputeFeature();
+    void scheduleRecomputeFeature();
+    void requestImmediateRecompute(bool waitForCompletion);
+    void requestStagedPreviewUpdate();
 
     /// Hide the top transformed object (see getTopTransformedObject())
     void hideObject();
@@ -158,6 +183,8 @@ protected:
 
     bool isEnabledTransaction() const;
     void setupTransaction();
+    void setUpdateViewEnabled(bool on);
+    virtual void applyStagedPreviewStateToObject();
 
 private Q_SLOTS:
     virtual void onUpdateView(bool /*unused*/) = 0;
@@ -167,6 +194,8 @@ private Q_SLOTS:
     void onFeatureDeleted();
     void indexesMoved();
     void onModeChanged(int mode_id);
+    void onCancelPreview();
+    void onPreviewControllerRecomputeSettled();
 
 private:
     /** Setup the parameter UI.
@@ -182,6 +211,14 @@ private:
     void removeObject(App::DocumentObject*);
     void clearButtons();
     void checkVisibility();
+    void setupAsyncPreviewController();
+    void connectPreviewControllerSignals();
+    Gui::AsyncPreviewSession* getAsyncPreviewSession();
+    const Gui::AsyncPreviewSession* getAsyncPreviewSession() const;
+    AsyncPreviewController* getAsyncPreviewController();
+    const AsyncPreviewController* getAsyncPreviewController() const;
+    void requestRecompute(bool waitForCompletion);
+    void updateRecomputeUi();
 
     /// Return the base object of the base transformed object (see getTopTransformedObject())
     // Either through the ViewProvider or the currently active subFeature of the parentTask
@@ -221,6 +258,9 @@ private:
     /// Widget holding the transform task UI
     QWidget* proxy = nullptr;
     std::unique_ptr<Ui_TaskTransformedParameters> ui;
+    std::unique_ptr<Gui::AsyncPreviewSession> asyncPreviewSession;
+    bool pendingStagedPreviewUpdate = false;
+    bool flushingStagedPreviewUpdate = false;
 };
 
 /// simulation dialog for the TaskView
@@ -236,9 +276,18 @@ public:
     /// is called by the framework if the dialog is rejected (Cancel)
     bool reject() override;
 
+private Q_SLOTS:
+    void onParameterRecomputeSettled();
+
+private:
+    void ensureDeferredRejectConnection();
+    void setDeferredRejectPending(bool pending);
+
 protected:
     TaskTransformedParameters* parameter = nullptr;
     TaskTransformedMessages* message = nullptr;
+
+private:
 };
 
 }  // namespace PartDesignGui
