@@ -25,14 +25,14 @@
 #include <QApplication>
 #include <QMessageBox>
 
-
 #include <App/DocumentObserver.h>
+#include <App/DocumentObject.h>
 #include <Gui/Application.h>
+#include <Gui/BitmapFactory.h>
 #include <Gui/CommandT.h>
 #include <Gui/MainWindow.h>
-#include <Gui/BitmapFactory.h>
-#include <Mod/PartDesign/App/Feature.h>
 #include <Mod/PartDesign/App/Body.h>
+#include <Mod/PartDesign/App/Feature.h>
 
 #include "ui_TaskPreviewParameters.h"
 
@@ -165,6 +165,7 @@ bool TaskDlgFeatureParameters::accept()
                 continue;
             }
 
+            param->flushPendingRecompute();
             param->saveHistory();
             param->apply();
             isUpdateBlocked |= param->isUpdateBlocked();
@@ -258,6 +259,11 @@ bool TaskDlgFeatureParameters::reject()
         TaskSketchBasedParameters* param = qobject_cast<TaskSketchBasedParameters*>(it);
         if (param) {
             param->detachSelection();
+        }
+
+        TaskFeatureParameters* featureParam = qobject_cast<TaskFeatureParameters*>(it);
+        if (featureParam) {
+            featureParam->stopPendingRecompute();
         }
     }
 
