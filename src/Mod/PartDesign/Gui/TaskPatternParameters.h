@@ -28,8 +28,12 @@
 #include "ViewProviderTransformed.h"
 
 
-class QTimer;
 class Ui_TaskPatternParameters;
+
+namespace Gui
+{
+class DebouncedFunction;
+}
 
 namespace PartGui
 {
@@ -73,7 +77,7 @@ private:
     void retranslateParameterUI(QWidget* widget) override;
 
     void updateUI();
-    void kickUpdateViewTimer() const;
+    void scheduleUpdateView() const;
 
     void bindProperties();
 
@@ -88,7 +92,7 @@ private:
     PartGui::PatternParametersWidget* activeDirectionWidget = nullptr;
 
     std::unique_ptr<Ui_TaskPatternParameters> ui;
-    QTimer* updateViewTimer = nullptr;
+    std::unique_ptr<Gui::DebouncedFunction> updateViewScheduler;
 };
 
 

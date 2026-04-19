@@ -23,13 +23,13 @@
  ******************************************************************************/
 
 #include <QMessageBox>
-#include <QTimer>
 #include <QVBoxLayout>
 
 #include <App/Document.h>
 #include <App/DocumentObject.h>
 #include <App/Origin.h>
 #include <Base/Console.h>
+#include <Gui/ActionFunction.h>
 #include <Gui/Application.h>
 #include <Gui/MainWindow.h>
 #include <Gui/BitmapFactory.h>
@@ -138,10 +138,9 @@ void TaskPatternParameters::setupParameterUI(QWidget* widget)
     // --- Task Specific Setup ---
     showOriginAxes(true);  // Show origin helper axes
 
-    updateViewTimer = new QTimer(this);
-    updateViewTimer->setSingleShot(true);
-    updateViewTimer->setInterval(getUpdateViewTimeout());
-    connect(updateViewTimer, &QTimer::timeout, this, &TaskPatternParameters::onUpdateViewTimer);
+    updateViewScheduler = std::make_unique<Gui::DebouncedFunction>(this);
+    updateViewScheduler->setInterval(getUpdateViewTimeout());
+    updateViewScheduler->setFunction([this]() { onUpdateViewTimer(); });
 }
 
 void TaskPatternParameters::bindProperties()
@@ -292,7 +291,7 @@ void TaskPatternParameters::onParameterWidgetParametersChanged()
     if (blockUpdate) {
         return;  // Avoid loops if change originated from Task update
     }
-    kickUpdateViewTimer();  // Debounce recompute
+    scheduleUpdateView();  // Debounce recompute
 }
 
 void TaskPatternParameters::onUpdateView(bool on)
@@ -300,13 +299,15 @@ void TaskPatternParameters::onUpdateView(bool on)
     // This might be less relevant now if recomputes are triggered by parametersChanged
     blockUpdate = !on;
     if (on) {
-        kickUpdateViewTimer();
+        scheduleUpdateView();
     }
 }
 
-void TaskPatternParameters::kickUpdateViewTimer() const
+void TaskPatternParameters::scheduleUpdateView() const
 {
-    updateViewTimer->start();
+    if (updateViewScheduler) {
+        updateViewScheduler->start();
+    }
 }
 
 void TaskPatternParameters::onSelectionChanged(const Gui::SelectionChanges& msg)
@@ -405,9 +406,8 @@ void TaskPatternParameters::apply()
     // This triggers accept() before the update timer for the 3D view has a
     // chance to fire. If the timer is active, it means a recompute is
     // pending.
-    if (updateViewTimer && updateViewTimer->isActive()) {
-        updateViewTimer->stop();
-        recomputeFeature();
+    if (updateViewScheduler && updateViewScheduler->isActive()) {
+        updateViewScheduler->triggerNow();
     }
 }
 
