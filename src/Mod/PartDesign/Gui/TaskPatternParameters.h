@@ -30,11 +30,6 @@
 
 class Ui_TaskPatternParameters;
 
-namespace Gui
-{
-class DebouncedFunction;
-}
-
 namespace PartGui
 {
 class PatternParametersWidget;
@@ -60,9 +55,9 @@ public:
 
 protected:
     void onSelectionChanged(const Gui::SelectionChanges& msg) override;
+    void applyStagedPreviewStateToObject() override;
 
 private Q_SLOTS:
-    void onUpdateViewTimer();
     // Slot to handle reference selection request from the widget
     void onParameterWidgetRequestReferenceSelection();
     void onParameterWidgetRequestReferenceSelection2();
@@ -77,7 +72,7 @@ private:
     void retranslateParameterUI(QWidget* widget) override;
 
     void updateUI();
-    void scheduleUpdateView() const;
+    void scheduleUpdateView();
 
     void bindProperties();
 
@@ -92,7 +87,6 @@ private:
     PartGui::PatternParametersWidget* activeDirectionWidget = nullptr;
 
     std::unique_ptr<Ui_TaskPatternParameters> ui;
-    std::unique_ptr<Gui::DebouncedFunction> updateViewScheduler;
 };
 
 
