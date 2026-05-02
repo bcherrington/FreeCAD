@@ -30,6 +30,7 @@
 
 #include <BRepAlgoAPI_BooleanOperation.hxx>
 #include <Message_ProgressRange.hxx>
+#include <Standard_Version.hxx>
 
 class FCBRepAlgoAPIHelper
 {
