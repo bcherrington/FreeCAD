@@ -74,6 +74,8 @@ public:
     virtual void orientAlongCamera([[maybe_unused]] SoCamera* camera) {};
     bool isDelayedUpdateEnabled();
     void setDeferredUpdateHandler(std::function<void()> handler);
+    static bool isAnyDragActive();
+    static int activeDragPreviewDebounceMs();
 
     double getMultFactor();
     double getAddFactor();
@@ -81,6 +83,7 @@ public:
     bool getVisibility();
 
 protected:
+    void setDragInteractionActive(bool active);
     double multFactor = 1.0f;
     double addFactor = 0.0f;
 
@@ -88,6 +91,7 @@ protected:
     double initialValue;
 
     bool visible = true;
+    bool dragInteractionActive = false;
     std::function<void()> deferredUpdateHandler;
 };
 
