@@ -125,6 +125,9 @@ private:
     void draggingStarted();
     void draggingFinished();
     void draggingContinued();
+    static void startDragCB(void* data, SoDragger*);
+    static void finishDragCB(void* data, SoDragger*);
+    static void motionDragCB(void* data, SoDragger*);
 
     using inherited = Gizmo;
 };
@@ -175,6 +178,9 @@ private:
     void draggingStarted();
     void draggingFinished();
     void draggingContinued();
+    static void startDragCB(void* data, SoDragger*);
+    static void finishDragCB(void* data, SoDragger*);
+    static void motionDragCB(void* data, SoDragger*);
     static void translationSensorCB(void* data, SoSensor* sensor);
 
     using inherited = Gizmo;
