@@ -83,7 +83,7 @@ private:
     );
     virtual void applyColors(Part::Feature*, const std::vector<Base::Color>&)
     {}
-    static void tryPlacementFromLoc(App::GeoFeature*, const TopLoc_Location&);
+    static void setPlacementFromLoc(App::GeoFeature*, const TopLoc_Location&);
     bool getShapeColour(const TopoDS_Shape& shape, TDF_Label labelHint, Base::Color& foundColour);
 
 private:
@@ -93,7 +93,6 @@ private:
     Handle(XCAFDoc_ColorTool) aColorTool;
     bool merge {true};
     std::string default_name;
-    std::unordered_set<TopoDS_Shape> myRefShapes;
     std::unordered_map<TopoDS_Shape, TDF_Label> shapeToLabelMap;
 };
 }  // namespace Import

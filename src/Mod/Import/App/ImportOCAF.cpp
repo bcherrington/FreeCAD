@@ -79,11 +79,12 @@ ImportOCAF::ImportOCAF(Handle(TDocStd_Document) h, App::Document* d, const std::
 
 ImportOCAF::~ImportOCAF() = default;
 
-void ImportOCAF::tryPlacementFromLoc(App::GeoFeature* part, const TopLoc_Location& part_loc)
+void ImportOCAF::setPlacementFromLoc(App::GeoFeature* part, const TopLoc_Location& part_loc)
 {
     gp_Trsf trf;
     Base::Matrix4D mtrx;
     if (part_loc.IsIdentity()) {
+        // Note: Why not just return and not set a Placement?
         trf = part_loc.Transformation();
     }
     else {
@@ -104,7 +105,6 @@ void ImportOCAF::tryPlacementFromLoc(App::GeoFeature* part, const TopLoc_Locatio
 
 void ImportOCAF::loadShapes()
 {
-    myRefShapes.clear();
     // Build the mapping from shapes to Labels, used to obtain the colours of the elements of the
     // model. This is necessary because XCAFDoc_ColorTool::GetLabel(TopoDS_Shape) is dismally slow,
     // taking time proportional to the number of Labels in the whole document.
@@ -141,35 +141,26 @@ App::DocumentObject* ImportOCAF::loadShapes(
     std::string part_name = defaultname;
     if (label.FindAttribute(TDataStd_Name::GetID(), name)) {
         TCollection_ExtendedString extstr = name->Get();
-        char* str = new char[extstr.LengthOfCString() + 1];
-        extstr.ToUTF8CString(str);
-        part_name = str;
-        delete[] str;
-        if (part_name.empty()) {
-            part_name = defaultname;
-        }
-        else {
-            bool ws = true;
-            for (char it : part_name) {
-                if (it != ' ') {
-                    ws = false;
-                    break;
-                }
-            }
-            if (ws) {
-                part_name = defaultname;
-            }
-        }
-    }
-
-    TopLoc_Location part_loc = loc;
-    Handle(XCAFDoc_Location) hLoc;
-    if (label.FindAttribute(XCAFDoc_Location::GetID(), hLoc)) {
-        if (isRef) {
-            part_loc = part_loc * hLoc->Get();
-        }
-        else {
-            part_loc = hLoc->Get();
+        // Note that newer OCCT (beyond 7.9) has LeftAdjust and RightAdjust to trim the string but these
+        // only remove blanks, not all whitespace.
+        auto utf8Len = extstr.LengthOfCString();
+        std::string nameText;
+        nameText._Resize_and_overwrite(utf8Len, [extstr, utf8Len](char* buf, std::size_t buf_size) {
+            extstr.ToUTF8CString(buf);
+            return utf8Len;
+        });
+        auto lastNonSpace = std::find_if(nameText.rbegin(), nameText.rend(), [](unsigned char ch) {
+            return !std::isspace(ch);
+        }).base();
+        if (lastNonSpace != nameText.begin()) {
+            part_name.assign(
+                std::find_if(
+                    nameText.begin(),
+                    lastNonSpace,
+                    [](unsigned char ch) { return !std::isspace(ch); }
+                ),
+                lastNonSpace
+            );
         }
     }
 
@@ -202,66 +193,57 @@ App::DocumentObject* ImportOCAF::loadShapes(
     }
 #endif
 
+    // A quick sample shows an average 4 attributes per label seen here
+    // The linear attribute search in repeated calls to methods like GetReferredShape,
+    // IsFree, IsSimpleShape, IsAssembly might be costing us a bit of time.
+    // GetReferreedLocation : XCAFDoc::ShapeRefGUID() (more than once)
+    // IsFree : XCAFDoc::ShapeRefGUID()
+    // IsSimpleShape: TNaming_NamedShape::GetID()
+    // IsAssembly : XCAFDos::AssemblyGUID()
+    // We explicitly look for XCAFDoc_Location::GetID()
+    // GetShape: XCAFDoc_Location::GetID() and TNaming_NamedShape::GetID() and XCAFDOC::ExternRefGUID()
     TDF_Label ref;
-    if (aShapeTool->IsReference(label) && aShapeTool->GetReferredShape(label, ref)) {
-        return loadShapes(ref, part_loc, part_name, asm_name, true);
+    if (aShapeTool->GetReferredShape(label, ref)) {
+        Handle(XCAFDoc_Location) hLoc;
+        label.FindAttribute(XCAFDoc_Location::GetID(), hLoc);
+        return loadShapes(ref, hLoc.IsNull() ? loc : loc * hLoc->Get(), part_name, asm_name, true);
     }
 
-    TopoDS_Shape aShape;
-    bool foundaShape = aShapeTool->GetShape(label, aShape);
-
-    if (isRef || !foundaShape || !myRefShapes.contains(aShape)) {
-        if (isRef && foundaShape) {
-            myRefShapes.insert(aShape);
+    if (!isRef && !aShapeTool->IsFree(label)) {
+        // A label that does not have a Free Label and we have not reached through a ref.
+        // I'm not quite sure how this can occur, but we will eventually reach the Label
+        // through a ref and generate it then.
+        return nullptr;
+    }
+    if (aShapeTool->IsSimpleShape(label)) {
+        // so we generate the simple shape.
+        if (!asm_name.empty()) {
+            part_name = asm_name;
         }
-
-        if (aShapeTool->IsSimpleShape(label)) {
-            if (isRef || aShapeTool->IsFree(label)) {
-                if (!asm_name.empty()) {
-                    part_name = asm_name;
-                }
-                App::DocumentObject* created = createShape(label, loc, part_name);
-                // If !isRef then the label is a Free label which means there are no references to
-                // it, so we want it as a top-level object in the FC drawing, so we do not return it
-                // to be included in some larger object.
-                return isRef ? created : nullptr;
-            }
-            // A simple shape that does not have a Free Label and is not reached through a ref.
-            // This means the shape is reachable through a ref elsewhere in the drawing.
-
-            // We are not creating a list of Part::Feature in that case but just
-            // a single Part::Feature which has as a Shape a Compound of the Subshapes contained
-            // within the global shape
-            // This is standard behavior of many STEP reader and avoid to register a crazy
-            // amount of Shape within the Tree as STEP file do mostly contain large assemblies
+        App::DocumentObject* created = createShape(label, loc, part_name);
+        // If !isRef then the label is a Free label which means there are no references to
+        // it, so we want it as a top-level object in the FC drawing, so we do not return it
+        // to be included in some larger object.
+        return isRef ? created : nullptr;
+    }
+    // This IsAssembly (or !IsShape at all). Either way we create its
+    // contents, and if it turns out to be an Assembly, we will create a Part and place all
+    // the contents in that Part. Otherwise they will be left as top-level document objects.
+    std::vector<App::DocumentObject*> localValue;
+    for (TDF_ChildIterator it(label); it.More(); it.Next()) {
+        App::DocumentObject* createdDocObj
+            = loadShapes(it.Value(), TopLoc_Location(), part_name, asm_name, false);
+        if (createdDocObj != nullptr) {
+            localValue.push_back(createdDocObj);
         }
-        else {
-            // This IsComponent (or not IsShape), probably an Assembly. Either way we create its
-            // contents, and if it turns out to be an Assembly, we will create a Part and place all
-            // the contents in that Part. Otherwise they will be left as top-level document objects.
-            std::vector<App::DocumentObject*> localValue;
+    }
 
-            for (TDF_ChildIterator it(label); it.More(); it.Next()) {
-                App::DocumentObject* createdDocObj
-                    = loadShapes(it.Value(), part_loc, part_name, asm_name, false);
-                if (createdDocObj != nullptr) {
-                    localValue.push_back(createdDocObj);
-                }
-            }
-
-            if (!localValue.empty() && aShapeTool->IsAssembly(label)) {
-                App::Part* pcPart = doc->addObject<App::Part>(asm_name.c_str());
-                pcPart->Label.setValue(asm_name);
-                pcPart->addObjects(localValue);
-
-                // STEP reader is now a hierarchical reader. Node and leaf must have
-                // there local placement updated and relative to the STEP file content
-                // standard FreeCAD placement was absolute we are now moving to relative
-
-                tryPlacementFromLoc(pcPart, part_loc);
-                return pcPart;
-            }
-        }
+    if (!localValue.empty() && aShapeTool->IsAssembly(label)) {
+        App::Part* pcPart = doc->addObject<App::Part>(asm_name.c_str());
+        pcPart->Label.setValue(asm_name);
+        pcPart->addObjects(localValue);
+        setPlacementFromLoc(pcPart, loc);
+        return pcPart;
     }
     return nullptr;
 }
@@ -384,7 +366,7 @@ App::DocumentObject* ImportOCAF::createShape(
     Part::Feature* part = doc->addObject<Part::Feature>();
 
     if (setPlacementFromLocation) {
-        tryPlacementFromLoc(part, loc);
+        setPlacementFromLoc(part, loc);
     }
     if (!loc.IsIdentity()) {
         part->Shape.setValue(aShape.Moved(loc));
