@@ -141,8 +141,8 @@ App::DocumentObject* ImportOCAF::loadShapes(
     std::string part_name = defaultname;
     if (label.FindAttribute(TDataStd_Name::GetID(), name)) {
         TCollection_ExtendedString extstr = name->Get();
-        // Note that newer OCCT (beyond 7.9) has LeftAdjust and RightAdjust to trim the string but these
-        // only remove blanks, not all whitespace.
+        // Note that newer OCCT (beyond 7.9) has LeftAdjust and RightAdjust to trim the string but
+        // these only remove blanks, not all whitespace.
         auto utf8Len = extstr.LengthOfCString();
         std::string nameText;
         nameText._Resize_and_overwrite(utf8Len, [extstr, utf8Len](char* buf, std::size_t buf_size) {
@@ -150,8 +150,8 @@ App::DocumentObject* ImportOCAF::loadShapes(
             return utf8Len;
         });
         auto lastNonSpace = std::find_if(nameText.rbegin(), nameText.rend(), [](unsigned char ch) {
-            return !std::isspace(ch);
-        }).base();
+                                return !std::isspace(ch);
+                            }).base();
         if (lastNonSpace != nameText.begin()) {
             part_name.assign(
                 std::find_if(
