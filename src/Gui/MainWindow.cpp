@@ -31,6 +31,7 @@
 #include <QDesktopServices>
 #include <QDockWidget>
 #include <QFontMetrics>
+#include <QFrame>
 #include <QKeySequence>
 #include <QLabel>
 #include <QMdiSubWindow>
@@ -47,10 +48,13 @@
 #include <QSettings>
 #include <QSignalMapper>
 #include <QStatusBar>
+#include <QStyle>
 #include <QThread>
 #include <QTimer>
 #include <QToolBar>
+#include <QToolButton>
 #include <QUrlQuery>
+#include <QVBoxLayout>
 #include <QWhatsThis>
 #include <QWindow>
 #include <QPushButton>
@@ -325,6 +329,16 @@ struct MainWindowP
     int actionUpdateDelay = 0;
     QMap<QString, QPointer<UrlHandler>> urlHandler;
     std::string hiddenDockWindows;
+    QToolBar* compactHeader = nullptr;
+    QToolButton* compactMenuButton = nullptr;
+    QWidget* compactLeftStrip = nullptr;
+    QWidget* compactRightStrip = nullptr;
+    QWidget* compactLeftStripContent = nullptr;
+    QWidget* compactRightStripContent = nullptr;
+    bool compactUiActive = false;
+    bool compactMenuBarVisibleBefore = true;
+    bool compactContentsMarginsSaved = false;
+    QMargins compactContentsMarginsBefore;
     fastsignals::advanced_scoped_connection connParam;
     ParameterGrp::handle hGrp;
     bool _restoring = false;
@@ -370,6 +384,9 @@ MainWindow::MainWindow(QWidget* parent, Qt::WindowFlags f)
             else if (boost::equals(Name, "MainWindowState")) {
                 OverlayManager::instance()->reload(OverlayManager::ReloadMode::ReloadPause);
                 d->restoreStateTimer.start(100);
+            }
+            else if (boost::equals(Name, "CompactJetBrainsLayout")) {
+                updateCompactUiPrototype();
             }
         },
         fastsignals::advanced_tag()
@@ -515,6 +532,7 @@ MainWindow::MainWindow(QWidget* parent, Qt::WindowFlags f)
     connect(d->mdiArea, &QMdiArea::subWindowActivated, this, &MainWindow::onWindowActivated);
 
     setupDockWindows();
+    setupCompactUiPrototype();
 
     // accept drops on the window, get handled in dropEvent, dragEnterEvent
     setAcceptDrops(true);
@@ -604,6 +622,626 @@ void MainWindow::setupDockWindows()
     if (value >= 0 && value < long(tabPos.size())) {
         setTabPosition(Qt::LeftDockWidgetArea, tabPos[value]);
     }
+}
+
+namespace
+{
+constexpr auto CompactHeaderObjectName = "_fc_compact_header";
+constexpr auto CompactLeftStripObjectName = "_fc_compact_left_panel_rail";
+constexpr auto CompactRightStripObjectName = "_fc_compact_right_panel_rail";
+constexpr auto CompactLegacyLeftStripObjectName = "_fc_compact_left_panel_strip";
+constexpr auto CompactLegacyRightStripObjectName = "_fc_compact_right_panel_strip";
+constexpr auto CompactLegacyBottomStripObjectName = "_fc_compact_bottom_panel_strip";
+constexpr int CompactPanelStripWidth = 34;
+
+enum class CompactPanelSlot
+{
+    LeftTop,
+    LeftLower,
+    RightTop,
+    RightLower,
+    BottomLeft,
+    BottomRight,
+};
+
+enum class CompactPanelGroup
+{
+    LeftTop,
+    LeftLower,
+    RightTop,
+    RightLower,
+    BottomLeft,
+    BottomRight,
+};
+
+struct CompactPanelEntry
+{
+    QDockWidget* dock = nullptr;
+    CompactPanelSlot slot = CompactPanelSlot::LeftLower;
+    int order = 0;
+};
+
+struct CompactKnownPanel
+{
+    const char* actionId;
+    CompactPanelSlot slot;
+    int order;
+    const char* iconName;
+    QStyle::StandardPixmap fallbackIcon;
+};
+
+constexpr CompactKnownPanel CompactKnownPanels[] = {
+    {"Std_TreeView", CompactPanelSlot::LeftTop, 10, "tree-doc-single", QStyle::SP_DirIcon},
+    {"Std_ComboView", CompactPanelSlot::LeftTop, 20, "tree-doc-multi", QStyle::SP_FileDialogDetailedView},
+    {"Std_SelectionView", CompactPanelSlot::LeftLower, 10, "view-select", QStyle::SP_FileDialogContentsView},
+    {"Std_PropertyView",
+     CompactPanelSlot::LeftLower,
+     20,
+     "document-properties",
+     QStyle::SP_FileDialogListView},
+    {"Std_TaskView",
+     CompactPanelSlot::RightTop,
+     10,
+     "qss:overlay/icons/taskshow.svg",
+     QStyle::SP_FileDialogDetailedView},
+    {"Std_TaskWatcher",
+     CompactPanelSlot::RightLower,
+     10,
+     "qss:overlay/icons/taskshow.svg",
+     QStyle::SP_MessageBoxWarning},
+    {"Std_DAGView", CompactPanelSlot::RightLower, 20, "dagViewVisible", QStyle::SP_ComputerIcon},
+    {"Std_PythonView", CompactPanelSlot::BottomLeft, 10, "applications-python", QStyle::SP_ComputerIcon},
+    {"Std_ReportView", CompactPanelSlot::BottomRight, 10, "MacroEditor", QStyle::SP_MessageBoxInformation},
+};
+
+bool isCompactUiDock(const QDockWidget* dock)
+{
+    if (!dock) {
+        return false;
+    }
+
+    const QString name = dock->objectName();
+    return name == QLatin1String(CompactLegacyLeftStripObjectName)
+        || name == QLatin1String(CompactLegacyRightStripObjectName)
+        || name == QLatin1String(CompactLegacyBottomStripObjectName);
+}
+
+bool isCompactUiDockCandidate(const QDockWidget* dock)
+{
+    if (!dock || isCompactUiDock(dock)) {
+        return false;
+    }
+
+    QAction* action = dock->toggleViewAction();
+    return action && action->isVisible() && !dock->objectName().isEmpty();
+}
+
+QList<QDockWidget*> compactManagedDockContainers()
+{
+    QList<QDockWidget*> docks;
+    const QList<QWidget*> widgets = DockWindowManager::instance()->getDockWindows();
+    for (auto widget : widgets) {
+        auto parent = widget ? widget->parentWidget() : nullptr;
+        while (parent) {
+            if (auto dock = qobject_cast<QDockWidget*>(parent)) {
+                if (isCompactUiDockCandidate(dock) && !docks.contains(dock)) {
+                    docks.push_back(dock);
+                }
+                break;
+            }
+            parent = parent->parentWidget();
+        }
+    }
+
+    return docks;
+}
+
+QString compactDockActionId(const QDockWidget* dock)
+{
+    if (!dock || !dock->toggleViewAction()) {
+        return {};
+    }
+
+    return dock->toggleViewAction()->data().toString();
+}
+
+QString compactDockTitle(const QDockWidget* dock)
+{
+    QString title = dock->windowTitle();
+    if (title.isEmpty()) {
+        title = dock->objectName();
+    }
+
+    title.remove(QLatin1Char('&'));
+    return title;
+}
+
+CompactPanelGroup compactPanelGroup(CompactPanelSlot slot)
+{
+    switch (slot) {
+        case CompactPanelSlot::LeftTop:
+            return CompactPanelGroup::LeftTop;
+        case CompactPanelSlot::LeftLower:
+            return CompactPanelGroup::LeftLower;
+        case CompactPanelSlot::RightTop:
+            return CompactPanelGroup::RightTop;
+        case CompactPanelSlot::RightLower:
+            return CompactPanelGroup::RightLower;
+        case CompactPanelSlot::BottomLeft:
+            return CompactPanelGroup::BottomLeft;
+        case CompactPanelSlot::BottomRight:
+            return CompactPanelGroup::BottomRight;
+    }
+
+    return CompactPanelGroup::LeftLower;
+}
+
+const CompactKnownPanel* compactKnownPanelForDock(const QDockWidget* dock)
+{
+    const QString actionId = compactDockActionId(dock);
+    for (const auto& panel : CompactKnownPanels) {
+        if (actionId == QLatin1String(panel.actionId)) {
+            return &panel;
+        }
+    }
+
+    return nullptr;
+}
+
+CompactPanelSlot compactFallbackSlotForDock(const QMainWindow* window, QDockWidget* dock)
+{
+    switch (window->dockWidgetArea(dock)) {
+        case Qt::RightDockWidgetArea:
+            return CompactPanelSlot::RightTop;
+        case Qt::BottomDockWidgetArea:
+            return CompactPanelSlot::BottomLeft;
+        case Qt::TopDockWidgetArea:
+        case Qt::LeftDockWidgetArea:
+        default:
+            return CompactPanelSlot::LeftLower;
+    }
+}
+
+CompactPanelSlot compactPanelSlotForDock(const QMainWindow* window, QDockWidget* dock)
+{
+    if (const auto* knownPanel = compactKnownPanelForDock(dock)) {
+        return knownPanel->slot;
+    }
+
+    return compactFallbackSlotForDock(window, dock);
+}
+
+Qt::DockWidgetArea compactDockAreaForSlot(CompactPanelSlot slot)
+{
+    switch (slot) {
+        case CompactPanelSlot::RightTop:
+        case CompactPanelSlot::RightLower:
+            return Qt::RightDockWidgetArea;
+        case CompactPanelSlot::BottomLeft:
+        case CompactPanelSlot::BottomRight:
+            return Qt::BottomDockWidgetArea;
+        case CompactPanelSlot::LeftTop:
+        case CompactPanelSlot::LeftLower:
+        default:
+            return Qt::LeftDockWidgetArea;
+    }
+}
+
+int compactPanelOrderForDock(const QDockWidget* dock, CompactPanelSlot slot)
+{
+    if (const auto* knownPanel = compactKnownPanelForDock(dock)) {
+        return knownPanel->order;
+    }
+
+    const int fallbackBase = 1000;
+    return fallbackBase + static_cast<int>(slot);
+}
+
+QIcon compactHamburgerIcon(const QWidget* widget)
+{
+    QIcon themed = QIcon::fromTheme(QStringLiteral("open-menu-symbolic"));
+    if (!themed.isNull()) {
+        return themed;
+    }
+
+    QPixmap pixmap(16, 16);
+    pixmap.fill(Qt::transparent);
+    QPainter painter(&pixmap);
+    painter.setRenderHint(QPainter::Antialiasing);
+    painter.setPen(QPen(widget->palette().buttonText().color(), 1.8, Qt::SolidLine, Qt::RoundCap));
+    painter.drawLine(QPointF(3, 5), QPointF(13, 5));
+    painter.drawLine(QPointF(3, 8), QPointF(13, 8));
+    painter.drawLine(QPointF(3, 11), QPointF(13, 11));
+    return QIcon(pixmap);
+}
+
+QIcon compactDockIcon(const QDockWidget* dock, CompactPanelSlot slot)
+{
+    QIcon icon;
+
+    if (const auto* knownPanel = compactKnownPanelForDock(dock)) {
+        icon = BitmapFactory().iconFromTheme(knownPanel->iconName);
+        if (icon.isNull()) {
+            icon = BitmapFactory().pixmap(knownPanel->iconName);
+        }
+        if (icon.isNull()) {
+            icon = QApplication::style()->standardIcon(knownPanel->fallbackIcon);
+        }
+    }
+
+    if (icon.isNull() && dock->widget()) {
+        icon = dock->widget()->windowIcon();
+    }
+
+    if (icon.isNull()) {
+        icon = dock->windowIcon();
+    }
+
+    if (icon.isNull()) {
+        const auto group = compactPanelGroup(slot);
+        const auto fallback = group == CompactPanelGroup::RightTop
+                || group == CompactPanelGroup::RightLower
+            ? QStyle::SP_FileDialogDetailedView
+            : QStyle::SP_FileDialogListView;
+        icon = QApplication::style()->standardIcon(fallback);
+    }
+
+    return icon;
+}
+
+bool compactEntryLessThan(const CompactPanelEntry& left, const CompactPanelEntry& right)
+{
+    if (left.slot != right.slot) {
+        return static_cast<int>(left.slot) < static_cast<int>(right.slot);
+    }
+    if (left.order != right.order) {
+        return left.order < right.order;
+    }
+
+    return compactDockTitle(left.dock).localeAwareCompare(compactDockTitle(right.dock)) < 0;
+}
+
+QFrame* createCompactStripSeparator(QWidget* parent)
+{
+    auto separator = new QFrame(parent);
+    separator->setFrameShape(QFrame::HLine);
+    separator->setFrameShadow(QFrame::Sunken);
+    separator->setFixedHeight(8);
+    return separator;
+}
+
+void clearCompactStrip(QWidget* content)
+{
+    if (!content || !content->layout()) {
+        return;
+    }
+
+    QLayoutItem* item = nullptr;
+    while ((item = content->layout()->takeAt(0)) != nullptr) {
+        if (QWidget* widget = item->widget()) {
+            widget->deleteLater();
+        }
+        delete item;
+    }
+}
+
+void addCompactStripSpacer(QWidget* content, Qt::Orientation orientation)
+{
+    if (!content || !content->layout()) {
+        return;
+    }
+
+    if (orientation == Qt::Vertical) {
+        content->layout()->addItem(new QSpacerItem(0, 0, QSizePolicy::Minimum, QSizePolicy::Expanding));
+    }
+    else {
+        content->layout()->addItem(new QSpacerItem(0, 0, QSizePolicy::Expanding, QSizePolicy::Minimum));
+    }
+}
+
+QWidget* createCompactStrip(MainWindow* window, QWidget** content, const QString& objectName)
+{
+    auto container = new QFrame(window);
+    container->setObjectName(objectName + QStringLiteral("Content"));
+    container->setFixedWidth(CompactPanelStripWidth);
+    container->setFrameShape(QFrame::NoFrame);
+    container->setAutoFillBackground(true);
+
+    auto layout = new QVBoxLayout(container);
+    layout->setContentsMargins(3, 3, 3, 3);
+    layout->setSpacing(3);
+
+    container->hide();
+    *content = container;
+    return container;
+}
+
+void removeLegacyCompactDockStrips(QWidget* window)
+{
+    const QList<QDockWidget*> docks = window->findChildren<QDockWidget*>();
+    for (auto dock : docks) {
+        if (isCompactUiDock(dock)) {
+            dock->hide();
+            dock->deleteLater();
+        }
+    }
+}
+}  // namespace
+
+void MainWindow::setupCompactUiPrototype()
+{
+    if (d->compactHeader) {
+        updateCompactUiPrototype();
+        return;
+    }
+
+    d->compactHeader = new QToolBar(tr("Compact Header"), this);
+    d->compactHeader->setObjectName(QLatin1String(CompactHeaderObjectName));
+    d->compactHeader->setMovable(false);
+    d->compactHeader->setFloatable(false);
+    d->compactHeader->setIconSize(QSize(16, 16));
+    d->compactHeader->toggleViewAction()->setVisible(false);
+
+    d->compactMenuButton = new QToolButton(d->compactHeader);
+    d->compactMenuButton->setIcon(compactHamburgerIcon(d->compactMenuButton));
+    d->compactMenuButton->setToolTip(tr("Show the main menu"));
+    d->compactMenuButton->setAutoRaise(true);
+    d->compactMenuButton->setToolButtonStyle(Qt::ToolButtonIconOnly);
+    d->compactMenuButton->setFixedSize(28, 28);
+    d->compactHeader->addWidget(d->compactMenuButton);
+    addToolBar(Qt::TopToolBarArea, d->compactHeader);
+
+    connect(d->compactMenuButton, &QToolButton::clicked, this, &MainWindow::showCompactMainMenu);
+    connect(menuBar(), &QMenuBar::triggered, this, [this]() {
+        if (d->compactUiActive && !d->compactHeader->isVisible()) {
+            QTimer::singleShot(0, this, &MainWindow::hideCompactMainMenu);
+        }
+    });
+
+    removeLegacyCompactDockStrips(this);
+
+    d->compactLeftStrip = createCompactStrip(
+        this,
+        &d->compactLeftStripContent,
+        QLatin1String(CompactLeftStripObjectName)
+    );
+    d->compactRightStrip = createCompactStrip(
+        this,
+        &d->compactRightStripContent,
+        QLatin1String(CompactRightStripObjectName)
+    );
+
+    connect(this, &MainWindow::workbenchActivated, this, [this]() {
+        QTimer::singleShot(0, this, &MainWindow::refreshCompactPanelStrips);
+    });
+
+    updateCompactUiPrototype();
+}
+
+void MainWindow::updateCompactUiPrototype()
+{
+    if (!d->compactHeader) {
+        return;
+    }
+
+    const bool enabled = d->hGrp->GetBool("CompactJetBrainsLayout", false);
+
+    d->compactHeader->setVisible(enabled);
+    d->compactLeftStrip->setVisible(enabled);
+    d->compactRightStrip->setVisible(enabled);
+
+    if (enabled && !d->compactUiActive) {
+        qApp->installEventFilter(this);
+        d->compactMenuBarVisibleBefore = menuBar()->isVisible();
+        d->compactContentsMarginsBefore = contentsMargins();
+        d->compactContentsMarginsSaved = true;
+        setContentsMargins(
+            d->compactContentsMarginsBefore.left() + CompactPanelStripWidth,
+            d->compactContentsMarginsBefore.top(),
+            d->compactContentsMarginsBefore.right() + CompactPanelStripWidth,
+            d->compactContentsMarginsBefore.bottom()
+        );
+        menuBar()->hide();
+        const QList<QDockWidget*> docks = compactManagedDockContainers();
+        for (auto dock : docks) {
+            const auto slot = compactPanelSlotForDock(this, dock);
+            const bool wasVisible = dock->isVisible();
+            addDockWidget(compactDockAreaForSlot(slot), dock);
+            dock->setVisible(wasVisible);
+        }
+    }
+    else if (!enabled && d->compactUiActive) {
+        hideCompactMainMenu();
+        if (!d->whatsthis) {
+            qApp->removeEventFilter(this);
+        }
+        menuBar()->setVisible(d->compactMenuBarVisibleBefore);
+        if (d->compactContentsMarginsSaved) {
+            setContentsMargins(d->compactContentsMarginsBefore);
+            d->compactContentsMarginsSaved = false;
+        }
+    }
+
+    d->compactUiActive = enabled;
+    layoutCompactPanelStrips();
+    refreshCompactPanelStrips();
+}
+
+void MainWindow::layoutCompactPanelStrips()
+{
+    if (!d->compactUiActive || !d->compactLeftStrip || !d->compactRightStrip) {
+        return;
+    }
+
+    int top = 0;
+    if (d->compactHeader && d->compactHeader->isVisible()) {
+        top = d->compactHeader->geometry().bottom() + 1;
+    }
+    else if (menuBar() && menuBar()->isVisible()) {
+        top = menuBar()->geometry().bottom() + 1;
+    }
+
+    int bottom = height();
+    if (statusBar() && statusBar()->isVisible()) {
+        bottom = statusBar()->geometry().top();
+    }
+
+    const int stripHeight = std::max(0, bottom - top);
+    d->compactLeftStrip->setGeometry(0, top, CompactPanelStripWidth, stripHeight);
+    d->compactRightStrip
+        ->setGeometry(width() - CompactPanelStripWidth, top, CompactPanelStripWidth, stripHeight);
+    d->compactLeftStrip->raise();
+    d->compactRightStrip->raise();
+}
+
+void MainWindow::refreshCompactPanelStrips()
+{
+    if (!d->compactLeftStripContent || !d->compactRightStripContent) {
+        return;
+    }
+
+    clearCompactStrip(d->compactLeftStripContent);
+    clearCompactStrip(d->compactRightStripContent);
+
+    auto addButton = [this](QDockWidget* dock, QWidget* content, CompactPanelSlot slot) {
+        auto button = new QToolButton(content);
+        const QString title = compactDockTitle(dock);
+        button->setIcon(compactDockIcon(dock, slot));
+        button->setToolTip(title);
+        button->setCheckable(true);
+        button->setChecked(dock->isVisible());
+        button->setAutoRaise(true);
+        button->setFixedSize(28, 28);
+        button->setToolButtonStyle(Qt::ToolButtonIconOnly);
+
+        connect(button, &QToolButton::clicked, this, [this, dock, slot]() {
+            if (dock->isVisible()) {
+                dock->toggleViewAction()->activate(QAction::Trigger);
+                refreshCompactPanelStrips();
+                return;
+            }
+
+            const auto group = compactPanelGroup(slot);
+            const QList<QDockWidget*> docks = compactManagedDockContainers();
+            for (auto other : docks) {
+                if (other == dock) {
+                    continue;
+                }
+
+                if (compactPanelGroup(compactPanelSlotForDock(this, other)) == group
+                    && other->isVisible()) {
+                    other->toggleViewAction()->activate(QAction::Trigger);
+                }
+            }
+
+            if (!dock->isVisible()) {
+                dock->toggleViewAction()->activate(QAction::Trigger);
+            }
+            dock->raise();
+            refreshCompactPanelStrips();
+        });
+
+        content->layout()->addWidget(button);
+    };
+
+    QList<CompactPanelEntry> entries;
+    const QList<QDockWidget*> docks = compactManagedDockContainers();
+    for (auto dock : docks) {
+        const auto slot = compactPanelSlotForDock(this, dock);
+        entries.push_back({dock, slot, compactPanelOrderForDock(dock, slot)});
+    }
+
+    std::sort(entries.begin(), entries.end(), compactEntryLessThan);
+
+    bool addedLeftTop = false;
+    bool addedLeftSeparator = false;
+    bool addedRightTop = false;
+    bool addedRightSeparator = false;
+    bool addedLeftBottomSpacer = false;
+    bool addedRightBottomSpacer = false;
+    for (const auto& entry : entries) {
+        switch (entry.slot) {
+            case CompactPanelSlot::LeftTop:
+                addButton(entry.dock, d->compactLeftStripContent, entry.slot);
+                addedLeftTop = true;
+                break;
+            case CompactPanelSlot::LeftLower:
+                if (!addedLeftSeparator) {
+                    if (addedLeftTop) {
+                        d->compactLeftStripContent->layout()->addWidget(
+                            createCompactStripSeparator(d->compactLeftStripContent)
+                        );
+                    }
+                    addedLeftSeparator = true;
+                }
+                addButton(entry.dock, d->compactLeftStripContent, entry.slot);
+                break;
+            case CompactPanelSlot::RightTop:
+                addButton(entry.dock, d->compactRightStripContent, entry.slot);
+                addedRightTop = true;
+                break;
+            case CompactPanelSlot::RightLower:
+                if (!addedRightSeparator) {
+                    if (addedRightTop) {
+                        d->compactRightStripContent->layout()->addWidget(
+                            createCompactStripSeparator(d->compactRightStripContent)
+                        );
+                    }
+                    addedRightSeparator = true;
+                }
+                addButton(entry.dock, d->compactRightStripContent, entry.slot);
+                break;
+            case CompactPanelSlot::BottomLeft:
+                if (!addedLeftBottomSpacer) {
+                    addCompactStripSpacer(d->compactLeftStripContent, Qt::Vertical);
+                    addedLeftBottomSpacer = true;
+                }
+                addButton(entry.dock, d->compactLeftStripContent, entry.slot);
+                break;
+            case CompactPanelSlot::BottomRight:
+                if (!addedRightBottomSpacer) {
+                    addCompactStripSpacer(d->compactRightStripContent, Qt::Vertical);
+                    addedRightBottomSpacer = true;
+                }
+                addButton(entry.dock, d->compactRightStripContent, entry.slot);
+                break;
+        }
+    }
+
+    if (!addedLeftBottomSpacer) {
+        addCompactStripSpacer(d->compactLeftStripContent, Qt::Vertical);
+    }
+    if (!addedRightBottomSpacer) {
+        addCompactStripSpacer(d->compactRightStripContent, Qt::Vertical);
+    }
+
+    layoutCompactPanelStrips();
+}
+
+void MainWindow::showCompactMainMenu()
+{
+    if (!d->compactHeader) {
+        return;
+    }
+
+    if (menuBar()->isVisible()) {
+        hideCompactMainMenu();
+        return;
+    }
+
+    menuBar()->show();
+    menuBar()->raise();
+    layoutCompactPanelStrips();
+}
+
+void MainWindow::hideCompactMainMenu()
+{
+    if (!d->compactUiActive || !menuBar()->isVisible()) {
+        return;
+    }
+
+    menuBar()->hide();
+    layoutCompactPanelStrips();
 }
 
 bool MainWindow::setupTaskView()
@@ -1116,6 +1754,9 @@ static View3DInventorViewer* spaceballMotionEventTarget()
 
 bool MainWindow::event(QEvent* e)
 {
+    const bool compactLayoutEvent = e->type() == QEvent::Resize || e->type() == QEvent::Show
+        || e->type() == QEvent::LayoutRequest || e->type() == QEvent::WindowStateChange;
+
     if (e->type() == QEvent::EnterWhatsThisMode) {
         // Unfortunately, for top-level widgets such as menus or dialogs we
         // won't be notified when the user clicks the link in the hypertext of
@@ -1201,7 +1842,12 @@ bool MainWindow::event(QEvent* e)
             return true;
         }
     }
-    return QMainWindow::event(e);
+
+    const bool result = QMainWindow::event(e);
+    if (compactLayoutEvent) {
+        layoutCompactPanelStrips();
+    }
+    return result;
 }
 
 bool MainWindow::eventFilter(QObject* o, QEvent* e)
@@ -2106,6 +2752,7 @@ void MainWindow::loadWindowSettings()
     std::clog << "Toolbars restored" << std::endl;
 
     OverlayManager::instance()->restore();
+    updateCompactUiPrototype();
 }
 
 bool MainWindow::isRestoringWindowState() const
