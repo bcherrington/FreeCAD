@@ -16,14 +16,14 @@ Use pixi tasks for normal development; they wrap the common CMake workflow.
 
 - `pixi run initialize`: initialize git submodules.
 - `pixi run configure`: configure a debug build in `build/debug`.
-- `pixi run build`: build the debug target.
+- `pixi run build -j 2`: build the debug target.
 - `pixi run install`: install the debug build.
 - `pixi run test`: run `ctest --test-dir build/debug`.
 - `pixi run freecad`: launch `build/debug/bin/FreeCAD`.
 
-Use `pixi run build` for build verification unless the user explicitly asks for
-a raw CMake command or a lower-level diagnostic requires it. Direct CMake
-equivalents are `cmake --preset conda-linux-debug`,
+Use `pixi run build -j 2` for build verification unless the user explicitly
+asks for a raw CMake command or a lower-level diagnostic requires it. Direct
+CMake equivalents are `cmake --preset conda-linux-debug`,
 `cmake --build build/debug`, and `ctest --test-dir build/debug`.
 
 ## Coding Style & Naming Conventions
