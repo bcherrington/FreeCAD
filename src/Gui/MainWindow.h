@@ -325,6 +325,11 @@ private:
     bool updateDAGView(bool show);
     void setupCompactUiPrototype();
     void updateCompactUiPrototype();
+    void syncCompactMenuBar();
+    void updateCompactHamburgerIcon();
+    void openFirstCompactMenu();
+    void applyCompactContentsMargins();
+    void layoutCompactTopBar();
     void layoutCompactPanelStrips();
     void refreshCompactPanelStrips();
     void showCompactMainMenu();

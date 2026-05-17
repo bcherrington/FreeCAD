@@ -12,7 +12,7 @@ are in `data/`, `package/`, `cMake/`, `tools/`, and `.github/`.
 
 ## Build, Test, and Development Commands
 
-Use pixi tasks when available; they wrap the common CMake workflow.
+Use pixi tasks for normal development; they wrap the common CMake workflow.
 
 - `pixi run initialize`: initialize git submodules.
 - `pixi run configure`: configure a debug build in `build/debug`.
@@ -21,7 +21,9 @@ Use pixi tasks when available; they wrap the common CMake workflow.
 - `pixi run test`: run `ctest --test-dir build/debug`.
 - `pixi run freecad`: launch `build/debug/bin/FreeCAD`.
 
-Direct CMake equivalents are `cmake --preset conda-linux-debug`,
+Use `pixi run build` for build verification unless the user explicitly asks for
+a raw CMake command or a lower-level diagnostic requires it. Direct CMake
+equivalents are `cmake --preset conda-linux-debug`,
 `cmake --build build/debug`, and `ctest --test-dir build/debug`.
 
 ## Coding Style & Naming Conventions

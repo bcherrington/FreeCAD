@@ -32,6 +32,7 @@
 #include <QDockWidget>
 #include <QFontMetrics>
 #include <QFrame>
+#include <QHBoxLayout>
 #include <QKeySequence>
 #include <QLabel>
 #include <QMdiSubWindow>
@@ -329,7 +330,9 @@ struct MainWindowP
     int actionUpdateDelay = 0;
     QMap<QString, QPointer<UrlHandler>> urlHandler;
     std::string hiddenDockWindows;
-    QToolBar* compactHeader = nullptr;
+    QWidget* compactTopBar = nullptr;
+    QWidget* compactToolBar = nullptr;
+    QMenuBar* compactMenuBar = nullptr;
     QToolButton* compactMenuButton = nullptr;
     QWidget* compactLeftStrip = nullptr;
     QWidget* compactRightStrip = nullptr;
@@ -626,7 +629,9 @@ void MainWindow::setupDockWindows()
 
 namespace
 {
-constexpr auto CompactHeaderObjectName = "_fc_compact_header";
+constexpr auto CompactTopBarObjectName = "_fc_compact_top_bar";
+constexpr auto CompactToolBarObjectName = "_fc_compact_tool_bar";
+constexpr auto CompactMenuBarObjectName = "_fc_compact_menu_bar";
 constexpr auto CompactLeftStripObjectName = "_fc_compact_left_panel_rail";
 constexpr auto CompactRightStripObjectName = "_fc_compact_right_panel_rail";
 constexpr auto CompactLegacyLeftStripObjectName = "_fc_compact_left_panel_strip";
@@ -839,16 +844,19 @@ int compactPanelOrderForDock(const QDockWidget* dock, CompactPanelSlot slot)
 
 QIcon compactHamburgerIcon(const QWidget* widget)
 {
-    QIcon themed = QIcon::fromTheme(QStringLiteral("open-menu-symbolic"));
-    if (!themed.isNull()) {
-        return themed;
+    const QPalette palette = widget ? widget->palette() : qApp->palette();
+    const QColor background = palette.color(QPalette::Button);
+    QColor foreground = palette.color(QPalette::ButtonText);
+
+    if (std::abs(foreground.lightness() - background.lightness()) < 80) {
+        foreground = background.lightness() < 128 ? QColor(Qt::white) : QColor(Qt::black);
     }
 
     QPixmap pixmap(16, 16);
     pixmap.fill(Qt::transparent);
     QPainter painter(&pixmap);
     painter.setRenderHint(QPainter::Antialiasing);
-    painter.setPen(QPen(widget->palette().buttonText().color(), 1.8, Qt::SolidLine, Qt::RoundCap));
+    painter.setPen(QPen(foreground, 1.8, Qt::SolidLine, Qt::RoundCap));
     painter.drawLine(QPointF(3, 5), QPointF(13, 5));
     painter.drawLine(QPointF(3, 8), QPointF(13, 8));
     painter.drawLine(QPointF(3, 11), QPointF(13, 11));
@@ -970,32 +978,45 @@ void removeLegacyCompactDockStrips(QWidget* window)
 
 void MainWindow::setupCompactUiPrototype()
 {
-    if (d->compactHeader) {
+    if (d->compactTopBar) {
         updateCompactUiPrototype();
         return;
     }
 
-    d->compactHeader = new QToolBar(tr("Compact Header"), this);
-    d->compactHeader->setObjectName(QLatin1String(CompactHeaderObjectName));
-    d->compactHeader->setMovable(false);
-    d->compactHeader->setFloatable(false);
-    d->compactHeader->setIconSize(QSize(16, 16));
-    d->compactHeader->toggleViewAction()->setVisible(false);
+    d->compactTopBar = new QFrame(this);
+    d->compactTopBar->setObjectName(QLatin1String(CompactTopBarObjectName));
+    d->compactTopBar->setAutoFillBackground(true);
+    d->compactTopBar->hide();
 
-    d->compactMenuButton = new QToolButton(d->compactHeader);
+    auto topBarLayout = new QVBoxLayout(d->compactTopBar);
+    topBarLayout->setContentsMargins(4, 2, 4, 2);
+    topBarLayout->setSpacing(0);
+
+    d->compactToolBar = new QWidget(d->compactTopBar);
+    d->compactToolBar->setObjectName(QLatin1String(CompactToolBarObjectName));
+    auto toolBarLayout = new QHBoxLayout(d->compactToolBar);
+    toolBarLayout->setContentsMargins(0, 0, 0, 0);
+    toolBarLayout->setSpacing(4);
+
+    d->compactMenuButton = new QToolButton(d->compactToolBar);
     d->compactMenuButton->setIcon(compactHamburgerIcon(d->compactMenuButton));
     d->compactMenuButton->setToolTip(tr("Show the main menu"));
     d->compactMenuButton->setAutoRaise(true);
     d->compactMenuButton->setToolButtonStyle(Qt::ToolButtonIconOnly);
     d->compactMenuButton->setFixedSize(28, 28);
-    d->compactHeader->addWidget(d->compactMenuButton);
-    addToolBar(Qt::TopToolBarArea, d->compactHeader);
+    toolBarLayout->addWidget(d->compactMenuButton);
+    toolBarLayout->addStretch();
+
+    d->compactMenuBar = new QMenuBar(d->compactTopBar);
+    d->compactMenuBar->setObjectName(QLatin1String(CompactMenuBarObjectName));
+    d->compactMenuBar->hide();
+
+    topBarLayout->addWidget(d->compactToolBar);
+    topBarLayout->addWidget(d->compactMenuBar);
 
     connect(d->compactMenuButton, &QToolButton::clicked, this, &MainWindow::showCompactMainMenu);
-    connect(menuBar(), &QMenuBar::triggered, this, [this]() {
-        if (d->compactUiActive && !d->compactHeader->isVisible()) {
-            QTimer::singleShot(0, this, &MainWindow::hideCompactMainMenu);
-        }
+    connect(d->compactMenuBar, &QMenuBar::triggered, this, [this]() {
+        QTimer::singleShot(0, this, &MainWindow::hideCompactMainMenu);
     });
 
     removeLegacyCompactDockStrips(this);
@@ -1020,13 +1041,13 @@ void MainWindow::setupCompactUiPrototype()
 
 void MainWindow::updateCompactUiPrototype()
 {
-    if (!d->compactHeader) {
+    if (!d->compactTopBar) {
         return;
     }
 
     const bool enabled = d->hGrp->GetBool("CompactJetBrainsLayout", false);
 
-    d->compactHeader->setVisible(enabled);
+    d->compactTopBar->setVisible(enabled);
     d->compactLeftStrip->setVisible(enabled);
     d->compactRightStrip->setVisible(enabled);
 
@@ -1035,13 +1056,8 @@ void MainWindow::updateCompactUiPrototype()
         d->compactMenuBarVisibleBefore = menuBar()->isVisible();
         d->compactContentsMarginsBefore = contentsMargins();
         d->compactContentsMarginsSaved = true;
-        setContentsMargins(
-            d->compactContentsMarginsBefore.left() + CompactPanelStripWidth,
-            d->compactContentsMarginsBefore.top(),
-            d->compactContentsMarginsBefore.right() + CompactPanelStripWidth,
-            d->compactContentsMarginsBefore.bottom()
-        );
         menuBar()->hide();
+        syncCompactMenuBar();
         const QList<QDockWidget*> docks = compactManagedDockContainers();
         for (auto dock : docks) {
             const auto slot = compactPanelSlotForDock(this, dock);
@@ -1063,8 +1079,90 @@ void MainWindow::updateCompactUiPrototype()
     }
 
     d->compactUiActive = enabled;
+    if (enabled && d->compactToolBar && d->compactMenuBar && !d->compactMenuBar->isVisible()) {
+        d->compactToolBar->show();
+    }
+    layoutCompactTopBar();
+    applyCompactContentsMargins();
     layoutCompactPanelStrips();
     refreshCompactPanelStrips();
+}
+
+void MainWindow::syncCompactMenuBar()
+{
+    if (!d->compactMenuBar) {
+        return;
+    }
+
+    for (auto action : d->compactMenuBar->actions()) {
+        d->compactMenuBar->removeAction(action);
+    }
+    d->compactMenuBar->addActions(menuBar()->actions());
+}
+
+void MainWindow::updateCompactHamburgerIcon()
+{
+    if (d->compactMenuButton) {
+        d->compactMenuButton->setIcon(compactHamburgerIcon(d->compactMenuButton));
+    }
+}
+
+void MainWindow::openFirstCompactMenu()
+{
+    if (!d->compactMenuBar || !d->compactMenuBar->isVisible()) {
+        return;
+    }
+
+    const auto actions = d->compactMenuBar->actions();
+    if (actions.isEmpty()) {
+        return;
+    }
+
+    QAction* firstAction = actions.constFirst();
+    d->compactMenuBar->setActiveAction(firstAction);
+
+    if (QMenu* firstMenu = firstAction->menu()) {
+        const QRect actionRect = d->compactMenuBar->actionGeometry(firstAction);
+        firstMenu->popup(d->compactMenuBar->mapToGlobal(actionRect.bottomLeft()));
+    }
+}
+
+void MainWindow::applyCompactContentsMargins()
+{
+    if (!d->compactUiActive || !d->compactContentsMarginsSaved) {
+        return;
+    }
+
+    const int topBarHeight = d->compactTopBar && d->compactTopBar->isVisible()
+        ? d->compactTopBar->height()
+        : 0;
+
+    setContentsMargins(
+        d->compactContentsMarginsBefore.left() + CompactPanelStripWidth,
+        d->compactContentsMarginsBefore.top() + topBarHeight,
+        d->compactContentsMarginsBefore.right() + CompactPanelStripWidth,
+        d->compactContentsMarginsBefore.bottom()
+    );
+}
+
+void MainWindow::layoutCompactTopBar()
+{
+    if (!d->compactUiActive || !d->compactTopBar) {
+        return;
+    }
+
+    if (d->compactToolBar && d->compactMenuBar) {
+        const int childHeight = std::max(
+            d->compactToolBar->sizeHint().height(),
+            d->compactMenuBar->sizeHint().height()
+        );
+        d->compactToolBar->setFixedHeight(childHeight);
+        d->compactMenuBar->setFixedHeight(childHeight);
+    }
+
+    const int topBarHeight = d->compactTopBar->sizeHint().height();
+    d->compactTopBar->setGeometry(0, 0, width(), topBarHeight);
+    d->compactTopBar->raise();
 }
 
 void MainWindow::layoutCompactPanelStrips()
@@ -1074,8 +1172,8 @@ void MainWindow::layoutCompactPanelStrips()
     }
 
     int top = 0;
-    if (d->compactHeader && d->compactHeader->isVisible()) {
-        top = d->compactHeader->geometry().bottom() + 1;
+    if (d->compactTopBar && d->compactTopBar->isVisible()) {
+        top = d->compactTopBar->geometry().bottom() + 1;
     }
     else if (menuBar() && menuBar()->isVisible()) {
         top = menuBar()->geometry().bottom() + 1;
@@ -1092,6 +1190,9 @@ void MainWindow::layoutCompactPanelStrips()
         ->setGeometry(width() - CompactPanelStripWidth, top, CompactPanelStripWidth, stripHeight);
     d->compactLeftStrip->raise();
     d->compactRightStrip->raise();
+    if (d->compactTopBar) {
+        d->compactTopBar->raise();
+    }
 }
 
 void MainWindow::refreshCompactPanelStrips()
@@ -1220,27 +1321,38 @@ void MainWindow::refreshCompactPanelStrips()
 
 void MainWindow::showCompactMainMenu()
 {
-    if (!d->compactHeader) {
+    if (!d->compactMenuBar) {
         return;
     }
 
-    if (menuBar()->isVisible()) {
+    if (d->compactMenuBar->isVisible()) {
         hideCompactMainMenu();
         return;
     }
 
-    menuBar()->show();
-    menuBar()->raise();
+    syncCompactMenuBar();
+    if (d->compactToolBar) {
+        d->compactToolBar->hide();
+    }
+    d->compactMenuBar->show();
+    layoutCompactTopBar();
+    applyCompactContentsMargins();
     layoutCompactPanelStrips();
+    QTimer::singleShot(0, this, &MainWindow::openFirstCompactMenu);
 }
 
 void MainWindow::hideCompactMainMenu()
 {
-    if (!d->compactUiActive || !menuBar()->isVisible()) {
+    if (!d->compactUiActive || !d->compactMenuBar || !d->compactMenuBar->isVisible()) {
         return;
     }
 
-    menuBar()->hide();
+    d->compactMenuBar->hide();
+    if (d->compactToolBar) {
+        d->compactToolBar->show();
+    }
+    layoutCompactTopBar();
+    applyCompactContentsMargins();
     layoutCompactPanelStrips();
 }
 
@@ -1845,6 +1957,8 @@ bool MainWindow::event(QEvent* e)
 
     const bool result = QMainWindow::event(e);
     if (compactLayoutEvent) {
+        layoutCompactTopBar();
+        applyCompactContentsMargins();
         layoutCompactPanelStrips();
     }
     return result;
@@ -1853,6 +1967,17 @@ bool MainWindow::event(QEvent* e)
 bool MainWindow::eventFilter(QObject* o, QEvent* e)
 {
     if (o != this) {
+        if (d->compactUiActive && d->compactMenuBar && d->compactMenuBar->isVisible()
+            && e->type() == QEvent::MouseButtonPress) {
+            auto widget = o->isWidgetType() ? qobject_cast<QWidget*>(o) : nullptr;
+            const bool insideTopBar = widget
+                && (widget == d->compactTopBar || d->compactTopBar->isAncestorOf(widget));
+            const bool insideMenu = o->inherits("QMenu");
+            if (!insideTopBar && !insideMenu) {
+                hideCompactMainMenu();
+            }
+        }
+
         if (e->type() == QEvent::WindowStateChange) {
             // notify all mdi views when the active view receives a show normal, show minimized
             // or show maximized event
@@ -3214,6 +3339,13 @@ void MainWindow::changeEvent(QEvent* e)
             savedRealTimeInterval = SoDB::getRealTimeInterval();
             SoDB::enableRealTimeSensor(false);
         }
+    }
+    else if (
+        e->type() == QEvent::ApplicationPaletteChange || e->type() == QEvent::PaletteChange
+        || e->type() == QEvent::StyleChange
+    ) {
+        updateCompactHamburgerIcon();
+        QMainWindow::changeEvent(e);
     }
     else {
         QMainWindow::changeEvent(e);
