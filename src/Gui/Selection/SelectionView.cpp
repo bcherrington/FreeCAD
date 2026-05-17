@@ -54,6 +54,11 @@ using namespace Gui::DockWnd;
 
 namespace
 {
+QString utf8OrEmpty(const char* text)
+{
+    return text ? QString::fromUtf8(text) : QString();
+}
+
 QString selectionItemText(
     const char* docName,
     const char* objName,
@@ -63,10 +68,10 @@ QString selectionItemText(
 {
     QString selObject;
     QTextStream str(&selObject);
-    str << QString::fromUtf8(docName);
+    str << utf8OrEmpty(docName);
     str << "#";
-    str << QString::fromUtf8(objName);
-    if (subName != nullptr && subName[0] != 0) {
+    str << utf8OrEmpty(objName);
+    if (obj && subName != nullptr && subName[0] != 0) {
         str << ".";
         /* Original code doesn't take account of histories in subelement names and displays
          * them inadvertently.  Let's not do that.
@@ -87,7 +92,7 @@ QString selectionItemText(
         }
     }
     str << " (";
-    str << QString::fromUtf8(obj->Label.getValue());
+    str << (obj ? QString::fromUtf8(obj->Label.getValue()) : utf8OrEmpty(objName));
     str << ")";
     return selObject;
 }
@@ -101,8 +106,8 @@ QListWidgetItem* addSelectionItem(
 )
 {
     QStringList list;
-    list << QString::fromUtf8(docName);
-    list << QString::fromUtf8(objName);
+    list << utf8OrEmpty(docName);
+    list << utf8OrEmpty(objName);
 
     auto item = new QListWidgetItem(selectionItemText(docName, objName, subName, obj), view);
     item->setData(Qt::UserRole, list);
@@ -215,7 +220,7 @@ void SelectionView::onSelectionChanged(const SelectionChanges& Reason)
 
     if (Reason.Type == SelectionChanges::AddSelection) {
         App::Document* doc = App::GetApplication().getDocument(Reason.pDocName);
-        App::DocumentObject* obj = doc->getObject(Reason.pObjectName);
+        App::DocumentObject* obj = doc ? doc->getObject(Reason.pObjectName) : nullptr;
         addSelectionItem(selectionView, Reason.pDocName, Reason.pObjectName, Reason.pSubName, obj);
     }
     else if (Reason.Type == SelectionChanges::ClrSelection) {
@@ -238,7 +243,7 @@ void SelectionView::onSelectionChanged(const SelectionChanges& Reason)
     }
     else if (Reason.Type == SelectionChanges::RmvSelection) {
         App::Document* doc = App::GetApplication().getDocument(Reason.pDocName);
-        App::DocumentObject* obj = doc->getObject(Reason.pObjectName);
+        App::DocumentObject* obj = doc ? doc->getObject(Reason.pObjectName) : nullptr;
         const QString selObject
             = selectionItemText(Reason.pDocName, Reason.pObjectName, Reason.pSubName, obj);
         // remove all items
@@ -254,7 +259,7 @@ void SelectionView::onSelectionChanged(const SelectionChanges& Reason)
             = Gui::Selection().getSelection(Reason.pDocName, ResolveMode::NoResolve);
         for (const auto& it : objs) {
             App::Document* doc = App::GetApplication().getDocument(it.DocName);
-            App::DocumentObject* obj = doc->getObject(it.FeatName);
+            App::DocumentObject* obj = doc ? doc->getObject(it.FeatName) : nullptr;
             addSelectionItem(selectionView, it.DocName, it.FeatName, it.SubName, obj);
         }
     }

@@ -2,6 +2,7 @@
 
 #include <memory>
 
+#include <QLabel>
 #include <QLineEdit>
 #include <QListWidget>
 #include <QTest>
@@ -120,6 +121,37 @@ private Q_SLOTS:
 
         searchBox->clearFocus();
         QCoreApplication::processEvents();
+    }
+
+    void missingSelectionObjectDoesNotCrash()  // NOLINT
+    {
+        Gui::DockWnd::SelectionView view(nullptr);
+
+        const Gui::SelectionChanges
+            change(Gui::SelectionChanges::AddSelection, docName.c_str(), "MissingObject", "Face1");
+        view.onSelectionChanged(change);
+
+        QCOMPARE(view.selectionView->count(), 1);
+        QVERIFY(view.selectionView->item(0)->text().contains(QStringLiteral("MissingObject")));
+        QCOMPARE(view.countLabel->text(), QStringLiteral("1"));
+    }
+
+    void missingSelectionDocumentDoesNotCrash()  // NOLINT
+    {
+        Gui::DockWnd::SelectionView view(nullptr);
+
+        const Gui::SelectionChanges change(
+            Gui::SelectionChanges::AddSelection,
+            "MissingDocument",
+            "MissingObject",
+            "Face1"
+        );
+        view.onSelectionChanged(change);
+
+        QCOMPARE(view.selectionView->count(), 1);
+        QVERIFY(view.selectionView->item(0)->text().contains(QStringLiteral("MissingDocument")));
+        QVERIFY(view.selectionView->item(0)->text().contains(QStringLiteral("MissingObject")));
+        QCOMPARE(view.countLabel->text(), QStringLiteral("1"));
     }
 
 private:

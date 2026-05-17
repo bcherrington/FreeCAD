@@ -17,6 +17,7 @@ add_executable(Gui_tests_run
 )
 
 # Qt tests
+setup_qt_test(CompactMainWindowChrome)
 setup_qt_test(QuantitySpinBox)
 setup_qt_test(SelectionView)
 

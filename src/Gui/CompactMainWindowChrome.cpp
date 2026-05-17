@@ -334,7 +334,7 @@ void CompactMainWindowChrome::setup()
 
     menuButton = new QToolButton(toolBar);
     menuButton->setIcon(hamburgerIcon(menuButton));
-    menuButton->setToolTip(trText("Show the main menu"));
+    setButtonTextMetadata(menuButton, trText("Show the main menu"));
     setupFlatButton(menuButton);
     menuButton->setFixedSize(28, 28);
     toolBarLayout->addWidget(menuButton);
@@ -494,7 +494,7 @@ void CompactMainWindowChrome::updateWindowControls()
         maximizeButton->setIcon(mainWindow->style()->standardIcon(
             maximized ? QStyle::SP_TitleBarNormalButton : QStyle::SP_TitleBarMaxButton
         ));
-        maximizeButton->setToolTip(maximized ? trText("Restore") : trText("Maximize"));
+        setButtonTextMetadata(maximizeButton, maximized ? trText("Restore") : trText("Maximize"));
     }
 
     if (closeButton) {
@@ -651,7 +651,7 @@ void CompactMainWindowChrome::refreshPanelStrips()
         auto button = new QToolButton(content);
         const QString title = dockTitle(dock);
         button->setIcon(dockIcon(dock, slot));
-        button->setToolTip(title);
+        setButtonTextMetadata(button, title);
         button->setCheckable(true);
         button->setChecked(dock->isVisible());
         setupFlatButton(button);
@@ -1158,10 +1158,21 @@ QIcon CompactMainWindowChrome::dockIcon(const QDockWidget* dock, PanelSlot slot)
 QToolButton* CompactMainWindowChrome::createTitleButton(const QString& tooltip)
 {
     auto button = new QToolButton(topBar);
-    button->setToolTip(tooltip);
+    setButtonTextMetadata(button, tooltip);
     setupFlatButton(button);
     button->setFixedSize(28, 28);
     return button;
+}
+
+void CompactMainWindowChrome::setButtonTextMetadata(QToolButton* button, const QString& text)
+{
+    if (!button) {
+        return;
+    }
+
+    button->setToolTip(text);
+    button->setStatusTip(text);
+    button->setAccessibleName(text);
 }
 
 void CompactMainWindowChrome::setupFlatButton(QToolButton* button)
