@@ -1054,6 +1054,7 @@ void MainWindow::setupCompactUiPrototype()
     d->compactTopBar = new QFrame(this);
     d->compactTopBar->setObjectName(QLatin1String(CompactTopBarObjectName));
     d->compactTopBar->setAutoFillBackground(true);
+    d->compactTopBar->installEventFilter(this);
     d->compactTopBar->hide();
 
     auto topBarLayout = new QHBoxLayout(d->compactTopBar);
@@ -1080,12 +1081,14 @@ void MainWindow::setupCompactUiPrototype()
     d->compactAppIconButton->setPopupMode(QToolButton::InstantPopup);
 
     d->compactSwitchArea = new QWidget(d->compactTopBar);
+    d->compactSwitchArea->installEventFilter(this);
     auto switchLayout = new QVBoxLayout(d->compactSwitchArea);
     switchLayout->setContentsMargins(0, 0, 0, 0);
     switchLayout->setSpacing(0);
 
     d->compactToolBar = new QWidget(d->compactSwitchArea);
     d->compactToolBar->setObjectName(QLatin1String(CompactToolBarObjectName));
+    d->compactToolBar->installEventFilter(this);
     auto toolBarLayout = new QHBoxLayout(d->compactToolBar);
     toolBarLayout->setContentsMargins(0, 0, 0, 0);
     toolBarLayout->setSpacing(4);
@@ -1100,6 +1103,7 @@ void MainWindow::setupCompactUiPrototype()
 
     d->compactMenuBar = new QMenuBar(d->compactSwitchArea);
     d->compactMenuBar->setObjectName(QLatin1String(CompactMenuBarObjectName));
+    d->compactMenuBar->installEventFilter(this);
     d->compactMenuBar->hide();
 
     switchLayout->addWidget(d->compactToolBar);
@@ -2342,9 +2346,15 @@ bool MainWindow::eventFilter(QObject* o, QEvent* e)
         if (compactTitleDragSource && e->type() == QEvent::MouseButtonPress) {
             auto mouseEvent = static_cast<QMouseEvent*>(e);
             if (mouseEvent->button() == Qt::LeftButton) {
+                if (QWindow* window = windowHandle(); window && window->startSystemMove()) {
+                    d->compactTitleDragActive = false;
+                    return true;
+                }
+
                 d->compactTitleDragActive = true;
                 d->compactTitleDragGlobalPosition = compactGlobalPosition(mouseEvent);
                 d->compactTitleDragWindowPosition = frameGeometry().topLeft();
+                return true;
             }
         }
         else if (d->compactTitleDragActive && e->type() == QEvent::MouseMove) {
