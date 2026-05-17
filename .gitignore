@@ -69,6 +69,7 @@ src/Tools/freecad.zip
 tsupdate_stderr.log
 tsupdate_stdout.log
 # pixi environments
+pixi.lock
 *.egg-info
 .pixi/
 node_modules/
