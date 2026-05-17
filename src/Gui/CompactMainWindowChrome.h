@@ -137,6 +137,7 @@ private:
     PanelGroup panelGroup(PanelSlot slot) const;
 
     QToolButton* createTitleButton(const QString& tooltip);
+    void setButtonTextMetadata(QToolButton* button, const QString& text);
     void setupFlatButton(QToolButton* button);
 
 private:
