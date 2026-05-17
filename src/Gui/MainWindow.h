@@ -325,16 +325,6 @@ private:
     bool updateDAGView(bool show);
     void setupCompactUiPrototype();
     void updateCompactUiPrototype();
-    void syncCompactMenuBar();
-    void updateCompactHamburgerIcon();
-    void updateCompactWindowControls();
-    void openFirstCompactMenu();
-    void applyCompactContentsMargins();
-    void layoutCompactTopBar();
-    void layoutCompactPanelStrips();
-    void refreshCompactPanelStrips();
-    void showCompactMainMenu();
-    void hideCompactMainMenu();
 
     void populateToolBarMenu(QMenu*);
     void populateDockWindowMenu(QMenu*);
