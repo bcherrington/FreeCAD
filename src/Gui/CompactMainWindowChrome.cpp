@@ -39,6 +39,7 @@
 #include <QStatusBar>
 #include <QStyle>
 #include <QTimer>
+#include <QToolBar>
 #include <QToolButton>
 #include <QVBoxLayout>
 #include <QWindow>
@@ -65,7 +66,7 @@ constexpr auto CompactRightStripObjectName = "_fc_compact_right_panel_rail";
 constexpr auto CompactLegacyLeftStripObjectName = "_fc_compact_left_panel_strip";
 constexpr auto CompactLegacyRightStripObjectName = "_fc_compact_right_panel_strip";
 constexpr auto CompactLegacyBottomStripObjectName = "_fc_compact_bottom_panel_strip";
-constexpr int CompactPanelStripWidth = 34;
+constexpr int CompactPanelStripMargin = 3;
 constexpr int CompactResizeBorderWidth = 6;
 
 QString trText(const char* text)
@@ -125,13 +126,63 @@ bool isCompactUiDockCandidate(const QDockWidget* dock)
     return action && action->isVisible() && !dock->objectName().isEmpty();
 }
 
-QFrame* createStripSeparator(QWidget* parent)
+int compactToolbarIconSize()
 {
-    auto separator = new QFrame(parent);
-    separator->setFrameShape(QFrame::HLine);
-    separator->setFrameShadow(QFrame::Sunken);
-    separator->setFixedHeight(8);
-    return separator;
+    auto hGeneral = App::GetApplication().GetUserParameter().GetGroup("BaseApp/Preferences/General");
+    return std::max(static_cast<int>(hGeneral->GetInt("ToolbarIconSize", 24)), 5);
+}
+
+QSize compactToolbarButtonSize(const QToolBar* toolbar)
+{
+    const int iconSize = toolbar ? toolbar->iconSize().width() : compactToolbarIconSize();
+    return QSize(iconSize + 4, iconSize + 4);
+}
+
+int compactPanelStripWidth()
+{
+    return compactToolbarButtonSize(nullptr).width() + (2 * CompactPanelStripMargin);
+}
+
+void applyCompactToolbarButtonMetrics(QToolButton* button, const QToolBar* toolbar)
+{
+    if (!button) {
+        return;
+    }
+
+    const QSize iconSize = toolbar ? toolbar->iconSize()
+                                   : QSize(compactToolbarIconSize(), compactToolbarIconSize());
+    button->setIconSize(iconSize);
+    button->setFixedSize(compactToolbarButtonSize(toolbar));
+}
+
+QToolBar* createButtonToolBar(QWidget* parent, Qt::Orientation orientation)
+{
+    auto toolbar = new QToolBar(parent);
+    toolbar->setMovable(false);
+    toolbar->setFloatable(false);
+    toolbar->setOrientation(orientation);
+    toolbar->setToolButtonStyle(Qt::ToolButtonIconOnly);
+    const int iconSize = compactToolbarIconSize();
+    toolbar->setIconSize(QSize(iconSize, iconSize));
+    toolbar->setContentsMargins(0, 0, 0, 0);
+    toolbar->layout()->setContentsMargins(0, 0, 0, 0);
+    return toolbar;
+}
+
+void addToolBarStretch(QToolBar* toolbar)
+{
+    if (!toolbar) {
+        return;
+    }
+
+    auto spacer = new QWidget(toolbar);
+    if (toolbar->orientation() == Qt::Vertical) {
+        spacer->setSizePolicy(QSizePolicy::Minimum, QSizePolicy::Expanding);
+    }
+    else {
+        spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Minimum);
+    }
+    toolbar->addWidget(spacer);
 }
 
 void clearStrip(QWidget* content)
@@ -149,31 +200,27 @@ void clearStrip(QWidget* content)
     }
 }
 
-void addStripSpacer(QWidget* content, Qt::Orientation orientation)
+void addStripSpacer(QToolBar* toolbar)
 {
-    if (!content || !content->layout()) {
-        return;
-    }
-
-    if (orientation == Qt::Vertical) {
-        content->layout()->addItem(new QSpacerItem(0, 0, QSizePolicy::Minimum, QSizePolicy::Expanding));
-    }
-    else {
-        content->layout()->addItem(new QSpacerItem(0, 0, QSizePolicy::Expanding, QSizePolicy::Minimum));
-    }
+    addToolBarStretch(toolbar);
 }
 
 QWidget* createStrip(MainWindow* window, QWidget** content, const QString& objectName)
 {
     auto container = new QFrame(window);
     container->setObjectName(objectName + QStringLiteral("Content"));
-    container->setFixedWidth(CompactPanelStripWidth);
+    container->setFixedWidth(compactPanelStripWidth());
     container->setFrameShape(QFrame::NoFrame);
     container->setAutoFillBackground(true);
 
     auto layout = new QVBoxLayout(container);
-    layout->setContentsMargins(3, 3, 3, 3);
-    layout->setSpacing(3);
+    layout->setContentsMargins(
+        CompactPanelStripMargin,
+        CompactPanelStripMargin,
+        CompactPanelStripMargin,
+        CompactPanelStripMargin
+    );
+    layout->setSpacing(CompactPanelStripMargin);
 
     container->hide();
     *content = container;
@@ -296,13 +343,17 @@ void CompactMainWindowChrome::setup()
     topBarLayout->setContentsMargins(4, 2, 4, 2);
     topBarLayout->setSpacing(4);
 
-    appIconButton = createTitleButton(trText("Window menu"));
+    auto leftTitleToolBar = createButtonToolBar(topBar, Qt::Horizontal);
+    appIconButton = new QToolButton(leftTitleToolBar);
+    setButtonTextMetadata(appIconButton, trText("Window menu"));
+    setupFlatButton(appIconButton);
     QIcon appIcon = mainWindow->windowIcon().isNull() ? QApplication::windowIcon()
                                                       : mainWindow->windowIcon();
     if (appIcon.isNull()) {
         appIcon = mainWindow->style()->standardIcon(QStyle::SP_TitleBarMenuButton);
     }
     appIconButton->setIcon(appIcon);
+    applyCompactToolbarButtonMetrics(appIconButton, leftTitleToolBar);
     auto windowMenu = new QMenu(appIconButton);
     auto restoreAction = windowMenu->addAction(trText("Restore"), mainWindow, [this]() {
         mainWindow->showNormal();
@@ -318,6 +369,7 @@ void CompactMainWindowChrome::setup()
     });
     appIconButton->setMenu(windowMenu);
     appIconButton->setPopupMode(QToolButton::InstantPopup);
+    leftTitleToolBar->addWidget(appIconButton);
 
     switchArea = new QWidget(topBar);
     switchArea->installEventFilter(this);
@@ -325,43 +377,44 @@ void CompactMainWindowChrome::setup()
     switchLayout->setContentsMargins(0, 0, 0, 0);
     switchLayout->setSpacing(0);
 
-    toolBar = new QWidget(switchArea);
+    auto compactToolBar = createButtonToolBar(switchArea, Qt::Horizontal);
+    toolBar = compactToolBar;
     toolBar->setObjectName(QLatin1String(CompactToolBarObjectName));
     toolBar->installEventFilter(this);
-    auto toolBarLayout = new QHBoxLayout(toolBar);
-    toolBarLayout->setContentsMargins(0, 0, 0, 0);
-    toolBarLayout->setSpacing(4);
 
     menuButton = new QToolButton(toolBar);
     menuButton->setIcon(hamburgerIcon(menuButton));
     setButtonTextMetadata(menuButton, trText("Show the main menu"));
     setupFlatButton(menuButton);
-    menuButton->setFixedSize(28, 28);
-    toolBarLayout->addWidget(menuButton);
-    toolBarLayout->addStretch();
+    applyCompactToolbarButtonMetrics(menuButton, compactToolBar);
+    compactToolBar->addWidget(menuButton);
+    addToolBarStretch(compactToolBar);
 
     menuBar = new QMenuBar(switchArea);
     menuBar->setObjectName(QLatin1String(CompactMenuBarObjectName));
     menuBar->installEventFilter(this);
+    menuBar->setContentsMargins(0, 0, 0, 0);
+    menuBar->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
     menuBar->hide();
 
-    switchLayout->addWidget(toolBar);
-    switchLayout->addWidget(menuBar);
+    switchLayout->setAlignment(Qt::AlignVCenter);
+    switchLayout->addWidget(toolBar, 0, Qt::AlignVCenter);
+    switchLayout->addWidget(menuBar, 0, Qt::AlignVCenter);
 
-    minimizeButton = createTitleButton(trText("Minimize"));
-    maximizeButton = createTitleButton(trText("Maximize"));
-    closeButton = createTitleButton(trText("Close"));
+    auto windowControlsToolBar = createButtonToolBar(topBar, Qt::Horizontal);
+    minimizeButton = createTitleButton(trText("Minimize"), windowControlsToolBar);
+    maximizeButton = createTitleButton(trText("Maximize"), windowControlsToolBar);
+    closeButton = createTitleButton(trText("Close"), windowControlsToolBar);
+    windowControlsToolBar->addWidget(minimizeButton);
+    windowControlsToolBar->addWidget(maximizeButton);
+    windowControlsToolBar->addWidget(closeButton);
 
-    topBarLayout->addWidget(appIconButton);
+    topBarLayout->addWidget(leftTitleToolBar);
     topBarLayout->addWidget(switchArea, 1);
-    topBarLayout->addWidget(minimizeButton);
-    topBarLayout->addWidget(maximizeButton);
-    topBarLayout->addWidget(closeButton);
-    topBarLayout->setAlignment(appIconButton, Qt::AlignVCenter);
+    topBarLayout->addWidget(windowControlsToolBar);
+    topBarLayout->setAlignment(leftTitleToolBar, Qt::AlignVCenter);
     topBarLayout->setAlignment(switchArea, Qt::AlignVCenter);
-    topBarLayout->setAlignment(minimizeButton, Qt::AlignVCenter);
-    topBarLayout->setAlignment(maximizeButton, Qt::AlignVCenter);
-    topBarLayout->setAlignment(closeButton, Qt::AlignVCenter);
+    topBarLayout->setAlignment(windowControlsToolBar, Qt::AlignVCenter);
 
     connect(menuButton, &QToolButton::clicked, this, &CompactMainWindowChrome::showMainMenu);
     connect(menuBar, &QMenuBar::triggered, this, [this]() {
@@ -576,10 +629,11 @@ void CompactMainWindowChrome::applyContentsMargins()
     }
 
     const int topBarHeight = topBar && topBar->isVisible() ? topBar->height() : 0;
+    const int panelStripWidth = compactPanelStripWidth();
     mainWindow->setContentsMargins(
-        contentsMarginsBefore.left() + CompactPanelStripWidth,
+        contentsMarginsBefore.left() + panelStripWidth,
         contentsMarginsBefore.top() + topBarHeight,
-        contentsMarginsBefore.right() + CompactPanelStripWidth,
+        contentsMarginsBefore.right() + panelStripWidth,
         contentsMarginsBefore.bottom()
     );
 }
@@ -623,14 +677,12 @@ void CompactMainWindowChrome::layoutPanelStrips()
         bottom = mainWindow->statusBar()->geometry().top();
     }
 
+    const int panelStripWidth = compactPanelStripWidth();
     const int stripHeight = std::max(0, bottom - top);
-    leftStrip->setGeometry(0, top, CompactPanelStripWidth, stripHeight);
-    rightStrip->setGeometry(
-        mainWindow->width() - CompactPanelStripWidth,
-        top,
-        CompactPanelStripWidth,
-        stripHeight
-    );
+    leftStrip->setFixedWidth(panelStripWidth);
+    rightStrip->setFixedWidth(panelStripWidth);
+    leftStrip->setGeometry(0, top, panelStripWidth, stripHeight);
+    rightStrip->setGeometry(mainWindow->width() - panelStripWidth, top, panelStripWidth, stripHeight);
     leftStrip->raise();
     rightStrip->raise();
     if (topBar) {
@@ -647,17 +699,20 @@ void CompactMainWindowChrome::refreshPanelStrips()
     clearStrip(leftStripContent);
     clearStrip(rightStripContent);
 
-    auto addButton = [this](QDockWidget* dock, QWidget* content, PanelSlot slot) {
-        auto button = new QToolButton(content);
-        const QString title = dockTitle(dock);
-        button->setIcon(dockIcon(dock, slot));
-        setButtonTextMetadata(button, title);
-        button->setCheckable(true);
-        button->setChecked(dock->isVisible());
-        setupFlatButton(button);
-        button->setFixedSize(28, 28);
+    auto leftStripToolBar = createButtonToolBar(leftStripContent, Qt::Vertical);
+    auto rightStripToolBar = createButtonToolBar(rightStripContent, Qt::Vertical);
+    leftStripContent->layout()->addWidget(leftStripToolBar);
+    rightStripContent->layout()->addWidget(rightStripToolBar);
 
-        connect(button, &QToolButton::clicked, this, [this, dock, slot]() {
+    auto addButton = [this](QDockWidget* dock, QToolBar* toolbar, PanelSlot slot) {
+        const QString title = dockTitle(dock);
+        auto action = new QAction(dockIcon(dock, slot), title, toolbar);
+        action->setToolTip(title);
+        action->setStatusTip(title);
+        action->setCheckable(true);
+        action->setChecked(dock->isVisible());
+
+        connect(action, &QAction::triggered, this, [this, dock, slot]() {
             if (dock->isVisible()) {
                 dock->toggleViewAction()->activate(QAction::Trigger);
                 refreshPanelStrips();
@@ -683,7 +738,11 @@ void CompactMainWindowChrome::refreshPanelStrips()
             refreshPanelStrips();
         });
 
-        content->layout()->addWidget(button);
+        toolbar->addAction(action);
+        if (auto button = qobject_cast<QToolButton*>(toolbar->widgetForAction(action))) {
+            button->setAccessibleName(title);
+            applyCompactToolbarButtonMetrics(button, toolbar);
+        }
     };
 
     QList<PanelEntry> entries;
@@ -713,53 +772,53 @@ void CompactMainWindowChrome::refreshPanelStrips()
     for (const auto& entry : entries) {
         switch (entry.slot) {
             case PanelSlot::LeftTop:
-                addButton(entry.dock, leftStripContent, entry.slot);
+                addButton(entry.dock, leftStripToolBar, entry.slot);
                 addedLeftTop = true;
                 break;
             case PanelSlot::LeftLower:
                 if (!addedLeftSeparator) {
                     if (addedLeftTop) {
-                        leftStripContent->layout()->addWidget(createStripSeparator(leftStripContent));
+                        leftStripToolBar->addSeparator();
                     }
                     addedLeftSeparator = true;
                 }
-                addButton(entry.dock, leftStripContent, entry.slot);
+                addButton(entry.dock, leftStripToolBar, entry.slot);
                 break;
             case PanelSlot::RightTop:
-                addButton(entry.dock, rightStripContent, entry.slot);
+                addButton(entry.dock, rightStripToolBar, entry.slot);
                 addedRightTop = true;
                 break;
             case PanelSlot::RightLower:
                 if (!addedRightSeparator) {
                     if (addedRightTop) {
-                        rightStripContent->layout()->addWidget(createStripSeparator(rightStripContent));
+                        rightStripToolBar->addSeparator();
                     }
                     addedRightSeparator = true;
                 }
-                addButton(entry.dock, rightStripContent, entry.slot);
+                addButton(entry.dock, rightStripToolBar, entry.slot);
                 break;
             case PanelSlot::BottomLeft:
                 if (!addedLeftBottomSpacer) {
-                    addStripSpacer(leftStripContent, Qt::Vertical);
+                    addStripSpacer(leftStripToolBar);
                     addedLeftBottomSpacer = true;
                 }
-                addButton(entry.dock, leftStripContent, entry.slot);
+                addButton(entry.dock, leftStripToolBar, entry.slot);
                 break;
             case PanelSlot::BottomRight:
                 if (!addedRightBottomSpacer) {
-                    addStripSpacer(rightStripContent, Qt::Vertical);
+                    addStripSpacer(rightStripToolBar);
                     addedRightBottomSpacer = true;
                 }
-                addButton(entry.dock, rightStripContent, entry.slot);
+                addButton(entry.dock, rightStripToolBar, entry.slot);
                 break;
         }
     }
 
     if (!addedLeftBottomSpacer) {
-        addStripSpacer(leftStripContent, Qt::Vertical);
+        addStripSpacer(leftStripToolBar);
     }
     if (!addedRightBottomSpacer) {
-        addStripSpacer(rightStripContent, Qt::Vertical);
+        addStripSpacer(rightStripToolBar);
     }
 
     layoutPanelStrips();
@@ -1155,12 +1214,12 @@ QIcon CompactMainWindowChrome::dockIcon(const QDockWidget* dock, PanelSlot slot)
     return icon;
 }
 
-QToolButton* CompactMainWindowChrome::createTitleButton(const QString& tooltip)
+QToolButton* CompactMainWindowChrome::createTitleButton(const QString& tooltip, QWidget* parent)
 {
-    auto button = new QToolButton(topBar);
+    auto button = new QToolButton(parent);
     setButtonTextMetadata(button, tooltip);
     setupFlatButton(button);
-    button->setFixedSize(28, 28);
+    applyCompactToolbarButtonMetrics(button, qobject_cast<QToolBar*>(parent));
     return button;
 }
 

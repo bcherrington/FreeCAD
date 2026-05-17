@@ -2,8 +2,10 @@
 
 #include <memory>
 
+#include <QAction>
 #include <QCoreApplication>
 #include <QTest>
+#include <QToolBar>
 #include <QToolButton>
 #include <QWidget>
 
@@ -65,6 +67,22 @@ private Q_SLOTS:
             QVERIFY2(button, qPrintable(QStringLiteral("Missing compact chrome button: %1").arg(label)));
             QCOMPARE(button->accessibleName(), label);
             QCOMPARE(button->statusTip(), label);
+            auto toolbar = qobject_cast<QToolBar*>(button->parentWidget());
+            QVERIFY(toolbar);
+            QCOMPARE(button->iconSize(), toolbar->iconSize());
+        }
+
+        const auto buttons = panelStripButtons();
+        for (auto button : buttons) {
+            if (button->toolTip().isEmpty()) {
+                continue;
+            }
+            QVERIFY(qobject_cast<QToolBar*>(button->parentWidget()));
+            auto action = button->defaultAction();
+            QVERIFY(action);
+            QVERIFY(action->isCheckable());
+            auto toolbar = qobject_cast<QToolBar*>(button->parentWidget());
+            QCOMPARE(button->iconSize(), toolbar->iconSize());
         }
     }
 
@@ -90,6 +108,24 @@ private:
         }
 
         return nullptr;
+    }
+
+    QList<QToolButton*> panelStripButtons() const
+    {
+        QList<QToolButton*> buttons;
+        const QStringList stripNames {
+            QStringLiteral("_fc_compact_left_panel_railContent"),
+            QStringLiteral("_fc_compact_right_panel_railContent"),
+        };
+
+        for (const auto& stripName : stripNames) {
+            auto strip = mainWindow->findChild<QWidget*>(stripName);
+            if (strip) {
+                buttons.append(strip->findChildren<QToolButton*>());
+            }
+        }
+
+        return buttons;
     }
 
     std::unique_ptr<Gui::Application> guiApplication;
