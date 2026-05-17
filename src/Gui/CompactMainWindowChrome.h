@@ -136,7 +136,7 @@ private:
     const KnownPanel* knownPanelForActionId(const QString& actionId) const;
     PanelGroup panelGroup(PanelSlot slot) const;
 
-    QToolButton* createTitleButton(const QString& tooltip);
+    QToolButton* createTitleButton(const QString& tooltip, QWidget* parent);
     void setButtonTextMetadata(QToolButton* button, const QString& text);
     void setupFlatButton(QToolButton* button);
 
