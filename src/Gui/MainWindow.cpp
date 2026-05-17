@@ -40,6 +40,7 @@
 #include <QMenuBar>
 #include <QMessageBox>
 #include <QMimeData>
+#include <QMouseEvent>
 #include <QOpenGLWidget>
 #include <QPainter>
 #include <QProcess>
@@ -335,16 +336,24 @@ struct MainWindowP
     QMap<QString, QPointer<UrlHandler>> urlHandler;
     std::string hiddenDockWindows;
     QWidget* compactTopBar = nullptr;
+    QWidget* compactSwitchArea = nullptr;
     QWidget* compactToolBar = nullptr;
     QMenuBar* compactMenuBar = nullptr;
+    QToolButton* compactAppIconButton = nullptr;
     QToolButton* compactMenuButton = nullptr;
+    QToolButton* compactMinimizeButton = nullptr;
+    QToolButton* compactMaximizeButton = nullptr;
+    QToolButton* compactCloseButton = nullptr;
     QWidget* compactLeftStrip = nullptr;
     QWidget* compactRightStrip = nullptr;
     QWidget* compactLeftStripContent = nullptr;
     QWidget* compactRightStripContent = nullptr;
     bool compactUiActive = false;
+    bool compactTitleDragActive = false;
     bool compactMenuBarVisibleBefore = true;
     bool compactContentsMarginsSaved = false;
+    QPoint compactTitleDragGlobalPosition;
+    QPoint compactTitleDragWindowPosition;
     QMargins compactContentsMarginsBefore;
     fastsignals::advanced_scoped_connection connParam;
     ParameterGrp::handle hGrp;
@@ -895,6 +904,33 @@ QIcon compactHamburgerIcon(const QWidget* widget)
     return QIcon(pixmap);
 }
 
+void setupCompactFlatButton(QToolButton* button)
+{
+    button->setAutoRaise(true);
+    button->setToolButtonStyle(Qt::ToolButtonIconOnly);
+    button->setStyleSheet(
+        QStringLiteral("QToolButton { border: 0; background: transparent; padding: 0; }")
+    );
+}
+
+QToolButton* createCompactTitleButton(QWidget* parent, const QString& tooltip)
+{
+    auto button = new QToolButton(parent);
+    button->setToolTip(tooltip);
+    setupCompactFlatButton(button);
+    button->setFixedSize(28, 28);
+    return button;
+}
+
+QPoint compactGlobalPosition(const QMouseEvent* event)
+{
+#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
+    return event->globalPos();
+#else
+    return event->globalPosition().toPoint();
+#endif
+}
+
 QIcon compactDockIcon(const QDockWidget* dock, CompactPanelSlot slot)
 {
     QIcon icon;
@@ -1020,11 +1056,35 @@ void MainWindow::setupCompactUiPrototype()
     d->compactTopBar->setAutoFillBackground(true);
     d->compactTopBar->hide();
 
-    auto topBarLayout = new QVBoxLayout(d->compactTopBar);
+    auto topBarLayout = new QHBoxLayout(d->compactTopBar);
     topBarLayout->setContentsMargins(4, 2, 4, 2);
-    topBarLayout->setSpacing(0);
+    topBarLayout->setSpacing(4);
 
-    d->compactToolBar = new QWidget(d->compactTopBar);
+    d->compactAppIconButton = createCompactTitleButton(d->compactTopBar, tr("Window menu"));
+    QIcon appIcon = windowIcon().isNull() ? QApplication::windowIcon() : windowIcon();
+    if (appIcon.isNull()) {
+        appIcon = style()->standardIcon(QStyle::SP_TitleBarMenuButton);
+    }
+    d->compactAppIconButton->setIcon(appIcon);
+    auto windowMenu = new QMenu(d->compactAppIconButton);
+    auto restoreAction = windowMenu->addAction(tr("Restore"), this, [this]() { showNormal(); });
+    windowMenu->addAction(tr("Minimize"), this, &MainWindow::showMinimized);
+    auto maximizeAction = windowMenu->addAction(tr("Maximize"), this, &MainWindow::showMaximized);
+    windowMenu->addSeparator();
+    windowMenu->addAction(tr("Close"), this, &MainWindow::close);
+    connect(windowMenu, &QMenu::aboutToShow, this, [this, restoreAction, maximizeAction]() {
+        restoreAction->setEnabled(isMinimized() || isMaximized());
+        maximizeAction->setEnabled(!isMaximized());
+    });
+    d->compactAppIconButton->setMenu(windowMenu);
+    d->compactAppIconButton->setPopupMode(QToolButton::InstantPopup);
+
+    d->compactSwitchArea = new QWidget(d->compactTopBar);
+    auto switchLayout = new QVBoxLayout(d->compactSwitchArea);
+    switchLayout->setContentsMargins(0, 0, 0, 0);
+    switchLayout->setSpacing(0);
+
+    d->compactToolBar = new QWidget(d->compactSwitchArea);
     d->compactToolBar->setObjectName(QLatin1String(CompactToolBarObjectName));
     auto toolBarLayout = new QHBoxLayout(d->compactToolBar);
     toolBarLayout->setContentsMargins(0, 0, 0, 0);
@@ -1033,23 +1093,42 @@ void MainWindow::setupCompactUiPrototype()
     d->compactMenuButton = new QToolButton(d->compactToolBar);
     d->compactMenuButton->setIcon(compactHamburgerIcon(d->compactMenuButton));
     d->compactMenuButton->setToolTip(tr("Show the main menu"));
-    d->compactMenuButton->setAutoRaise(true);
-    d->compactMenuButton->setToolButtonStyle(Qt::ToolButtonIconOnly);
+    setupCompactFlatButton(d->compactMenuButton);
     d->compactMenuButton->setFixedSize(28, 28);
     toolBarLayout->addWidget(d->compactMenuButton);
     toolBarLayout->addStretch();
 
-    d->compactMenuBar = new QMenuBar(d->compactTopBar);
+    d->compactMenuBar = new QMenuBar(d->compactSwitchArea);
     d->compactMenuBar->setObjectName(QLatin1String(CompactMenuBarObjectName));
     d->compactMenuBar->hide();
 
-    topBarLayout->addWidget(d->compactToolBar);
-    topBarLayout->addWidget(d->compactMenuBar);
+    switchLayout->addWidget(d->compactToolBar);
+    switchLayout->addWidget(d->compactMenuBar);
+
+    d->compactMinimizeButton = createCompactTitleButton(d->compactTopBar, tr("Minimize"));
+    d->compactMaximizeButton = createCompactTitleButton(d->compactTopBar, tr("Maximize"));
+    d->compactCloseButton = createCompactTitleButton(d->compactTopBar, tr("Close"));
+
+    topBarLayout->addWidget(d->compactAppIconButton);
+    topBarLayout->addWidget(d->compactSwitchArea, 1);
+    topBarLayout->addWidget(d->compactMinimizeButton);
+    topBarLayout->addWidget(d->compactMaximizeButton);
+    topBarLayout->addWidget(d->compactCloseButton);
+    topBarLayout->setAlignment(d->compactAppIconButton, Qt::AlignVCenter);
+    topBarLayout->setAlignment(d->compactSwitchArea, Qt::AlignVCenter);
+    topBarLayout->setAlignment(d->compactMinimizeButton, Qt::AlignVCenter);
+    topBarLayout->setAlignment(d->compactMaximizeButton, Qt::AlignVCenter);
+    topBarLayout->setAlignment(d->compactCloseButton, Qt::AlignVCenter);
 
     connect(d->compactMenuButton, &QToolButton::clicked, this, &MainWindow::showCompactMainMenu);
     connect(d->compactMenuBar, &QMenuBar::triggered, this, [this]() {
         QTimer::singleShot(0, this, &MainWindow::hideCompactMainMenu);
     });
+    connect(d->compactMinimizeButton, &QToolButton::clicked, this, &MainWindow::showMinimized);
+    connect(d->compactMaximizeButton, &QToolButton::clicked, this, [this]() {
+        isMaximized() ? showNormal() : showMaximized();
+    });
+    connect(d->compactCloseButton, &QToolButton::clicked, this, &MainWindow::close);
 
     removeLegacyCompactDockStrips(this);
 
@@ -1114,6 +1193,7 @@ void MainWindow::updateCompactUiPrototype()
     if (enabled && d->compactToolBar && d->compactMenuBar && !d->compactMenuBar->isVisible()) {
         d->compactToolBar->show();
     }
+    updateCompactWindowControls();
     layoutCompactTopBar();
     applyCompactContentsMargins();
     layoutCompactPanelStrips();
@@ -1136,6 +1216,35 @@ void MainWindow::updateCompactHamburgerIcon()
 {
     if (d->compactMenuButton) {
         d->compactMenuButton->setIcon(compactHamburgerIcon(d->compactMenuButton));
+    }
+}
+
+void MainWindow::updateCompactWindowControls()
+{
+    if (d->compactAppIconButton) {
+        QIcon appIcon = windowIcon().isNull() ? QApplication::windowIcon() : windowIcon();
+        if (appIcon.isNull()) {
+            appIcon = style()->standardIcon(QStyle::SP_TitleBarMenuButton);
+        }
+        d->compactAppIconButton->setIcon(appIcon);
+    }
+
+    if (d->compactMinimizeButton) {
+        d->compactMinimizeButton->setIcon(style()->standardIcon(QStyle::SP_TitleBarMinButton));
+    }
+
+    if (d->compactMaximizeButton) {
+        const bool maximized = isMaximized();
+        d->compactMaximizeButton->setIcon(
+            style()->standardIcon(
+                maximized ? QStyle::SP_TitleBarNormalButton : QStyle::SP_TitleBarMaxButton
+            )
+        );
+        d->compactMaximizeButton->setToolTip(maximized ? tr("Restore") : tr("Maximize"));
+    }
+
+    if (d->compactCloseButton) {
+        d->compactCloseButton->setIcon(style()->standardIcon(QStyle::SP_TitleBarCloseButton));
     }
 }
 
@@ -1190,6 +1299,9 @@ void MainWindow::layoutCompactTopBar()
         );
         d->compactToolBar->setFixedHeight(childHeight);
         d->compactMenuBar->setFixedHeight(childHeight);
+        if (d->compactSwitchArea) {
+            d->compactSwitchArea->setFixedHeight(childHeight);
+        }
     }
 
     const int topBarHeight = d->compactTopBar->sizeHint().height();
@@ -1243,9 +1355,8 @@ void MainWindow::refreshCompactPanelStrips()
         button->setToolTip(title);
         button->setCheckable(true);
         button->setChecked(dock->isVisible());
-        button->setAutoRaise(true);
+        setupCompactFlatButton(button);
         button->setFixedSize(28, 28);
-        button->setToolButtonStyle(Qt::ToolButtonIconOnly);
 
         connect(button, &QToolButton::clicked, this, [this, dock, slot]() {
             if (dock->isVisible()) {
@@ -2135,6 +2246,7 @@ bool MainWindow::event(QEvent* e)
     else if (e->type() == QEvent::ApplicationWindowIconChange) {
         // if application icon changes apply it to the main window and the "About..." dialog
         this->setWindowIcon(QApplication::windowIcon());
+        updateCompactWindowControls();
         Command* about = Application::Instance->commandManager().getCommandByName("Std_About");
         if (about) {
             Action* action = about->getAction();
@@ -2200,6 +2312,7 @@ bool MainWindow::event(QEvent* e)
 
     const bool result = QMainWindow::event(e);
     if (compactLayoutEvent) {
+        updateCompactWindowControls();
         layoutCompactTopBar();
         applyCompactContentsMargins();
         layoutCompactPanelStrips();
@@ -2210,11 +2323,57 @@ bool MainWindow::event(QEvent* e)
 bool MainWindow::eventFilter(QObject* o, QEvent* e)
 {
     if (o != this) {
+        auto compactTitleWidget = o->isWidgetType() ? qobject_cast<QWidget*>(o) : nullptr;
+        const bool compactTitleBarEvent = d->compactUiActive && d->compactTopBar && compactTitleWidget
+            && (compactTitleWidget == d->compactTopBar
+                || d->compactTopBar->isAncestorOf(compactTitleWidget));
+        const bool compactTitleDragSource = compactTitleBarEvent
+            && !qobject_cast<QToolButton*>(compactTitleWidget)
+            && !qobject_cast<QMenuBar*>(compactTitleWidget);
+
+        if (compactTitleDragSource && e->type() == QEvent::MouseButtonDblClick) {
+            auto mouseEvent = static_cast<QMouseEvent*>(e);
+            if (mouseEvent->button() == Qt::LeftButton) {
+                isMaximized() ? showNormal() : showMaximized();
+                return true;
+            }
+        }
+
+        if (compactTitleDragSource && e->type() == QEvent::MouseButtonPress) {
+            auto mouseEvent = static_cast<QMouseEvent*>(e);
+            if (mouseEvent->button() == Qt::LeftButton) {
+                d->compactTitleDragActive = true;
+                d->compactTitleDragGlobalPosition = compactGlobalPosition(mouseEvent);
+                d->compactTitleDragWindowPosition = frameGeometry().topLeft();
+            }
+        }
+        else if (d->compactTitleDragActive && e->type() == QEvent::MouseMove) {
+            auto mouseEvent = static_cast<QMouseEvent*>(e);
+            if (mouseEvent->buttons() & Qt::LeftButton) {
+                const QPoint globalPosition = compactGlobalPosition(mouseEvent);
+                if (isMaximized()) {
+                    showNormal();
+                    d->compactTitleDragWindowPosition
+                        = QPoint(globalPosition.x() - width() / 2, globalPosition.y() - 14);
+                    d->compactTitleDragGlobalPosition = globalPosition;
+                }
+                move(
+                    d->compactTitleDragWindowPosition + globalPosition - d->compactTitleDragGlobalPosition
+                );
+                return true;
+            }
+            d->compactTitleDragActive = false;
+        }
+        else if (
+            d->compactTitleDragActive
+            && (e->type() == QEvent::MouseButtonRelease || e->type() == QEvent::Leave)
+        ) {
+            d->compactTitleDragActive = false;
+        }
+
         if (d->compactUiActive && d->compactMenuBar && d->compactMenuBar->isVisible()
             && e->type() == QEvent::MouseButtonPress) {
-            auto widget = o->isWidgetType() ? qobject_cast<QWidget*>(o) : nullptr;
-            const bool insideTopBar = widget
-                && (widget == d->compactTopBar || d->compactTopBar->isAncestorOf(widget));
+            const bool insideTopBar = compactTitleBarEvent;
             const bool insideMenu = o->inherits("QMenu");
             if (!insideTopBar && !insideMenu) {
                 hideCompactMainMenu();
@@ -3699,6 +3858,7 @@ void MainWindow::changeEvent(QEvent* e)
         || e->type() == QEvent::StyleChange
     ) {
         updateCompactHamburgerIcon();
+        updateCompactWindowControls();
         QMainWindow::changeEvent(e);
     }
     else {

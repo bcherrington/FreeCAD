@@ -334,6 +334,7 @@ private:
     void updateCompactUiPrototype();
     void syncCompactMenuBar();
     void updateCompactHamburgerIcon();
+    void updateCompactWindowControls();
     void openFirstCompactMenu();
     void applyCompactContentsMargins();
     void layoutCompactTopBar();
