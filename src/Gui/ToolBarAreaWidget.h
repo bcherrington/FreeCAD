@@ -41,6 +41,7 @@ enum class ToolBarArea
     TopToolBarArea,
     BottomToolBarArea,
     LeftMenuToolBarArea,
+    CenterMenuToolBarArea,
     RightMenuToolBarArea,
     StatusBarToolBarArea,
 };
