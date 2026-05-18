@@ -58,6 +58,7 @@
 #include "Action.h"
 #include "BitmapFactory.h"
 #include "Command.h"
+#include "CompactToolBarAlignmentController.h"
 #include "DockWindowManager.h"
 #include "Document.h"
 #include "MainWindow.h"
@@ -863,6 +864,8 @@ void CompactMainWindowChrome::setup()
     leftStrip = createStrip(mainWindow, &leftStripContent, QLatin1String(CompactLeftStripObjectName));
     rightStrip
         = createStrip(mainWindow, &rightStripContent, QLatin1String(CompactRightStripObjectName));
+    toolBarAlignmentController = new CompactToolBarAlignmentController(mainWindow);
+    toolBarAlignmentController->setParent(this);
     createResizeGrips();
 }
 
@@ -875,6 +878,9 @@ void CompactMainWindowChrome::setActive(bool enabled)
     topBar->setVisible(enabled);
     leftStrip->setVisible(enabled);
     rightStrip->setVisible(enabled);
+    if (toolBarAlignmentController) {
+        toolBarAlignmentController->setActive(enabled);
+    }
 
     if (enabled && !active) {
         setGlobalEventFilterActive(true);

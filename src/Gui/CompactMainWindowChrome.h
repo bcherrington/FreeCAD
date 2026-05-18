@@ -43,6 +43,7 @@ class QToolButton;
 namespace Gui
 {
 
+class CompactToolBarAlignmentController;
 class MainWindow;
 
 class GuiExport CompactMainWindowChrome: public QObject
@@ -170,6 +171,7 @@ private:
     QWidget* rightStrip = nullptr;
     QWidget* leftStripContent = nullptr;
     QWidget* rightStripContent = nullptr;
+    CompactToolBarAlignmentController* toolBarAlignmentController = nullptr;
     QVector<ResizeGrip> resizeGrips;
     QHash<QObject*, Qt::Edges> resizeGripEdges;
     bool active = false;
