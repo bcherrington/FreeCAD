@@ -30,6 +30,7 @@
 #include <QPointer>
 #include <QRect>
 #include <QVector>
+#include <fastsignals/signal.h>
 
 #include <FCGlobal.h>
 
@@ -114,6 +115,14 @@ private:
     void showMainMenu();
     void hideMainMenu();
     void openFirstMenu();
+    void updateDocumentButton();
+    void rebuildDocumentMenu();
+    void rebuildMacroMenu();
+    void selectMacro(const QString& filePath);
+    void runSelectedMacro();
+    void updateEditModeButton();
+    void updateWorkbenchButton();
+    void rebuildWorkbenchMenu();
     void applyContentsMargins();
     void layoutTopBar();
     void layoutPanelStrips();
@@ -148,6 +157,11 @@ private:
     QMenuBar* menuBar = nullptr;
     QToolButton* appIconButton = nullptr;
     QToolButton* menuButton = nullptr;
+    QToolButton* documentButton = nullptr;
+    QToolButton* macroButton = nullptr;
+    QToolButton* editModeButton = nullptr;
+    QToolButton* workbenchButton = nullptr;
+    QToolButton* workbenchMenuButton = nullptr;
     QToolButton* minimizeButton = nullptr;
     QToolButton* maximizeButton = nullptr;
     QToolButton* closeButton = nullptr;
@@ -170,6 +184,15 @@ private:
     QPoint manualResizeGlobalPosition;
     QRect manualResizeGeometry;
     QMargins contentsMarginsBefore;
+    QString selectedMacroFile;
+    fastsignals::scoped_connection newDocumentConnection;
+    fastsignals::scoped_connection deleteDocumentConnection;
+    fastsignals::scoped_connection activeDocumentConnection;
+    fastsignals::scoped_connection relabelDocumentConnection;
+    fastsignals::scoped_connection renameDocumentConnection;
+    fastsignals::scoped_connection activateViewConnection;
+    fastsignals::scoped_connection closeViewConnection;
+    fastsignals::scoped_connection userEditModeConnection;
 };
 
 }  // namespace Gui

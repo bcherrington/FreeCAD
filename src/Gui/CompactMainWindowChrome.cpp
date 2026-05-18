@@ -27,6 +27,8 @@
 #include <QAction>
 #include <QApplication>
 #include <QDockWidget>
+#include <QDirIterator>
+#include <QFileInfo>
 #include <QFrame>
 #include <QHBoxLayout>
 #include <QLayoutItem>
@@ -47,11 +49,18 @@
 #include <algorithm>
 
 #include <App/Application.h>
+#include <App/Document.h>
+#include <Base/Interpreter.h>
 #include <Base/Parameter.h>
 
+#include "Action.h"
 #include "BitmapFactory.h"
+#include "Command.h"
 #include "DockWindowManager.h"
+#include "Document.h"
 #include "MainWindow.h"
+#include "MDIView.h"
+#include "Macro.h"
 #include "OverlayManager.h"
 
 using namespace Gui;
@@ -183,6 +192,173 @@ void addToolBarStretch(QToolBar* toolbar)
         spacer->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Minimum);
     }
     toolbar->addWidget(spacer);
+}
+
+bool addCommandToMenu(QMenu* menu, const char* commandName)
+{
+    if (!menu || !commandName
+        || !Gui::Application::Instance->commandManager().getCommandByName(commandName)) {
+        return false;
+    }
+
+    return Gui::Application::Instance->commandManager().addTo(commandName, menu);
+}
+
+QAction* addCommandToToolBar(QToolBar* toolbar, const char* commandName)
+{
+    if (!toolbar || !commandName
+        || !Gui::Application::Instance->commandManager().getCommandByName(commandName)) {
+        return nullptr;
+    }
+
+    const auto actionCount = toolbar->actions().size();
+    if (!Gui::Application::Instance->commandManager().addTo(commandName, toolbar)) {
+        return nullptr;
+    }
+
+    const auto actions = toolbar->actions();
+    if (actions.size() <= actionCount) {
+        return nullptr;
+    }
+
+    auto action = actions.at(actionCount);
+    if (auto button = qobject_cast<QToolButton*>(toolbar->widgetForAction(action))) {
+        button->setAutoRaise(true);
+        button->setFocusPolicy(Qt::StrongFocus);
+        applyCompactToolbarButtonMetrics(button, toolbar);
+    }
+    return action;
+}
+
+void addToolbarGap(QToolBar* toolbar, int width = 8)
+{
+    if (!toolbar) {
+        return;
+    }
+
+    auto spacer = new QWidget(toolbar);
+    spacer->setFixedWidth(width);
+    spacer->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Minimum);
+    toolbar->addWidget(spacer);
+}
+
+QString documentDisplayName(const App::Document* document)
+{
+    if (!document) {
+        return trText("No document");
+    }
+
+    const QString label = QString::fromUtf8(document->Label.getValue());
+    return label.isEmpty() ? QString::fromUtf8(document->getName()) : label;
+}
+
+QString viewDisplayName(const MDIView* view)
+{
+    if (!view) {
+        return trText("No document");
+    }
+
+    const QString title = view->windowTitle();
+    if (!title.isEmpty()) {
+        return title;
+    }
+
+    return documentDisplayName(view->getAppDocument());
+}
+
+QStringList recentMacroFiles()
+{
+    QStringList files;
+
+    if (auto command
+        = Gui::Application::Instance->commandManager().getCommandByName("Std_RecentMacros")) {
+        command->initAction();
+        if (auto group = qobject_cast<ActionGroup*>(command->getAction())) {
+            for (auto action : group->actions()) {
+                if (action && action->isVisible() && !action->toolTip().isEmpty()) {
+                    files.append(action->toolTip());
+                }
+            }
+        }
+    }
+
+    return files;
+}
+
+QStringList allMacroFiles()
+{
+    const std::string macroPath
+        = App::GetApplication()
+              .GetParameterGroupByPath("User parameter:BaseApp/Preferences/Macro")
+              ->GetASCII("MacroPath", App::Application::getUserMacroDir().c_str());
+
+    QStringList files;
+    QDirIterator it(
+        QString::fromUtf8(macroPath.c_str()),
+        QStringList() << QStringLiteral("*.FCMacro") << QStringLiteral("*.py"),
+        QDir::Files,
+        QDirIterator::Subdirectories
+    );
+
+    while (it.hasNext()) {
+        files.append(it.next());
+    }
+
+    files.sort(Qt::CaseInsensitive);
+    return files;
+}
+
+QString macroDisplayName(const QString& filePath)
+{
+    const QFileInfo info(filePath);
+    return info.completeBaseName();
+}
+
+void copyMenuActions(const QMenu* source, QMenu* target)
+{
+    if (!source || !target) {
+        return;
+    }
+
+    for (auto action : source->actions()) {
+        if (!action || !action->isVisible()) {
+            continue;
+        }
+
+        if (action->isSeparator()) {
+            target->addSeparator();
+            continue;
+        }
+
+        if (auto submenu = action->menu()) {
+            auto copiedMenu = target->addMenu(Action::cleanTitle(action->text()));
+            copyMenuActions(submenu, copiedMenu);
+            continue;
+        }
+
+        target->addAction(action);
+    }
+}
+
+void populateWorkbenchMenu(QMenu* menu)
+{
+    if (!menu) {
+        return;
+    }
+
+    menu->clear();
+
+    if (auto command = Gui::Application::Instance->commandManager().getCommandByName("Std_Workbench")) {
+        command->initAction();
+        if (auto workbenchGroup = qobject_cast<WorkbenchGroup*>(command->getAction())) {
+            menu->addActions(workbenchGroup->getEnabledWbActions());
+        }
+    }
+
+    if (!menu->actions().isEmpty()) {
+        menu->addSeparator();
+    }
+    addCommandToMenu(menu, "Std_AddonMgr");
 }
 
 void clearStrip(QWidget* content)
@@ -388,7 +564,138 @@ void CompactMainWindowChrome::setup()
     setupFlatButton(menuButton);
     applyCompactToolbarButtonMetrics(menuButton, compactToolBar);
     compactToolBar->addWidget(menuButton);
+    addToolbarGap(compactToolBar);
+
+    documentButton = new QToolButton(toolBar);
+    documentButton->setPopupMode(QToolButton::InstantPopup);
+    documentButton->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
+    documentButton->setIcon(mainWindow->style()->standardIcon(QStyle::SP_FileDialogContentsView));
+    documentButton->setMenu(new QMenu(documentButton));
+    documentButton->setAutoRaise(true);
+    documentButton->setFocusPolicy(Qt::StrongFocus);
+    documentButton->setMinimumWidth(120);
+    documentButton->setMaximumWidth(260);
+    documentButton->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
+    setButtonTextMetadata(documentButton, trText("Documents"));
+    compactToolBar->addWidget(documentButton);
+    connect(
+        documentButton->menu(),
+        &QMenu::aboutToShow,
+        this,
+        &CompactMainWindowChrome::rebuildDocumentMenu
+    );
+
+    addToolbarGap(compactToolBar);
+    addCommandToToolBar(compactToolBar, "Std_Recompute");
     addToolBarStretch(compactToolBar);
+    addCommandToToolBar(compactToolBar, "Std_DlgMacroRecord");
+
+    macroButton = new QToolButton(toolBar);
+    macroButton->setIcon(BitmapFactory().iconFromTheme("accessories-text-editor"));
+    setButtonTextMetadata(macroButton, trText("Macro"));
+    macroButton->setText(trText("Macro"));
+    macroButton->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
+    macroButton->setAutoRaise(true);
+    macroButton->setFocusPolicy(Qt::StrongFocus);
+    macroButton->setPopupMode(QToolButton::InstantPopup);
+    macroButton->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
+    macroButton->setMenu(new QMenu(macroButton));
+    compactToolBar->addWidget(macroButton);
+    connect(macroButton->menu(), &QMenu::aboutToShow, this, &CompactMainWindowChrome::rebuildMacroMenu);
+
+    auto runMacroButton = new QToolButton(toolBar);
+    runMacroButton->setIcon(BitmapFactory().iconFromTheme("media-playback-start"));
+    setButtonTextMetadata(runMacroButton, trText("Run selected macro"));
+    setupFlatButton(runMacroButton);
+    applyCompactToolbarButtonMetrics(runMacroButton, compactToolBar);
+    compactToolBar->addWidget(runMacroButton);
+    connect(runMacroButton, &QToolButton::clicked, this, &CompactMainWindowChrome::runSelectedMacro);
+
+    addToolbarGap(compactToolBar);
+    auto editModeAction = addCommandToToolBar(compactToolBar, "Std_UserEditMode");
+    if (editModeAction && editModeAction->icon().isNull()) {
+        editModeAction->setIcon(BitmapFactory().iconFromTheme("Std_UserEditModeDefault"));
+    }
+    editModeButton = editModeAction
+        ? qobject_cast<QToolButton*>(compactToolBar->widgetForAction(editModeAction))
+        : nullptr;
+    if (editModeButton) {
+        editModeButton->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
+        editModeButton->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
+        updateEditModeButton();
+    }
+
+    workbenchButton = new QToolButton(toolBar);
+    workbenchButton->setIcon(BitmapFactory().iconFromTheme("freecad"));
+    setButtonTextMetadata(workbenchButton, trText("Workbench"));
+    workbenchButton->setText(trText("Workbench"));
+    workbenchButton->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
+    workbenchButton->setAutoRaise(true);
+    workbenchButton->setFocusPolicy(Qt::StrongFocus);
+    workbenchButton->setPopupMode(QToolButton::InstantPopup);
+    workbenchButton->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
+    auto workbenchMenu = new QMenu(workbenchButton);
+    populateWorkbenchMenu(workbenchMenu);
+    workbenchButton->setMenu(workbenchMenu);
+    compactToolBar->addWidget(workbenchButton);
+    updateWorkbenchButton();
+
+    if (auto command = Gui::Application::Instance->commandManager().getCommandByName("Std_Workbench")) {
+        command->initAction();
+        if (auto workbenchGroup = qobject_cast<WorkbenchGroup*>(command->getAction())) {
+            connect(
+                workbenchGroup,
+                &WorkbenchGroup::workbenchListRefreshed,
+                workbenchButton,
+                [workbenchMenu](QList<QAction*>) { populateWorkbenchMenu(workbenchMenu); }
+            );
+        }
+    }
+
+    workbenchMenuButton = new QToolButton(toolBar);
+    workbenchMenuButton->setIcon(BitmapFactory().iconFromTheme("application-menu"));
+    if (workbenchMenuButton->icon().isNull()) {
+        workbenchMenuButton->setIcon(mainWindow->style()->standardIcon(QStyle::SP_FileDialogListView));
+    }
+    setButtonTextMetadata(workbenchMenuButton, trText("Workbench menu"));
+    setupFlatButton(workbenchMenuButton);
+    applyCompactToolbarButtonMetrics(workbenchMenuButton, compactToolBar);
+    workbenchMenuButton->setPopupMode(QToolButton::InstantPopup);
+    workbenchMenuButton->setMenu(new QMenu(workbenchMenuButton));
+    compactToolBar->addWidget(workbenchMenuButton);
+    connect(
+        workbenchMenuButton->menu(),
+        &QMenu::aboutToShow,
+        this,
+        &CompactMainWindowChrome::rebuildWorkbenchMenu
+    );
+
+    addToolbarGap(compactToolBar);
+
+    auto settingsButton = new QToolButton(toolBar);
+    settingsButton->setIcon(BitmapFactory().iconFromTheme("preferences-system"));
+    if (settingsButton->icon().isNull()) {
+        settingsButton->setIcon(mainWindow->style()->standardIcon(QStyle::SP_FileDialogDetailedView));
+    }
+    setButtonTextMetadata(settingsButton, trText("Settings"));
+    setupFlatButton(settingsButton);
+    applyCompactToolbarButtonMetrics(settingsButton, compactToolBar);
+    settingsButton->setPopupMode(QToolButton::InstantPopup);
+    auto settingsMenu = new QMenu(settingsButton);
+    addCommandToMenu(settingsMenu, "Std_DlgPreferences");
+    addCommandToMenu(settingsMenu, "Std_DlgParameter");
+    addCommandToMenu(settingsMenu, "Std_DlgCustomize");
+    settingsMenu->addSeparator();
+    addCommandToMenu(settingsMenu, "Std_Save");
+    addCommandToMenu(settingsMenu, "Std_Revert");
+    settingsMenu->addSeparator();
+    addCommandToMenu(settingsMenu, "Std_AddonMgr");
+    settingsButton->setMenu(settingsMenu);
+    compactToolBar->addWidget(settingsButton);
+
+    addToolbarGap(compactToolBar);
+    addCommandToToolBar(compactToolBar, "Std_WhatsThis");
+    addCommandToToolBar(compactToolBar, "Std_OnlineHelp");
 
     menuBar = new QMenuBar(switchArea);
     menuBar->setObjectName(QLatin1String(CompactMenuBarObjectName));
@@ -427,7 +734,47 @@ void CompactMainWindowChrome::setup()
     connect(closeButton, &QToolButton::clicked, mainWindow, &MainWindow::close);
     connect(mainWindow, &MainWindow::workbenchActivated, this, [this]() {
         QTimer::singleShot(0, this, &CompactMainWindowChrome::refreshPanelStrips);
+        QTimer::singleShot(0, this, &CompactMainWindowChrome::updateWorkbenchButton);
     });
+    connect(mainWindow, &MainWindow::mainWindowClosed, this, &CompactMainWindowChrome::updateDocumentButton);
+    newDocumentConnection = App::GetApplication().signalNewDocument.connect(
+        [this](const App::Document&, bool) {
+            QTimer::singleShot(0, this, &CompactMainWindowChrome::updateDocumentButton);
+        }
+    );
+    deleteDocumentConnection = App::GetApplication().signalDeleteDocument.connect(
+        [this](const App::Document&) {
+            QTimer::singleShot(0, this, &CompactMainWindowChrome::updateDocumentButton);
+        }
+    );
+    activeDocumentConnection = App::GetApplication().signalActiveDocument.connect(
+        [this](const App::Document&) {
+            QTimer::singleShot(0, this, &CompactMainWindowChrome::updateDocumentButton);
+        }
+    );
+    relabelDocumentConnection = App::GetApplication().signalRelabelDocument.connect(
+        [this](const App::Document&) {
+            QTimer::singleShot(0, this, &CompactMainWindowChrome::updateDocumentButton);
+        }
+    );
+    renameDocumentConnection = App::GetApplication().signalRenameDocument.connect(
+        [this](const App::Document&) {
+            QTimer::singleShot(0, this, &CompactMainWindowChrome::updateDocumentButton);
+        }
+    );
+    activateViewConnection = Gui::Application::Instance->signalActivateView.connect(
+        [this](const Gui::MDIView*) {
+            QTimer::singleShot(0, this, &CompactMainWindowChrome::updateDocumentButton);
+        }
+    );
+    closeViewConnection = Gui::Application::Instance->signalCloseView.connect(
+        [this](const Gui::MDIView*) {
+            QTimer::singleShot(0, this, &CompactMainWindowChrome::updateDocumentButton);
+        }
+    );
+    userEditModeConnection = Gui::Application::Instance->signalUserEditModeChanged.connect(
+        [this](int) { QTimer::singleShot(0, this, &CompactMainWindowChrome::updateEditModeButton); }
+    );
 
     removeLegacyDockStrips();
 
@@ -479,6 +826,7 @@ void CompactMainWindowChrome::setActive(bool enabled)
         toolBar->show();
     }
 
+    updateDocumentButton();
     updateWindowControls();
     layoutChrome();
     refreshPanelStrips();
@@ -514,6 +862,233 @@ void CompactMainWindowChrome::syncMenuBar()
         menuBar->removeAction(action);
     }
     menuBar->addActions(mainWindow->menuBar()->actions());
+}
+
+void CompactMainWindowChrome::updateDocumentButton()
+{
+    if (!documentButton) {
+        return;
+    }
+
+    auto activeView = qobject_cast<MDIView*>(mainWindow->activeWindow());
+    const QString label = activeView ? viewDisplayName(activeView) : documentDisplayName(nullptr);
+    documentButton->setText(label);
+    documentButton->setToolTip(label);
+    documentButton->setAccessibleName(trText("Current tab"));
+    documentButton->setStatusTip(trText("Current tab"));
+}
+
+void CompactMainWindowChrome::rebuildDocumentMenu()
+{
+    if (!documentButton || !documentButton->menu()) {
+        return;
+    }
+
+    auto menu = documentButton->menu();
+    menu->clear();
+
+    const QList<QWidget*> views = mainWindow->windows();
+    auto activeView = mainWindow->activeWindow();
+    if (!views.isEmpty()) {
+        for (auto widget : views) {
+            auto view = qobject_cast<MDIView*>(widget);
+            if (!view) {
+                continue;
+            }
+
+            auto action = menu->addAction(viewDisplayName(view), this, [this, view]() {
+                mainWindow->setActiveWindow(view);
+                updateDocumentButton();
+            });
+            if (view == activeView) {
+                action->setCheckable(true);
+                action->setChecked(true);
+            }
+        }
+        menu->addSeparator();
+    }
+
+    addCommandToMenu(menu, "Std_New");
+    addCommandToMenu(menu, "Std_Open");
+    addCommandToMenu(menu, "Std_Import");
+    addCommandToMenu(menu, "Std_Export");
+    menu->addSeparator();
+    addCommandToMenu(menu, "Std_RecentFiles");
+}
+
+void CompactMainWindowChrome::rebuildMacroMenu()
+{
+    if (!macroButton || !macroButton->menu()) {
+        return;
+    }
+
+    auto menu = macroButton->menu();
+    menu->clear();
+
+    const auto addMacroAction = [this, menu](const QString& filePath) {
+        auto action = menu->addAction(macroDisplayName(filePath), this, [this, filePath]() {
+            selectMacro(filePath);
+        });
+        action->setToolTip(filePath);
+        action->setCheckable(true);
+        action->setChecked(filePath == selectedMacroFile);
+    };
+
+    const QStringList recentFiles = recentMacroFiles();
+    for (const auto& file : recentFiles) {
+        addMacroAction(file);
+    }
+
+    if (!menu->actions().isEmpty()) {
+        menu->addSeparator();
+    }
+
+    const QStringList macroFiles = allMacroFiles();
+    for (const auto& file : macroFiles) {
+        auto action = menu->addAction(macroDisplayName(file), this, [this, file]() {
+            selectMacro(file);
+        });
+        action->setToolTip(file);
+        action->setCheckable(true);
+        action->setChecked(file == selectedMacroFile);
+    }
+
+    menu->addSeparator();
+    menu->addAction(trText("Edit Macros"), this, []() {
+        Gui::Application::Instance->commandManager().runCommandByName("Std_DlgMacroExecute");
+    });
+}
+
+void CompactMainWindowChrome::selectMacro(const QString& filePath)
+{
+    selectedMacroFile = filePath;
+    if (!macroButton) {
+        return;
+    }
+
+    const QString label = filePath.isEmpty() ? trText("Macro") : macroDisplayName(filePath);
+    macroButton->setText(label);
+    macroButton->setToolTip(filePath.isEmpty() ? label : filePath);
+    macroButton->setAccessibleName(label);
+    macroButton->setStatusTip(label);
+}
+
+void CompactMainWindowChrome::runSelectedMacro()
+{
+    if (selectedMacroFile.isEmpty()) {
+        Gui::Application::Instance->commandManager().runCommandByName("Std_DlgMacroExecute");
+        return;
+    }
+
+    try {
+        mainWindow->setCursor(Qt::WaitCursor);
+        mainWindow->appendRecentMacro(selectedMacroFile);
+        Gui::Application::Instance->macroManager()->run(
+            Gui::MacroManager::File,
+            selectedMacroFile.toUtf8()
+        );
+        if (Gui::Application::Instance->activeDocument()) {
+            Gui::Application::Instance->activeDocument()->getDocument()->recompute();
+        }
+        mainWindow->unsetCursor();
+    }
+    catch (const Base::SystemExitException&) {
+        Base::PyGILStateLocker locker;
+        Base::PyException e;
+        e.reportException();
+        mainWindow->unsetCursor();
+    }
+    catch (const Base::Exception& e) {
+        e.reportException();
+        mainWindow->unsetCursor();
+    }
+}
+
+void CompactMainWindowChrome::updateEditModeButton()
+{
+    if (!editModeButton) {
+        return;
+    }
+
+    auto command = Gui::Application::Instance->commandManager().getCommandByName("Std_UserEditMode");
+    if (!command) {
+        return;
+    }
+
+    command->initAction();
+    auto actionGroup = qobject_cast<ActionGroup*>(command->getAction());
+    if (!actionGroup) {
+        return;
+    }
+
+    const auto actions = actionGroup->actions();
+    int index = actionGroup->checkedAction();
+    if (index < 0 || index >= actions.size()) {
+        index = Gui::Application::Instance->getUserEditMode();
+    }
+
+    if (index < 0 || index >= actions.size()) {
+        return;
+    }
+
+    auto action = actions.at(index);
+    const QString text = Action::cleanTitle(action->text());
+    editModeButton->setText(text);
+    editModeButton->setIcon(action->icon());
+    setButtonTextMetadata(editModeButton, text);
+}
+
+void CompactMainWindowChrome::updateWorkbenchButton()
+{
+    if (!workbenchButton) {
+        return;
+    }
+
+    if (auto command = Gui::Application::Instance->commandManager().getCommandByName("Std_Workbench")) {
+        command->initAction();
+        if (auto workbenchGroup = qobject_cast<WorkbenchGroup*>(command->getAction())) {
+            for (auto action : workbenchGroup->getEnabledWbActions()) {
+                if (action && action->isChecked()) {
+                    const QString text = Action::cleanTitle(action->text());
+                    workbenchButton->setText(text);
+                    workbenchButton->setIcon(action->icon());
+                    setButtonTextMetadata(workbenchButton, text);
+                    return;
+                }
+            }
+        }
+    }
+
+    workbenchButton->setText(trText("Workbench"));
+    setButtonTextMetadata(workbenchButton, trText("Workbench"));
+}
+
+void CompactMainWindowChrome::rebuildWorkbenchMenu()
+{
+    if (!workbenchMenuButton || !workbenchMenuButton->menu()) {
+        return;
+    }
+
+    auto menu = workbenchMenuButton->menu();
+    menu->clear();
+
+    if (!mainWindow || !mainWindow->menuBar()) {
+        return;
+    }
+
+    for (auto action : mainWindow->menuBar()->actions()) {
+        if (!action || !action->isVisible() || action->isSeparator()) {
+            continue;
+        }
+
+        auto sourceMenu = action->menu();
+        if (!sourceMenu) {
+            continue;
+        }
+
+        auto copiedMenu = menu->addMenu(Action::cleanTitle(action->text()));
+        copyMenuActions(sourceMenu, copiedMenu);
+    }
 }
 
 void CompactMainWindowChrome::updateHamburgerIcon()
@@ -616,6 +1191,7 @@ void CompactMainWindowChrome::layoutChrome()
     }
 
     updateWindowControls();
+    updateDocumentButton();
     layoutTopBar();
     applyContentsMargins();
     layoutPanelStrips();
