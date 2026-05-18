@@ -212,7 +212,6 @@ private:
     void setupResizeTimer();
     void setupMenuBarTimer();
     void setupWidgetProducers();
-    void layoutMenuBarAreas() const;
 
     void addToMenu(QLayout* layout, QWidget* area, QMenu* menu);
     QLayout* findLayoutOfObject(QObject* source, QWidget* area) const;
@@ -229,13 +228,11 @@ private:
     fastsignals::advanced_scoped_connection connParam;
     ToolBarAreaWidget* statusBarAreaWidget = nullptr;
     ToolBarAreaWidget* menuBarLeftAreaWidget = nullptr;
-    ToolBarAreaWidget* menuBarCenterAreaWidget = nullptr;
     ToolBarAreaWidget* menuBarRightAreaWidget = nullptr;
     ParameterGrp::handle hGeneral;
     ParameterGrp::handle hPref;
     ParameterGrp::handle hStatusBar;
     ParameterGrp::handle hMenuBarLeft;
-    ParameterGrp::handle hMenuBarCenter;
     ParameterGrp::handle hMenuBarRight;
     std::map<QToolBar*, QPointer<QToolBar>> resizingToolbars;
     int _toolBarIconSize = 0;

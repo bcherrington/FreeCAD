@@ -20,6 +20,8 @@
  ***************************************************************************/
 
 
+#include <algorithm>
+
 #include <QHBoxLayout>
 #include <QTimer>
 
@@ -73,6 +75,7 @@ void ToolBarAreaWidget::addWidget(QWidget* widget)
 void ToolBarAreaWidget::insertWidget(int index, QWidget* widget)
 {
     int currentIndex = _layout->indexOf(widget);
+    index = std::clamp(index, 0, _layout->count());
 
     // we are inserting widget at the same place, this is no-op
     if (currentIndex == index) {
@@ -80,8 +83,11 @@ void ToolBarAreaWidget::insertWidget(int index, QWidget* widget)
     }
 
     // widget already exists in the area, we need to first remove it and then recreate
-    if (currentIndex > 0) {
+    if (currentIndex >= 0) {
         _layout->removeWidget(widget);
+        if (currentIndex < index) {
+            --index;
+        }
     }
 
     _layout->insertWidget(index, widget);
