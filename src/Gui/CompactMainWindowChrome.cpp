@@ -38,8 +38,10 @@
 #include <QMouseEvent>
 #include <QPainter>
 #include <QScreen>
+#include <QSet>
 #include <QStatusBar>
 #include <QStyle>
+#include <QTabBar>
 #include <QTimer>
 #include <QToolBar>
 #include <QToolButton>
@@ -230,7 +232,7 @@ QAction* addCommandToToolBar(QToolBar* toolbar, const char* commandName)
     return action;
 }
 
-void addToolbarGap(QToolBar* toolbar, int width = 8)
+void addToolbarGap(QToolBar* toolbar, int width = 24)
 {
     if (!toolbar) {
         return;
@@ -312,6 +314,83 @@ QString macroDisplayName(const QString& filePath)
 {
     const QFileInfo info(filePath);
     return info.completeBaseName();
+}
+
+bool addRecentFilesToMenu(QMenu* menu)
+{
+    if (!menu) {
+        return false;
+    }
+
+    auto command = Gui::Application::Instance->commandManager().getCommandByName("Std_RecentFiles");
+    if (!command) {
+        return false;
+    }
+
+    command->initAction();
+    auto recentFiles = qobject_cast<RecentFilesAction*>(command->getAction());
+    if (!recentFiles) {
+        return false;
+    }
+
+    bool addedRecentFile = false;
+    QAction* clearAction = nullptr;
+    for (auto action : recentFiles->actions()) {
+        if (!action || !action->isVisible() || action->isSeparator()) {
+            continue;
+        }
+
+        if (action->toolTip().isEmpty()) {
+            if (!action->text().isEmpty()) {
+                clearAction = action;
+            }
+            continue;
+        }
+
+        menu->addAction(action);
+        addedRecentFile = true;
+    }
+
+    if (clearAction) {
+        if (addedRecentFile) {
+            menu->addSeparator();
+        }
+        menu->addAction(clearAction);
+        return true;
+    }
+
+    return addedRecentFile;
+}
+
+bool isStandardTopLevelMenu(const QAction* action)
+{
+    if (!action) {
+        return true;
+    }
+
+    const QString id = action->data().toString().isEmpty() ? action->objectName()
+                                                           : action->data().toString();
+    const QString title = Action::cleanTitle(action->text()).remove(QLatin1Char('&'));
+    static const QSet<QString> standardMenus = {
+        QStringLiteral(""),
+        QStringLiteral("Separator"),
+        QStringLiteral("&File"),
+        QStringLiteral("&Edit"),
+        QStringLiteral("&View"),
+        QStringLiteral("&Tools"),
+        QStringLiteral("&Macro"),
+        QStringLiteral("&Windows"),
+        QStringLiteral("&Help"),
+        QStringLiteral("File"),
+        QStringLiteral("Edit"),
+        QStringLiteral("View"),
+        QStringLiteral("Tools"),
+        QStringLiteral("Macro"),
+        QStringLiteral("Windows"),
+        QStringLiteral("Help"),
+    };
+
+    return standardMenus.contains(id) || standardMenus.contains(title);
 }
 
 void copyMenuActions(const QMenu* source, QMenu* target)
@@ -653,7 +732,7 @@ void CompactMainWindowChrome::setup()
     }
 
     workbenchMenuButton = new QToolButton(toolBar);
-    workbenchMenuButton->setIcon(BitmapFactory().iconFromTheme("application-menu"));
+    workbenchMenuButton->setIcon(BitmapFactory().iconFromTheme("applications-accessories"));
     if (workbenchMenuButton->icon().isNull()) {
         workbenchMenuButton->setIcon(mainWindow->style()->standardIcon(QStyle::SP_FileDialogListView));
     }
@@ -674,6 +753,9 @@ void CompactMainWindowChrome::setup()
 
     auto settingsButton = new QToolButton(toolBar);
     settingsButton->setIcon(BitmapFactory().iconFromTheme("preferences-system"));
+    if (settingsButton->icon().isNull()) {
+        settingsButton->setIcon(BitmapFactory().pixmap("preferences-system"));
+    }
     if (settingsButton->icon().isNull()) {
         settingsButton->setIcon(mainWindow->style()->standardIcon(QStyle::SP_FileDialogDetailedView));
     }
@@ -799,7 +881,15 @@ void CompactMainWindowChrome::setActive(bool enabled)
         menuBarVisibleBefore = mainWindow->menuBar()->isVisible();
         contentsMarginsBefore = mainWindow->contentsMargins();
         contentsMarginsSaved = true;
+        if (auto tabBar
+            = mainWindow->getMdiArea()->findChild<QTabBar*>(QStringLiteral("mdiAreaTabBar"))) {
+            mdiTabBarVisibleBefore = tabBar->isVisible();
+            mdiTabBarMinimumHeightBefore = tabBar->minimumHeight();
+            mdiTabBarMaximumHeightBefore = tabBar->maximumHeight();
+            mdiTabBarVisibilitySaved = true;
+        }
         mainWindow->menuBar()->hide();
+        updateMdiTabBarVisibility();
         syncMenuBar();
         const QList<QDockWidget*> docks = managedDockContainers();
         for (auto dock : docks) {
@@ -817,6 +907,15 @@ void CompactMainWindowChrome::setActive(bool enabled)
             mainWindow->setContentsMargins(contentsMarginsBefore);
             contentsMarginsSaved = false;
         }
+        if (auto tabBar
+            = mainWindow->getMdiArea()->findChild<QTabBar*>(QStringLiteral("mdiAreaTabBar"))) {
+            tabBar->setMinimumHeight(mdiTabBarMinimumHeightBefore);
+            tabBar->setMaximumHeight(mdiTabBarMaximumHeightBefore);
+            tabBar->setVisible(!mdiTabBarVisibilitySaved || mdiTabBarVisibleBefore);
+            tabBar->updateGeometry();
+            mainWindow->getMdiArea()->updateGeometry();
+        }
+        mdiTabBarVisibilitySaved = false;
         finishManualResize();
         titleDragActive = false;
     }
@@ -827,6 +926,7 @@ void CompactMainWindowChrome::setActive(bool enabled)
     }
 
     updateDocumentButton();
+    updateMdiTabBarVisibility();
     updateWindowControls();
     layoutChrome();
     refreshPanelStrips();
@@ -887,6 +987,12 @@ void CompactMainWindowChrome::rebuildDocumentMenu()
     auto menu = documentButton->menu();
     menu->clear();
 
+    addCommandToMenu(menu, "Std_New");
+    addCommandToMenu(menu, "Std_Open");
+    addCommandToMenu(menu, "Std_Import");
+    addCommandToMenu(menu, "Std_Export");
+    menu->addSeparator();
+
     const QList<QWidget*> views = mainWindow->windows();
     auto activeView = mainWindow->activeWindow();
     if (!views.isEmpty()) {
@@ -908,12 +1014,7 @@ void CompactMainWindowChrome::rebuildDocumentMenu()
         menu->addSeparator();
     }
 
-    addCommandToMenu(menu, "Std_New");
-    addCommandToMenu(menu, "Std_Open");
-    addCommandToMenu(menu, "Std_Import");
-    addCommandToMenu(menu, "Std_Export");
-    menu->addSeparator();
-    addCommandToMenu(menu, "Std_RecentFiles");
+    addRecentFilesToMenu(menu);
 }
 
 void CompactMainWindowChrome::rebuildMacroMenu()
@@ -1033,8 +1134,20 @@ void CompactMainWindowChrome::updateEditModeButton()
 
     auto action = actions.at(index);
     const QString text = Action::cleanTitle(action->text());
+    QIcon icon = action->icon();
+    if (icon.isNull()) {
+        icon = BitmapFactory().iconFromTheme(qPrintable(action->objectName()));
+    }
+    if (icon.isNull()) {
+        icon = BitmapFactory().iconFromTheme("Std_UserEditModeDefault");
+    }
+
     editModeButton->setText(text);
-    editModeButton->setIcon(action->icon());
+    editModeButton->setIcon(icon);
+    if (auto defaultAction = editModeButton->defaultAction()) {
+        defaultAction->setText(text);
+        defaultAction->setIcon(icon);
+    }
     setButtonTextMetadata(editModeButton, text);
 }
 
@@ -1076,8 +1189,10 @@ void CompactMainWindowChrome::rebuildWorkbenchMenu()
         return;
     }
 
+    bool addedWorkbenchMenu = false;
     for (auto action : mainWindow->menuBar()->actions()) {
-        if (!action || !action->isVisible() || action->isSeparator()) {
+        if (!action || !action->isVisible() || action->isSeparator()
+            || isStandardTopLevelMenu(action)) {
             continue;
         }
 
@@ -1088,6 +1203,33 @@ void CompactMainWindowChrome::rebuildWorkbenchMenu()
 
         auto copiedMenu = menu->addMenu(Action::cleanTitle(action->text()));
         copyMenuActions(sourceMenu, copiedMenu);
+        addedWorkbenchMenu = true;
+    }
+
+    if (!addedWorkbenchMenu) {
+        auto action = menu->addAction(trText("No workbench menu"));
+        action->setEnabled(false);
+    }
+}
+
+void CompactMainWindowChrome::updateMdiTabBarVisibility()
+{
+    if (!mainWindow || !active) {
+        return;
+    }
+
+    if (auto tabBar = mainWindow->getMdiArea()->findChild<QTabBar*>(QStringLiteral("mdiAreaTabBar"))) {
+        if (!mdiTabBarVisibilitySaved) {
+            mdiTabBarVisibleBefore = tabBar->isVisible();
+            mdiTabBarMinimumHeightBefore = tabBar->minimumHeight();
+            mdiTabBarMaximumHeightBefore = tabBar->maximumHeight();
+            mdiTabBarVisibilitySaved = true;
+        }
+        tabBar->setMinimumHeight(0);
+        tabBar->setMaximumHeight(0);
+        tabBar->hide();
+        tabBar->updateGeometry();
+        mainWindow->getMdiArea()->updateGeometry();
     }
 }
 
@@ -1192,6 +1334,7 @@ void CompactMainWindowChrome::layoutChrome()
 
     updateWindowControls();
     updateDocumentButton();
+    updateMdiTabBarVisibility();
     layoutTopBar();
     applyContentsMargins();
     layoutPanelStrips();
