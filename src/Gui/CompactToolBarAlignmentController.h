@@ -10,8 +10,8 @@
  *                                                                         *
  *   This library  is distributed in the hope that it will be useful,      *
  *   but WITHOUT ANY WARRANTY; without even the implied warranty of        *
- *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the         *
- *   GNU Library General Public License for more details.                  *
+ *   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU     *
+ *   Library General Public License for more details.                      *
  *                                                                         *
  *   You should have received a copy of the GNU Library General Public     *
  *   License along with this library; see the file COPYING.LIB. If not,    *
@@ -22,20 +22,18 @@
 
 #pragma once
 
-#include <QByteArray>
-#include <QHash>
-#include <QObject>
 #include <QPointer>
+#include <QObject>
 
-#include <Base/Parameter.h>
 #include <FCGlobal.h>
 
 class QEvent;
-class QToolBar;
+class QWidget;
 
 namespace Gui
 {
 
+class CompactToolBarContainer;
 class MainWindow;
 
 class GuiExport CompactToolBarAlignmentController: public QObject
@@ -48,31 +46,23 @@ public:
 
     void setActive(bool active);
     bool isActive() const;
-    void syncToolBars();
+    void layoutContainer();
+    int reservedHeight() const;
 
 protected:
     bool eventFilter(QObject* watched, QEvent* event) override;
 
 private:
-    enum class Alignment
-    {
-        Left,
-        Center,
-        Right,
-    };
-
-    void installToolBarFilters();
-    void removeToolBarFilters();
-    void recordToolBarAlignment(QToolBar* toolBar);
-    Alignment alignmentForToolBar(const QToolBar* toolBar) const;
-    QByteArray parameterKey(const QToolBar* toolBar) const;
-    const char* parameterValue(Alignment alignment) const;
-    Alignment alignmentFromParameter(const char* value) const;
+    void createContainer();
+    void removeContainer();
+    void installCentralWrapper();
+    void removeCentralWrapper();
 
 private:
     QPointer<MainWindow> mainWindow;
-    ParameterGrp::handle hAlignment;
-    QHash<QToolBar*, Alignment> knownAlignments;
+    QPointer<CompactToolBarContainer> container;
+    QPointer<QWidget> centralWrapper;
+    QPointer<QWidget> originalCentralWidget;
     bool active = false;
 };
 

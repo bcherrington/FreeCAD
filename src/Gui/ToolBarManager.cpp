@@ -187,8 +187,14 @@ void ToolBar::undock()
         QSignalBlocker blocker(this);
 
         if (auto area = ToolBarManager::getInstance()->toolBarAreaWidget(this)) {
+            if (auto grip = findChild<ToolBarGrip*>()) {
+                grip->detach();
+                grip->hide();
+                grip->deleteLater();
+            }
             area->removeWidget(this);
-            getMainWindow()->addToolBar(this);
+            setParent(getMainWindow());
+            getMainWindow()->addToolBar(Qt::TopToolBarArea, this);
         }
 
         setWindowFlags(Qt::Tool | Qt::FramelessWindowHint | Qt::X11BypassWindowManagerHint);
@@ -303,6 +309,9 @@ void ToolBarGrip::mouseMoveEvent(QMouseEvent* me)
     if (!toolbar) {
         return;
     }
+    if (toolbar->property("_fc_compact_toolbar_hosted").toBool()) {
+        return;
+    }
 
     auto area = ToolBarManager::getInstance()->toolBarAreaWidget(toolbar);
     if (!area) {
@@ -321,14 +330,23 @@ void ToolBarGrip::mouseMoveEvent(QMouseEvent* me)
         return;
     }
 
-    toolbar->undock();
-
     // After removing from area, this grip will be deleted. In order to
     // continue toolbar dragging (because the mouse button is still pressed),
     // we fake mouse events and send to toolbar. For some reason,
     // send/postEvent() does not work, only timer works.
+    if (toolbar->property("_fc_toolbar_undock_pending").toBool()) {
+        return;
+    }
+    toolbar->setProperty("_fc_toolbar_undock_pending", true);
     QPointer tb(toolbar);
     QTimer::singleShot(0, [tb] {
+        if (!tb) {
+            return;
+        }
+
+        tb->setProperty("_fc_toolbar_undock_pending", false);
+        tb->undock();
+
         auto modifiers = QApplication::queryKeyboardModifiers();
         auto buttons = QApplication::mouseButtons();
         if (buttons != Qt::LeftButton || QWidget::mouseGrabber() || modifiers != Qt::NoModifier
@@ -537,7 +555,7 @@ void ToolBarManager::setupResizeTimer()
 void ToolBarManager::setupMenuBarTimer()
 {
     menuBarTimer.setSingleShot(true);
-    QObject::connect(&menuBarTimer, &QTimer::timeout, [this] {
+    QObject::connect(&menuBarTimer, &QTimer::timeout, [] {
         if (auto menuBar = getMainWindow()->menuBar()) {
             menuBar->adjustSize();
         }

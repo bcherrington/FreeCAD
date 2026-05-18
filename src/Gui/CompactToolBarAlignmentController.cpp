@@ -23,15 +23,14 @@
 
 #include "CompactToolBarAlignmentController.h"
 
+#include <QBoxLayout>
 #include <QEvent>
-#include <QPoint>
-#include <QPointer>
-#include <QRect>
 #include <QTimer>
-#include <QToolBar>
+#include <QWidget>
 
-#include <App/Application.h>
+#include <algorithm>
 
+#include "CompactToolBarContainer.h"
 #include "MainWindow.h"
 
 
@@ -40,15 +39,14 @@ using namespace Gui;
 CompactToolBarAlignmentController::CompactToolBarAlignmentController(MainWindow* mainWindow)
     : QObject(mainWindow)
     , mainWindow(mainWindow)
-{
-    hAlignment = App::GetApplication().GetParameterGroupByPath(
-        "User parameter:BaseApp/MainWindow/CompactToolBarAlignment"
-    );
-}
+{}
 
 CompactToolBarAlignmentController::~CompactToolBarAlignmentController()
 {
-    removeToolBarFilters();
+    if (mainWindow) {
+        mainWindow->removeEventFilter(this);
+    }
+    removeContainer();
 }
 
 void CompactToolBarAlignmentController::setActive(bool enabled)
@@ -59,12 +57,19 @@ void CompactToolBarAlignmentController::setActive(bool enabled)
 
     active = enabled;
     if (active) {
-        installToolBarFilters();
-        QTimer::singleShot(0, this, &CompactToolBarAlignmentController::syncToolBars);
+        createContainer();
+        installCentralWrapper();
+        if (mainWindow) {
+            mainWindow->installEventFilter(this);
+        }
+        container->setActive(true);
+        QTimer::singleShot(0, container, &CompactToolBarContainer::installToolBarFilters);
     }
     else {
-        removeToolBarFilters();
-        knownAlignments.clear();
+        if (mainWindow) {
+            mainWindow->removeEventFilter(this);
+        }
+        removeContainer();
     }
 }
 
@@ -73,58 +78,40 @@ bool CompactToolBarAlignmentController::isActive() const
     return active;
 }
 
-void CompactToolBarAlignmentController::syncToolBars()
+void CompactToolBarAlignmentController::layoutContainer()
 {
-    if (!active || !mainWindow) {
+    if (!active || !container) {
         return;
     }
 
-    installToolBarFilters();
-    const auto toolBars = mainWindow->findChildren<QToolBar*>();
-    for (auto toolBar : toolBars) {
-        if (!toolBar || toolBar->isFloating()
-            || mainWindow->toolBarArea(toolBar) != Qt::TopToolBarArea) {
-            continue;
-        }
+    container->setFixedHeight(reservedHeight());
+}
 
-        const auto key = parameterKey(toolBar);
-        if (key.isEmpty()) {
-            continue;
-        }
-
-        const auto value = hAlignment->GetASCII(key.constData(), "left");
-        const auto alignment = alignmentFromParameter(value.c_str());
-        knownAlignments.insert(toolBar, alignment);
+int CompactToolBarAlignmentController::reservedHeight() const
+{
+    if (!container || !container->isVisible()) {
+        return 0;
     }
+
+    return std::max(container->sizeHint().height(), container->minimumHeight());
 }
 
 bool CompactToolBarAlignmentController::eventFilter(QObject* watched, QEvent* event)
 {
-    if (!active || !mainWindow) {
-        return QObject::eventFilter(watched, event);
-    }
-
-    if (watched == mainWindow && event->type() == QEvent::ChildAdded) {
-        QTimer::singleShot(0, this, &CompactToolBarAlignmentController::installToolBarFilters);
-        return QObject::eventFilter(watched, event);
-    }
-
-    auto toolBar = qobject_cast<QToolBar*>(watched);
-    if (!toolBar) {
+    if (!active || watched != mainWindow) {
         return QObject::eventFilter(watched, event);
     }
 
     switch (event->type()) {
-        case QEvent::MouseButtonRelease:
-        case QEvent::Move:
+        case QEvent::ChildAdded:
+            if (container) {
+                QTimer::singleShot(0, container, &CompactToolBarContainer::installToolBarFilters);
+            }
+            break;
+        case QEvent::LayoutRequest:
+        case QEvent::Resize:
         case QEvent::Show:
-            QPointer<QToolBar> guardedToolBar(toolBar);
-            QTimer::singleShot(0, this, [this, guardedToolBar]() {
-                auto toolBar = guardedToolBar.data();
-                if (toolBar) {
-                    recordToolBarAlignment(toolBar);
-                }
-            });
+            layoutContainer();
             break;
         default:
             break;
@@ -133,109 +120,69 @@ bool CompactToolBarAlignmentController::eventFilter(QObject* watched, QEvent* ev
     return QObject::eventFilter(watched, event);
 }
 
-void CompactToolBarAlignmentController::installToolBarFilters()
+void CompactToolBarAlignmentController::createContainer()
 {
-    if (!mainWindow) {
+    if (!mainWindow || container) {
         return;
     }
 
-    mainWindow->installEventFilter(this);
-
-    const auto toolBars = mainWindow->findChildren<QToolBar*>();
-    for (auto toolBar : toolBars) {
-        if (!toolBar) {
-            continue;
-        }
-
-        toolBar->installEventFilter(this);
-    }
+    container = new CompactToolBarContainer(mainWindow);
+    container->setFixedHeight(container->minimumHeight());
 }
 
-void CompactToolBarAlignmentController::removeToolBarFilters()
+void CompactToolBarAlignmentController::removeContainer()
 {
-    if (mainWindow) {
-        mainWindow->removeEventFilter(this);
-    }
-
-    const auto toolBars = mainWindow ? mainWindow->findChildren<QToolBar*>() : QList<QToolBar*>();
-    for (auto toolBar : toolBars) {
-        if (toolBar) {
-            toolBar->removeEventFilter(this);
-        }
-    }
-}
-
-void CompactToolBarAlignmentController::recordToolBarAlignment(QToolBar* toolBar)
-{
-    if (!active || !mainWindow || !toolBar || toolBar->isFloating()
-        || mainWindow->toolBarArea(toolBar) != Qt::TopToolBarArea) {
+    if (!container) {
+        removeCentralWrapper();
         return;
     }
 
-    const auto key = parameterKey(toolBar);
-    if (key.isEmpty()) {
+    container->setActive(false);
+    removeCentralWrapper();
+    container->deleteLater();
+    container = nullptr;
+}
+
+void CompactToolBarAlignmentController::installCentralWrapper()
+{
+    if (!mainWindow || !container || centralWrapper) {
         return;
     }
 
-    const auto alignment = alignmentForToolBar(toolBar);
-    knownAlignments.insert(toolBar, alignment);
-    hAlignment->SetASCII(key.constData(), parameterValue(alignment));
+    originalCentralWidget = mainWindow->takeCentralWidget();
+    if (!originalCentralWidget) {
+        return;
+    }
+
+    centralWrapper = new QWidget(mainWindow);
+    centralWrapper->setObjectName(QStringLiteral("_fc_compact_toolbar_central_wrapper"));
+    auto layout = new QBoxLayout(QBoxLayout::TopToBottom, centralWrapper);
+    layout->setContentsMargins(0, 0, 0, 0);
+    layout->setSpacing(0);
+    layout->addWidget(container, 0);
+    layout->addWidget(originalCentralWidget, 1);
+    mainWindow->setCentralWidget(centralWrapper);
+    container->show();
+    container->raise();
 }
 
-CompactToolBarAlignmentController::Alignment CompactToolBarAlignmentController::alignmentForToolBar(
-    const QToolBar* toolBar
-) const
+void CompactToolBarAlignmentController::removeCentralWrapper()
 {
-    if (!mainWindow || !toolBar) {
-        return Alignment::Left;
+    if (!mainWindow || !centralWrapper) {
+        return;
     }
 
-    const QRect mainRect(mainWindow->mapToGlobal(QPoint(0, 0)), mainWindow->size());
-    const QPoint toolbarCenter = toolBar->mapToGlobal(toolBar->rect().center());
-    const int third = mainRect.width() / 3;
-    const int relativeX = toolbarCenter.x() - mainRect.left();
-
-    if (relativeX < third) {
-        return Alignment::Left;
+    auto wrapper = mainWindow->takeCentralWidget();
+    if (container) {
+        container->setParent(nullptr);
     }
-    if (relativeX >= 2 * third) {
-        return Alignment::Right;
+    if (originalCentralWidget) {
+        originalCentralWidget->setParent(nullptr);
+        mainWindow->setCentralWidget(originalCentralWidget);
     }
-    return Alignment::Center;
-}
-
-QByteArray CompactToolBarAlignmentController::parameterKey(const QToolBar* toolBar) const
-{
-    if (!toolBar || toolBar->objectName().isEmpty()) {
-        return {};
+    if (wrapper && wrapper != originalCentralWidget) {
+        wrapper->deleteLater();
     }
-
-    return toolBar->objectName().toUtf8();
-}
-
-const char* CompactToolBarAlignmentController::parameterValue(Alignment alignment) const
-{
-    switch (alignment) {
-        case Alignment::Center:
-            return "center";
-        case Alignment::Right:
-            return "right";
-        case Alignment::Left:
-        default:
-            return "left";
-    }
-}
-
-CompactToolBarAlignmentController::Alignment CompactToolBarAlignmentController::alignmentFromParameter(
-    const char* value
-) const
-{
-    const QByteArray alignment(value ? value : "");
-    if (alignment == "center") {
-        return Alignment::Center;
-    }
-    if (alignment == "right") {
-        return Alignment::Right;
-    }
-    return Alignment::Left;
+    centralWrapper = nullptr;
+    originalCentralWidget = nullptr;
 }

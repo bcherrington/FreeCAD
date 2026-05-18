@@ -1147,6 +1147,7 @@ SOURCE_GROUP("View3D\\Inventor" FILES ${Inventor_SRCS})
 SET(Widget_CPP_SRCS
     CompactMainWindowChrome.cpp
     CompactToolBarAlignmentController.cpp
+    CompactToolBarContainer.cpp
     ComboLinks.cpp
     FileDialog.cpp
     MainWindow.cpp
@@ -1180,6 +1181,7 @@ endif(WIN32)
 SET(Widget_HPP_SRCS
     CompactMainWindowChrome.h
     CompactToolBarAlignmentController.h
+    CompactToolBarContainer.h
     ComboLinks.h
     FileDialog.h
     FileDialogInternal.h

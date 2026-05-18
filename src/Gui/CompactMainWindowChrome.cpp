@@ -1343,6 +1343,9 @@ void CompactMainWindowChrome::layoutChrome()
     updateMdiTabBarVisibility();
     layoutTopBar();
     applyContentsMargins();
+    if (toolBarAlignmentController) {
+        toolBarAlignmentController->layoutContainer();
+    }
     layoutPanelStrips();
     layoutResizeGrips();
 }
