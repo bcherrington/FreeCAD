@@ -1,9 +1,26 @@
-# JetBrains-Style Compact UI Notes
+---
+title: JetBrains-style compact UI
+doc_type: design
+status: draft
+owner: local-developer
+last_reviewed: 2026-05-18
+---
+
+# JetBrains-Style Compact UI
+
+## Purpose
 
 This branch explores a JetBrains-style compact UI shell for FreeCAD. The goal is
 to make panels easier to reach while keeping the central CAD viewport dominant.
 
-## Design Direction
+## Scope
+
+This design covers the compact main-window shell, side rail interaction model,
+and relationship to FreeCAD's existing dock and overlay systems. It does not
+define a full replacement for Qt docks, a new workbench system, or native
+operating-system titlebar integration.
+
+## Design Summary
 
 Approach this as a UI shell prototype, not a workbench rewrite.
 
@@ -18,6 +35,44 @@ The safest direction is:
 2. Add a JetBrains-like compact shell mode.
 3. Reuse or extend the existing overlay dock system for side icon bars.
 4. Add a logical panel-slot model over Qt docks.
+
+## Components And Responsibilities
+
+| Component | Responsibility | Owned Inputs | Owned Outputs |
+| --- | --- | --- | --- |
+| `Gui::MainWindow` | Own the compact shell preference, header, side rails, and margin reservation. | User preference, existing dock widgets, menu bar, toolbars | Compact UI chrome, restored normal menu visibility, panel activation requests |
+| `DockWindowManager` | Continue creating, registering, showing, hiding, and persisting dock widgets. | Registered panel widgets and dock toggle actions | Existing `QDockWidget` hosts and View menu behavior |
+| Overlay dock system | Keep existing overlay tabs and title bars available for docked panels. | Dock widgets and overlay preferences | Overlay panel activation and title-bar controls |
+| Workbenches | Continue defining menus, toolbars, command bars, and dock windows. | Workbench activation and command definitions | Menus, toolbars, and registered panels |
+| Compact rail buttons | Provide deterministic side access to registered dock windows. | Dock registry, slot mapping, panel icons | Show/hide requests through existing dock toggle actions |
+
+## Data And Control Flow
+
+1. The `BaseApp/Preferences/MainWindow/CompactJetBrainsLayout` preference gates
+   compact mode.
+2. When compact mode is enabled, `MainWindow` creates a compact top toolbar and
+   narrow left/right rail widgets.
+3. The rail code lists current dock windows in deterministic slot order and
+   assigns known panels to explicit defaults.
+4. Clicking a rail button uses the existing dock toggle action path so normal
+   dock handling and overlay mode see the same activation request as the View
+   menu.
+5. Disabling compact mode removes the extra chrome, restores the previous menu
+   bar visibility, and returns `MainWindow` margins to normal.
+
+## Contracts And Schemas
+
+| Contract | Location | Producer | Consumer | Compatibility Notes |
+| --- | --- | --- | --- | --- |
+| Dock widget registration | `src/Gui/DockWindowManager.cpp` | Workbenches and main-window setup code | View menu, compact rail, overlay system | Compact mode should not bypass existing dock toggle actions. |
+| Overlay title/tab behavior | `src/Gui/OverlayWidgets.h`, `src/Gui/OverlayManager.cpp` | Overlay manager | Docked panels and compact-mode users | Compact mode should remain compatible with overlay on/off state. |
+| Main-window state | `src/Gui/MainWindow.cpp` | Main window and Qt dock system | Startup restore and preference packs | Compact rail margins and chrome must not corrupt saved dock layout. |
+
+## Configuration Model
+
+| Config Source | Key Or Parameter | Applied By | Effect | Failure Mode |
+| --- | --- | --- | --- | --- |
+| User preferences | `BaseApp/Preferences/MainWindow/CompactJetBrainsLayout` | `Gui::MainWindow` | Enables or disables the compact shell prototype. | Defaults to normal FreeCAD UI when absent or false. |
 
 ## JetBrains UI Model
 
@@ -44,7 +99,7 @@ References:
 - Arrange Tool Windows: https://www.jetbrains.com/help/webstorm/manipulating-the-tool-windows.html
 - IntelliJ Platform UI Overview: https://plugins.jetbrains.com/docs/intellij/ui-overview.html
 
-## FreeCAD/Qt Layout Reality
+## FreeCAD And Qt Layout Constraints
 
 FreeCAD's main UI is already a `QMainWindow`. It owns the central `QMdiArea`,
 status bar, menu bar, toolbars, and dock windows.
@@ -98,7 +153,7 @@ Panels in the same group should replace the currently open panel for that group
 instead of opening more permanent chrome. This matches the JetBrains "select a
 tool window from the stripe" interaction.
 
-## Risk Areas
+## Tradeoffs And Constraints
 
 Native titlebar integration is the hardest part. Putting toolbars into the
 actual OS titlebar usually means custom or frameless window chrome, window
@@ -109,7 +164,26 @@ A better first milestone is a JetBrains-like header below the native titlebar,
 using FreeCAD's existing menu-bar corner toolbar support where possible. Native
 titlebar integration can be explored later.
 
-## First Prototype Scope
+## Validation And Error Handling
+
+Compact mode should always leave the existing View menu, toolbar visibility
+controls, and dock-window behavior available as a fallback. Rail activation
+should tolerate missing or renamed panels by relying on the current dock
+registry and explicit defaults only where known.
+
+## Security And Access
+
+This design uses existing in-process Qt widgets and FreeCAD preferences. It
+does not add network access, external process execution, credentials, or new
+workspace permissions.
+
+## Observability And Operations
+
+Manual validation should check dock visibility, overlay mode, workbench
+switching, menu restoration, saved layout behavior, and compact-mode preference
+changes across restart.
+
+## First Prototype
 
 Build a preference-gated mode, for example:
 
@@ -130,7 +204,7 @@ First milestone:
 This should provide the interaction model without breaking FreeCAD's existing
 workbench, menu, toolbar, and dock-window architecture.
 
-## Current POC
+## Current Implementation Status
 
 The first proof of concept is implemented in `src/Gui/MainWindow.cpp` and is
 disabled by default behind:
@@ -179,6 +253,21 @@ Current limitations:
 - This does not yet integrate with the native OS titlebar.
 - The implementation is intentionally local to `MainWindow` until the desired
   interaction model is validated.
+
+## Evidence
+
+- Code: `src/Gui/MainWindow.cpp`, `src/Gui/DockWindowManager.cpp`,
+  `src/Gui/Workbench.cpp`, `src/Gui/OverlayWidgets.h`,
+  `src/Gui/OverlayManager.cpp`, `src/Gui/ComboView.cpp`,
+  `src/Gui/TaskView/TaskView.cpp`
+- Config: `BaseApp/Preferences/MainWindow/CompactJetBrainsLayout`
+- Tests: manual UI validation required
+- Runbooks: none
+- Requirements: none
+
+## Related Docs
+
+- `docs/contribution-overview.md`
 
 ## Research Commands Used
 

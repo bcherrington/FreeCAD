@@ -77,4 +77,3 @@ node_modules/
 .codegraph/
 package.*
 package-lock.*
-docs/
