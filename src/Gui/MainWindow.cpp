@@ -398,6 +398,18 @@ public:
     }
 
 protected:
+    QMenu* createPopupMenu() override
+    {
+        auto action = findChild<QAction*>(QStringLiteral("DockReportViewTitleAction"));
+        if (!action) {
+            return nullptr;
+        }
+
+        auto menu = new QMenu(this);
+        menu->addAction(action);
+        return menu;
+    }
+
     void closeEvent(QCloseEvent* event) override
     {
         if (property("MainWindowClosing").toBool() || !event->spontaneous()) {
@@ -796,7 +808,7 @@ QAction* MainWindow::createReportViewWindowAction(QObject* parent)
 {
     auto action = new QAction(parent);
     action->setObjectName(QStringLiteral("ReportViewWindowTitleAction"));
-    action->setIcon(Gui::BitmapFactory().pixmap("MacroEditor"));
+    action->setIcon(qApp->style()->standardIcon(QStyle::SP_TitleBarMaxButton));
     action->setText(tr("Open Report View in Window"));
     action->setToolTip(tr("Open Report View in Window"));
     action->setStatusTip(tr("Open Report View in Window"));
@@ -809,7 +821,7 @@ QAction* MainWindow::createDockReportViewAction(QObject* parent)
 {
     auto action = new QAction(parent);
     action->setObjectName(QStringLiteral("DockReportViewTitleAction"));
-    action->setIcon(Gui::BitmapFactory().iconFromTheme("window-new"));
+    action->setIcon(qApp->style()->standardIcon(QStyle::SP_TitleBarNormalButton));
     action->setText(tr("Dock Report View"));
     action->setToolTip(tr("Dock Report View"));
     action->setStatusTip(tr("Dock Report View"));
@@ -975,7 +987,9 @@ void MainWindow::showReportViewWindow(bool show)
         toolbar->setFloatable(false);
         toolbar->setIconSize(QSize(16, 16));
         toolbar->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
-        toolbar->addAction(createDockReportViewAction(toolbar));
+        auto dockAction = createDockReportViewAction(toolbar);
+        toolbar->addAction(dockAction);
+        toolbar->setContextMenuPolicy(Qt::ActionsContextMenu);
         d->reportViewWindow->addToolBar(Qt::TopToolBarArea, toolbar);
 
         if (auto geometry = group->GetASCII("Geometry"); !geometry.empty()) {
