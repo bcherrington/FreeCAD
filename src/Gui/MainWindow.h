@@ -54,6 +54,7 @@ class PythonConsole;
 namespace DockWnd
 {
 class HelpView;
+class ReportOutput;
 }  // namespace DockWnd
 
 class GuiExport UrlHandler: public QObject
@@ -228,6 +229,7 @@ public:
     bool isRestoringWindowState() const;
     PythonConsole* pythonConsole() const;
     bool isPythonConsoleStandalone() const;
+    bool isReportViewStandalone() const;
 
 public Q_SLOTS:
     /**
@@ -281,6 +283,8 @@ public Q_SLOTS:
     void switchToDockedMode();
     void showPythonConsoleWindow(bool show = true);
     void dockPythonConsole();
+    void showReportViewWindow(bool show = true);
+    void dockReportView();
 
     void statusMessageChanged();
 
@@ -333,8 +337,12 @@ private:
     void setupCompactUiPrototype();
     void updateCompactUiPrototype();
     void setupPythonConsoleDockWidget(QDockWidget* dock);
+    void setupReportViewDockWidget(QDockWidget* dock);
     QAction* createPythonConsoleWindowAction(QObject* parent);
     QAction* createDockPythonConsoleAction(QObject* parent);
+    QAction* createReportViewWindowAction(QObject* parent);
+    QAction* createDockReportViewAction(QObject* parent);
+    DockWnd::ReportOutput* reportView() const;
 
     void populateToolBarMenu(QMenu*);
     void populateDockWindowMenu(QMenu*);
