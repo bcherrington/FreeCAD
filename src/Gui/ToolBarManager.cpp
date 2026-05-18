@@ -33,7 +33,6 @@
 #include <QToolButton>
 #include <QStyleOption>
 
-#include <algorithm>
 
 #include <boost/algorithm/string/predicate.hpp>
 
@@ -537,7 +536,7 @@ void ToolBarManager::setupResizeTimer()
 void ToolBarManager::setupMenuBarTimer()
 {
     menuBarTimer.setSingleShot(true);
-    QObject::connect(&menuBarTimer, &QTimer::timeout, [this] {
+    QObject::connect(&menuBarTimer, &QTimer::timeout, [] {
         if (auto menuBar = getMainWindow()->menuBar()) {
             menuBar->adjustSize();
         }
@@ -582,9 +581,6 @@ ToolBarArea ToolBarManager::toolBarArea(QWidget* widget) const
 ToolBarAreaWidget* ToolBarManager::toolBarAreaWidget(QWidget* widget) const
 {
     for (auto& areaWidget : {statusBarAreaWidget, menuBarLeftAreaWidget, menuBarRightAreaWidget}) {
-        if (!areaWidget) {
-            continue;
-        }
         if (areaWidget->indexOf(widget) >= 0) {
             return areaWidget;
         }
@@ -932,27 +928,21 @@ bool ToolBarManager::addToolBarToArea(QObject* source, QMouseEvent* ev)
     static QPointer<OverlayDragFrame> tbPlaceholder;
     static QPointer<ToolBarAreaWidget> lastArea;
     static int tbIndex = -1;
-    auto clearDragFeedback = [&]() {
-        if (lastArea && tbPlaceholder) {
-            lastArea->removeWidget(tbPlaceholder);
-        }
-        lastArea = nullptr;
-        if (tbPlaceholder) {
-            tbPlaceholder->hide();
-        }
-        tbIndex = -1;
-    };
     if (ev->type() == QEvent::MouseMove) {
         if (tb->orientation() != Qt::Horizontal || ev->buttons() != Qt::LeftButton) {
             if (tbIndex >= 0) {
-                clearDragFeedback();
+                if (lastArea) {
+                    lastArea->removeWidget(tbPlaceholder);
+                    lastArea = nullptr;
+                }
+                tbPlaceholder->hide();
+                tbIndex = -1;
             }
             return false;
         }
     }
 
     if (ev->type() == QEvent::MouseButtonRelease && ev->button() != Qt::LeftButton) {
-        clearDragFeedback();
         return false;
     }
 
@@ -970,8 +960,7 @@ bool ToolBarManager::addToolBarToArea(QObject* source, QMouseEvent* ev)
         }
         QRect rect(menuBar->mapToGlobal(QPoint(0, 0)), menuBar->size());
         if (rect.contains(pos)) {
-            const int localX = pos.x() - rect.left();
-            if (localX < menuBar->width() / 2) {
+            if (pos.x() - rect.left() < menuBar->width() / 2) {
                 area = menuBarLeftAreaWidget;
             }
             else {
@@ -979,7 +968,14 @@ bool ToolBarManager::addToolBarToArea(QObject* source, QMouseEvent* ev)
             }
         }
         else {
-            clearDragFeedback();
+            if (tbPlaceholder) {
+                if (lastArea) {
+                    lastArea->removeWidget(tbPlaceholder);
+                    lastArea = nullptr;
+                }
+                tbPlaceholder->hide();
+                tbIndex = -1;
+            }
             return false;
         }
     }
@@ -1004,14 +1000,7 @@ bool ToolBarManager::addToolBarToArea(QObject* source, QMouseEvent* ev)
             tbPlaceholder->hide();
             tbIndex = -1;
         }
-        if (lastArea && lastArea != area) {
-            if (tbPlaceholder) {
-                lastArea->removeWidget(tbPlaceholder);
-            }
-            lastArea = nullptr;
-            tbIndex = -1;
-        }
-        if (tbIndex != idx || lastArea != area) {
+        if (tbIndex != idx) {
             tbIndex = idx;
             tbPlaceholder->setSizePolicy(tb->sizePolicy());
             tbPlaceholder->setMinimumWidth(tb->minimumWidth());
@@ -1030,11 +1019,9 @@ bool ToolBarManager::addToolBarToArea(QObject* source, QMouseEvent* ev)
             }
 
             {
+                tbPlaceholder->hide();
                 QSignalBlocker block(tb);
-                if (tbPlaceholder) {
-                    tbPlaceholder->hide();
-                    lastArea->removeWidget(tbPlaceholder);
-                }
+                lastArea->removeWidget(tbPlaceholder);
                 getMainWindow()->removeToolBar(tb);
                 tb->setOrientation(Qt::Horizontal);
                 lastArea->insertWidget(tbIndex, tb);
@@ -1104,10 +1091,6 @@ ToolBarAreaWidget* ToolBarManager::findToolBarAreaWidget() const
     ToolBarAreaWidget* area = nullptr;
 
     QPoint pos = QCursor::pos();
-    if (!menuBarLeftAreaWidget || !menuBarRightAreaWidget) {
-        return area;
-    }
-
     QRect rect(menuBarLeftAreaWidget->mapToGlobal(QPoint(0, 0)), menuBarLeftAreaWidget->size());
     if (rect.contains(pos)) {
         area = menuBarLeftAreaWidget;
