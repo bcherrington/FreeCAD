@@ -30,6 +30,7 @@
 #include <QPointer>
 #include <QRect>
 #include <QVector>
+#include <QWidget>
 #include <fastsignals/signal.h>
 
 #include <FCGlobal.h>
@@ -38,7 +39,6 @@ class QDockWidget;
 class QMenuBar;
 class QMouseEvent;
 class QToolButton;
-class QWidget;
 
 namespace Gui
 {
@@ -123,6 +123,7 @@ private:
     void updateEditModeButton();
     void updateWorkbenchButton();
     void rebuildWorkbenchMenu();
+    void updateMdiTabBarVisibility();
     void applyContentsMargins();
     void layoutTopBar();
     void layoutPanelStrips();
@@ -178,6 +179,10 @@ private:
     bool menuBarVisibleBefore = true;
     bool contentsMarginsSaved = false;
     bool manualResizeActive = false;
+    bool mdiTabBarVisibilitySaved = false;
+    bool mdiTabBarVisibleBefore = true;
+    int mdiTabBarMinimumHeightBefore = 0;
+    int mdiTabBarMaximumHeightBefore = QWIDGETSIZE_MAX;
     Qt::Edges manualResizeEdges;
     QPoint titleDragGlobalPosition;
     QPoint titleDragWindowPosition;
