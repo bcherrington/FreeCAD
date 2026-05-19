@@ -24,6 +24,7 @@
 
 #include <QHash>
 #include <QIcon>
+#include <QList>
 #include <QMargins>
 #include <QObject>
 #include <QPoint>
@@ -38,6 +39,7 @@
 class QDockWidget;
 class QMenuBar;
 class QMouseEvent;
+class QAction;
 class QToolButton;
 
 namespace Gui
@@ -122,7 +124,8 @@ private:
     void runSelectedMacro();
     void updateEditModeButton();
     void updateWorkbenchButton();
-    void rebuildWorkbenchMenu();
+    void rebuildWorkbenchMenuButtons();
+    void clearWorkbenchMenuButtons();
     void updateMdiTabBarVisibility();
     void applyContentsMargins();
     void layoutTopBar();
@@ -154,7 +157,7 @@ private:
     MainWindow* mainWindow = nullptr;
     QWidget* topBar = nullptr;
     QWidget* switchArea = nullptr;
-    QWidget* toolBar = nullptr;
+    QPointer<QWidget> toolBar = nullptr;
     QMenuBar* menuBar = nullptr;
     QToolButton* appIconButton = nullptr;
     QToolButton* menuButton = nullptr;
@@ -162,7 +165,8 @@ private:
     QToolButton* macroButton = nullptr;
     QToolButton* editModeButton = nullptr;
     QToolButton* workbenchButton = nullptr;
-    QToolButton* workbenchMenuButton = nullptr;
+    QAction* workbenchMenuInsertionPoint = nullptr;
+    QList<QAction*> workbenchMenuTitleActions;
     QToolButton* minimizeButton = nullptr;
     QToolButton* maximizeButton = nullptr;
     QToolButton* closeButton = nullptr;
@@ -181,6 +185,7 @@ private:
     bool manualResizeActive = false;
     bool mdiTabBarVisibilitySaved = false;
     bool mdiTabBarVisibleBefore = true;
+    bool shuttingDown = false;
     int mdiTabBarMinimumHeightBefore = 0;
     int mdiTabBarMaximumHeightBefore = QWIDGETSIZE_MAX;
     Qt::Edges manualResizeEdges;
