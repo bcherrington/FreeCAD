@@ -161,10 +161,14 @@ freecad-stubs = "*"
 [target.linux-64.tasks]
 configure-debug = { cmd = [ "cmake", "--preset", "conda-linux-debug", "{{ extra_args }}" ], args = [{ "arg" ="extra_args", "default" = "" }], depends-on = ["initialize"], env={ CFLAGS="", CXXFLAGS="", DEBUG_CFLAGS="", DEBUG_CXXFLAGS="" }}
 configure-release = { cmd = [ "cmake", "--preset", "conda-linux-release" ], depends-on = ["initialize"], env={ CFLAGS="", CXXFLAGS="", DEBUG_CFLAGS="", DEBUG_CXXFLAGS="" }}
+freecad-debug = { cmd = [ "bash", "-lc", "mod_paths=; for d in \"$PWD\"/build/debug/Mod/*; do [ -d \"$d\" ] && mod_paths=\"${mod_paths}:$d\"; done; export LD_LIBRARY_PATH=\"$PWD/build/debug/lib${mod_paths}${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}\"; exec \"$PWD/build/debug/bin/FreeCAD\"" ] }
+freecad-release = { cmd = [ "bash", "-lc", "mod_paths=; for d in \"$PWD\"/build/release/Mod/*; do [ -d \"$d\" ] && mod_paths=\"${mod_paths}:$d\"; done; export LD_LIBRARY_PATH=\"$PWD/build/release/lib${mod_paths}${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}\"; exec \"$PWD/build/release/bin/FreeCAD\"" ] }
 
 [target.linux-aarch64.tasks]
 configure-debug = { cmd = [ "cmake", "--preset", "conda-linux-debug", "{{ extra_args }}" ], args = [{ "arg" = "extra_args", "default" = "" }], depends-on= ["initialize"], env={ CFLAGS="", CXXFLAGS="", DEBUG_CFLAGS="", DEBUG_CXXFLAGS="" }}
 configure-release = { cmd = [ "cmake", "--preset", "conda-linux-release" ], depends-on= ["initialize"], env={ CFLAGS="", CXXFLAGS="", DEBUG_CFLAGS="", DEBUG_CXXFLAGS="" }}
+freecad-debug = { cmd = [ "bash", "-lc", "mod_paths=; for d in \"$PWD\"/build/debug/Mod/*; do [ -d \"$d\" ] && mod_paths=\"${mod_paths}:$d\"; done; export LD_LIBRARY_PATH=\"$PWD/build/debug/lib${mod_paths}${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}\"; exec \"$PWD/build/debug/bin/FreeCAD\"" ] }
+freecad-release = { cmd = [ "bash", "-lc", "mod_paths=; for d in \"$PWD\"/build/release/Mod/*; do [ -d \"$d\" ] && mod_paths=\"${mod_paths}:$d\"; done; export LD_LIBRARY_PATH=\"$PWD/build/release/lib${mod_paths}${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}\"; exec \"$PWD/build/release/bin/FreeCAD\"" ] }
 
 [target.osx-64.tasks]
 configure-debug = { cmd = [ "cmake", "--preset", "conda-macos-debug", "{{ extra_args }}" ], args = [{ "arg" = "extra_args", "default" = "" }], depends-on = ["initialize"], env={ CFLAGS="", CXXFLAGS="", DEBUG_CFLAGS="", DEBUG_CXXFLAGS="" }}
