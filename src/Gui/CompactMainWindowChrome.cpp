@@ -28,7 +28,10 @@
 #include <QAction>
 #include <QActionGroup>
 #include <QApplication>
+#include <QDrag>
+#include <QDragEnterEvent>
 #include <QDockWidget>
+#include <QDropEvent>
 #include <QDirIterator>
 #include <QFileInfo>
 #include <QFont>
@@ -38,6 +41,7 @@
 #include <QMainWindow>
 #include <QMenu>
 #include <QMenuBar>
+#include <QMimeData>
 #include <QMouseEvent>
 #include <QPainter>
 #include <QScreen>
@@ -55,6 +59,7 @@
 
 #include <algorithm>
 #include <functional>
+#include <utility>
 
 #include <App/Application.h>
 #include <App/Document.h>
@@ -83,6 +88,12 @@ constexpr auto CompactRightStripObjectName = "_fc_compact_right_panel_rail";
 constexpr auto CompactLegacyLeftStripObjectName = "_fc_compact_left_panel_strip";
 constexpr auto CompactLegacyRightStripObjectName = "_fc_compact_right_panel_strip";
 constexpr auto CompactLegacyBottomStripObjectName = "_fc_compact_bottom_panel_strip";
+constexpr auto CompactPanelDropIndicatorObjectName = "_fc_compact_panel_drop_indicator";
+constexpr auto CompactPanelDropInsertionIndicatorObjectName
+    = "_fc_compact_panel_drop_insert_indicator";
+constexpr auto CompactPanelDragMimeType = "application/x-freecad-compact-panel";
+constexpr auto CompactPanelAssignmentProperty = "_fc_compact_panel_assignment";
+constexpr auto CompactPanelSlotProperty = "_fc_compact_panel_slot";
 constexpr int CompactPanelStripMargin = 3;
 constexpr int CompactPanelStripClearance = 2;
 constexpr int CompactResizeBorderWidth = 6;
@@ -100,6 +111,38 @@ QPoint globalPosition(const QMouseEvent* event)
     return event->globalPosition().toPoint();
 #endif
 }
+
+class CompactPanelDropFrame: public QFrame
+{
+public:
+    explicit CompactPanelDropFrame(bool insertion, QWidget* parent = nullptr)
+        : QFrame(parent)
+        , insertion(insertion)
+    {
+        setAttribute(Qt::WA_TransparentForMouseEvents);
+        setFrameShape(QFrame::NoFrame);
+    }
+
+protected:
+    void paintEvent(QPaintEvent*) override
+    {
+        const QColor highlight = palette().color(QPalette::Highlight);
+        QColor fill = highlight;
+        fill.setAlpha(insertion ? 90 : 38);
+
+        QColor border = highlight;
+        border.setAlpha(insertion ? 230 : 180);
+
+        QPainter painter(this);
+        painter.setRenderHint(QPainter::Antialiasing);
+        painter.setPen(QPen(border, insertion ? 2 : 1));
+        painter.setBrush(fill);
+        painter.drawRoundedRect(rect().adjusted(1, 1, -1, -1), 4, 4);
+    }
+
+private:
+    bool insertion = false;
+};
 
 QIcon hamburgerIcon(const QWidget* widget)
 {
@@ -747,6 +790,7 @@ QWidget* createStrip(MainWindow* window, QWidget** content, const QString& objec
     container->setFixedWidth(compactPanelStripWidth());
     container->setFrameShape(QFrame::NoFrame);
     container->setAutoFillBackground(true);
+    container->setAcceptDrops(true);
 
     auto layout = new QVBoxLayout(container);
     layout->setContentsMargins(
@@ -1187,6 +1231,18 @@ void CompactMainWindowChrome::setup()
     leftStrip = createStrip(mainWindow, &leftStripContent, QLatin1String(CompactLeftStripObjectName));
     rightStrip
         = createStrip(mainWindow, &rightStripContent, QLatin1String(CompactRightStripObjectName));
+    leftStripContent->installEventFilter(this);
+    rightStripContent->installEventFilter(this);
+
+    panelDropIndicator = new CompactPanelDropFrame(false, mainWindow);
+    panelDropIndicator->setObjectName(QLatin1String(CompactPanelDropIndicatorObjectName));
+    panelDropIndicator->hide();
+
+    panelDropInsertionIndicator = new CompactPanelDropFrame(true, mainWindow);
+    panelDropInsertionIndicator->setObjectName(
+        QLatin1String(CompactPanelDropInsertionIndicatorObjectName)
+    );
+    panelDropInsertionIndicator->hide();
     createResizeGrips();
 }
 
@@ -1218,12 +1274,11 @@ void CompactMainWindowChrome::setActive(bool enabled)
         const QList<QDockWidget*> docks = managedDockContainers();
         for (auto dock : docks) {
             const auto slot = panelSlotForDock(dock);
-            const bool wasVisible = dock->isVisible();
-            mainWindow->addDockWidget(dockAreaForSlot(slot), dock);
-            dock->setVisible(wasVisible);
+            movePanelDockToSlot(dock, slot);
         }
     }
     else if (!enabled && active) {
+        hidePanelDropIndicator();
         hideMainMenu();
         setGlobalEventFilterActive(false);
         mainWindow->menuBar()->setVisible(menuBarVisibleBefore);
@@ -1766,6 +1821,7 @@ void CompactMainWindowChrome::layoutPanelStrips()
 
 void CompactMainWindowChrome::refreshPanelStrips()
 {
+    panelStripRefreshQueued = false;
     if (!leftStripContent || !rightStripContent) {
         return;
     }
@@ -1775,6 +1831,10 @@ void CompactMainWindowChrome::refreshPanelStrips()
 
     auto leftStripToolBar = createButtonToolBar(leftStripContent, Qt::Vertical);
     auto rightStripToolBar = createButtonToolBar(rightStripContent, Qt::Vertical);
+    leftStripToolBar->setAcceptDrops(true);
+    rightStripToolBar->setAcceptDrops(true);
+    leftStripToolBar->installEventFilter(this);
+    rightStripToolBar->installEventFilter(this);
     leftStripContent->layout()->addWidget(leftStripToolBar);
     rightStripContent->layout()->addWidget(rightStripToolBar);
 
@@ -1787,34 +1847,15 @@ void CompactMainWindowChrome::refreshPanelStrips()
         action->setChecked(dock->isVisible());
 
         connect(action, &QAction::triggered, this, [this, dock, slot]() {
-            if (dock->isVisible()) {
-                dock->toggleViewAction()->activate(QAction::Trigger);
-                refreshPanelStrips();
-                return;
-            }
-
-            const auto group = panelGroup(slot);
-            const QList<QDockWidget*> docks = managedDockContainers();
-            for (auto other : docks) {
-                if (other == dock) {
-                    continue;
-                }
-
-                if (panelGroup(panelSlotForDock(other)) == group && other->isVisible()) {
-                    other->toggleViewAction()->activate(QAction::Trigger);
-                }
-            }
-
-            if (!dock->isVisible()) {
-                dock->toggleViewAction()->activate(QAction::Trigger);
-            }
-            dock->raise();
-            refreshPanelStrips();
+            activatePanelDock(dock, slot);
         });
 
         toolbar->addAction(action);
         if (auto button = qobject_cast<QToolButton*>(toolbar->widgetForAction(action))) {
             button->setAccessibleName(title);
+            button->setProperty(CompactPanelAssignmentProperty, panelAssignmentId(dock));
+            button->setProperty(CompactPanelSlotProperty, panelSlotName(slot));
+            button->installEventFilter(this);
             CompactTitleBarStyle::applyIconButtonMetrics(button, toolbar);
         }
     };
@@ -1822,6 +1863,20 @@ void CompactMainWindowChrome::refreshPanelStrips()
     QList<PanelEntry> entries;
     const QList<QDockWidget*> docks = managedDockContainers();
     for (auto dock : docks) {
+        connect(
+            dock,
+            &QDockWidget::visibilityChanged,
+            this,
+            &CompactMainWindowChrome::schedulePanelStripRefresh,
+            Qt::UniqueConnection
+        );
+        connect(
+            dock,
+            &QDockWidget::dockLocationChanged,
+            this,
+            &CompactMainWindowChrome::schedulePanelStripRefresh,
+            Qt::UniqueConnection
+        );
         const auto slot = panelSlotForDock(dock);
         entries.push_back({dock, slot, panelOrderForDock(dock, slot)});
     }
@@ -1896,6 +1951,16 @@ void CompactMainWindowChrome::refreshPanelStrips()
     }
 
     layoutPanelStrips();
+}
+
+void CompactMainWindowChrome::schedulePanelStripRefresh()
+{
+    if (panelStripRefreshQueued || shuttingDown) {
+        return;
+    }
+
+    panelStripRefreshQueued = true;
+    QTimer::singleShot(0, this, &CompactMainWindowChrome::refreshPanelStrips);
 }
 
 void CompactMainWindowChrome::createResizeGrips()
@@ -1979,6 +2044,63 @@ bool CompactMainWindowChrome::eventFilter(QObject* watched, QEvent* event)
         return QObject::eventFilter(watched, event);
     }
 
+    auto watchedWidget = watched->isWidgetType() ? qobject_cast<QWidget*>(watched) : nullptr;
+    const bool panelDropTarget = watchedWidget
+        && ((leftStripContent
+             && (watchedWidget == leftStripContent || leftStripContent->isAncestorOf(watchedWidget)))
+            || (rightStripContent
+                && (watchedWidget == rightStripContent
+                    || rightStripContent->isAncestorOf(watchedWidget))));
+    if (panelDropTarget && (event->type() == QEvent::DragEnter || event->type() == QEvent::DragMove)) {
+        auto dragMoveEvent = static_cast<QDragMoveEvent*>(event);
+        if (dragMoveEvent->mimeData()->hasFormat(CompactPanelDragMimeType)) {
+            updatePanelDropIndicator(watchedWidget, dragMoveEvent->position().toPoint());
+            dragMoveEvent->acceptProposedAction();
+            return true;
+        }
+    }
+    if (panelDropTarget && event->type() == QEvent::Drop) {
+        auto dropEvent = static_cast<QDropEvent*>(event);
+        const QString assignmentId = QString::fromUtf8(
+            dropEvent->mimeData()->data(CompactPanelDragMimeType)
+        );
+        if (handlePanelDrop(watchedWidget, dropEvent->position().toPoint(), assignmentId)) {
+            hidePanelDropIndicator();
+            dropEvent->acceptProposedAction();
+            return true;
+        }
+    }
+    if (panelDropTarget && event->type() == QEvent::DragLeave) {
+        hidePanelDropIndicator();
+        return true;
+    }
+
+    if (auto button = qobject_cast<QToolButton*>(watched);
+        button && button->property(CompactPanelAssignmentProperty).isValid()) {
+        if (event->type() == QEvent::MouseButtonPress) {
+            auto mouseEvent = static_cast<QMouseEvent*>(event);
+            if (mouseEvent->button() == Qt::LeftButton) {
+                panelDragStartPositions[button] = mouseEvent->position().toPoint();
+            }
+        }
+        else if (event->type() == QEvent::MouseMove) {
+            auto mouseEvent = static_cast<QMouseEvent*>(event);
+            if (mouseEvent->buttons() & Qt::LeftButton) {
+                const auto start
+                    = panelDragStartPositions.value(button, mouseEvent->position().toPoint());
+                if ((mouseEvent->position().toPoint() - start).manhattanLength()
+                    >= QApplication::startDragDistance()) {
+                    panelDragStartPositions.remove(button);
+                    startPanelButtonDrag(button);
+                    return true;
+                }
+            }
+        }
+        else if (event->type() == QEvent::MouseButtonRelease || event->type() == QEvent::Leave) {
+            panelDragStartPositions.remove(button);
+        }
+    }
+
     if (resizeGripEdges.contains(watched)) {
         auto grip = qobject_cast<QWidget*>(watched);
         const Qt::Edges edges = resizeGripEdges.value(watched);
@@ -2008,7 +2130,7 @@ bool CompactMainWindowChrome::eventFilter(QObject* watched, QEvent* event)
         }
     }
 
-    auto compactTitleWidget = watched->isWidgetType() ? qobject_cast<QWidget*>(watched) : nullptr;
+    auto compactTitleWidget = watchedWidget;
     const bool compactTitleBarEvent = topBar && compactTitleWidget
         && (compactTitleWidget == topBar || topBar->isAncestorOf(compactTitleWidget));
     const bool compactTitleDragSource = compactTitleBarEvent
@@ -2140,6 +2262,16 @@ QString CompactMainWindowChrome::dockActionId(const QDockWidget* dock) const
     return dock->toggleViewAction()->data().toString();
 }
 
+QString CompactMainWindowChrome::panelAssignmentId(const QDockWidget* dock) const
+{
+    QString id = dockActionId(dock);
+    if (id.isEmpty() && dock) {
+        id = dock->objectName();
+    }
+
+    return id;
+}
+
 const CompactMainWindowChrome::KnownPanel* CompactMainWindowChrome::knownPanelForActionId(
     const QString& actionId
 ) const
@@ -2204,6 +2336,83 @@ CompactMainWindowChrome::PanelGroup CompactMainWindowChrome::panelGroup(PanelSlo
     return PanelGroup::LeftLower;
 }
 
+QString CompactMainWindowChrome::panelSlotName(PanelSlot slot) const
+{
+    switch (slot) {
+        case PanelSlot::LeftTop:
+            return QStringLiteral("left-upper");
+        case PanelSlot::LeftLower:
+            return QStringLiteral("left-lower");
+        case PanelSlot::RightTop:
+            return QStringLiteral("right-upper");
+        case PanelSlot::RightLower:
+            return QStringLiteral("right-lower");
+        case PanelSlot::BottomLeft:
+            return QStringLiteral("bottom-left");
+        case PanelSlot::BottomRight:
+            return QStringLiteral("bottom-right");
+    }
+
+    return QStringLiteral("left-lower");
+}
+
+bool CompactMainWindowChrome::panelSlotFromName(const QString& name, PanelSlot* slot) const
+{
+    if (!slot) {
+        return false;
+    }
+
+    static const std::pair<QLatin1String, PanelSlot> slots[] = {
+        {QLatin1String("left-upper"), PanelSlot::LeftTop},
+        {QLatin1String("left-lower"), PanelSlot::LeftLower},
+        {QLatin1String("right-upper"), PanelSlot::RightTop},
+        {QLatin1String("right-lower"), PanelSlot::RightLower},
+        {QLatin1String("bottom-left"), PanelSlot::BottomLeft},
+        {QLatin1String("bottom-right"), PanelSlot::BottomRight},
+    };
+
+    for (const auto& [slotName, value] : slots) {
+        if (name == slotName) {
+            *slot = value;
+            return true;
+        }
+    }
+
+    return false;
+}
+
+QWidget* CompactMainWindowChrome::panelDropStripForTarget(QWidget* target) const
+{
+    QWidget* strip = target;
+    while (strip && strip != leftStripContent && strip != rightStripContent) {
+        strip = strip->parentWidget();
+    }
+
+    return strip;
+}
+
+QVector<QRect> CompactMainWindowChrome::panelButtonGeometries(QWidget* strip, PanelSlot slot) const
+{
+    QVector<QRect> buttonRects;
+    if (!strip) {
+        return buttonRects;
+    }
+
+    const QString slotName = panelSlotName(slot);
+    const auto buttons = strip->findChildren<QToolButton*>();
+    for (auto button : buttons) {
+        if (button->property(CompactPanelSlotProperty).toString() != slotName) {
+            continue;
+        }
+        buttonRects.push_back(QRect(button->mapTo(strip, QPoint(0, 0)), button->size()));
+    }
+
+    std::sort(buttonRects.begin(), buttonRects.end(), [](const QRect& left, const QRect& right) {
+        return left.top() < right.top();
+    });
+    return buttonRects;
+}
+
 CompactMainWindowChrome::PanelSlot CompactMainWindowChrome::fallbackSlotForDock(QDockWidget* dock) const
 {
     switch (mainWindow->dockWidgetArea(dock)) {
@@ -2220,11 +2429,320 @@ CompactMainWindowChrome::PanelSlot CompactMainWindowChrome::fallbackSlotForDock(
 
 CompactMainWindowChrome::PanelSlot CompactMainWindowChrome::panelSlotForDock(QDockWidget* dock) const
 {
+    const QString assignmentId = panelAssignmentId(dock);
+    if (!assignmentId.isEmpty()) {
+        auto group = App::GetApplication().GetParameterGroupByPath(
+            "User parameter:BaseApp/Preferences/MainWindow/CompactJetBrainsPanelSlots"
+        );
+        PanelSlot configuredSlot = PanelSlot::LeftLower;
+        const QString configuredSlotName = QString::fromUtf8(
+            group->GetASCII(assignmentId.toUtf8().constData(), "").c_str()
+        );
+        if (panelSlotFromName(configuredSlotName, &configuredSlot)) {
+            return configuredSlot;
+        }
+    }
+
     if (const auto* knownPanel = knownPanelForActionId(dockActionId(dock))) {
         return knownPanel->slot;
     }
 
     return fallbackSlotForDock(dock);
+}
+
+void CompactMainWindowChrome::setPanelSlotForDock(QDockWidget* dock, PanelSlot slot)
+{
+    const QString assignmentId = panelAssignmentId(dock);
+    if (assignmentId.isEmpty()) {
+        return;
+    }
+
+    auto group = App::GetApplication().GetParameterGroupByPath(
+        "User parameter:BaseApp/Preferences/MainWindow/CompactJetBrainsPanelSlots"
+    );
+    group->SetASCII(assignmentId.toUtf8().constData(), panelSlotName(slot).toUtf8().constData());
+}
+
+void CompactMainWindowChrome::movePanelDockToSlot(QDockWidget* dock, PanelSlot slot)
+{
+    if (!dock) {
+        return;
+    }
+
+    const bool wasVisible = dock->isVisible();
+    const auto dockArea = dockAreaForSlot(slot);
+    if (DockWindowManager::instance()->isOverlayActivated()) {
+        OverlayManager::instance()->moveDockWidgetToOverlay(dock, dockArea);
+    }
+    else {
+        mainWindow->addDockWidget(dockArea, dock);
+    }
+    dock->setVisible(wasVisible);
+    layoutChrome();
+}
+
+CompactMainWindowChrome::PanelSlot CompactMainWindowChrome::dropPanelSlotForPosition(
+    QWidget* target,
+    const QPoint& position
+) const
+{
+    QWidget* strip = panelDropStripForTarget(target);
+    const bool leftSide = strip == leftStripContent;
+    const QPoint globalPosition = target ? target->mapToGlobal(position) : position;
+    const QPoint stripPosition = strip ? strip->mapFromGlobal(globalPosition) : position;
+    const int height = std::max(1, strip ? strip->height() : target->height());
+    const int buttonHeight = CompactTitleBarStyle::buttonSize(nullptr).height();
+    const int margin = CompactPanelStripMargin;
+
+    const PanelSlot topSlot = leftSide ? PanelSlot::LeftTop : PanelSlot::RightTop;
+    const PanelSlot lowerSlot = leftSide ? PanelSlot::LeftLower : PanelSlot::RightLower;
+    const PanelSlot bottomSlot = leftSide ? PanelSlot::BottomLeft : PanelSlot::BottomRight;
+
+    const auto topButtons = panelButtonGeometries(strip, topSlot);
+    const auto lowerButtons = panelButtonGeometries(strip, lowerSlot);
+    const auto bottomButtons = panelButtonGeometries(strip, bottomSlot);
+
+    int bottomBoundary = height - std::max(buttonHeight * 2, height / 4);
+    if (!bottomButtons.isEmpty()) {
+        if (!lowerButtons.isEmpty()) {
+            bottomBoundary = (lowerButtons.constLast().bottom() + bottomButtons.constFirst().top())
+                / 2;
+        }
+        else {
+            bottomBoundary = bottomButtons.constFirst().top() - margin - (buttonHeight / 2);
+        }
+    }
+    bottomBoundary = std::clamp(bottomBoundary, margin, height - margin);
+    if (stripPosition.y() >= bottomBoundary) {
+        return bottomSlot;
+    }
+
+    int lowerBoundary = margin + buttonHeight;
+    if (!topButtons.isEmpty() && !lowerButtons.isEmpty()) {
+        lowerBoundary = (topButtons.constLast().bottom() + lowerButtons.constFirst().top()) / 2;
+    }
+    else if (!topButtons.isEmpty()) {
+        lowerBoundary = topButtons.constLast().bottom() + margin + (buttonHeight / 2);
+    }
+    else if (!lowerButtons.isEmpty()) {
+        lowerBoundary = lowerButtons.constFirst().top() - margin - (buttonHeight / 2);
+    }
+    lowerBoundary = std::clamp(lowerBoundary, margin, std::max(margin, bottomBoundary - 1));
+
+    return stripPosition.y() <= lowerBoundary ? topSlot : lowerSlot;
+}
+
+QRect CompactMainWindowChrome::panelDropZoneGeometry(QWidget* strip, PanelSlot slot) const
+{
+    if (!strip) {
+        return {};
+    }
+
+    const QRect bounds = strip->rect().adjusted(2, 2, -2, -2);
+    const int zoneHeight = std::max(1, bounds.height() / 3);
+    int top = bounds.top();
+    switch (slot) {
+        case PanelSlot::LeftLower:
+        case PanelSlot::RightLower:
+            top += zoneHeight;
+            break;
+        case PanelSlot::BottomLeft:
+        case PanelSlot::BottomRight:
+            top += zoneHeight * 2;
+            break;
+        case PanelSlot::LeftTop:
+        case PanelSlot::RightTop:
+            break;
+    }
+
+    const int bottom = slot == PanelSlot::BottomLeft || slot == PanelSlot::BottomRight
+        ? bounds.bottom()
+        : top + zoneHeight - 1;
+    return QRect(bounds.left(), top, bounds.width(), std::max(1, bottom - top + 1));
+}
+
+QRect CompactMainWindowChrome::panelDropInsertionGeometry(QWidget* strip, PanelSlot slot) const
+{
+    if (!strip) {
+        return {};
+    }
+
+    const QSize size = CompactTitleBarStyle::buttonSize(nullptr);
+    const QVector<QRect> slotButtonRects = panelButtonGeometries(strip, slot);
+
+    const QRect bounds = strip->rect().adjusted(
+        CompactPanelStripMargin,
+        CompactPanelStripMargin,
+        -CompactPanelStripMargin,
+        -CompactPanelStripMargin
+    );
+    const int x = bounds.left() + std::max(0, (bounds.width() - size.width()) / 2);
+    const bool bottomSlot = slot == PanelSlot::BottomLeft || slot == PanelSlot::BottomRight;
+    int y = panelDropZoneGeometry(strip, slot).top() + CompactPanelStripMargin;
+
+    if (!slotButtonRects.isEmpty()) {
+        if (bottomSlot) {
+            y = slotButtonRects.constFirst().top() - CompactPanelStripMargin - size.height();
+        }
+        else {
+            y = slotButtonRects.constLast().bottom() + 1 + CompactPanelStripMargin;
+        }
+    }
+    else if (bottomSlot) {
+        y = panelDropZoneGeometry(strip, slot).bottom() - CompactPanelStripMargin - size.height() + 1;
+    }
+
+    y = std::clamp(y, bounds.top(), std::max(bounds.top(), bounds.bottom() - size.height() + 1));
+    return QRect(QPoint(x, y), size);
+}
+
+QRect CompactMainWindowChrome::panelDropGroupGeometry(
+    QWidget* strip,
+    PanelSlot slot,
+    const QRect& insertion
+) const
+{
+    if (!strip) {
+        return {};
+    }
+
+    QRect group = insertion;
+    const QVector<QRect> slotButtonRects = panelButtonGeometries(strip, slot);
+    for (const QRect& buttonRect : slotButtonRects) {
+        group = group.united(buttonRect);
+    }
+
+    return group.adjusted(-2, -2, 2, 2).intersected(strip->rect().adjusted(1, 1, -1, -1));
+}
+
+void CompactMainWindowChrome::updatePanelDropIndicator(QWidget* target, const QPoint& position)
+{
+    if (!panelDropIndicator || !panelDropInsertionIndicator) {
+        return;
+    }
+
+    QWidget* strip = panelDropStripForTarget(target);
+    if (!strip) {
+        hidePanelDropIndicator();
+        return;
+    }
+
+    const PanelSlot slot = dropPanelSlotForPosition(target, position);
+    const QRect insertion = panelDropInsertionGeometry(strip, slot);
+    const QRect group = panelDropGroupGeometry(strip, slot, insertion);
+
+    panelDropIndicator->setGeometry(QRect(strip->mapTo(mainWindow, group.topLeft()), group.size()));
+    panelDropIndicator->raise();
+    panelDropIndicator->show();
+    panelDropInsertionIndicator->setGeometry(
+        QRect(strip->mapTo(mainWindow, insertion.topLeft()), insertion.size())
+    );
+    panelDropInsertionIndicator->raise();
+    panelDropInsertionIndicator->show();
+}
+
+void CompactMainWindowChrome::hidePanelDropIndicator()
+{
+    if (panelDropIndicator) {
+        panelDropIndicator->hide();
+    }
+    if (panelDropInsertionIndicator) {
+        panelDropInsertionIndicator->hide();
+    }
+}
+
+void CompactMainWindowChrome::startPanelButtonDrag(QToolButton* button)
+{
+    if (!button) {
+        return;
+    }
+
+    const QString assignmentId = button->property(CompactPanelAssignmentProperty).toString();
+    if (assignmentId.isEmpty()) {
+        return;
+    }
+
+    auto mimeData = new QMimeData();
+    mimeData->setData(CompactPanelDragMimeType, assignmentId.toUtf8());
+    mimeData->setText(button->toolTip());
+
+    auto drag = new QDrag(button);
+    drag->setMimeData(mimeData);
+    QPixmap pixmap = button->icon().pixmap(button->iconSize());
+    if (pixmap.isNull()) {
+        pixmap = button->grab();
+    }
+    if (!pixmap.isNull()) {
+        drag->setPixmap(pixmap);
+        drag->setHotSpot(QPoint(pixmap.width() / 2, pixmap.height() / 2));
+    }
+    drag->exec(Qt::MoveAction);
+    hidePanelDropIndicator();
+}
+
+bool CompactMainWindowChrome::handlePanelDrop(
+    QWidget* target,
+    const QPoint& position,
+    const QString& assignmentId
+)
+{
+    if (assignmentId.isEmpty()) {
+        return false;
+    }
+
+    for (auto dock : managedDockContainers()) {
+        if (panelAssignmentId(dock) != assignmentId) {
+            continue;
+        }
+
+        const PanelSlot slot = dropPanelSlotForPosition(target, position);
+        setPanelSlotForDock(dock, slot);
+        const bool wasVisible = dock->isVisible();
+        movePanelDockToSlot(dock, slot);
+        if (wasVisible) {
+            hideOtherPanelsInSlot(dock, slot);
+            dock->raise();
+        }
+        refreshPanelStrips();
+        return true;
+    }
+
+    return false;
+}
+
+void CompactMainWindowChrome::activatePanelDock(QDockWidget* dock, PanelSlot slot)
+{
+    if (!dock || !dock->toggleViewAction()) {
+        return;
+    }
+
+    if (dock->isVisible()) {
+        dock->toggleViewAction()->activate(QAction::Trigger);
+        refreshPanelStrips();
+        return;
+    }
+
+    hideOtherPanelsInSlot(dock, slot);
+    if (!dock->isVisible()) {
+        dock->toggleViewAction()->activate(QAction::Trigger);
+    }
+    dock->raise();
+    refreshPanelStrips();
+}
+
+void CompactMainWindowChrome::hideOtherPanelsInSlot(QDockWidget* dock, PanelSlot slot)
+{
+    const auto group = panelGroup(slot);
+    const QList<QDockWidget*> docks = managedDockContainers();
+    for (auto other : docks) {
+        if (other == dock || !other->isVisible()) {
+            continue;
+        }
+
+        if (panelGroup(panelSlotForDock(other)) == group && other->toggleViewAction()) {
+            other->toggleViewAction()->activate(QAction::Trigger);
+        }
+    }
 }
 
 Qt::DockWidgetArea CompactMainWindowChrome::dockAreaForSlot(PanelSlot slot) const

@@ -79,6 +79,7 @@ The safest direction is:
 | Config Source | Key Or Parameter | Applied By | Effect | Failure Mode |
 | --- | --- | --- | --- | --- |
 | User preferences | `BaseApp/Preferences/MainWindow/CompactJetBrainsLayout` | `Gui::MainWindow` | Enables or disables the compact shell prototype. | Defaults to normal FreeCAD UI when absent or false. |
+| User preferences | `BaseApp/Preferences/MainWindow/CompactJetBrainsPanelSlots/<panel-id>` | `Gui::CompactMainWindowChrome` | Overrides the logical rail slot for a dock panel. Values are `left-upper`, `left-lower`, `right-upper`, `right-lower`, `bottom-left`, and `bottom-right`. | Falls back to known-panel defaults or current Qt dock area when absent or invalid. |
 
 ## JetBrains UI Model
 
@@ -265,9 +266,24 @@ Current behavior:
 - Lists current dock windows as icon buttons in deterministic slot order.
 - Known FreeCAD panels use explicit bundled FreeCAD icons instead of inheriting
   the application icon.
+- Rail buttons can be dragged between compact rail regions. Dropping a button
+  writes a logical slot override under
+  `BaseApp/Preferences/MainWindow/CompactJetBrainsPanelSlots`.
+- Moving a rail button also moves the associated panel's real `QDockWidget` to
+  the Qt dock area mapped from the target compact slot.
+- The compact rail slot model now supports persisted `left-upper`,
+  `left-lower`, `right-upper`, `right-lower`, `bottom-left`, and
+  `bottom-right` assignments over the existing Qt dock widgets.
+- All compact slots behave identically: a slot can contain multiple rail
+  buttons, but only one panel in that slot is expanded at a time. Clicking the
+  active panel hides it; clicking another panel in the same slot hides the
+  previous panel and shows the selected one.
 - Clicking a rail button drives the existing dock toggle action so overlay mode
-  sees the same path as the View menu; clicking it again hides the panel. The
-  compact rail code no longer calls `splitDockWidget()` on each click.
+  sees the same path as the View menu. The compact rail code no longer calls
+  `splitDockWidget()` on each click.
+- Compact rail activation is isolated behind a compact chrome helper so the
+  current dock-backed path can be replaced with an overlay-backed path later
+  without changing button construction or slot persistence.
 - Default slots currently map tree/model to upper left, selection/properties
   below the left separator, tasks to the right, Python console to bottom left,
   and report view to bottom right. Bottom-left and bottom-right buttons are
@@ -282,10 +298,9 @@ Current behavior:
 
 Current limitations:
 
-- Strip buttons are assigned by hard-coded defaults or current Qt dock area;
-  drag-and-drop movement of the buttons is not implemented yet.
-- Panel content still uses existing Qt dock widgets. A later pass should route
-  compact rail activation through FreeCAD's overlay dock system.
+- Panel content still uses existing Qt dock widgets. Compact rail activation is
+  isolated behind a helper, but it does not yet present panels through
+  FreeCAD's overlay widgets.
 - Frameless mode is implemented but remains parameter-gated and
   restart-required. Platform-specific behavior still needs wider manual
   validation.
@@ -304,6 +319,8 @@ be validated without screenshot comparison:
 - The hamburger menu bar is vertically centered in the toolbar/menu switch
   area.
 - Left/right rail buttons fit inside their rail content and are not clipped.
+- Persisted compact panel slot overrides move rail buttons and their associated
+  dock panels away from their default rail/dock area.
 
 Manual validation is still required for final visual alignment, theme
 appearance, frameless window drag/resize behavior, and workbench-specific menu
