@@ -1664,6 +1664,7 @@ void CompactMainWindowChrome::layoutChrome()
     updateMdiTabBarVisibility();
     layoutTopBar();
     applyContentsMargins();
+    layoutWorkArea();
     layoutPanelStrips();
     layoutResizeGrips();
 }
@@ -1675,13 +1676,28 @@ void CompactMainWindowChrome::applyContentsMargins()
     }
 
     const int topBarHeight = topBar && topBar->isVisible() ? topBar->height() : 0;
-    const int panelStripWidth = compactPanelStripWidth();
     mainWindow->setContentsMargins(
-        contentsMarginsBefore.left() + panelStripWidth,
+        contentsMarginsBefore.left(),
         contentsMarginsBefore.top() + topBarHeight,
-        contentsMarginsBefore.right() + panelStripWidth,
+        contentsMarginsBefore.right(),
         contentsMarginsBefore.bottom()
     );
+}
+
+void CompactMainWindowChrome::layoutWorkArea()
+{
+    auto central = mainWindow->centralWidget();
+    if (!active || !central) {
+        return;
+    }
+
+    const int panelStripWidth = compactPanelStripWidth();
+    QRect geometry = central->geometry();
+    geometry.setLeft(panelStripWidth);
+    geometry.setRight(mainWindow->width() - panelStripWidth - 1);
+    if (geometry.isValid()) {
+        central->setGeometry(geometry);
+    }
 }
 
 void CompactMainWindowChrome::layoutTopBar()
