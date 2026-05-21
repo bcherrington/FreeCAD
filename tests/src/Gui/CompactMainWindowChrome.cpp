@@ -2,9 +2,11 @@
 
 #include <cstdlib>
 #include <memory>
+#include <string>
 
 #include <QAction>
 #include <QCoreApplication>
+#include <QDockWidget>
 #include <QMenuBar>
 #include <QTest>
 #include <QToolBar>
@@ -14,6 +16,7 @@
 #include <App/Application.h>
 #include <Base/Parameter.h>
 #include <Gui/Application.h>
+#include <Gui/DockWindowManager.h>
 #include <Gui/MainWindow.h>
 #include <src/App/InitApplication.h>
 
@@ -100,6 +103,8 @@ private Q_SLOTS:
 
         preferences->SetBool("CompactJetBrainsLayout", true);
         QCoreApplication::processEvents();
+        QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+        QCoreApplication::processEvents();
         auto topBar = compactTopBar();
         QVERIFY(topBar);
         QVERIFY(!topBar->isHidden());
@@ -177,6 +182,64 @@ private Q_SLOTS:
         }
     }
 
+    void compactPanelSlotPreferenceOverridesDefaultRail()  // NOLINT
+    {
+        preferences->SetBool("CompactJetBrainsLayout", false);
+        createMainWindow();
+        auto panel = new QWidget();
+        panel->setObjectName(QStringLiteral("CompactSlotTestPanel"));
+        panel->setWindowTitle(QStringLiteral("Compact slot test"));
+        auto dock = Gui::DockWindowManager::instance()
+                        ->addDockWindow("CompactSlotTestDock", panel, Qt::RightDockWidgetArea);
+        QVERIFY(dock);
+        dock->toggleViewAction()->setData(QByteArray("CompactSlotTestDock"));
+        dock->toggleViewAction()->setVisible(true);
+
+        auto slots = App::GetApplication().GetParameterGroupByPath(
+            "User parameter:BaseApp/Preferences/MainWindow/CompactJetBrainsPanelSlots"
+        );
+        const std::string previousSlot = slots->GetASCII("CompactSlotTestDock", "");
+        slots->RemoveASCII("CompactSlotTestDock");
+
+        preferences->SetBool("CompactJetBrainsLayout", true);
+        QCoreApplication::processEvents();
+
+        auto leftStrip = mainWindow->findChild<QWidget*>(
+            QStringLiteral("_fc_compact_left_panel_railContent")
+        );
+        auto rightStrip = mainWindow->findChild<QWidget*>(
+            QStringLiteral("_fc_compact_right_panel_railContent")
+        );
+        QVERIFY(leftStrip);
+        QVERIFY(rightStrip);
+
+        auto button = panelButtonForAssignment(QStringLiteral("CompactSlotTestDock"));
+        QVERIFY(button);
+        const QString assignmentId = button->property("_fc_compact_panel_assignment").toString();
+        QVERIFY(!assignmentId.isEmpty());
+        const QString overrideSlot = QStringLiteral("right-upper");
+
+        slots->SetASCII(assignmentId.toUtf8().constData(), overrideSlot.toUtf8().constData());
+
+        preferences->SetBool("CompactJetBrainsLayout", false);
+        QCoreApplication::processEvents();
+        preferences->SetBool("CompactJetBrainsLayout", true);
+        QCoreApplication::processEvents();
+
+        button = panelButtonForAssignment(assignmentId);
+        QVERIFY(button);
+        QCOMPARE(leftStrip->isAncestorOf(button), false);
+        QCOMPARE(rightStrip->isAncestorOf(button), true);
+
+        if (previousSlot.empty()) {
+            slots->RemoveASCII(assignmentId.toUtf8().constData());
+        }
+        else {
+            slots->SetASCII(assignmentId.toUtf8().constData(), previousSlot.c_str());
+        }
+        Gui::DockWindowManager::instance()->removeDockWindow("CompactSlotTestDock");
+    }
+
 private:
     void createMainWindow()
     {
@@ -227,6 +290,18 @@ private:
         }
 
         return buttons;
+    }
+
+    QToolButton* panelButtonForAssignment(const QString& assignmentId) const
+    {
+        QToolButton* match = nullptr;
+        for (auto button : panelStripButtons()) {
+            if (button->property("_fc_compact_panel_assignment").toString() == assignmentId) {
+                match = button;
+            }
+        }
+
+        return match;
     }
 
     std::unique_ptr<Gui::Application> guiApplication;
