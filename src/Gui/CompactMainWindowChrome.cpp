@@ -543,6 +543,48 @@ QString macroDisplayName(const QString& filePath)
     return info.completeBaseName();
 }
 
+QString editModeText(int mode)
+{
+    QString text = QCoreApplication::translate(
+        "EditMode",
+        Gui::Application::Instance->getUserEditModeUIStrings(mode).first.c_str()
+    );
+    return Action::cleanTitle(text);
+}
+
+QString editModeToolTip(int mode)
+{
+    return QCoreApplication::translate(
+        "EditMode",
+        Gui::Application::Instance->getUserEditModeUIStrings(mode).second.c_str()
+    );
+}
+
+QIcon editModeIcon(int mode)
+{
+    QString modeName = QString::fromStdString(
+        Gui::Application::Instance->getUserEditModeUIStrings(mode).first
+    );
+    modeName.remove(QLatin1Char('&'));
+
+    QIcon icon = BitmapFactory().iconFromTheme(
+        qPrintable(QStringLiteral("Std_UserEditMode") + modeName)
+    );
+    if (icon.isNull()) {
+        icon = BitmapFactory().iconFromTheme("Std_UserEditModeDefault");
+    }
+
+    return icon;
+}
+
+void setEditMode(int mode)
+{
+    App::GetApplication()
+        .GetParameterGroupByPath("User parameter:BaseApp/Preferences/General")
+        ->SetInt("UserEditMode", mode);
+    Gui::Application::Instance->setUserEditMode(mode);
+}
+
 bool addRecentFilesToMenu(QMenu* menu)
 {
     if (!menu) {
@@ -933,19 +975,34 @@ void CompactMainWindowChrome::setup()
     addCommandToToolBar(compactToolBar, "Std_DlgMacroRecord");
 
     addToolbarGap(compactToolBar);
-    auto editModeAction = addCommandToToolBar(compactToolBar, "Std_UserEditMode");
-    if (editModeAction && editModeAction->icon().isNull()) {
-        editModeAction->setIcon(BitmapFactory().iconFromTheme("Std_UserEditModeDefault"));
-    }
-    editModeButton = editModeAction
-        ? qobject_cast<QToolButton*>(compactToolBar->widgetForAction(editModeAction))
-        : nullptr;
-    if (editModeButton) {
-        editModeButton->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
-        editModeButton->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
-        CompactTitleBarStyle::applyMenuButtonMetrics(editModeButton, compactToolBar);
-        updateEditModeButton();
-    }
+    editModeButton = new QToolButton(toolBar);
+    editModeButton->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
+    editModeButton->setAutoRaise(true);
+    editModeButton->setFocusPolicy(Qt::StrongFocus);
+    editModeButton->setPopupMode(QToolButton::InstantPopup);
+    editModeButton->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
+    editModeButton->setMenu(new QMenu(editModeButton));
+    CompactTitleBarStyle::applyMenuButtonMetrics(editModeButton, compactToolBar);
+    compactToolBar->addWidget(editModeButton);
+    connect(editModeButton->menu(), &QMenu::aboutToShow, this, [this]() {
+        auto menu = editModeButton ? editModeButton->menu() : nullptr;
+        if (!menu) {
+            return;
+        }
+
+        menu->clear();
+        const int activeMode = Gui::Application::Instance->getUserEditMode();
+        for (const auto& [mode, modeStrings] : Gui::Application::Instance->listUserEditModes()) {
+            Q_UNUSED(modeStrings)
+            auto action = menu->addAction(editModeIcon(mode), editModeText(mode), this, [mode]() {
+                setEditMode(mode);
+            });
+            action->setCheckable(true);
+            action->setChecked(mode == activeMode);
+            action->setToolTip(editModeToolTip(mode));
+        }
+    });
+    updateEditModeButton();
 
     workbenchButton = new QToolButton(toolBar);
     workbenchButton->setIcon(BitmapFactory().iconFromTheme("freecad"));
@@ -1377,60 +1434,12 @@ void CompactMainWindowChrome::updateEditModeButton()
         return;
     }
 
-    auto command = Gui::Application::Instance->commandManager().getCommandByName("Std_UserEditMode");
-    if (!command) {
-        return;
-    }
-
-    command->initAction();
-    auto actionGroup = qobject_cast<ActionGroup*>(command->getAction());
-    if (!actionGroup) {
-        return;
-    }
-
-    const auto actions = actionGroup->actions();
-    int index = actionGroup->checkedAction();
-    if (index < 0 || index >= actions.size()) {
-        index = Gui::Application::Instance->getUserEditMode();
-    }
-
-    if (index < 0 || index >= actions.size()) {
-        return;
-    }
-
-    auto action = actionGroup->groupAction()->checkedAction();
-    if (!action) {
-        action = actions.at(index);
-    }
-    QString text = Action::cleanTitle(action->text());
-    if (text.isEmpty()) {
-        text = QCoreApplication::translate(
-            "EditMode",
-            Gui::Application::Instance->getUserEditModeUIStrings(index).first.c_str()
-        );
-        text = Action::cleanTitle(text);
-    }
-    QIcon icon = action->icon();
-    if (icon.isNull()) {
-        icon = BitmapFactory().iconFromTheme(qPrintable(action->objectName()));
-    }
-    if (icon.isNull()) {
-        QString modeName = QString::fromStdString(
-            Gui::Application::Instance->getUserEditModeUIStrings(index).first
-        );
-        modeName.remove(QLatin1Char('&'));
-        icon = BitmapFactory().iconFromTheme(qPrintable(QStringLiteral("Std_UserEditMode") + modeName));
-    }
-    if (icon.isNull()) {
-        icon = BitmapFactory().iconFromTheme("Std_UserEditModeDefault");
-    }
+    const int mode = Gui::Application::Instance->getUserEditMode();
+    const QString text = editModeText(mode);
+    const QIcon icon = editModeIcon(mode);
 
     editModeButton->setText(text);
     editModeButton->setIcon(icon);
-    if (auto defaultAction = editModeButton->defaultAction()) {
-        defaultAction->setText(text);
-        defaultAction->setIcon(icon);
-    }
     editModeButton->update();
     setButtonTextMetadata(editModeButton, text);
     CompactTitleBarStyle::applyMenuButtonMetrics(editModeButton, qobject_cast<QToolBar*>(toolBar));
