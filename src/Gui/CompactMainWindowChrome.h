@@ -201,6 +201,8 @@ private:
     fastsignals::scoped_connection activeDocumentConnection;
     fastsignals::scoped_connection relabelDocumentConnection;
     fastsignals::scoped_connection renameDocumentConnection;
+    fastsignals::scoped_connection changedDocumentConnection;
+    fastsignals::scoped_connection finishSaveDocumentConnection;
     fastsignals::scoped_connection activateViewConnection;
     fastsignals::scoped_connection closeViewConnection;
     fastsignals::scoped_connection userEditModeConnection;
