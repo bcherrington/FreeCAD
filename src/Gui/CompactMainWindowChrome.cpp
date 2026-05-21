@@ -1691,7 +1691,7 @@ void CompactMainWindowChrome::layoutTopBar()
     if (toolBar && menuBar) {
         const int childHeight = std::max(toolBar->sizeHint().height(), menuBar->sizeHint().height());
         toolBar->setFixedHeight(childHeight);
-        menuBar->setFixedHeight(childHeight);
+        menuBar->setFixedHeight(menuBar->sizeHint().height());
         if (switchArea) {
             switchArea->setFixedHeight(childHeight);
         }
