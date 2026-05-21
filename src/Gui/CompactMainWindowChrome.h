@@ -128,6 +128,7 @@ private:
     void clearWorkbenchMenuButtons();
     void updateMdiTabBarVisibility();
     void applyContentsMargins();
+    void layoutWorkArea();
     void layoutTopBar();
     void layoutPanelStrips();
     void layoutResizeGrips();
