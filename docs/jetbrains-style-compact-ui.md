@@ -3,7 +3,7 @@ title: JetBrains-style compact UI
 doc_type: design
 status: draft
 owner: local-developer
-last_reviewed: 2026-05-18
+last_reviewed: 2026-05-21
 ---
 
 # JetBrains-Style Compact UI
@@ -40,7 +40,9 @@ The safest direction is:
 
 | Component | Responsibility | Owned Inputs | Owned Outputs |
 | --- | --- | --- | --- |
-| `Gui::MainWindow` | Own the compact shell preference, header, side rails, and margin reservation. | User preference, existing dock widgets, menu bar, toolbars | Compact UI chrome, restored normal menu visibility, panel activation requests |
+| `Gui::MainWindow` | Own the compact shell preference, instantiate compact chrome, and forward relevant resize/theme/preference events. | User preference, normal main-window lifecycle | Compact chrome activation, minimal bridge into existing main-window behavior |
+| `Gui::CompactMainWindowChrome` | Own compact header, frameless window behavior, side rails, menu/tool switch, document/macro/workbench controls, and compact layout reservation. | Existing menu bar, dock widgets, status bar, MDI area, workbench/menu actions | Compact titlebar, rail buttons, restored normal menu visibility, panel activation requests |
+| `Gui::CompactTitleBarStyle` | Centralize compact titlebar button sizing, dropdown metrics, icon-menu metrics, and group spacing. | Toolbar icon-size preference and Qt toolbar metrics | Consistent titlebar button sizing and dropdown arrow placement |
 | `DockWindowManager` | Continue creating, registering, showing, hiding, and persisting dock widgets. | Registered panel widgets and dock toggle actions | Existing `QDockWidget` hosts and View menu behavior |
 | Overlay dock system | Keep existing overlay tabs and title bars available for docked panels. | Dock widgets and overlay preferences | Overlay panel activation and title-bar controls |
 | Workbenches | Continue defining menus, toolbars, command bars, and dock windows. | Workbench activation and command definitions | Menus, toolbars, and registered panels |
@@ -50,14 +52,17 @@ The safest direction is:
 
 1. The `BaseApp/Preferences/MainWindow/CompactJetBrainsLayout` preference gates
    compact mode.
-2. When compact mode is enabled, `MainWindow` creates a compact top toolbar and
-   narrow left/right rail widgets.
-3. The rail code lists current dock windows in deterministic slot order and
+2. `MainWindow` creates `CompactMainWindowChrome` once and toggles it from the
+   preference.
+3. When compact mode is enabled, compact chrome creates or shows the compact
+   top bar, hides the normal menu bar, hides the MDI tab-bar container, reserves
+   left/right workspace margins, and shows narrow left/right rail widgets.
+4. The rail code lists current dock windows in deterministic slot order and
    assigns known panels to explicit defaults.
-4. Clicking a rail button uses the existing dock toggle action path so normal
+5. Clicking a rail button uses the existing dock toggle action path so normal
    dock handling and overlay mode see the same activation request as the View
    menu.
-5. Disabling compact mode removes the extra chrome, restores the previous menu
+6. Disabling compact mode removes the extra chrome, restores the previous menu
    bar visibility, and returns `MainWindow` margins to normal.
 
 ## Contracts And Schemas
@@ -67,6 +72,7 @@ The safest direction is:
 | Dock widget registration | `src/Gui/DockWindowManager.cpp` | Workbenches and main-window setup code | View menu, compact rail, overlay system | Compact mode should not bypass existing dock toggle actions. |
 | Overlay title/tab behavior | `src/Gui/OverlayWidgets.h`, `src/Gui/OverlayManager.cpp` | Overlay manager | Docked panels and compact-mode users | Compact mode should remain compatible with overlay on/off state. |
 | Main-window state | `src/Gui/MainWindow.cpp` | Main window and Qt dock system | Startup restore and preference packs | Compact rail margins and chrome must not corrupt saved dock layout. |
+| Compact titlebar metrics | `src/Gui/CompactTitleBarStyle.cpp` | Compact chrome | Compact titlebar buttons and dropdowns | Keep local to compact UI so normal toolbar styling remains unchanged. |
 
 ## Configuration Model
 
@@ -155,14 +161,20 @@ tool window from the stripe" interaction.
 
 ## Tradeoffs And Constraints
 
-Native titlebar integration is the hardest part. Putting toolbars into the
-actual OS titlebar usually means custom or frameless window chrome, window
-dragging logic, system buttons, platform quirks, Wayland/X11/Windows/macOS
-differences, and accessibility concerns.
+Native titlebar integration is the hardest part. The current prototype supports
+an optional restart-required frameless mode behind:
 
-A better first milestone is a JetBrains-like header below the native titlebar,
-using FreeCAD's existing menu-bar corner toolbar support where possible. Native
-titlebar integration can be explored later.
+`BaseApp/Preferences/MainWindow/CompactJetBrainsFramelessWindow`
+
+When enabled at startup, compact chrome supplies drag, minimize, maximize,
+restore, close, and resize-edge behavior. This remains optional because
+frameless behavior is platform-sensitive and should not affect the normal
+FreeCAD window path.
+
+The compact UI should continue to minimize changes to existing mainline files.
+Use the splash-screen pattern as the model: `MainWindow` owns only the small
+lifecycle bridge and preference hook; compact-specific behavior should live in
+compact-specific files.
 
 ## Validation And Error Handling
 
@@ -206,8 +218,7 @@ workbench, menu, toolbar, and dock-window architecture.
 
 ## Current Implementation Status
 
-The first proof of concept is implemented in `src/Gui/MainWindow.cpp` and is
-disabled by default behind:
+The compact UI prototype is disabled by default behind:
 
 `BaseApp/Preferences/MainWindow/CompactJetBrainsLayout`
 
@@ -224,11 +235,31 @@ Disable it with the same command and `False`.
 
 Current behavior:
 
-- Adds a compact top toolbar with a hamburger button. Clicking it toggles
-  FreeCAD's normal horizontal menu bar; runnable menu actions collapse it after
-  they trigger.
+- Adds a compact top chrome implemented primarily in
+  `src/Gui/CompactMainWindowChrome.cpp`, with shared titlebar metrics in
+  `src/Gui/CompactTitleBarStyle.cpp`.
+- Keeps `src/Gui/MainWindow.cpp` changes limited to construction, preference
+  updates, frameless startup flags, resize/theme forwarding, and destruction.
+- Adds a titlebar-like top row with app icon menu, hamburger menu, document
+  menu, workbench-provided top-level menus, macro controls, edit-mode selector,
+  workbench selector, recompute, settings, help, and window controls.
+- Clicking the hamburger toggles FreeCAD's normal horizontal menu bar inside
+  the same switch area used by the titlebar toolbar. Runnable menu actions and
+  click-away collapse it after they trigger.
+- The toolbar and menu bar share the same switch panel height; the menu bar is
+  vertically centered rather than stretched.
 - Hides the normal menu bar while compact mode is active, then restores its
   previous visibility when compact mode is disabled.
+- Hides the active MDI document tab-bar container while compact mode is active.
+- The document menu lists New, Open, Import, Export, Save, Save All, Close,
+  Close All, open document views with close affordances, and recent files.
+  Document modified markers update on document change/save signals.
+- The macro menu lists recent macros, all macros, and Edit Macros. Selecting a
+  macro changes the menu label; the adjacent play button runs it.
+- The edit-mode selector is compact-owned and writes the same
+  `UserEditMode` preference used by `Std_UserEditMode`, avoiding fragile
+  mutation of a command-owned toolbar widget.
+- Settings and Help are icon-only menu buttons with right-aligned popups.
 - Adds narrow left and right rail widgets as `MainWindow` chrome, not
   `QDockWidget`s.
 - Lists current dock windows as icon buttons in deterministic slot order.
@@ -243,6 +274,11 @@ Current behavior:
   bottom-aligned on the left and right rails.
 - Compact mode reserves left/right contents margins while active so the rails
   are independent from the normal dock splitter layout.
+- The status bar remains below compact rails and spans the full window width.
+- Compact rails are slightly wider than the strict button size to avoid clipping
+  the right edge of rail buttons under native styles.
+- Optional frameless mode hides the native titlebar after restart and supplies
+  compact chrome drag, resize, minimize, maximize/restore, and close behavior.
 
 Current limitations:
 
@@ -250,9 +286,41 @@ Current limitations:
   drag-and-drop movement of the buttons is not implemented yet.
 - Panel content still uses existing Qt dock widgets. A later pass should route
   compact rail activation through FreeCAD's overlay dock system.
-- This does not yet integrate with the native OS titlebar.
-- The implementation is intentionally local to `MainWindow` until the desired
-  interaction model is validated.
+- Frameless mode is implemented but remains parameter-gated and
+  restart-required. Platform-specific behavior still needs wider manual
+  validation.
+- Toolbar alignment/drop-zone experiments were moved out of this compact UI
+  branch and should remain separate until the desired Qt architecture is clear.
+
+## Current Test Coverage
+
+`tests/src/Gui/CompactMainWindowChrome.cpp` covers compact UI behavior that can
+be validated without screenshot comparison:
+
+- Titlebar and rail buttons expose accessible names/status text and match
+  compact toolbar icon sizing.
+- Compact mode restores normal menu-bar visibility and contents margins when
+  disabled.
+- The hamburger menu bar is vertically centered in the toolbar/menu switch
+  area.
+- Left/right rail buttons fit inside their rail content and are not clipped.
+
+Manual validation is still required for final visual alignment, theme
+appearance, frameless window drag/resize behavior, and workbench-specific menu
+content.
+
+## Change Impact Strategy
+
+Keep upstream patching safe by limiting mainline file changes:
+
+- Prefer adding compact-specific files over expanding `MainWindow.cpp`.
+- Keep compact UI behavior parameter-gated and disabled by default.
+- Use existing FreeCAD command/menu/dock actions where possible instead of
+  duplicating command semantics.
+- Do not alter normal toolbar, dock, menu, or status bar behavior when compact
+  mode is disabled.
+- Keep unrelated experiments, such as custom toolbar drop zones and OS file
+  thumbnailing, in separate branches/specs.
 
 ## Evidence
 

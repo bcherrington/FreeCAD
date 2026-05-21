@@ -84,6 +84,7 @@ constexpr auto CompactLegacyLeftStripObjectName = "_fc_compact_left_panel_strip"
 constexpr auto CompactLegacyRightStripObjectName = "_fc_compact_right_panel_strip";
 constexpr auto CompactLegacyBottomStripObjectName = "_fc_compact_bottom_panel_strip";
 constexpr int CompactPanelStripMargin = 3;
+constexpr int CompactPanelStripClearance = 2;
 constexpr int CompactResizeBorderWidth = 6;
 
 QString trText(const char* text)
@@ -267,7 +268,8 @@ bool isCompactUiDockCandidate(const QDockWidget* dock)
 
 int compactPanelStripWidth()
 {
-    return CompactTitleBarStyle::buttonSize(nullptr).width() + (2 * CompactPanelStripMargin);
+    return CompactTitleBarStyle::buttonSize(nullptr).width() + (2 * CompactPanelStripMargin)
+        + CompactPanelStripClearance;
 }
 
 QToolBar* createButtonToolBar(QWidget* parent, Qt::Orientation orientation)
@@ -1200,7 +1202,7 @@ void CompactMainWindowChrome::setActive(bool enabled)
 
     if (enabled && !active) {
         setGlobalEventFilterActive(true);
-        menuBarVisibleBefore = mainWindow->menuBar()->isVisible();
+        menuBarVisibleBefore = !mainWindow->menuBar()->isHidden();
         contentsMarginsBefore = mainWindow->contentsMargins();
         contentsMarginsSaved = true;
         if (auto tabBar
@@ -1715,6 +1717,14 @@ void CompactMainWindowChrome::layoutTopBar()
 
     const int topBarHeight = topBar->sizeHint().height();
     topBar->setGeometry(0, 0, mainWindow->width(), topBarHeight);
+    if (auto layout = topBar->layout()) {
+        layout->activate();
+    }
+    if (switchArea) {
+        if (auto layout = switchArea->layout()) {
+            layout->activate();
+        }
+    }
     topBar->raise();
 }
 
