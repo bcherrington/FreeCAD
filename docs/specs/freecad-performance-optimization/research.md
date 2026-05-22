@@ -548,6 +548,54 @@ Additional trace artifacts:
 - `/tmp/freecad-restore-files-gridfinity.stderr`
 - `/tmp/freecad-restore-files-gridfinity.log`
 
+#### Restore Follow-Up: Shape-Map Cost
+
+After the buffered included-file restore patch, temporary
+`FC_RESTORE_FOLLOWUP_TRACE=1` instrumentation was added locally around
+`ComplexGeoData::RestoreDocFile()` and `ElementMap::restore()`. The temporary
+code was removed before committing; only the measurements below were kept.
+
+The measurement set intentionally used more than the Gridfinity drawer model:
+
+- `/home/bcherrington/Projects/FreeCAD/Drawer/Gridfinity Drawer v1.3.FCStd`
+- `data/examples/BIMExample.FCStd`
+- `data/examples/ArchDetail.FCStd`
+- `data/examples/EngineBlock.FCStd`
+- `data/examples/PartDesignExample.FCStd`
+- `data/examples/draft_test_objects.FCStd`
+
+Results from the debug build:
+
+The temporary instrumentation measured tight-loop sub-steps and therefore
+adds overhead of its own. Treat the element-map and sub-step values as a ranking
+signal, not as exact wall-clock accounting.
+
+| Model | Objects | Shape maps | Shape-map bytes | Open total | Element-map restore | Notable sub-costs |
+| --- | ---: | ---: | ---: | ---: | ---: | --- |
+| `Gridfinity Drawer v1.3.FCStd` | 127 | 50 | 3.7MB | 3.221s | 3.415s | split 1.305s, string-id lookup 0.662s, insertion 0.514s |
+| `BIMExample.FCStd` | 361 | 177 | 1.5MB | 4.659s | 1.237s | insertion 0.633s, split 0.378s |
+| `ArchDetail.FCStd` | 435 | 173 | 0.5MB | 4.993s | 0.495s | insertion 0.174s, split 0.169s |
+| `EngineBlock.FCStd` | 36 | 19 | 14KB | 0.655s | 0.011s | small enough to ignore for now |
+| `PartDesignExample.FCStd` | 17 | 9 | 14KB | 0.499s | 0.015s | small enough to ignore for now |
+| `draft_test_objects.FCStd` | 113 | 12 | 7KB | 0.711s | 0.003s | small enough to ignore for now |
+
+Interpretation:
+
+- Shape-map restore remains a real cost for large Part/BIM-style documents.
+- The hot region is `ElementMap::restore()` name restoration. Allocation time
+  was small in the trace; repeated dot-token splitting/parsing,
+  `mappedNames.emplace()`, and `StringHasher::getID()` dominate the measured
+  sub-steps.
+- The safest next production optimization is a parser-level patch in
+  `ElementMap::restore()` that avoids repeated `boost::split()` and temporary
+  token-vector construction for dot-separated fields. Keep this separate from
+  restore-copy and image-conversion changes so it can be reviewed and
+  cherry-picked independently.
+- `GuiDocument.xml` remains worth measuring separately in a real GUI open
+  harness, especially for `BIMExample.FCStd` and `ArchDetail.FCStd`, where the
+  archived GUI document is about 2.3-2.6MB. Command-mode opens are not enough
+  evidence for a GUI restore change.
+
 #### Future Optimization: Buffered Included-File Restore
 
 `PropertyFileIncluded::RestoreDocFile()` currently restores included files with
