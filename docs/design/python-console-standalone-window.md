@@ -312,7 +312,7 @@ icons for these actions, because those icons already mean camera/view direction.
 
 ## Related Docs
 
-- `docs/contribution-overview.md`
+- `docs/checklists/contribution-overview.md`
 
 ## Report View Follow-Up
 

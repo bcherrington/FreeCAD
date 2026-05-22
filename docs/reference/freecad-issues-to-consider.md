@@ -93,4 +93,4 @@ tables when the upstream issue tracker changes materially.
 
 ## Related Docs
 
-- `docs/contribution-overview.md`
+- `docs/checklists/contribution-overview.md`

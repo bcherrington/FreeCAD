@@ -313,6 +313,10 @@ Current limitations:
 
 ## Planned Rail Drag-and-Drop Replacement
 
+The rail drag-and-drop replacement is tracked as a feature spec in
+`docs/specs/compact-view-rails-rework/spec.md`. This section captures the
+design context that led to that spec.
+
 The compact rail should move away from inferred drop zones and toward explicit
 slot containers with real insertion placeholders. The target model is:
 
@@ -501,7 +505,9 @@ Keep upstream patching safe by limiting mainline file changes:
 
 ## Related Docs
 
-- `docs/contribution-overview.md`
+- `docs/checklists/contribution-overview.md`
+- `docs/specs/compact-view-rails-rework/spec.md`
+- `docs/specs/freecad-performance-optimization/research.md`
 
 ## Research Commands Used
 
