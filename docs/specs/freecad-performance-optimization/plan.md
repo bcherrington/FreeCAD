@@ -42,15 +42,15 @@ work is owned by
 
 ## Governance Check
 
-- [ ] SOLID boundaries defined: each patch keeps ownership clear between
+- [x] SOLID boundaries defined: each patch keeps ownership clear between
   document restore, image conversion, and lower-priority tree-view behavior.
-- [ ] DRY plan defined: shared trace helpers are extracted only if
+- [x] DRY plan defined: shared trace helpers are extracted only if
   instrumentation becomes maintained code.
-- [ ] Test strategy defined: focused tests, traces, and manual validation are
+- [x] Test strategy defined: focused tests, traces, and manual validation are
   mapped to each optimization.
-- [ ] UX consistency impact assessed: document and image behavior preserve
+- [x] UX consistency impact assessed: document and image behavior preserve
   existing user-visible results.
-- [ ] Performance budgets defined: before/after traces compare the same
+- [x] Performance budgets defined: before/after traces compare the same
   workflow and build mode.
 
 ## Project Structure
@@ -61,7 +61,8 @@ work is owned by
 docs/specs/freecad-performance-optimization/
 |-- spec.md
 |-- plan.md
-`-- research.md
+|-- research.md
+`-- tasks.md
 ```
 
 ### Source Code
@@ -93,6 +94,28 @@ implementation plan.
 - A reproducible local FreeCAD build and representative documents.
 - Profiling and tracing access on the host used for comparison.
 - Maintainer review for any production diagnostic path.
+
+## Review Decisions
+
+- Keep compact-rail viewport/FBO churn out of this implementation package. It
+  remains linked as related performance evidence, but its fix changes compact
+  UI geometry ownership and belongs in the compact rail rework.
+- Treat document restore and image-plane conversion as the first two
+  independently reviewable production changes. They are local, measurable, and
+  directly tied to multi-second document-open cost.
+- Keep shape-map, GUI-document restore, tree batching, startup addon churn, and
+  icon/SVG cache work as investigation tasks until narrower timing proves the
+  dominant sub-step and the invalidation rules are clear.
+- Do not land ad hoc tracing with optimization patches. Either remove temporary
+  instrumentation before review or split a maintained diagnostic facility into
+  its own reviewable change.
+- Commit production work in small, coherent changes that can be cherry-picked
+  into a later PR without also pulling unrelated tracing, documentation, or
+  lower-priority investigation work.
+- Prefer correctness-preserving fast paths with fallback behavior over broad
+  rewrites. For example, add direct 32-bit `QImage` scanline conversion only
+  for known formats and retain the existing `pixelColor()` path for uncommon
+  formats.
 
 ## Risks
 
@@ -422,6 +445,173 @@ Recommended measurement sequence:
    priority restore and image issues are addressed.
 5. Investigate addon/preference startup churn if startup remains a user-visible
    complaint after document-open restore and image costs are improved.
+
+## Task Breakdown
+
+### Epic A: Restore Measurement Baseline
+
+- **A1 - Reproduce the baseline trace**
+  - Scope: run the existing `FREECAD_RESTORE_TRACE=1` workflow against the same
+    Gridfinity document in the same build mode.
+  - Output: before timings for `Document.restore.readFiles`, the three large
+    included PNG payloads, shape-map payloads, BREP payloads, and
+    `GuiDocument.xml`.
+  - Exit criteria: timings are recorded in the implementation notes with build
+    type, commit, document path, and run count.
+- **A2 - Confirm stream boundary assumptions**
+  - Scope: verify `Base::Reader::read()` and the `zipios::ZipInputStream` path
+    stop at the same embedded-file boundary as the current byte loop.
+  - Output: reviewer note explaining why chunked reads cannot consume the next
+    registered zip entry.
+  - Exit criteria: the buffered copy patch has an explicit correctness rationale
+    and keeps the old behavior available conceptually through bounded reads.
+
+### Epic B: Buffered Included-File Restore
+
+- **B1 - Implement chunked copy in `PropertyFileIncluded::RestoreDocFile()`**
+  - Scope: replace the byte-at-a-time restore loop in
+    `src/App/PropertyFile.cpp` with a fixed-size binary buffer.
+  - Preserve: `aboutToSetValue()`, `hasSetValue()`, read-only permissions, early
+    return for existing non-writable files, and current failure semantics.
+  - Include: explicit destination write and close error handling where it fits
+    nearby FreeCAD error style.
+  - Exit criteria: large included files restore intact and the patch does not
+    change document archive format or property notifications.
+- **B2 - Add focused restore-copy validation**
+  - Scope: add or update the narrowest stable automated coverage available for
+    `PropertyFileIncluded` binary restore behavior.
+  - Validate: empty files, binary files with embedded zeros, large files, and
+    the existing non-writable-file short-circuit.
+  - Exit criteria: focused tests pass locally, or manual validation is clearly
+    documented if a practical automated test hook is not available.
+- **B3 - Remeasure included-file restore**
+  - Scope: re-run `FREECAD_RESTORE_TRACE=1` after B1.
+  - Compare: `270mm slider drawer side1.png`,
+    `270mm slider cabinet side1.png`, `IMG_2599D-processed.png`, and total
+    `Document.restore.readFiles`.
+  - Exit criteria: before/after numbers are included in PR notes and any
+    remaining dominant restore bucket is identified.
+
+### Epic C: Shape-Map And GUI Restore Investigation
+
+- **C1 - Instrument shape-map restore narrowly**
+  - Scope: split timings inside `ComplexGeoData::RestoreDocFile()` and
+    `ElementMap::restore()`.
+  - Measure: stream read, token parsing, string-hasher lookup, map allocation,
+    and insertion/update work.
+  - Exit criteria: a follow-up patch is either justified by one dominant
+    sub-step or deferred with evidence.
+- **C2 - Instrument GUI document restore narrowly**
+  - Scope: split `Gui::Document::RestoreDocFile()` and view-provider restore
+    timing if `GuiDocument.xml` remains high after B1.
+  - Measure: XML parse, view-provider construction, image/icon setup, and scene
+    graph attachment.
+  - Exit criteria: the next GUI restore task is scoped to one subsystem rather
+    than a general GUI restore rewrite.
+
+### Epic D: Image Conversion Baseline
+
+- **D1 - Reproduce image-plane trace**
+  - Scope: run `FREECAD_IMAGE_TRACE=1` on the same Gridfinity document before
+    image conversion changes.
+  - Output: timings for `imagePlane.loadRaster`,
+    `imagePlane.convertToSFImage`, `imagePlane.loadImage`, and aggregate
+    `convert.QImageToSoSFImage.*`.
+  - Exit criteria: baseline records include image dimensions, `QImage::format()`
+    values, build type, and run count.
+- **D2 - Define image correctness fixtures**
+  - Scope: select a small validation set covering opaque RGB PNG, alpha PNG,
+    the traced large PNG format, premultiplied-alpha input if reachable, and SVG
+    image planes.
+  - Output: manual or automated comparison checklist for orientation, color,
+    alpha, scale, and plane size.
+  - Exit criteria: reviewers can tell which visual cases were checked and which
+    remain fallback-only.
+
+### Epic E: Fast `QImage` To `SoSFImage` Conversion
+
+- **E1 - Add direct scanline fast path for common 32-bit formats**
+  - Scope: optimize `BitmapFactoryInst::convert(const QImage&, SoSFImage&)` for
+    known 32-bit formats using `constScanLine()` or equivalent direct access.
+  - Preserve: vertical flip, RGBA component ordering expected by Coin,
+    `SoSFImage` ownership/editing rules, and fallback behavior for indexed,
+    grayscale, 16-bit, and uncommon formats.
+  - Exit criteria: visual fixture comparison passes and uncommon formats still
+    route through the existing conservative path.
+- **E2 - Validate alpha and premultiplied behavior**
+  - Scope: confirm whether the fast path must unpremultiply
+    `Format_ARGB32_Premultiplied` or leave values as currently observed through
+    `pixelColor()`.
+  - Exit criteria: alpha behavior is documented in code comments only if the
+    conversion choice is non-obvious, and the PR notes call out the tested
+    alpha cases.
+- **E3 - Remeasure image conversion**
+  - Scope: re-run `FREECAD_IMAGE_TRACE=1` after E1.
+  - Compare: `convert.QImageToSoSFImage.5712x4284`,
+    `convert.QImageToSoSFImage.1785x1959`, and total `imagePlane.loadImage`.
+  - Exit criteria: before/after numbers are included in PR notes and any
+    remaining image-plane bottleneck is identified.
+
+### Epic F: Image-Plane Lifecycle Follow-Ups
+
+- **F1 - Investigate pre-restore failed image loads**
+  - Scope: trace why `ViewProviderImagePlane::loadImage()` is called before
+    included files are available.
+  - Output: lifecycle note identifying the clean point where embedded files are
+    guaranteed restored.
+  - Exit criteria: either a small defer/retry patch is proposed or the failed
+    loads remain documented as cheap and low priority.
+- **F2 - Prototype lazy or reduced-resolution texture creation**
+  - Scope: investigate deferring full-resolution `SoSFImage` creation until the
+    image plane is visible or using a display-resolution texture first.
+  - Constraints: do not change source file semantics, plane dimensions, or user
+    expectations for image-plane fidelity without a separate design decision.
+  - Exit criteria: prototype results show whether this is worth a future spec
+    or should be dropped.
+
+### Epic G: Lower-Priority UI And Startup Work
+
+- **G1 - Tree status timer batching**
+  - Scope: replace repeated status timer restarts during restore with one
+    pending-status flag only if larger-document traces show meaningful cost.
+  - Validate: document open, close, close all, reload, drag state, expansion
+    state, selection, and Python observer behavior.
+  - Exit criteria: no change is made until a larger trace proves the current
+    tens-of-milliseconds cost is worth review risk.
+- **G2 - Tree bulk-delete investigation**
+  - Scope: inspect `_slotDeleteObject()` side effects before bypassing
+    per-object deletion during whole-document removal.
+  - Exit criteria: a design note lists required side effects, map invariants,
+    and observer/selection implications before any patch.
+- **G3 - Startup addon and preference tracing**
+  - Scope: count stale workbench preference lookups, addon discovery time,
+    workbench initialization time, and telemetry send behavior.
+  - Exit criteria: startup work is ranked after document-open changes using a
+    normal user profile and a clean control profile.
+
+### Epic H: Review, Cleanup, And Release Notes
+
+- **H1 - Remove or split temporary instrumentation**
+  - Scope: delete one-off trace code from optimization patches, or submit a
+    separate maintained diagnostic patch with opt-in controls.
+  - Exit criteria: production patches do not contain accidental stderr logging,
+    `atexit` summaries, or broad trace helpers.
+- **H2 - Build and test final patch set**
+  - Scope: run focused tests for touched subsystems and `pixi run build -j 2`.
+  - Broaden: run `pixi run test` when shared Base/App/Gui behavior changes.
+  - Exit criteria: PR notes list exact commands, results, and any skipped
+    validation with a reason.
+- **H3 - Prepare review notes**
+  - Scope: document behavior preservation, before/after timings, remaining
+    hotspots, and follow-up tasks.
+  - Exit criteria: each production PR is independently reviewable and does not
+    require accepting unrelated tracing or lower-priority cleanup.
+- **H4 - Preserve cherry-pickable commit boundaries**
+  - Scope: keep each production optimization, validation update, and retained
+    diagnostic change in separate coherent commits.
+  - Exit criteria: a future PR can cherry-pick the desired optimization commits
+    without dragging in unrelated research notes, temporary trace code, or
+    lower-priority follow-ups.
 
 ## Cleanup Plan
 
