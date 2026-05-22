@@ -135,4 +135,4 @@ before and after optimization.
   [../compact-view-rails-rework/spec.md](../compact-view-rails-rework/spec.md)
 - Plan: [plan.md](plan.md)
 - Research: [research.md](research.md)
-- Tasks:
+- Tasks: [tasks.md](tasks.md)
