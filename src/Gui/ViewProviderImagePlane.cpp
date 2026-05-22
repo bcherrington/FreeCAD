@@ -202,6 +202,7 @@ void ViewProviderImagePlane::loadImage()
     std::string fileName = imagePlane->ImageFile.getValue();
 
     if (!fileName.empty()) {
+        retryImageLoadAfterRestore = false;
         QImage impQ;
         if (isSvgFile(fileName.c_str())) {
             impQ = loadSvg(fileName.c_str());
@@ -213,6 +214,15 @@ void ViewProviderImagePlane::loadImage()
         QSizeF size = getSizeInMM(impQ);
         setPlaneSize(size, impQ);
         convertToSFImage(impQ);
+    }
+}
+
+void ViewProviderImagePlane::finishRestoring()
+{
+    ViewProviderGeometryObject::finishRestoring();
+
+    if (retryImageLoadAfterRestore) {
+        loadImage();
     }
 }
 
@@ -336,6 +346,11 @@ void ViewProviderImagePlane::updateData(const App::Property* prop)
         reloadIfSvg();
     }
     else if (prop == &pcPlaneObj->ImageFile) {
+        const std::string fileName = pcPlaneObj->ImageFile.getValue();
+        if (isRestoring() && !fileName.empty() && !QFileInfo::exists(QString::fromUtf8(fileName))) {
+            retryImageLoadAfterRestore = true;
+            return;
+        }
         loadImage();
     }
     else {

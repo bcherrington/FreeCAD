@@ -95,16 +95,43 @@ Findings:
 
 ## P2: Image-Plane Lifecycle Follow-Ups
 
-- [ ] Trace why `ViewProviderImagePlane::loadImage()` can run before included
+- [x] Trace why `ViewProviderImagePlane::loadImage()` can run before included
       files are available.
-- [ ] Identify the clean lifecycle point where embedded files are guaranteed
+- [x] Identify the clean lifecycle point where embedded files are guaranteed
       restored.
-- [ ] Decide whether failed pre-restore image loads should be deferred,
+- [x] Decide whether failed pre-restore image loads should be deferred,
       retried, or left alone as low-cost noise.
 - [ ] Prototype lazy full-resolution texture creation only after the direct
       conversion fast path is measured.
 - [ ] Prototype reduced-resolution initial textures only as a separate behavior
       decision that preserves source image semantics.
+
+### Image-Plane Restore Lifecycle - 2026-05-22
+
+Source review showed the restore ordering:
+
+- `App::Document::restore()` restores `Document.xml`.
+- `Gui::Document::Restore()` adds `GuiDocument.xml` as an included restore file
+  and marks view providers as restoring.
+- `Gui::Document::RestoreDocFile()` restores view-provider properties before
+  `reader.readFiles(zipstream)` extracts all included payloads.
+- `App::Document::afterRestore()` later emits per-object
+  `signalFinishRestoreObject`, which calls
+  `ViewProviderDocumentObject::finishRestoring()` after included files exist.
+
+`ViewProviderImagePlane::updateData(ImageFile)` now defers a restore-time image
+load when the referenced file is not available yet, then retries from
+`finishRestoring()`. This avoids a known failed pre-restore load without
+changing normal user edits, external-file behavior, or image source semantics.
+
+Validation:
+
+- `cmake --build build/debug --target Gui_tests_run -j 2`
+- `QT_QPA_PLATFORM=offscreen build/debug/tests/Gui_tests_run --gtest_filter='BitmapFactoryTest.*'`
+- `xvfb-run -a timeout 45s pixi run build/debug/bin/FreeCAD
+  /tmp/freecad_gui_imageplane_open.py --pass
+  "/home/bcherrington/Projects/FreeCAD/Drawer/Gridfinity Drawer v1.3.FCStd"`
+  reported `image_planes=3`, `missing_paths=0`, and `gui_doc=True`.
 
 ## P3: Lower-Priority UI And Startup Work
 

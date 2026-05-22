@@ -48,6 +48,7 @@ public:
     void setDisplayMode(const char* ModeName) override;
     std::vector<std::string> getDisplayModes() const override;
     void updateData(const App::Property*) override;
+    void finishRestoring() override;
     void setupContextMenu(QMenu*, QObject*, const char*) override;
     bool doubleClicked() override;
     void onChanged(const App::Property* prop) override;
@@ -71,6 +72,7 @@ private:
     SoCoordinate3* pcCoords;
     SoTexture2* texture;
     SoShapeHints* shapeHints;
+    bool retryImageLoadAfterRestore = false;
     static const char* LightingEnums[];
 };
 
