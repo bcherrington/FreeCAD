@@ -31,6 +31,8 @@
 #include <Base/Uuid.h>
 #include <Base/Tools.h>
 
+#include <array>
+
 #include "PropertyFile.h"
 #include "Document.h"
 #include "DocumentObject.h"
@@ -469,11 +471,27 @@ void PropertyFileIncluded::RestoreDocFile(Base::Reader& reader)
 
     // copy plain data
     aboutToSetValue();
-    unsigned char c;
-    while (reader.get((char&)c)) {
-        to.put((char)c);
+    std::array<char, 64 * 1024> buffer {};
+    while (reader) {
+        reader.read(buffer.data(), static_cast<std::streamsize>(buffer.size()));
+        const std::streamsize count = reader.gcount();
+        if (count > 0) {
+            to.write(buffer.data(), count);
+            if (!to) {
+                std::stringstream str;
+                str << "PropertyFileIncluded::RestoreDocFile(): "
+                    << "File '" << _cValue << "' in transient directory cannot be written.";
+                throw Base::FileSystemError(str.str());
+            }
+        }
     }
     to.close();
+    if (!to) {
+        std::stringstream str;
+        str << "PropertyFileIncluded::RestoreDocFile(): "
+            << "File '" << _cValue << "' in transient directory cannot be closed.";
+        throw Base::FileSystemError(str.str());
+    }
 
     // set read-only after restoring the file
     fi.setPermissions(Base::FileInfo::ReadOnly);
