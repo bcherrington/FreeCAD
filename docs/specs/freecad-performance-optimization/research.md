@@ -1,6 +1,17 @@
-# FreeCAD Profiling Findings
+---
+title: FreeCAD profiling findings
+doc_type: spec
+status: draft
+owner: local-developer
+last_reviewed: 2026-05-22
+---
 
-Date: 2026-05-21
+# Research: FreeCAD Profiling Findings
+
+## Question
+
+Which normal-working-mode FreeCAD performance hotspots are worth turning into
+small, evidence-led optimization patches?
 
 This note summarizes the profiling work done against the local debug build of
 FreeCAD and lists the next investigation steps. The goal is to identify
@@ -606,6 +617,13 @@ recompute, tessellation, or document restore.
 4. Tree/document UI update batching during document open/close.
 5. Addon/workbench startup and stale preference resolution in normal mode.
 6. Geometry restore/meshing costs for specific heavy documents.
+
+## Recommendation
+
+Use [spec.md](spec.md) and [plan.md](plan.md) to turn the top findings into
+separately reviewable implementation patches. Start with compact layout /
+OpenGL framebuffer churn, then document restore embedded-file payloads, then
+image conversion and loading work.
 
 ## Next Steps
 

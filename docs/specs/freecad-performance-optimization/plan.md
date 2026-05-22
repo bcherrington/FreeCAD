@@ -1,13 +1,113 @@
-# FreeCAD Performance Implementation Plan
+---
+title: FreeCAD performance optimization plan
+doc_type: spec
+status: draft
+owner: local-developer
+last_reviewed: 2026-05-22
+---
 
-Date: 2026-05-21
+# Implementation Plan
 
-This document turns the profiling findings into an implementation plan. The
-goal is to keep optimization work evidence-led: each proposed change should have
-a clear hypothesis, a small implementation scope, and a before/after measurement
-using normal working mode.
+## Summary
 
-The source evidence is in `docs/freecad-profiling-findings.md`.
+This plan turns the profiling findings into implementation work for FreeCAD
+document-open and runtime performance optimization. The goal is to keep
+optimization work evidence-led: each proposed change should have a clear
+hypothesis, a small implementation scope, and a before/after measurement using
+normal working mode.
+
+The source evidence is in [research.md](research.md).
+The compact view rail geometry optimization found during the same profiling
+work is owned by
+[Compact view rails rework](../compact-view-rails-rework/spec.md).
+
+## Technical Context
+
+- **Language/Version**: C++ and Python in the local FreeCAD debug build.
+- **Primary Dependencies**: Qt, Coin/Quarter, OpenCascade, FreeCAD App and Gui
+  internals.
+- **Storage**: FreeCAD document restore payloads, embedded files, and GUI
+  preferences.
+- **Testing**: Focused CTest coverage where stable, performance traces, and
+  manual validation for document and image behavior.
+- **Target Platform**: Linux debug build for the captured evidence; fixes
+  should preserve cross-platform FreeCAD behavior.
+- **Project Type**: Desktop CAD application.
+- **Performance Goals**: Reduce document restore cost and large image
+  conversion overhead without changing document semantics.
+- **Constraints**: Keep temporary instrumentation out of production unless
+  intentionally designed, and preserve existing user workflows.
+- **Scale/Scope**: Optimize the measured hotspots in small independently
+  reviewable patches.
+
+## Governance Check
+
+- [ ] SOLID boundaries defined: each patch keeps ownership clear between
+  document restore, image conversion, and lower-priority tree-view behavior.
+- [ ] DRY plan defined: shared trace helpers are extracted only if
+  instrumentation becomes maintained code.
+- [ ] Test strategy defined: focused tests, traces, and manual validation are
+  mapped to each optimization.
+- [ ] UX consistency impact assessed: document and image behavior preserve
+  existing user-visible results.
+- [ ] Performance budgets defined: before/after traces compare the same
+  workflow and build mode.
+
+## Project Structure
+
+### Documentation
+
+```text
+docs/specs/freecad-performance-optimization/
+|-- spec.md
+|-- plan.md
+`-- research.md
+```
+
+### Source Code
+
+Expected touchpoints depend on the selected phase:
+
+```text
+src/Gui/
+src/App/
+src/Base/
+src/Mod/
+tests/
+docs/
+```
+
+**Structure Decision**: Keep this as a spec package because the work is not yet
+fully implemented and the research findings should remain linked to the
+implementation plan.
+
+## Phases
+
+1. Optimize document restore embedded-file payloads.
+2. Optimize image decode, scaling, and bitmap conversion hot paths.
+3. Investigate lower-priority tree/document UI update batching.
+4. Re-run focused normal-mode traces and update this package with results.
+
+## Dependencies
+
+- A reproducible local FreeCAD build and representative documents.
+- Profiling and tracing access on the host used for comparison.
+- Maintainer review for any production diagnostic path.
+
+## Risks
+
+- Document restore optimizations must not change archive boundaries, file
+  permissions, property notifications, or saved document compatibility.
+- Image conversion changes can regress orientation, color, alpha, or texture
+  ownership behavior.
+- Debug-build profiling can exaggerate absolute costs; compare bucket ordering
+  and remeasure relevant changes.
+
+## Validation Strategy
+
+Each patch should include a before/after measurement using the same workflow,
+plus focused automated or manual validation for the touched subsystem. Broaden
+to `pixi run test` when shared App/Base/Gui behavior is changed.
 
 ## Current Temporary Changes
 
@@ -16,16 +116,8 @@ changes are useful for investigation, but should not be treated as production
 implementation unless they are cleaned up and intentionally designed as
 maintainable diagnostics.
 
-Temporary instrumentation added:
+Temporary instrumentation added for this performance package:
 
-- `FREECAD_QUARTER_GL_TRACE=1` in `src/Gui/Quarter/QuarterWidget.cpp`
-  - Counts viewport resize/move/paint/event activity.
-  - Confirmed one active viewport bouncing between `1664x986` and `1720x986`.
-- `FREECAD_COMPACT_LAYOUT_TRACE=1` in `src/Gui/CompactMainWindowChrome.cpp`,
-  `src/Gui/CompactMainWindowChrome.h`, and `src/Gui/MainWindow.cpp`
-  - Labels compact chrome layout calls by `MainWindow` event source.
-  - Confirmed `MainWindow.LayoutRequest` repeatedly expands the central widget
-    and compact chrome shrinks it by `56px`.
 - `FREECAD_TREE_TRACE=1` in `src/Gui/Tree.cpp`
   - Counts tree object creation/deletion, status updates, icon generation, and
     bulk document open/close behavior.
@@ -51,83 +143,16 @@ Before merging production optimization work, decide whether to:
 - Move repeated trace helpers into a shared utility instead of leaving several
   local ad hoc implementations.
 
-## Priority 1: Compact Layout / OpenGL FBO Churn
+## Moved: Compact Layout / OpenGL FBO Churn
 
-### Evidence
+The compact layout and OpenGL framebuffer churn finding is still important, but
+its implementation work belongs to
+[Compact view rails rework](../compact-view-rails-rework/spec.md). That spec
+owns the rail geometry contract, drag-and-drop replacement, and validation
+requirements for `FREECAD_QUARTER_GL_TRACE=1`,
+`FREECAD_COMPACT_LAYOUT_TRACE=1`, and GL framebuffer allocation comparisons.
 
-Interactive tracing showed repeated full-viewport OpenGL framebuffer churn:
-
-- `glGenFramebuffers`: `754`
-- `glDeleteFramebuffers`: `754`
-- `glRenderbufferStorageMultisample`: `752`
-- Repeated sizes: `1720x986`, `1664x986`, `1720x1275`, `1664x1275`
-
-Quarter tracing showed a single viewport repeatedly resizing between
-`1720x986` and `1664x986`. Compact layout tracing showed the source:
-
-- Qt `QMainWindow` layout restores the central widget to the full-width area.
-- `CompactMainWindowChrome::layoutWorkArea()` then calls
-  `central->setGeometry()` and shrinks the central widget by the side rail width
-  on both sides.
-- `compactPanelStripWidth()` was `28px`, so the total delta was `56px`.
-
-### Hypothesis
-
-Compact chrome is fighting `QMainWindow` ownership of the central widget
-geometry. Each layout request causes a full-width central widget geometry,
-followed by a compact-chrome manual shrink. That oscillation propagates to
-`QOpenGLWidget`, which recreates its multisampled backing framebuffer.
-
-### Implementation Direction
-
-Prefer a structural fix over suppressing resize events.
-
-Candidate A: overlay rails
-
-- Stop shrinking the central widget.
-- Leave the central widget under the side rails.
-- Keep rail widgets raised and positioned over the work area edges.
-- Ensure pointer events, hover, and drag behavior are correct at rail edges.
-
-Candidate B: Qt-owned work-area reservation
-
-- Stop calling `central->setGeometry()` manually.
-- Reserve rail space through a `QMainWindow`-owned mechanism or a wrapper around
-  the central widget.
-- Let Qt own the central widget geometry once per layout pass.
-
-Candidate C: layout request gating
-
-- Keep a dirty-layout flag and avoid recomputing compact layout from every
-  `MainWindow.LayoutRequest` unless inputs changed.
-- Treat this as a secondary mitigation, not the primary fix, because it does not
-  remove the geometry ownership conflict by itself.
-
-### Research Needed Before Implementation
-
-- Inspect how `QMainWindow` currently hosts the `QMdiArea` central widget and
-  whether wrapping it changes saved layout, dock areas, MDI behavior, or
-  overlay dock assumptions.
-- Check whether side rails are intended to consume layout space or overlay the
-  viewport. This is a UX decision for the rails redesign.
-- Verify how overlay dock widgets use geometry near the central area, especially
-  with left/right rails and hidden MDI tabs.
-- Identify any existing tests around compact chrome, dock layout, or MDI
-  geometry that should be extended.
-
-### Validation
-
-- Run with `FREECAD_QUARTER_GL_TRACE=1` and confirm viewport geometry no longer
-  oscillates between `1720` and `1664` width.
-- Run the GL interposer trace and confirm full-size FBO create/delete counts
-  drop sharply during the same interaction.
-- Manually test compact mode with document open, close, workbench switch,
-  dock show/hide, overlay mode, window resize, maximize/restore, and frameless
-  mode if enabled.
-- Add or update a focused compact chrome test if a stable geometry contract can
-  be asserted without making the test too platform-sensitive.
-
-## Priority 2: Document Restore Embedded Payloads
+## Priority 1: Document Restore Embedded Payloads
 
 ### Evidence
 
@@ -195,7 +220,7 @@ Then investigate GUI document restore:
 - Run focused App/Base tests affected by stream and property-file behavior, then
   a broader `pixi run test` if the patch touches shared stream code.
 
-## Priority 3: Image Decode, Scaling, And Bitmap Conversion
+## Priority 2: Image Decode, Scaling, And Bitmap Conversion
 
 ### Evidence
 
@@ -281,7 +306,7 @@ Avoid broad caching until invalidation rules are clear.
 - Test theme switch, icon size preference changes, workbench switch, document
   open/close, and high-DPI behavior for any icon cache work.
 
-## Priority 4: Tree / Document UI Churn
+## Priority 3: Tree / Document UI Churn
 
 ### Evidence
 
@@ -331,7 +356,7 @@ Potential changes:
 - Manually test selection, tree expansion, object visibility, close document,
   close all, and document reload.
 
-## Priority 5: Normal Startup Addon And Preference Churn
+## Priority 4: Normal Startup Addon And Preference Churn
 
 ### Evidence
 
@@ -372,9 +397,7 @@ Use the same document and workflows for before/after comparisons:
 
 - Startup only.
 - Open `/home/bcherrington/Projects/FreeCAD/Drawer/Gridfinity Drawer v1.3.FCStd`.
-- Rotate/pan/zoom the viewport for a fixed duration.
 - Close the document.
-- Switch workbenches.
 
 Recommended measurement sequence:
 
@@ -390,18 +413,15 @@ Recommended measurement sequence:
 
 1. Implement buffered restore for `PropertyFileIncluded::RestoreDocFile()`.
    This is small, local, and directly tied to measured large-file restore cost.
-2. Fix compact chrome central-widget geometry ownership.
-   This is higher impact for interactive lag, but needs more UI design and
-   regression planning before code changes.
-3. Add narrower shape-map restore timings and decide whether there is a safe
+2. Add narrower shape-map restore timings and decide whether there is a safe
    parser/data-structure optimization.
-4. Optimize the common 32-bit `QImage` to `SoSFImage` conversion path and
+3. Optimize the common 32-bit `QImage` to `SoSFImage` conversion path and
    remeasure the large image planes. Defer broader icon/SVG caching until a
    separate trace shows cacheable duplicate work with clear invalidation rules.
-5. Revisit tree batching after testing a larger document or after the higher
-   priority restore/layout issues are addressed.
-6. Investigate addon/preference startup churn if startup remains a user-visible
-   complaint after document-open and layout churn are improved.
+4. Revisit tree batching after testing a larger document or after the higher
+   priority restore and image issues are addressed.
+5. Investigate addon/preference startup churn if startup remains a user-visible
+   complaint after document-open restore and image costs are improved.
 
 ## Cleanup Plan
 
