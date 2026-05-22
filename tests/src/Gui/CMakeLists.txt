@@ -6,6 +6,7 @@ add_subdirectory(propertyeditor)
 # Standard C++ GTest tests
 add_executable(Gui_tests_run
         Assistant.cpp
+        BitmapFactory.cpp
         Camera.cpp
         FileDialog.cpp
         StyleParameters/StyleParametersApplicationTest.cpp
