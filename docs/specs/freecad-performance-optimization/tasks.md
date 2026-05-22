@@ -52,6 +52,8 @@ optimization package. The detailed rationale and validation expectations are in
       allocation, and insertion/update cost.
 - [x] Decide whether shape-map restore has a safe optimization target or should
       be deferred.
+- [x] Implement the parser-level shape-map restore fast path as a separate
+      production patch.
 - [ ] Add narrow `Gui::Document::RestoreDocFile()` and view-provider timings if
       `GuiDocument.xml` remains a major restore bucket after buffered copy.
 - [ ] Scope any GUI restore work to the dominant measured sub-step.
@@ -92,6 +94,22 @@ Findings:
 - GUI restore timing was not committed. The first follow-up should use a real
   GUI document-open harness before changing `Gui::Document::RestoreDocFile()`;
   command-mode opens do not prove that path.
+
+### Shape-Map Parser Fast Path - 2026-05-22
+
+`ElementMap::restore()` now parses dot-separated child string-id and mapped-name
+entries with a small `std::string_view` tokenizer instead of repeatedly calling
+`boost::split()` into a temporary `std::vector<std::string>`.
+
+Validation:
+
+- `build/debug/tests/App_tests_run --gtest_filter='ElementMapTest.*'`
+- `build/debug/tests/App_tests_run`
+- `pixi run build -j 2`
+- Command-mode open smoke for:
+  `Gridfinity Drawer v1.3.FCStd`, `BIMExample.FCStd`, `ArchDetail.FCStd`,
+  `EngineBlock.FCStd`, `PartDesignExample.FCStd`, and
+  `draft_test_objects.FCStd`.
 
 ## P2: Image-Plane Lifecycle Follow-Ups
 
