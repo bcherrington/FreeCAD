@@ -147,15 +147,52 @@ Validation notes:
 
 ## P2: Restore Follow-Up Investigation
 
-- [ ] Add narrow timings inside `ComplexGeoData::RestoreDocFile()` and
+- [x] Add narrow timings inside `ComplexGeoData::RestoreDocFile()` and
       `ElementMap::restore()`.
-- [ ] Split shape-map timing into stream read, parsing, string-hasher lookup,
+- [x] Split shape-map timing into stream read, parsing, string-hasher lookup,
       allocation, and insertion/update cost.
-- [ ] Decide whether shape-map restore has a safe optimization target or should
+- [x] Decide whether shape-map restore has a safe optimization target or should
       be deferred.
 - [ ] Add narrow `Gui::Document::RestoreDocFile()` and view-provider timings if
       `GuiDocument.xml` remains a major restore bucket after buffered copy.
 - [ ] Scope any GUI restore work to the dominant measured sub-step.
+
+### Restore Follow-Up Measurement - 2026-05-22
+
+Temporary env-gated timings were added locally for
+`ComplexGeoData::RestoreDocFile()` and `ElementMap::restore()`, then removed
+before committing. The sample set included the Gridfinity drawer file plus
+multiple bundled sample documents so the result was not based on one model.
+The temporary sub-step timers are useful for ranking hot code inside the shape
+map restore path; they should not be treated as exact wall-clock accounting
+because the probe itself adds overhead in the tight parsing loops.
+
+| Model | Objects | Shape maps | Map bytes | Open total | Element-map restore | Main measured cost |
+| --- | ---: | ---: | ---: | ---: | ---: | --- |
+| `Gridfinity Drawer v1.3.FCStd` | 127 | 50 | 3.7MB | 3.221s | 3.415s | Name loop: split 1.305s, string-id lookup 0.662s, map insertion 0.514s |
+| `data/examples/BIMExample.FCStd` | 361 | 177 | 1.5MB | 4.659s | 1.237s | Name loop: insertion 0.633s, split 0.378s |
+| `data/examples/ArchDetail.FCStd` | 435 | 173 | 0.5MB | 4.993s | 0.495s | Name loop: insertion 0.174s, split 0.169s |
+| `data/examples/EngineBlock.FCStd` | 36 | 19 | 14KB | 0.655s | 0.011s | Too small to optimize first |
+| `data/examples/PartDesignExample.FCStd` | 17 | 9 | 14KB | 0.499s | 0.015s | Too small to optimize first |
+| `data/examples/draft_test_objects.FCStd` | 113 | 12 | 7KB | 0.711s | 0.003s | Too small to optimize first |
+
+Findings:
+
+- Shape-map restore is still material for Part/BIM-heavy documents after the
+  included-file copy fix.
+- The dominant measured region is `ElementMap::restore()` name restoration, not
+  allocation. In the larger models, repeated token splitting/parsing,
+  `mappedNames.emplace()`, and `StringHasher::getID()` account for most of the
+  narrow timing.
+- A safe next optimization target exists: replace the repeated
+  `boost::split()`/temporary-token path in `ElementMap::restore()` with a
+  bounded parser that scans dot-separated fields without allocating a new
+  `std::vector<std::string>` per name or child string-id entry. Keep that as a
+  separate production patch with focused map-restore tests and the same
+  multi-model measurement set.
+- GUI restore timing was not committed. The first follow-up should use a real
+  GUI document-open harness before changing `Gui::Document::RestoreDocFile()`;
+  command-mode opens do not prove that path.
 
 ## P2: Image-Plane Lifecycle Follow-Ups
 
