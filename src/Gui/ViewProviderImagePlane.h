@@ -49,6 +49,7 @@ public:
     std::vector<std::string> getDisplayModes() const override;
     void updateData(const App::Property*) override;
     void finishRestoring() override;
+    void show() override;
     void setupContextMenu(QMenu*, QObject*, const char*) override;
     bool doubleClicked() override;
     void onChanged(const App::Property* prop) override;
@@ -56,6 +57,7 @@ public:
 private:
     void resizePlane(float xsize, float ysize);
     void loadImage();
+    void loadImageIfPending();
     void setPlaneSize(const QSizeF& size, const QImage& img);
     void reloadIfSvg();
     bool isSvgFile(const char*) const;
@@ -72,7 +74,7 @@ private:
     SoCoordinate3* pcCoords;
     SoTexture2* texture;
     SoShapeHints* shapeHints;
-    bool retryImageLoadAfterRestore = false;
+    bool pendingFullResTexture = false;
     static const char* LightingEnums[];
 };
 

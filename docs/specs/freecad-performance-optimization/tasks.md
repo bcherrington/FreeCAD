@@ -220,7 +220,7 @@ Validation:
       restored.
 - [x] Decide whether failed pre-restore image loads should be deferred,
       retried, or left alone as low-cost noise.
-- [ ] Prototype lazy full-resolution texture creation only after the direct
+- [x] Prototype lazy full-resolution texture creation only after the direct
       conversion fast path is measured.
 - [ ] Prototype reduced-resolution initial textures only as a separate behavior
       decision that preserves source image semantics.
@@ -243,6 +243,13 @@ load when the referenced file is not available yet, then retries from
 `finishRestoring()`. This avoids a known failed pre-restore load without
 changing normal user edits, external-file behavior, or image source semantics.
 
+The lazy full-resolution texture prototype builds on that lifecycle decision:
+restore-time `ImageFile`, `XSize`, and `YSize` updates mark the full-resolution
+texture as pending instead of decoding/converting immediately. Visible image
+planes materialize their original full-resolution texture at
+`finishRestoring()`, while hidden image planes wait until `show()`. This does
+not introduce reduced-resolution placeholder textures.
+
 Validation:
 
 - `cmake --build build/debug --target Gui_tests_run -j 2`
@@ -251,6 +258,10 @@ Validation:
   /tmp/freecad_gui_imageplane_open.py --pass
   "/home/bcherrington/Projects/FreeCAD/Drawer/Gridfinity Drawer v1.3.FCStd"`
   reported `image_planes=3`, `missing_paths=0`, and `gui_doc=True`.
+- The same GUI smoke after the lazy prototype reported `image_planes=3`,
+  `visible=0`, `missing_paths=0`, and `gui_doc=True`; toggling one image plane
+  visible after restore reported `first_visible=True` and
+  `first_path_exists=True`.
 
 ## P3: Lower-Priority UI And Startup Work
 
