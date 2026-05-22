@@ -301,11 +301,160 @@ Current limitations:
 - Panel content still uses existing Qt dock widgets. Compact rail activation is
   isolated behind a helper, but it does not yet present panels through
   FreeCAD's overlay widgets.
+- The current rail drag feedback is a transitional implementation. It still
+  uses one vertical toolbar per side and derives logical drop zones from pointer
+  position. That makes the lower and bottom targets feel implicit rather than
+  visible, and it should not be treated as the final interaction model.
 - Frameless mode is implemented but remains parameter-gated and
   restart-required. Platform-specific behavior still needs wider manual
   validation.
 - Toolbar alignment/drop-zone experiments were moved out of this compact UI
   branch and should remain separate until the desired Qt architecture is clear.
+
+## Planned Rail Drag-and-Drop Replacement
+
+The compact rail should move away from inferred drop zones and toward explicit
+slot containers with real insertion placeholders. The target model is:
+
+- Keep `QAction` as the source of truth for each panel launcher.
+- Keep real `QToolButton`s for launcher widgets so FreeCAD keeps normal action
+  text, tooltips, checked state, enabled state, accessibility names, icon
+  sizing, palette behavior, and stylesheet compatibility.
+- Replace each side's single vertical toolbar/drop-zone calculation with
+  explicit slot containers:
+  - `left-upper`
+  - `left-lower`
+  - `bottom-left`
+  - `right-upper`
+  - `right-lower`
+  - `bottom-right`
+- Layout the upper and lower slot containers near the top of the rail and the
+  bottom slot container at the bottom, with a stretch between lower and bottom.
+  Users should drop into visible containers, not into invisible thirds of a
+  tall rail.
+- During drag, insert a placeholder widget directly into the target slot layout
+  at the eventual insertion index. This should create real space where the icon
+  will land, matching toolbar-style insertion behavior more closely than a
+  floating outline.
+- Paint slot hover and placeholder feedback with `QPalette`/`QStyle`, or with
+  compact-specific object names that themes can target. Avoid hard-coded colors
+  and avoid visual feedback that only appears as an outline.
+- Persist slot assignment independently from widget type. Keep
+  `CompactJetBrainsPanelSlots/<panel-id>` for slot placement and add an order
+  preference only when intra-slot reordering is implemented.
+
+Qt architecture notes:
+
+- `QToolBar`/`QToolButton` remains a good fit for command launchers, but native
+  toolbar dragging is not designed for FreeCAD's logical rail slots. If the
+  current toolbar container keeps forcing custom hit testing, migrate the
+  container layer only.
+- A custom compact rail widget containing slot widgets and `QToolButton`s is
+  the preferred replacement path. It keeps FreeCAD action integration while
+  giving full control over visible slots, insertion placeholders, and bottom
+  alignment.
+- `QListView` with a model/delegate is a defensible alternative only if the rail
+  becomes a true model/view collection with richer keyboard reordering,
+  selection, or multi-item drag-and-drop requirements. It would require wrapping
+  FreeCAD action state into model data.
+- `QTabBar` should not be used for this rail. The rail entries are launchers for
+  dock panels, not tabs in one page stack, and cross-slot dragging would still
+  require custom behavior.
+- `QDockWidget`/`QMainWindow` docking should continue to own the panel windows
+  themselves, but it should not be used to implement the compact icon rail.
+
+## Layout Churn Investigation
+
+Profiling the current compact UI prototype exposed a layout feedback loop that
+must be addressed during the rails redesign.
+
+Observed symptom:
+
+- The 3D viewport repeatedly alternates between two widths that differ by
+  `56px`, for example `1720x986` and `1664x986`.
+- Each alternation reaches Qt's `QOpenGLWidget` backing framebuffer path and
+  recreates full-size multisampled render targets.
+- In an interactive trace, the GL interposer counted hundreds of repeated
+  framebuffer/renderbuffer allocations and deletes:
+  - `glGenFramebuffers`: `754`
+  - `glDeleteFramebuffers`: `754`
+  - `glGenRenderbuffers`: `754`
+  - `glDeleteRenderbuffers`: `754`
+  - `glRenderbufferStorageMultisample`: `752`
+- The repeated renderbuffer sizes matched the viewport bounce, including
+  `1720x986` and `1664x986`.
+
+Quarter viewport instrumentation confirmed the geometry churn is real for one
+viewport, not a counting artifact:
+
+- `QuarterWidget.uniqueWidgets`: `1`
+- `CustomGLWidget.uniqueWidgets`: `1`
+- `QuarterWidget.resizeEvent`: `4032`
+- `QuarterWidget.viewport.event.Resize`: `4032`
+- `QuarterWidget.viewport.event.Move`: `4031`
+- Observed viewport sizes:
+  - `1664x986`, DPR `1.00`: `4033`
+  - `1720x986`, DPR `1.00`: `4030`
+
+Compact layout tracing identified the source of the `56px` bounce:
+
+- `layoutChrome`: `32`
+- `layoutChrome.MainWindow.LayoutRequest`: `27`
+- `layoutChrome.changed.MainWindow.LayoutRequest`: `27`
+- `central.1720x1016.to.1664x1016.deltaW56.source.MainWindow.LayoutRequest`:
+  `27`
+
+Interpretation:
+
+- `QMainWindow::event()` handles a `LayoutRequest`.
+- Qt's normal `QMainWindow` layout expands the central widget to the full
+  available width.
+- `MainWindow::event()` then calls `CompactMainWindowChrome::layoutChrome()`.
+- `CompactMainWindowChrome::layoutWorkArea()` manually calls
+  `central->setGeometry(...)`, shrinking the central widget by
+  `compactPanelStripWidth()` on both sides.
+- In the profiled run, `compactPanelStripWidth()` was `28px`, so both rails
+  account exactly for the `56px` width delta.
+
+Relevant source:
+
+- `src/Gui/MainWindow.cpp`: `MainWindow::event()` calls compact chrome layout
+  after `QMainWindow::event()` for `Resize`, `Show`, `LayoutRequest`, and
+  `WindowStateChange`.
+- `src/Gui/CompactMainWindowChrome.cpp`: `layoutWorkArea()` sets the central
+  widget left edge to `compactPanelStripWidth()` and the right edge to
+  `mainWindow->width() - compactPanelStripWidth() - 1`.
+- `src/Gui/CompactMainWindowChrome.cpp`: `compactPanelStripWidth()` is button
+  width plus rail margins and clearance.
+
+Root-cause hypothesis:
+
+Compact chrome is fighting `QMainWindow` for ownership of the central widget's
+geometry. `QMainWindow` lays out the central widget, compact chrome manually
+overrides it, and later layout requests repeat the cycle. That central-widget
+oscillation propagates into the `QuarterWidget` viewport and causes expensive
+OpenGL framebuffer churn.
+
+Rails redesign implications:
+
+- Do not reserve rail space by repeatedly calling `central->setGeometry()` from
+  compact chrome.
+- Prefer a Qt-owned layout approach for persistent rail reservation, such as
+  contents margins, a wrapper central widget, or another layout structure where
+  Qt has one authoritative geometry source.
+- If the rails are meant to overlay the viewport, do not shrink the central
+  widget at all. Keep the central widget at normal `QMainWindow` size and raise
+  the rail widgets above it.
+- Avoid running full compact chrome relayout on every `MainWindow.LayoutRequest`
+  unless a compact-owned input actually changed.
+- The rails reimplementation should make the geometry contract explicit:
+  either rails reserve space through Qt layout ownership, or they are overlays.
+  It should not mix overlay widgets with manual central-widget resizing.
+
+Temporary trace switches used during this investigation:
+
+- `FREECAD_QUARTER_GL_TRACE=1`
+- `FREECAD_COMPACT_LAYOUT_TRACE=1`
 
 ## Current Test Coverage
 

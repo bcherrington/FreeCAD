@@ -1,0 +1,418 @@
+# FreeCAD Performance Implementation Plan
+
+Date: 2026-05-21
+
+This document turns the profiling findings into an implementation plan. The
+goal is to keep optimization work evidence-led: each proposed change should have
+a clear hypothesis, a small implementation scope, and a before/after measurement
+using normal working mode.
+
+The source evidence is in `docs/freecad-profiling-findings.md`.
+
+## Current Temporary Changes
+
+The current workspace contains temporary opt-in profiling instrumentation. These
+changes are useful for investigation, but should not be treated as production
+implementation unless they are cleaned up and intentionally designed as
+maintainable diagnostics.
+
+Temporary instrumentation added:
+
+- `FREECAD_QUARTER_GL_TRACE=1` in `src/Gui/Quarter/QuarterWidget.cpp`
+  - Counts viewport resize/move/paint/event activity.
+  - Confirmed one active viewport bouncing between `1664x986` and `1720x986`.
+- `FREECAD_COMPACT_LAYOUT_TRACE=1` in `src/Gui/CompactMainWindowChrome.cpp`,
+  `src/Gui/CompactMainWindowChrome.h`, and `src/Gui/MainWindow.cpp`
+  - Labels compact chrome layout calls by `MainWindow` event source.
+  - Confirmed `MainWindow.LayoutRequest` repeatedly expands the central widget
+    and compact chrome shrinks it by `56px`.
+- `FREECAD_TREE_TRACE=1` in `src/Gui/Tree.cpp`
+  - Counts tree object creation/deletion, status updates, icon generation, and
+    bulk document open/close behavior.
+  - Showed tree churn is frequent but tens of milliseconds for the tested
+    document.
+- `FREECAD_RESTORE_TRACE=1` in `src/App/Document.cpp` and
+  `src/Base/Reader.cpp`
+  - Breaks document restore into XML/object restore, embedded-file restore, and
+    postprocess hooks.
+  - Showed `Base::XMLReader::readFiles()` dominates the tested document open.
+- `FREECAD_IMAGE_TRACE=1` in `src/Gui/BitmapFactory.cpp` and
+  `src/Gui/ViewProviderImagePlane.cpp`
+  - Counts icon/pixmap cache behavior, SVG renders, pixmap loads, pixmap
+    composition, and `QImage`/`SoSFImage` conversion.
+  - Showed document-open image cost is dominated by large image-plane decode
+    and conversion, not toolbar icon cache misses.
+
+Before merging production optimization work, decide whether to:
+
+- Remove temporary trace code after each investigation.
+- Keep a smaller maintained diagnostic path behind a developer preference or
+  compile-time flag.
+- Move repeated trace helpers into a shared utility instead of leaving several
+  local ad hoc implementations.
+
+## Priority 1: Compact Layout / OpenGL FBO Churn
+
+### Evidence
+
+Interactive tracing showed repeated full-viewport OpenGL framebuffer churn:
+
+- `glGenFramebuffers`: `754`
+- `glDeleteFramebuffers`: `754`
+- `glRenderbufferStorageMultisample`: `752`
+- Repeated sizes: `1720x986`, `1664x986`, `1720x1275`, `1664x1275`
+
+Quarter tracing showed a single viewport repeatedly resizing between
+`1720x986` and `1664x986`. Compact layout tracing showed the source:
+
+- Qt `QMainWindow` layout restores the central widget to the full-width area.
+- `CompactMainWindowChrome::layoutWorkArea()` then calls
+  `central->setGeometry()` and shrinks the central widget by the side rail width
+  on both sides.
+- `compactPanelStripWidth()` was `28px`, so the total delta was `56px`.
+
+### Hypothesis
+
+Compact chrome is fighting `QMainWindow` ownership of the central widget
+geometry. Each layout request causes a full-width central widget geometry,
+followed by a compact-chrome manual shrink. That oscillation propagates to
+`QOpenGLWidget`, which recreates its multisampled backing framebuffer.
+
+### Implementation Direction
+
+Prefer a structural fix over suppressing resize events.
+
+Candidate A: overlay rails
+
+- Stop shrinking the central widget.
+- Leave the central widget under the side rails.
+- Keep rail widgets raised and positioned over the work area edges.
+- Ensure pointer events, hover, and drag behavior are correct at rail edges.
+
+Candidate B: Qt-owned work-area reservation
+
+- Stop calling `central->setGeometry()` manually.
+- Reserve rail space through a `QMainWindow`-owned mechanism or a wrapper around
+  the central widget.
+- Let Qt own the central widget geometry once per layout pass.
+
+Candidate C: layout request gating
+
+- Keep a dirty-layout flag and avoid recomputing compact layout from every
+  `MainWindow.LayoutRequest` unless inputs changed.
+- Treat this as a secondary mitigation, not the primary fix, because it does not
+  remove the geometry ownership conflict by itself.
+
+### Research Needed Before Implementation
+
+- Inspect how `QMainWindow` currently hosts the `QMdiArea` central widget and
+  whether wrapping it changes saved layout, dock areas, MDI behavior, or
+  overlay dock assumptions.
+- Check whether side rails are intended to consume layout space or overlay the
+  viewport. This is a UX decision for the rails redesign.
+- Verify how overlay dock widgets use geometry near the central area, especially
+  with left/right rails and hidden MDI tabs.
+- Identify any existing tests around compact chrome, dock layout, or MDI
+  geometry that should be extended.
+
+### Validation
+
+- Run with `FREECAD_QUARTER_GL_TRACE=1` and confirm viewport geometry no longer
+  oscillates between `1720` and `1664` width.
+- Run the GL interposer trace and confirm full-size FBO create/delete counts
+  drop sharply during the same interaction.
+- Manually test compact mode with document open, close, workbench switch,
+  dock show/hide, overlay mode, window resize, maximize/restore, and frameless
+  mode if enabled.
+- Add or update a focused compact chrome test if a stable geometry contract can
+  be asserted without making the test too platform-sensitive.
+
+## Priority 2: Document Restore Embedded Payloads
+
+### Evidence
+
+For `Gridfinity_Drawer_v1_3`, restore was dominated by embedded file payloads:
+
+- `Document.restore.total`: about `11.9s`
+- `Document.restore.readFiles`: about `11.2s`
+- `Document.restore.DocumentXML`: about `0.68s`
+- `Document.restore.afterRestore`: about `0.36s`
+
+Per-file tracing then identified the largest restore payload categories:
+
+- Included PNGs through `App::PropertyFileIncluded`
+- Part element maps through `Part::TopoShape`
+- BREP shape payloads through `Part::PropertyPartShape`
+- `GuiDocument.xml`
+
+### Implementation Direction
+
+Start with the lowest-risk change:
+
+- Replace byte-at-a-time copy in `PropertyFileIncluded::RestoreDocFile()` with
+  buffered copy.
+- Preserve `aboutToSetValue()`, `hasSetValue()`, destination permissions, and
+  existing exception behavior.
+- Add write/close error checks if they can be done consistently with nearby
+  code.
+
+Then investigate shape/map restore:
+
+- Add narrower timings in `ComplexGeoData::RestoreDocFile()` and
+  `ElementMap::restore()`.
+- Separate stream read, parsing, string hasher lookup, element-map allocation,
+  and map insertion costs.
+- Only optimize after the dominant sub-step is known.
+
+Then investigate GUI document restore:
+
+- Add targeted timings in `Gui::Document::RestoreDocFile()` and view-provider
+  restore paths.
+- Confirm whether `GuiDocument.xml` time is XML parsing, view-provider
+  construction, icon/image setup, or scene graph work.
+
+### Research Needed Before Implementation
+
+- Confirm `Base::Reader::read()` respects embedded zip entry boundaries for
+  chunked reads exactly as the byte loop does.
+- Check whether any `PropertyFileIncluded` users rely on side effects of
+  byte-by-byte streaming, partial reads, or EOF state.
+- Review existing stream copy helpers in `Base` before adding a local buffer.
+- Inspect `ElementMap::restore()` and related string hasher code before
+  choosing any shape-map optimization.
+- Compare debug and RelWithDebInfo timings before prioritizing deeper parser
+  work.
+
+### Validation
+
+- Re-run `FREECAD_RESTORE_TRACE=1` on the same Gridfinity document.
+- Compare the specific included-file entries:
+  - `270mm slider drawer side1.png`
+  - `270mm slider cabinet side1.png`
+  - `IMG_2599D-processed.png`
+- Confirm document opens with the image planes intact and saved document output
+  remains compatible.
+- Run focused App/Base tests affected by stream and property-file behavior, then
+  a broader `pixi run test` if the patch touches shared stream code.
+
+## Priority 3: Image Decode, Scaling, And Bitmap Conversion
+
+### Evidence
+
+Normal startup and interactive `perf` captures both showed repeated image work:
+
+- `qt_qimageScaleAARGBA_down_xy_sse4`
+- `qt_memfillXX_avx2`
+- `inflate_fast`, `inflate`, and PNG decode/filter paths
+- `Gui::BitmapFactoryInst::convert(QImage const&, SoSFImage&)`
+
+Follow-up `FREECAD_IMAGE_TRACE=1` results split this into two different
+problems:
+
+- Startup icon/SVG work is broad but mostly small one-time work:
+  - `loadPixmap.hit`: `237`
+  - `loadPixmap.miss`: `443`
+  - `pixmapFromSvg.bytes`: `240`
+  - largest individual startup icon/SVG load: about `6ms`
+- Document image-plane work is large and concentrated:
+  - two `5712x4284` image planes took about `0.68-0.69s` each to decode
+  - the same two images took about `0.85-0.96s` each to convert to `SoSFImage`
+  - a `1785x1959` image took about `0.16s` to decode and `0.26s` to convert
+
+### Hypothesis
+
+The strongest image-related document-open cost is not icon cache misses. It is
+full-resolution image-plane decode followed by full-resolution conversion into
+Coin texture data. Startup icon work may still be worth cleanup, but it is lower
+priority than the image-plane path.
+
+### Implementation Direction
+
+Keep the tracing, but change the first implementation focus:
+
+1. Optimize `BitmapFactoryInst::convert(QImage, SoSFImage)` for common 32-bit
+   `QImage` formats.
+   - Avoid `QImage::pixelColor(x, y)` in the inner loop.
+   - Use `constScanLine()` / direct pixel access for `Format_ARGB32`,
+     `Format_ARGB32_Premultiplied`, and related 32-bit formats.
+   - Preserve vertical flip behavior expected by the existing Coin image data.
+   - Keep fallback behavior for indexed, grayscale, and uncommon formats.
+2. Investigate image-plane load timing.
+   - `ViewProviderImagePlane::loadImage()` currently attempts cheap failed
+     loads before the included files exist, then loads again after restore.
+   - Determine whether included file payloads can defer image load until after
+     `RestoreDocFile()` has completed.
+3. Consider lazy or lower-resolution image-plane texture creation.
+   - Defer full-resolution `SoSFImage` conversion until the image plane is
+     visible or until the 3D view first needs it.
+   - Consider initial display-resolution textures for very large images.
+4. Treat startup icon/SVG caching as a later cleanup.
+   - Direct `BitmapFactory::pixmap()` requests are cached after first load.
+   - Direct `pixmapFromSvg(name, size, colors)` calls may benefit from a cache
+     keyed by name, size, color mapping, theme generation, and DPR.
+
+Avoid broad caching until invalidation rules are clear.
+
+### Research Needed Before Implementation
+
+- Confirm exact pixel layout for the common `QImage` formats used by the traced
+  PNGs. The trace showed format `5` for the large decoded PNGs.
+- Verify `SoSFImage` component ordering expectations and alpha behavior.
+- Check whether premultiplied alpha needs unpremultiplication before handing
+  data to Coin, or whether current visual output relies on the existing channel
+  values.
+- Identify ownership and copy behavior of `SoSFImage::setValue()` /
+  `startEditing()` so direct copy remains safe.
+- Inspect image-plane restore lifecycle to find a clean "embedded files are now
+  available" point.
+- For SVG/icon caching, identify theme/style/DPR invalidation hooks before
+  adding persistent cache entries.
+
+### Validation
+
+- Re-run `FREECAD_IMAGE_TRACE=1` on the Gridfinity document and compare:
+  - `convert.QImageToSoSFImage.5712x4284`
+  - `convert.QImageToSoSFImage.1785x1959`
+  - `imagePlane.loadImage`
+- Visually compare the image planes before/after for orientation, alpha, color,
+  and scale.
+- Test at least one SVG image plane and one PNG image plane.
+- Compare startup traces if any icon/SVG cache changes are made.
+- Test theme switch, icon size preference changes, workbench switch, document
+  open/close, and high-DPI behavior for any icon cache work.
+
+## Priority 4: Tree / Document UI Churn
+
+### Evidence
+
+Tree tracing for the Gridfinity document showed frequent object-level signals
+but relatively small total cost in the tested document:
+
+- `DocumentItem.slotNewObject.calls`: `127`
+- `DocumentItem.createNewItem.created`: `128`
+- Tree item creation/population/icon/status work: tens of milliseconds
+- `TreeWidget.statusTimer.start`: `178`
+- `TreeWidget.onUpdateStatus.deferred.dragOrRestore`: `27`
+- `TreeWidget.slotDeleteDocument.us`: about `11ms`
+
+### Hypothesis
+
+Tree churn is not the main source of the current multi-second open lag, but it
+has scaling risk for larger documents and creates repeated UI work that may
+compound with other startup/open costs.
+
+### Implementation Direction
+
+Keep this lower priority unless larger documents show worse scaling.
+
+Potential changes:
+
+- Replace repeated status timer restarts during restore with a single
+  "status update needed after restore" flag.
+- Add a bulk document-delete path that removes document items and clears maps
+  without calling `_slotDeleteObject()` for every object when the entire
+  document is being removed.
+- Cache tree icon/status decoration data by status, visibility, mode, and icon
+  size where correctness is clear.
+
+### Research Needed Before Implementation
+
+- Inspect all callers and assumptions around `_slotDeleteObject()` before
+  bypassing it for bulk delete.
+- Confirm whether selection, expansion state, drag state, and Python observers
+  require per-object delete notifications in the tree layer.
+- Test a larger document with many more objects before committing to tree
+  optimization work.
+
+### Validation
+
+- Re-run `FREECAD_TREE_TRACE=1` on Gridfinity and one larger document.
+- Confirm creation/deletion counts and UI behavior stay correct.
+- Manually test selection, tree expansion, object visibility, close document,
+  close all, and document reload.
+
+## Priority 5: Normal Startup Addon And Preference Churn
+
+### Evidence
+
+Normal startup loads many workbenches/addons and repeatedly logs unknown or
+stale workbench preferences, including `GridfinityWorkbench`. Telemetry also
+runs during startup and shutdown.
+
+### Hypothesis
+
+Normal startup may be doing repeated preference resolution, addon discovery, or
+telemetry work that can be deferred, cached, or made less synchronous.
+
+### Implementation Direction
+
+Start with tracing, not code changes:
+
+- Count workbench preference lookups and unknown-workbench warnings.
+- Time addon discovery, workbench initialization, and telemetry send paths.
+- Identify repeated warnings that can be coalesced without hiding useful
+  diagnostics.
+
+### Research Needed Before Implementation
+
+- Understand addon manager/workbench discovery lifecycle and what must happen
+  before the first window is shown.
+- Check telemetry opt-in/opt-out behavior and whether sends are synchronous.
+- Review preference pack behavior and stale workbench cleanup options.
+
+### Validation
+
+- Compare normal startup log and `perf` profile before/after.
+- Test with the user's normal profile and with a cleaner profile to separate
+  core behavior from local addon state.
+
+## Build And Measurement Plan
+
+Use the same document and workflows for before/after comparisons:
+
+- Startup only.
+- Open `/home/bcherrington/Projects/FreeCAD/Drawer/Gridfinity Drawer v1.3.FCStd`.
+- Rotate/pan/zoom the viewport for a fixed duration.
+- Close the document.
+- Switch workbenches.
+
+Recommended measurement sequence:
+
+1. Build with `pixi run build -j 2`.
+2. Run the relevant opt-in trace for the target area.
+3. Capture `perf record -F 99 -g --call-graph fp -B` for the same workflow if
+   CPU profile comparison is needed.
+4. Record absolute timings from FreeCAD logs and trace summaries.
+5. Repeat at least twice if timings vary substantially.
+6. For final decisions, compare with a RelWithDebInfo build where feasible.
+
+## Proposed Implementation Order
+
+1. Implement buffered restore for `PropertyFileIncluded::RestoreDocFile()`.
+   This is small, local, and directly tied to measured large-file restore cost.
+2. Fix compact chrome central-widget geometry ownership.
+   This is higher impact for interactive lag, but needs more UI design and
+   regression planning before code changes.
+3. Add narrower shape-map restore timings and decide whether there is a safe
+   parser/data-structure optimization.
+4. Optimize the common 32-bit `QImage` to `SoSFImage` conversion path and
+   remeasure the large image planes. Defer broader icon/SVG caching until a
+   separate trace shows cacheable duplicate work with clear invalidation rules.
+5. Revisit tree batching after testing a larger document or after the higher
+   priority restore/layout issues are addressed.
+6. Investigate addon/preference startup churn if startup remains a user-visible
+   complaint after document-open and layout churn are improved.
+
+## Cleanup Plan
+
+Temporary instrumentation should be removed or consolidated before production
+work is proposed for review.
+
+Cleanup checklist:
+
+- Remove one-off signal handlers and `atexit` trace summaries unless a
+  maintained diagnostic mode is intentionally kept.
+- Remove large stderr trace output from normal code paths.
+- Keep any retained instrumentation opt-in and documented.
+- Keep optimization patches separate from profiling-instrumentation patches so
+  review can evaluate behavior changes cleanly.
