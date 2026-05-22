@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include <FCGlobal.h>
+
 #include <memory>
 
 class QWidget;
@@ -9,7 +11,16 @@ class QWidget;
 namespace Gui
 {
 
-std::unique_ptr<QWidget> showEarlySplash();
-void updateEarlySplash(QWidget* splash);
+struct GuiExport EarlySplashOptions
+{
+    bool strictVerbose = false;
+    bool guiRunMode = true;
+    bool startHidden = false;
+    bool showSplasher = true;
+};
+
+GuiExport bool shouldShowEarlySplash(const EarlySplashOptions& options);
+GuiExport std::unique_ptr<QWidget> showEarlySplash();
+GuiExport void updateEarlySplash(QWidget* splash);
 
 }  // namespace Gui

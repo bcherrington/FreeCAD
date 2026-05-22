@@ -18,6 +18,25 @@
 
 namespace
 {
+Gui::EarlySplashOptions earlySplashOptionsFromConfig()
+{
+    Gui::EarlySplashOptions options;
+    const auto& cfg = App::Application::Config();
+    const auto verbose = cfg.find("Verbose");
+    const auto runMode = cfg.find("RunMode");
+    options.strictVerbose = verbose != cfg.end() && verbose->second == "Strict";
+    options.guiRunMode = runMode == cfg.end() || runMode->second == "Gui";
+    options.startHidden = cfg.find("StartHidden") != cfg.end();
+
+    auto hGrp = App::GetApplication()
+                    .GetUserParameter()
+                    .GetGroup("BaseApp")
+                    ->GetGroup("Preferences")
+                    ->GetGroup("General");
+    options.showSplasher = hGrp->GetBool("ShowSplasher", true);
+    return options;
+}
+
 class EarlySplashWidget: public QWidget
 {
 public:
@@ -82,10 +101,15 @@ void waitForSplashPaint(EarlySplashWidget* splash)
 namespace Gui
 {
 
+bool shouldShowEarlySplash(const EarlySplashOptions& options)
+{
+    return !options.strictVerbose && options.guiRunMode && !options.startHidden
+        && options.showSplasher;
+}
+
 std::unique_ptr<QWidget> showEarlySplash()
 {
-    if (App::Application::Config()["Verbose"] == "Strict"
-        || App::Application::Config()["RunMode"] != "Gui") {
+    if (!shouldShowEarlySplash(earlySplashOptionsFromConfig())) {
         return nullptr;
     }
 

@@ -471,7 +471,12 @@ void StartupPostProcess::showMainWindow()
     }
     catch (const Base::Exception& e) {
         Base::Console().error("Error in FreeCADGuiInit.py: %s\n", e.what());
-        mainWindow->stopSplasher();
+        if (earlySplash) {
+            earlySplash->close();
+        }
+        else {
+            mainWindow->stopSplasher();
+        }
         throw;
     }
 

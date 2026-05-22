@@ -1,7 +1,5 @@
 add_library(FreeCADGui SHARED)
 
-option(FREECAD_USE_EARLY_SPLASH "Show a lightweight splash window before the legacy GUI splash path" OFF)
-
 if ( EXISTS "${CMAKE_SOURCE_DIR}/src/3rdParty/GSL/include" )
     include_directories( ${CMAKE_SOURCE_DIR}/src/3rdParty/GSL/include )
 else()
@@ -60,10 +58,6 @@ endif(BUILD_ADDONMGR)
 
 if (BUILD_TRACY_FRAME_PROFILER)
     add_definitions(-DBUILD_TRACY_FRAME_PROFILER)
-endif()
-
-if(FREECAD_USE_EARLY_SPLASH)
-    target_compile_definitions(FreeCADGui PRIVATE FREECAD_USE_EARLY_SPLASH)
 endif()
 
 target_include_directories(
@@ -1322,6 +1316,7 @@ SET(FreeCADGui_CPP_SRCS
     DocumentPyImp.cpp
     DocumentObserver.cpp
     DocumentObserverPython.cpp
+    EarlySplash.cpp
     EditableDatumLabel.cpp
     EditableDatumLabelPyImp.cpp
     ExpressionBinding.cpp
@@ -1365,6 +1360,7 @@ SET(FreeCADGui_SRCS
     DocumentModel.h
     DocumentObserver.h
     DocumentObserverPython.h
+    EarlySplash.h
     EditableDatumLabel.h
     ExpressionBinding.h
     ExpressionBindingPy.h
@@ -1405,15 +1401,6 @@ SET(FreeCADGui_SRCS
     StyleParameters/Parser.h
     StyleParameters/ParameterManager.h
 )
-
-if(FREECAD_USE_EARLY_SPLASH)
-    list(APPEND FreeCADGui_CPP_SRCS
-        EarlySplash.cpp
-    )
-    list(APPEND FreeCADGui_SRCS
-        EarlySplash.h
-    )
-endif()
 
 SET(FreeCADGui_SRCS
     ${FreeCADGui_connexion_SRCS}
