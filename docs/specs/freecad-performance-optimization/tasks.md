@@ -14,18 +14,84 @@ optimization package. The detailed rationale and validation expectations are in
 
 ## P1: Restore Baseline And Buffered Included Files
 
-- [ ] Reproduce the `FREECAD_RESTORE_TRACE=1` baseline for the Gridfinity
-      document in the same build mode.
-- [ ] Confirm `Base::Reader::read()` chunked reads preserve embedded zip entry
+- [x] Reproduce the restore baseline for the Gridfinity document in the same
+      build mode using a clean detached worktree, since the temporary
+      `FREECAD_RESTORE_TRACE=1` instrumentation has been removed.
+- [x] Confirm `Base::Reader::read()` chunked reads preserve embedded zip entry
       boundaries in the `XMLReader::readFiles()` restore path.
-- [ ] Replace byte-at-a-time copy in
+- [x] Replace byte-at-a-time copy in
       `PropertyFileIncluded::RestoreDocFile()` with bounded buffered copy.
-- [ ] Preserve property notifications, read-only destination permissions,
+- [x] Preserve property notifications, read-only destination permissions,
       existing non-writable-file behavior, and failure semantics.
-- [ ] Add focused validation for binary included-file restore behavior.
-- [ ] Remeasure the three large included PNG restore entries and total
-      `Document.restore.readFiles`.
-- [ ] Record before/after timings and build/test commands in review notes.
+- [x] Add focused validation for binary included-file restore behavior.
+- [x] Remeasure the restore/open path for the same large-image Gridfinity
+      document after the buffered included-file copy change.
+- [x] Record before/after timings and build/test commands in review notes.
+
+### Restore Baseline Measurement - 2026-05-22
+
+The removed `FREECAD_RESTORE_TRACE=1` instrumentation means this measurement
+uses a repeatable whole-document `FreeCAD.openDocument()` benchmark instead of
+per-entry `Document.restore.readFiles` buckets.
+
+Benchmark fixture:
+`/home/bcherrington/Projects/FreeCAD/Drawer/Gridfinity Drawer v1.3.FCStd`
+
+Benchmark body:
+
+```python
+import os
+import time
+
+import FreeCAD
+
+path = os.environ["FREECAD_BENCH_FILE"]
+start = time.perf_counter()
+doc = FreeCAD.openDocument(path)
+open_elapsed = time.perf_counter() - start
+objects = len(doc.Objects)
+FreeCAD.closeDocument(doc.Name)
+print(f"BENCH open_seconds={open_elapsed:.6f} objects={objects} file={path}")
+```
+
+Baseline setup:
+
+```sh
+git worktree add --detach /tmp/freecad-restore-baseline HEAD
+cd /tmp/freecad-restore-baseline
+pixi run configure
+cmake --build build/debug --target FreeCADCmd -j 2
+cmake --build build/debug --target Part Sketcher PartDesign Mesh Spreadsheet Assembly Import TechDraw -j 2
+ninja -C build/debug Mod/PartDesign/Init.py Mod/PartDesign/__init__.py Mod/Sketcher/Init.py Mod/Part/Init.py Mod/Material/Init.py Mod/Mesh/Init.py Mod/Spreadsheet/Init.py Mod/Import/Init.py Mod/Assembly/Init.py Mod/TechDraw/Init.py
+```
+
+The Material target graph was also built so the baseline command build could
+load all 127 document objects without "Cannot create object" restore errors.
+
+Benchmark command shape for both baseline and optimized trees:
+
+```sh
+mod_paths=
+for d in "$PWD"/build/debug/Mod/*; do
+    [ -d "$d" ] && mod_paths="${mod_paths}:$d"
+done
+export LD_LIBRARY_PATH="$PWD/build/debug/lib${mod_paths}${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+FREECAD_BENCH_FILE="$HOME/Projects/FreeCAD/Drawer/Gridfinity Drawer v1.3.FCStd" \
+    pixi run build/debug/bin/FreeCADCmd --safe-mode /tmp/freecad_restore_bench.py
+```
+
+Results, five fresh `FreeCADCmd --safe-mode` processes per build:
+
+| Build | Runs, seconds | Median | Mean | Notes |
+| --- | ---: | ---: | ---: | --- |
+| Baseline `HEAD` detached worktree | 7.920593, 3.556128, 3.347960, 3.657738, 3.747753 | 3.657738 | 4.446034 | First run includes cold-cache/module setup cost. |
+| Buffered `PropertyFileIncluded::RestoreDocFile()` | 2.931941, 2.908889, 2.874808, 4.290493, 3.613156 | 2.931941 | 3.323857 | Same fixture, object count 127, no restore errors. |
+
+Comparison:
+
+- Median all-runs improvement: 19.8%.
+- Warm-run median improvement, excluding the first process from each build:
+  9.6%.
 
 ## P1: Image Conversion Baseline And Fast Path
 
