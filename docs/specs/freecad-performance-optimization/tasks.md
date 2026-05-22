@@ -113,7 +113,7 @@ Findings:
       single pending-status flag.
 - [x] Document `_slotDeleteObject()` side effects before proposing any
       whole-document tree bulk-delete path.
-- [ ] Trace stale workbench preference lookups, addon discovery, workbench
+- [x] Trace stale workbench preference lookups, addon discovery, workbench
       initialization, and telemetry send behavior for normal startup.
 - [x] Rank startup work only after document-open restore and image-plane costs
       are remeasured.
@@ -146,6 +146,19 @@ but the document-open path and image-plane full-resolution texture creation
 were the user-visible restore bottlenecks. Startup tracing is left as a separate
 follow-up so it can be measured independently from document-open optimization.
 
+A fresh normal-profile startup log from this build showed:
+
+- `1090` unknown-workbench preference warnings across `45` unique workbench IDs.
+- `38` repeated `GridfinityWorkbench` preference warnings.
+- `121` loaded workbench table rows.
+- `11` telemetry-related log lines, including startup sends for version, system,
+  addon, and preferences info plus a shutdown send.
+
+This confirms startup has cleanup opportunities, but they are dominated by
+normal-profile addon/workbench state rather than the restore path. Proposed
+follow-up is to coalesce or cache stale workbench preference resolution and to
+verify whether telemetry sends are synchronous before changing startup behavior.
+
 Validation:
 
 - `cmake --build build/debug --target Gui_tests_run -j 2`
@@ -157,6 +170,8 @@ Validation:
   "/home/bcherrington/Projects/FreeCAD/Drawer/Gridfinity Drawer v1.3.FCStd"`
   reported `objects=127`, `image_planes=3`, `visible=0`, `missing_paths=0`,
   and `gui_doc=True`.
+- `xvfb-run -a timeout 25s pixi run build/debug/bin/FreeCAD --log-file
+  /tmp/freecad-p3-startup.log /tmp/freecad_startup_quit.py`
 
 ## Cleanup And Review Gates
 
