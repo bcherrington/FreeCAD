@@ -29,20 +29,55 @@ optimization package. The detailed rationale and validation expectations are in
 
 ## P1: Image Conversion Baseline And Fast Path
 
-- [ ] Reproduce the `FREECAD_IMAGE_TRACE=1` baseline for large image planes.
-- [ ] Record dimensions and `QImage::format()` values for the traced PNG image
+- [x] Reproduce the `FREECAD_IMAGE_TRACE=1` baseline for large image planes.
+- [x] Record dimensions and `QImage::format()` values for the traced PNG image
       planes.
-- [ ] Define visual validation fixtures for RGB PNG, alpha PNG, traced large
+- [x] Define visual validation fixtures for RGB PNG, alpha PNG, traced large
       PNG, premultiplied-alpha input if reachable, and SVG image planes.
-- [ ] Add a direct scanline fast path in
+- [x] Add a direct scanline fast path in
       `BitmapFactoryInst::convert(const QImage&, SoSFImage&)` for known common
       32-bit formats.
-- [ ] Preserve vertical flip, component ordering, alpha behavior, and
+- [x] Preserve vertical flip, component ordering, alpha behavior, and
       `SoSFImage` data ownership.
-- [ ] Keep the existing conservative conversion path for uncommon formats.
-- [ ] Remeasure `convert.QImageToSoSFImage.*` and `imagePlane.loadImage`.
-- [ ] Capture before/after screenshots or manual notes for orientation, color,
+- [x] Keep the existing conservative conversion path for uncommon formats.
+- [x] Remeasure `convert.QImageToSoSFImage.*` and `imagePlane.loadImage`.
+- [x] Capture before/after screenshots or manual notes for orientation, color,
       alpha, and scale.
+
+### Image Conversion Measurement - 2026-05-22
+
+The `FREECAD_IMAGE_TRACE=1` baseline came from the removed temporary trace
+recorded in [research.md](research.md). No trace/profiling code is part of the
+production patch.
+
+Baseline trace:
+
+| Image | Size | QImage format | Load raster | Convert to `SoSFImage` | `loadImage` total |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| `270mm slider cabinet side1.png` | 5712x4284 | 5 (`Format_ARGB32`) | 692.752 ms | 964.213 ms | 1662.185 ms |
+| `270mm slider drawer side1.png` | 5712x4284 | 5 (`Format_ARGB32`) | 677.225 ms | 854.966 ms | 1537.531 ms |
+| `IMG_2599D-processed.png` | 1785x1959 | 5 (`Format_ARGB32`) | 161.491 ms | 261.029 ms | 422.688 ms |
+
+After the direct scanline path, a throwaway benchmark executable under `/tmp`
+linked against the built `FreeCADGui` library and timed fresh `QImage` loads
+plus `BitmapFactory().convert()` for the same extracted PNG entries. This was
+used instead of reintroducing production trace code.
+
+| Image | Convert median | Load+convert median | Convert improvement |
+| --- | ---: | ---: | ---: |
+| `270mm slider cabinet side1.png` | 221.792 ms | 930.569 ms | 77.0% |
+| `270mm slider drawer side1.png` | 229.304 ms | 944.450 ms | 73.2% |
+| `IMG_2599D-processed.png` | 31.911 ms | 152.756 ms | 87.8% |
+
+Validation notes:
+
+- `tests/src/Gui/BitmapFactory.cpp` covers vertical flip, RGBA component order,
+  and alpha handling for `Format_ARGB32`, `Format_RGB32`, `Format_RGBA8888`,
+  and `Format_RGBX8888`.
+- Premultiplied, indexed, grayscale, 64-bit, SVG-rendered, and other uncommon
+  formats still use the existing `pixelColor()` fallback path.
+- SVG image planes are unaffected by the fast path until their rendered
+  `QImage` is one of the explicitly handled 32-bit formats.
 
 ## P2: Restore Follow-Up Investigation
 
