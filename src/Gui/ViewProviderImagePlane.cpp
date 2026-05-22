@@ -202,7 +202,7 @@ void ViewProviderImagePlane::loadImage()
     std::string fileName = imagePlane->ImageFile.getValue();
 
     if (!fileName.empty()) {
-        retryImageLoadAfterRestore = false;
+        pendingFullResTexture = false;
         QImage impQ;
         if (isSvgFile(fileName.c_str())) {
             impQ = loadSvg(fileName.c_str());
@@ -217,13 +217,26 @@ void ViewProviderImagePlane::loadImage()
     }
 }
 
+void ViewProviderImagePlane::loadImageIfPending()
+{
+    if (pendingFullResTexture) {
+        loadImage();
+    }
+}
+
 void ViewProviderImagePlane::finishRestoring()
 {
     ViewProviderGeometryObject::finishRestoring();
 
-    if (retryImageLoadAfterRestore) {
-        loadImage();
+    if (Visibility.getValue()) {
+        loadImageIfPending();
     }
+}
+
+void ViewProviderImagePlane::show()
+{
+    ViewProviderGeometryObject::show();
+    loadImageIfPending();
 }
 
 void ViewProviderImagePlane::setPlaneSize(const QSizeF& size, const QImage& img)
@@ -343,12 +356,17 @@ void ViewProviderImagePlane::updateData(const App::Property* prop)
         float ysize = pcPlaneObj->YSize.getValue();
 
         resizePlane(xsize, ysize);
+        const std::string fileName = pcPlaneObj->ImageFile.getValue();
+        if (isRestoring() && !fileName.empty()) {
+            pendingFullResTexture = true;
+            return;
+        }
         reloadIfSvg();
     }
     else if (prop == &pcPlaneObj->ImageFile) {
         const std::string fileName = pcPlaneObj->ImageFile.getValue();
-        if (isRestoring() && !fileName.empty() && !QFileInfo::exists(QString::fromUtf8(fileName))) {
-            retryImageLoadAfterRestore = true;
+        if (isRestoring() && !fileName.empty()) {
+            pendingFullResTexture = true;
             return;
         }
         loadImage();
