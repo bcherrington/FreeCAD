@@ -57,6 +57,7 @@
 #include "Tools.h"
 
 #include <unordered_map>
+#include <vector>
 
 #ifdef HAVE_TBB
 # include <tbb/blocked_range.h>
@@ -144,11 +145,10 @@ App::DocumentObject* ImportOCAF::loadShapes(
         // Note that newer OCCT (beyond 7.9) has LeftAdjust and RightAdjust to trim the string but
         // these only remove blanks, not all whitespace.
         auto utf8Len = extstr.LengthOfCString();
-        std::string nameText;
-        nameText._Resize_and_overwrite(utf8Len, [extstr, utf8Len](char* buf, std::size_t buf_size) {
-            extstr.ToUTF8CString(buf);
-            return utf8Len;
-        });
+        std::vector<char> utf8Buffer(utf8Len + 1, '\0');
+        Standard_PCharacter utf8Text = utf8Buffer.data();
+        extstr.ToUTF8CString(utf8Text);
+        std::string nameText(utf8Buffer.data());
         auto lastNonSpace = std::find_if(nameText.rbegin(), nameText.rend(), [](unsigned char ch) {
                                 return !std::isspace(ch);
                             }).base();
@@ -166,7 +166,9 @@ App::DocumentObject* ImportOCAF::loadShapes(
 
 #ifdef FC_DEBUG
     TopoDS_Shape debugShape;
-    int hash = aShapeTool->GetShape(label, debugShape) ? std::hash(debugShape) : 0;
+    int hash = aShapeTool->GetShape(label, debugShape)
+        ? static_cast<int>(std::hash<TopoDS_Shape> {}(debugShape))
+        : 0;
     Base::Console().log(
         "H:%d, N:%s, T:%d, A:%d, S:%d, C:%d, SS:%d, F:%d, R:%d, C:%d, SS:%d\n",
         hash,
