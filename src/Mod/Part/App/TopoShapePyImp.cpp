@@ -73,6 +73,7 @@
 #include <Base/FileInfo.h>
 #include <Base/GeometryPyCXX.h>
 #include <Base/MatrixPy.h>
+#include <Base/OCCTTools.h>
 #include <Base/PyWrapParseTupleAndKeywords.h>
 #include <Base/Rotation.h>
 #include <Base/Stream.h>
@@ -97,7 +98,6 @@
 
 #include "OCCError.h"
 #include "PartPyCXX.h"
-#include "ShapeMapHasher.h"
 #include "TopoShapeMapper.h"
 
 
@@ -980,37 +980,38 @@ PyObject* TopoShapePy::ancestorsOfType(PyObject* args) const
     }
 
     try {
-        const TopoDS_Shape& model = getTopoShapePtr()->getShape();
-        const TopoDS_Shape& shape = static_cast<TopoShapePy*>(pcObj)->getTopoShapePtr()->getShape();
-        if (model.IsNull() || shape.IsNull()) {
+        const TopoDS_Shape& containingShape = getTopoShapePtr()->getShape();
+        const TopoDS_Shape& descendentShape
+            = static_cast<TopoShapePy*>(pcObj)->getTopoShapePtr()->getShape();
+        if (containingShape.IsNull() || descendentShape.IsNull()) {
             PyErr_SetString(PyExc_ValueError, "Shape is null");
             return nullptr;
         }
 
         PyTypeObject* pyType = reinterpret_cast<PyTypeObject*>(type);
-        TopAbs_ShapeEnum shapetype = ShapeTypeFromPyType(pyType);
+        TopAbs_ShapeEnum desiredAncestorType = ShapeTypeFromPyType(pyType);
         if (!PyType_IsSubtype(pyType, &TopoShapePy::Type)) {
             PyErr_SetString(PyExc_TypeError, "type must be a Shape subtype");
             return nullptr;
         }
 
-        TopTools_IndexedDataMapOfShapeListOfShape mapOfShapeShape;
-        TopExp::MapShapesAndAncestors(model, shape.ShapeType(), shapetype, mapOfShapeShape);
-        const TopTools_ListOfShape& ancestors = mapOfShapeShape.FindFromKey(shape);
-
-        Py::List list;
-        std::set<Standard_Integer> hashes;
-        TopTools_ListIteratorOfListOfShape it(ancestors);
-        for (; it.More(); it.Next()) {
-            // make sure to avoid duplicates
-            Standard_Integer code = ShapeMapHasher {}(it.Value());
-            if (hashes.find(code) == hashes.end()) {
-                list.append(shape2pyshape(it.Value()));
-                hashes.insert(code);
+        Py::List result;
+        auto descendentType = descendentShape.ShapeType();
+        // Explore all the possible ancestors (having the desired type)
+        for (TopExp_Explorer exp(containingShape, desiredAncestorType); exp.More(); exp.Next()) {
+            // Explore the contents of each possible ancestor.
+            for (TopExp_Explorer exp2(exp.Current(), descendentType); exp2.More(); exp2.Next()) {
+                if (exp2.Current().IsSame(descendentShape)) {
+                    // ancestor is an ancestor of descendentShape; record it in the result.
+                    result.append(shape2pyshape(exp.Current()));
+                    // This quick exit eliminates duplicate ancestors like you would find looking
+                    // for the ancestor face of the longitudinal seam edge of a cylinder or the
+                    // ancestor vertex of a full-circle wire.
+                    break;
+                }
             }
         }
-
-        return Py::new_reference_to(list);
+        return Py::new_reference_to(result);
     }
     catch (Standard_Failure& e) {
         PyErr_SetString(PartExceptionOCCError, e.GetMessageString());
@@ -1728,9 +1729,7 @@ PyObject* TopoShapePy::hashCode(PyObject* args) const
     if (!PyArg_ParseTuple(args, "|i", &upper)) {
         return nullptr;
     }
-
-    int hc = ShapeMapHasher {}(getTopoShapePtr()->getShape());
-    return Py_BuildValue("i", hc);
+    return Py_BuildValue("i", std::hash<TopoDS_Shape> {}(getTopoShapePtr()->getShape()));
 }
 
 PyObject* TopoShapePy::tessellate(PyObject* args) const

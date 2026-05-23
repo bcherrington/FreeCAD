@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: LGPL-2.1-or-later
 
 /***************************************************************************
- *   Copyright (c) 2013 Werner Mayer <wmayer[at]users.sourceforge.net>     *
+ *   Copyright (c) 2026 Kevin Martin <kpmartin[at]papertrail.ca>           *
  *                                                                         *
  *   This file is part of the FreeCAD CAx development system.              *
  *                                                                         *
@@ -24,73 +24,23 @@
 
 #pragma once
 
-#include <map>
-#include <set>
-#include <string>
-#include <vector>
-
+#include <functional>
 #include <TopoDS_Shape.hxx>
+#include <Standard_TypeDef.hxx>
 
-#include <App/Material.h>
-#include <Mod/Import/ImportGlobal.h>
-
-
-class TDF_Label;
-class TopLoc_Location;
-
-namespace App
+// This include file is only needed for using OCCT versions before 7.8, and it provides a
+// template specialization of std::hash<TopoDS_Shape> to allow use of std container classes.
+// OCCT version 7.8 and later do not have TopoDS_Shape::HashCode() so this code must be protected by #if
+#if (OCC_VERSION_MAJOR < 7 || (OCC_VERSION_MAJOR == 7 && OCC_VERSION_MINOR < 8))
+namespace std
 {
-class Document;
-class DocumentObject;
-}  // namespace App
-namespace Part
+template<>
+struct hash<TopoDS_Shape>
 {
-class Feature;
-}
-
-namespace Import
-{
-
-class ImportExport ImportOCAFAssembly
-{
-public:
-    ImportOCAFAssembly(
-        Handle(TDocStd_Document) h,
-        App::Document* d,
-        const std::string& name,
-        App::DocumentObject* target
-    );
-    virtual ~ImportOCAFAssembly();
-    void loadShapes();
-    void loadAssembly();
-
-protected:
-    std::string getName(const TDF_Label& label);
-    App::DocumentObject* targetObj;
-
-
-private:
-    void loadShapes(
-        const TDF_Label& label,
-        const TopLoc_Location&,
-        const std::string& partname,
-        const std::string& assembly,
-        bool isRef,
-        int dep
-    );
-    void createShape(const TDF_Label& label, const TopLoc_Location&, const std::string&);
-    void createShape(const TopoDS_Shape& label, const TopLoc_Location&, const std::string&);
-    virtual void applyColors(Part::Feature*, const std::vector<Base::Color>&)
-    {}
-
-private:
-    Handle(TDocStd_Document) pDoc;
-    App::Document* doc;
-    Handle(XCAFDoc_ShapeTool) aShapeTool;
-    Handle(XCAFDoc_ColorTool) aColorTool;
-    std::string default_name;
-    std::set<int> myRefShapes;
+    size_t operator()(const TopoDS_Shape& theShape) const noexcept
+    {
+        return theShape.HashCode(std::numeric_limits<Standard_Integer>::max());
+    }
 };
-
-
-}  // namespace Import
+}  // namespace std
+#endif
