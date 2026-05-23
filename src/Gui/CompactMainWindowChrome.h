@@ -23,7 +23,6 @@
 #pragma once
 
 #include <QHash>
-#include <QIcon>
 #include <QList>
 #include <QMargins>
 #include <QObject>
@@ -36,7 +35,6 @@
 
 #include <FCGlobal.h>
 
-class QDockWidget;
 class QMenuBar;
 class QMouseEvent;
 class QAction;
@@ -59,7 +57,6 @@ public:
     bool isActive() const;
 
     void layoutChrome();
-    void refreshPanelStrips();
     void updateWindowControls();
     void updateHamburgerIcon();
 
@@ -69,46 +66,10 @@ protected:
     bool eventFilter(QObject* watched, QEvent* event) override;
 
 private:
-    enum class PanelSlot
-    {
-        LeftTop,
-        LeftLower,
-        RightTop,
-        RightLower,
-        BottomLeft,
-        BottomRight,
-    };
-
-    enum class PanelGroup
-    {
-        LeftTop,
-        LeftLower,
-        RightTop,
-        RightLower,
-        BottomLeft,
-        BottomRight,
-    };
-
-    struct PanelEntry
-    {
-        QDockWidget* dock = nullptr;
-        PanelSlot slot = PanelSlot::LeftLower;
-        int order = 0;
-    };
-
     struct ResizeGrip
     {
         QWidget* widget = nullptr;
         Qt::Edges edges;
-    };
-
-    struct KnownPanel
-    {
-        const char* actionId = nullptr;
-        PanelSlot slot = PanelSlot::LeftLower;
-        int order = 0;
-        const char* iconName = nullptr;
-        int fallbackIcon = 0;
     };
 
     void setup();
@@ -129,25 +90,12 @@ private:
     void updateMdiTabBarVisibility();
     void applyContentsMargins();
     void layoutTopBar();
-    void layoutPanelStrips();
     void layoutResizeGrips();
     void createResizeGrips();
     void setResizeGripsVisible(bool visible);
     void startManualResize(Qt::Edges edges, QMouseEvent* event, QWidget* grip);
     void updateManualResize(QMouseEvent* event);
     void finishManualResize();
-    void removeLegacyDockStrips();
-
-    QList<QDockWidget*> managedDockContainers() const;
-    PanelSlot panelSlotForDock(QDockWidget* dock) const;
-    PanelSlot fallbackSlotForDock(QDockWidget* dock) const;
-    Qt::DockWidgetArea dockAreaForSlot(PanelSlot slot) const;
-    int panelOrderForDock(const QDockWidget* dock, PanelSlot slot) const;
-    QIcon dockIcon(const QDockWidget* dock, PanelSlot slot) const;
-    QString dockTitle(const QDockWidget* dock) const;
-    QString dockActionId(const QDockWidget* dock) const;
-    const KnownPanel* knownPanelForActionId(const QString& actionId) const;
-    PanelGroup panelGroup(PanelSlot slot) const;
 
     QToolButton* createTitleButton(const QString& tooltip, QWidget* parent);
     void setButtonTextMetadata(QToolButton* button, const QString& text);
@@ -170,10 +118,6 @@ private:
     QToolButton* minimizeButton = nullptr;
     QToolButton* maximizeButton = nullptr;
     QToolButton* closeButton = nullptr;
-    QWidget* leftStrip = nullptr;
-    QWidget* rightStrip = nullptr;
-    QWidget* leftStripContent = nullptr;
-    QWidget* rightStripContent = nullptr;
     QVector<ResizeGrip> resizeGrips;
     QHash<QObject*, Qt::Edges> resizeGripEdges;
     bool active = false;

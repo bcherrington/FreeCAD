@@ -28,13 +28,11 @@
 #include <QAction>
 #include <QActionGroup>
 #include <QApplication>
-#include <QDockWidget>
 #include <QDirIterator>
 #include <QFileInfo>
 #include <QFont>
 #include <QFrame>
 #include <QHBoxLayout>
-#include <QLayoutItem>
 #include <QMainWindow>
 #include <QMenu>
 #include <QMenuBar>
@@ -42,7 +40,6 @@
 #include <QPainter>
 #include <QScreen>
 #include <QSet>
-#include <QStatusBar>
 #include <QStyle>
 #include <QStyleOptionMenuItem>
 #include <QTabBar>
@@ -64,7 +61,6 @@
 #include "Action.h"
 #include "BitmapFactory.h"
 #include "Command.h"
-#include "DockWindowManager.h"
 #include "Document.h"
 #include "MainWindow.h"
 #include "MDIView.h"
@@ -78,13 +74,6 @@ namespace
 constexpr auto CompactTopBarObjectName = "_fc_compact_top_bar";
 constexpr auto CompactToolBarObjectName = "_fc_compact_tool_bar";
 constexpr auto CompactMenuBarObjectName = "_fc_compact_menu_bar";
-constexpr auto CompactLeftStripObjectName = "_fc_compact_left_panel_rail";
-constexpr auto CompactRightStripObjectName = "_fc_compact_right_panel_rail";
-constexpr auto CompactLegacyLeftStripObjectName = "_fc_compact_left_panel_strip";
-constexpr auto CompactLegacyRightStripObjectName = "_fc_compact_right_panel_strip";
-constexpr auto CompactLegacyBottomStripObjectName = "_fc_compact_bottom_panel_strip";
-constexpr int CompactPanelStripMargin = 3;
-constexpr int CompactPanelStripClearance = 2;
 constexpr int CompactResizeBorderWidth = 6;
 
 QString trText(const char* text)
@@ -242,34 +231,6 @@ QIcon documentIcon(const MDIView* view, const QWidget* fallbackWidget)
         icon = fallbackWidget->style()->standardIcon(QStyle::SP_FileIcon);
     }
     return icon;
-}
-
-bool isCompactUiDock(const QDockWidget* dock)
-{
-    if (!dock) {
-        return false;
-    }
-
-    const QString name = dock->objectName();
-    return name == QLatin1String(CompactLegacyLeftStripObjectName)
-        || name == QLatin1String(CompactLegacyRightStripObjectName)
-        || name == QLatin1String(CompactLegacyBottomStripObjectName);
-}
-
-bool isCompactUiDockCandidate(const QDockWidget* dock)
-{
-    if (!dock || isCompactUiDock(dock)) {
-        return false;
-    }
-
-    QAction* action = dock->toggleViewAction();
-    return action && action->isVisible() && !dock->objectName().isEmpty();
-}
-
-int compactPanelStripWidth()
-{
-    return CompactTitleBarStyle::buttonSize(nullptr).width() + (2 * CompactPanelStripMargin)
-        + CompactPanelStripClearance;
 }
 
 QToolBar* createButtonToolBar(QWidget* parent, Qt::Orientation orientation)
@@ -720,48 +681,6 @@ void populateWorkbenchMenu(QMenu* menu)
     addCommandToMenu(menu, "Std_AddonMgr");
 }
 
-void clearStrip(QWidget* content)
-{
-    if (!content || !content->layout()) {
-        return;
-    }
-
-    QLayoutItem* item = nullptr;
-    while ((item = content->layout()->takeAt(0)) != nullptr) {
-        if (QWidget* widget = item->widget()) {
-            widget->deleteLater();
-        }
-        delete item;
-    }
-}
-
-void addStripSpacer(QToolBar* toolbar)
-{
-    addToolBarStretch(toolbar);
-}
-
-QWidget* createStrip(MainWindow* window, QWidget** content, const QString& objectName)
-{
-    auto container = new QFrame(window);
-    container->setObjectName(objectName + QStringLiteral("Content"));
-    container->setFixedWidth(compactPanelStripWidth());
-    container->setFrameShape(QFrame::NoFrame);
-    container->setAutoFillBackground(true);
-
-    auto layout = new QVBoxLayout(container);
-    layout->setContentsMargins(
-        CompactPanelStripMargin,
-        CompactPanelStripMargin,
-        CompactPanelStripMargin,
-        CompactPanelStripMargin
-    );
-    layout->setSpacing(CompactPanelStripMargin);
-
-    container->hide();
-    *content = container;
-    return container;
-}
-
 QCursor cursorForEdges(Qt::Edges edges)
 {
     if (edges == (Qt::LeftEdge | Qt::TopEdge) || edges == (Qt::RightEdge | Qt::BottomEdge)) {
@@ -1125,7 +1044,6 @@ void CompactMainWindowChrome::setup()
     });
     connect(closeButton, &QToolButton::clicked, mainWindow, &MainWindow::close);
     connect(mainWindow, &MainWindow::workbenchActivated, this, [this]() {
-        QTimer::singleShot(0, this, &CompactMainWindowChrome::refreshPanelStrips);
         QTimer::singleShot(0, this, &CompactMainWindowChrome::updateWorkbenchButton);
         QTimer::singleShot(0, this, &CompactMainWindowChrome::rebuildWorkbenchMenuButtons);
     });
@@ -1181,12 +1099,6 @@ void CompactMainWindowChrome::setup()
     userEditModeConnection = Gui::Application::Instance->signalUserEditModeChanged.connect(
         [this](int) { QTimer::singleShot(0, this, &CompactMainWindowChrome::updateEditModeButton); }
     );
-
-    removeLegacyDockStrips();
-
-    leftStrip = createStrip(mainWindow, &leftStripContent, QLatin1String(CompactLeftStripObjectName));
-    rightStrip
-        = createStrip(mainWindow, &rightStripContent, QLatin1String(CompactRightStripObjectName));
     createResizeGrips();
 }
 
@@ -1197,8 +1109,6 @@ void CompactMainWindowChrome::setActive(bool enabled)
     }
 
     topBar->setVisible(enabled);
-    leftStrip->setVisible(enabled);
-    rightStrip->setVisible(enabled);
 
     if (enabled && !active) {
         setGlobalEventFilterActive(true);
@@ -1215,13 +1125,6 @@ void CompactMainWindowChrome::setActive(bool enabled)
         mainWindow->menuBar()->hide();
         updateMdiTabBarVisibility();
         syncMenuBar();
-        const QList<QDockWidget*> docks = managedDockContainers();
-        for (auto dock : docks) {
-            const auto slot = panelSlotForDock(dock);
-            const bool wasVisible = dock->isVisible();
-            mainWindow->addDockWidget(dockAreaForSlot(slot), dock);
-            dock->setVisible(wasVisible);
-        }
     }
     else if (!enabled && active) {
         hideMainMenu();
@@ -1253,7 +1156,6 @@ void CompactMainWindowChrome::setActive(bool enabled)
     updateMdiTabBarVisibility();
     updateWindowControls();
     layoutChrome();
-    refreshPanelStrips();
 }
 
 bool CompactMainWindowChrome::isActive() const
@@ -1664,7 +1566,6 @@ void CompactMainWindowChrome::layoutChrome()
     updateMdiTabBarVisibility();
     layoutTopBar();
     applyContentsMargins();
-    layoutPanelStrips();
     layoutResizeGrips();
 }
 
@@ -1675,11 +1576,10 @@ void CompactMainWindowChrome::applyContentsMargins()
     }
 
     const int topBarHeight = topBar && topBar->isVisible() ? topBar->height() : 0;
-    const int panelStripWidth = compactPanelStripWidth();
     mainWindow->setContentsMargins(
-        contentsMarginsBefore.left() + panelStripWidth,
+        contentsMarginsBefore.left(),
         contentsMarginsBefore.top() + topBarHeight,
-        contentsMarginsBefore.right() + panelStripWidth,
+        contentsMarginsBefore.right(),
         contentsMarginsBefore.bottom()
     );
 }
@@ -1710,176 +1610,6 @@ void CompactMainWindowChrome::layoutTopBar()
         }
     }
     topBar->raise();
-}
-
-void CompactMainWindowChrome::layoutPanelStrips()
-{
-    if (!active || !leftStrip || !rightStrip) {
-        return;
-    }
-
-    int top = 0;
-
-    if (auto central = mainWindow->centralWidget()) {
-        top = central->geometry().top();
-    }
-    else if (topBar && topBar->isVisible()) {
-        top = topBar->geometry().bottom() + 1;
-    }
-    else if (mainWindow->menuBar() && mainWindow->menuBar()->isVisible()) {
-        top = mainWindow->menuBar()->geometry().bottom() + 1;
-    }
-
-    int bottom = mainWindow->height();
-    if (mainWindow->statusBar() && mainWindow->statusBar()->isVisible()) {
-        bottom = mainWindow->statusBar()->geometry().top();
-    }
-
-    const int panelStripWidth = compactPanelStripWidth();
-    const int stripHeight = std::max(0, bottom - top);
-    leftStrip->setFixedWidth(panelStripWidth);
-    rightStrip->setFixedWidth(panelStripWidth);
-    leftStrip->setGeometry(0, top, panelStripWidth, stripHeight);
-    rightStrip->setGeometry(mainWindow->width() - panelStripWidth, top, panelStripWidth, stripHeight);
-    leftStrip->raise();
-    rightStrip->raise();
-    if (topBar) {
-        topBar->raise();
-    }
-}
-
-void CompactMainWindowChrome::refreshPanelStrips()
-{
-    if (!leftStripContent || !rightStripContent) {
-        return;
-    }
-
-    clearStrip(leftStripContent);
-    clearStrip(rightStripContent);
-
-    auto leftStripToolBar = createButtonToolBar(leftStripContent, Qt::Vertical);
-    auto rightStripToolBar = createButtonToolBar(rightStripContent, Qt::Vertical);
-    leftStripContent->layout()->addWidget(leftStripToolBar);
-    rightStripContent->layout()->addWidget(rightStripToolBar);
-
-    auto addButton = [this](QDockWidget* dock, QToolBar* toolbar, PanelSlot slot) {
-        const QString title = dockTitle(dock);
-        auto action = new QAction(dockIcon(dock, slot), title, toolbar);
-        action->setToolTip(title);
-        action->setStatusTip(title);
-        action->setCheckable(true);
-        action->setChecked(dock->isVisible());
-
-        connect(action, &QAction::triggered, this, [this, dock, slot]() {
-            if (dock->isVisible()) {
-                dock->toggleViewAction()->activate(QAction::Trigger);
-                refreshPanelStrips();
-                return;
-            }
-
-            const auto group = panelGroup(slot);
-            const QList<QDockWidget*> docks = managedDockContainers();
-            for (auto other : docks) {
-                if (other == dock) {
-                    continue;
-                }
-
-                if (panelGroup(panelSlotForDock(other)) == group && other->isVisible()) {
-                    other->toggleViewAction()->activate(QAction::Trigger);
-                }
-            }
-
-            if (!dock->isVisible()) {
-                dock->toggleViewAction()->activate(QAction::Trigger);
-            }
-            dock->raise();
-            refreshPanelStrips();
-        });
-
-        toolbar->addAction(action);
-        if (auto button = qobject_cast<QToolButton*>(toolbar->widgetForAction(action))) {
-            button->setAccessibleName(title);
-            CompactTitleBarStyle::applyIconButtonMetrics(button, toolbar);
-        }
-    };
-
-    QList<PanelEntry> entries;
-    const QList<QDockWidget*> docks = managedDockContainers();
-    for (auto dock : docks) {
-        const auto slot = panelSlotForDock(dock);
-        entries.push_back({dock, slot, panelOrderForDock(dock, slot)});
-    }
-
-    std::sort(entries.begin(), entries.end(), [this](const PanelEntry& left, const PanelEntry& right) {
-        if (left.slot != right.slot) {
-            return static_cast<int>(left.slot) < static_cast<int>(right.slot);
-        }
-        if (left.order != right.order) {
-            return left.order < right.order;
-        }
-
-        return dockTitle(left.dock).localeAwareCompare(dockTitle(right.dock)) < 0;
-    });
-
-    bool addedLeftTop = false;
-    bool addedLeftSeparator = false;
-    bool addedRightTop = false;
-    bool addedRightSeparator = false;
-    bool addedLeftBottomSpacer = false;
-    bool addedRightBottomSpacer = false;
-    for (const auto& entry : entries) {
-        switch (entry.slot) {
-            case PanelSlot::LeftTop:
-                addButton(entry.dock, leftStripToolBar, entry.slot);
-                addedLeftTop = true;
-                break;
-            case PanelSlot::LeftLower:
-                if (!addedLeftSeparator) {
-                    if (addedLeftTop) {
-                        leftStripToolBar->addSeparator();
-                    }
-                    addedLeftSeparator = true;
-                }
-                addButton(entry.dock, leftStripToolBar, entry.slot);
-                break;
-            case PanelSlot::RightTop:
-                addButton(entry.dock, rightStripToolBar, entry.slot);
-                addedRightTop = true;
-                break;
-            case PanelSlot::RightLower:
-                if (!addedRightSeparator) {
-                    if (addedRightTop) {
-                        rightStripToolBar->addSeparator();
-                    }
-                    addedRightSeparator = true;
-                }
-                addButton(entry.dock, rightStripToolBar, entry.slot);
-                break;
-            case PanelSlot::BottomLeft:
-                if (!addedLeftBottomSpacer) {
-                    addStripSpacer(leftStripToolBar);
-                    addedLeftBottomSpacer = true;
-                }
-                addButton(entry.dock, leftStripToolBar, entry.slot);
-                break;
-            case PanelSlot::BottomRight:
-                if (!addedRightBottomSpacer) {
-                    addStripSpacer(rightStripToolBar);
-                    addedRightBottomSpacer = true;
-                }
-                addButton(entry.dock, rightStripToolBar, entry.slot);
-                break;
-        }
-    }
-
-    if (!addedLeftBottomSpacer) {
-        addStripSpacer(leftStripToolBar);
-    }
-    if (!addedRightBottomSpacer) {
-        addStripSpacer(rightStripToolBar);
-    }
-
-    layoutPanelStrips();
 }
 
 void CompactMainWindowChrome::createResizeGrips()
@@ -2095,183 +1825,6 @@ void CompactMainWindowChrome::finishManualResize()
     }
 }
 
-QList<QDockWidget*> CompactMainWindowChrome::managedDockContainers() const
-{
-    QList<QDockWidget*> docks;
-    const QList<QWidget*> widgets = DockWindowManager::instance()->getDockWindows();
-    for (auto widget : widgets) {
-        auto parent = widget ? widget->parentWidget() : nullptr;
-        while (parent) {
-            if (auto dock = qobject_cast<QDockWidget*>(parent)) {
-                if (isCompactUiDockCandidate(dock) && !docks.contains(dock)) {
-                    docks.push_back(dock);
-                }
-                break;
-            }
-            parent = parent->parentWidget();
-        }
-    }
-
-    return docks;
-}
-
-QString CompactMainWindowChrome::dockActionId(const QDockWidget* dock) const
-{
-    if (!dock || !dock->toggleViewAction()) {
-        return {};
-    }
-
-    return dock->toggleViewAction()->data().toString();
-}
-
-const CompactMainWindowChrome::KnownPanel* CompactMainWindowChrome::knownPanelForActionId(
-    const QString& actionId
-) const
-{
-    static constexpr KnownPanel panels[] = {
-        {"Std_TreeView", PanelSlot::LeftTop, 10, "tree-doc-single", QStyle::SP_DirIcon},
-        {"Std_ComboView", PanelSlot::LeftTop, 20, "tree-doc-multi", QStyle::SP_FileDialogDetailedView},
-        {"Std_SelectionView", PanelSlot::LeftLower, 10, "view-select", QStyle::SP_FileDialogContentsView},
-        {"Std_PropertyView", PanelSlot::LeftLower, 20, "document-properties", QStyle::SP_FileDialogListView},
-        {"Std_TaskView",
-         PanelSlot::RightTop,
-         10,
-         "qss:overlay/icons/taskshow.svg",
-         QStyle::SP_FileDialogDetailedView},
-        {"Std_TaskWatcher",
-         PanelSlot::RightLower,
-         10,
-         "qss:overlay/icons/taskshow.svg",
-         QStyle::SP_MessageBoxWarning},
-        {"Std_DAGView", PanelSlot::RightLower, 20, "dagViewVisible", QStyle::SP_ComputerIcon},
-        {"Std_PythonView", PanelSlot::BottomLeft, 10, "applications-python", QStyle::SP_ComputerIcon},
-        {"Std_ReportView", PanelSlot::BottomRight, 10, "MacroEditor", QStyle::SP_MessageBoxInformation},
-    };
-
-    for (const auto& panel : panels) {
-        if (actionId == QLatin1String(panel.actionId)) {
-            return &panel;
-        }
-    }
-
-    return nullptr;
-}
-
-QString CompactMainWindowChrome::dockTitle(const QDockWidget* dock) const
-{
-    QString title = dock->windowTitle();
-    if (title.isEmpty()) {
-        title = dock->objectName();
-    }
-
-    title.remove(QLatin1Char('&'));
-    return title;
-}
-
-CompactMainWindowChrome::PanelGroup CompactMainWindowChrome::panelGroup(PanelSlot slot) const
-{
-    switch (slot) {
-        case PanelSlot::LeftTop:
-            return PanelGroup::LeftTop;
-        case PanelSlot::LeftLower:
-            return PanelGroup::LeftLower;
-        case PanelSlot::RightTop:
-            return PanelGroup::RightTop;
-        case PanelSlot::RightLower:
-            return PanelGroup::RightLower;
-        case PanelSlot::BottomLeft:
-            return PanelGroup::BottomLeft;
-        case PanelSlot::BottomRight:
-            return PanelGroup::BottomRight;
-    }
-
-    return PanelGroup::LeftLower;
-}
-
-CompactMainWindowChrome::PanelSlot CompactMainWindowChrome::fallbackSlotForDock(QDockWidget* dock) const
-{
-    switch (mainWindow->dockWidgetArea(dock)) {
-        case Qt::RightDockWidgetArea:
-            return PanelSlot::RightTop;
-        case Qt::BottomDockWidgetArea:
-            return PanelSlot::BottomLeft;
-        case Qt::TopDockWidgetArea:
-        case Qt::LeftDockWidgetArea:
-        default:
-            return PanelSlot::LeftLower;
-    }
-}
-
-CompactMainWindowChrome::PanelSlot CompactMainWindowChrome::panelSlotForDock(QDockWidget* dock) const
-{
-    if (const auto* knownPanel = knownPanelForActionId(dockActionId(dock))) {
-        return knownPanel->slot;
-    }
-
-    return fallbackSlotForDock(dock);
-}
-
-Qt::DockWidgetArea CompactMainWindowChrome::dockAreaForSlot(PanelSlot slot) const
-{
-    switch (slot) {
-        case PanelSlot::RightTop:
-        case PanelSlot::RightLower:
-            return Qt::RightDockWidgetArea;
-        case PanelSlot::BottomLeft:
-        case PanelSlot::BottomRight:
-            return Qt::BottomDockWidgetArea;
-        case PanelSlot::LeftTop:
-        case PanelSlot::LeftLower:
-        default:
-            return Qt::LeftDockWidgetArea;
-    }
-}
-
-int CompactMainWindowChrome::panelOrderForDock(const QDockWidget* dock, PanelSlot slot) const
-{
-    if (const auto* knownPanel = knownPanelForActionId(dockActionId(dock))) {
-        return knownPanel->order;
-    }
-
-    const int fallbackBase = 1000;
-    return fallbackBase + static_cast<int>(slot);
-}
-
-QIcon CompactMainWindowChrome::dockIcon(const QDockWidget* dock, PanelSlot slot) const
-{
-    QIcon icon;
-
-    if (const auto* knownPanel = knownPanelForActionId(dockActionId(dock))) {
-        icon = BitmapFactory().iconFromTheme(knownPanel->iconName);
-        if (icon.isNull()) {
-            icon = BitmapFactory().pixmap(knownPanel->iconName);
-        }
-        if (icon.isNull()) {
-            icon = QApplication::style()->standardIcon(
-                static_cast<QStyle::StandardPixmap>(knownPanel->fallbackIcon)
-            );
-        }
-    }
-
-    if (icon.isNull() && dock->widget()) {
-        icon = dock->widget()->windowIcon();
-    }
-
-    if (icon.isNull()) {
-        icon = dock->windowIcon();
-    }
-
-    if (icon.isNull()) {
-        const auto group = panelGroup(slot);
-        const auto fallback = group == PanelGroup::RightTop || group == PanelGroup::RightLower
-            ? QStyle::SP_FileDialogDetailedView
-            : QStyle::SP_FileDialogListView;
-        icon = QApplication::style()->standardIcon(fallback);
-    }
-
-    return icon;
-}
-
 QToolButton* CompactMainWindowChrome::createTitleButton(const QString& tooltip, QWidget* parent)
 {
     auto button = new QToolButton(parent);
@@ -2297,17 +1850,6 @@ void CompactMainWindowChrome::setupFlatButton(QToolButton* button)
     button->setAutoRaise(true);
     button->setToolButtonStyle(Qt::ToolButtonIconOnly);
     button->setFocusPolicy(Qt::StrongFocus);
-}
-
-void CompactMainWindowChrome::removeLegacyDockStrips()
-{
-    const QList<QDockWidget*> docks = mainWindow->findChildren<QDockWidget*>();
-    for (auto dock : docks) {
-        if (isCompactUiDock(dock)) {
-            dock->hide();
-            dock->deleteLater();
-        }
-    }
 }
 
 #include "moc_CompactMainWindowChrome.cpp"

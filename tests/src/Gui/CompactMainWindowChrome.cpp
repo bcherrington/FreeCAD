@@ -3,7 +3,6 @@
 #include <cstdlib>
 #include <memory>
 
-#include <QAction>
 #include <QCoreApplication>
 #include <QMenuBar>
 #include <QTest>
@@ -72,19 +71,6 @@ private Q_SLOTS:
             QVERIFY(toolbar);
             QCOMPARE(button->iconSize(), toolbar->iconSize());
         }
-
-        const auto buttons = panelStripButtons();
-        for (auto button : buttons) {
-            if (button->toolTip().isEmpty()) {
-                continue;
-            }
-            QVERIFY(qobject_cast<QToolBar*>(button->parentWidget()));
-            auto action = button->defaultAction();
-            QVERIFY(action);
-            QVERIFY(action->isCheckable());
-            auto toolbar = qobject_cast<QToolBar*>(button->parentWidget());
-            QCOMPARE(button->iconSize(), toolbar->iconSize());
-        }
     }
 
     void compactModeRestoresMenuBarAndContentsMargins()  // NOLINT
@@ -140,43 +126,6 @@ private Q_SLOTS:
         );
     }
 
-    void panelRailButtonsFitWithinRail()  // NOLINT
-    {
-        preferences->SetBool("CompactJetBrainsLayout", false);
-        createMainWindow();
-        preferences->SetBool("CompactJetBrainsLayout", true);
-        QCoreApplication::processEvents();
-
-        const QStringList stripNames {
-            QStringLiteral("_fc_compact_left_panel_railContent"),
-            QStringLiteral("_fc_compact_right_panel_railContent"),
-        };
-
-        for (const auto& stripName : stripNames) {
-            auto strip = mainWindow->findChild<QWidget*>(stripName);
-            QVERIFY2(strip, qPrintable(QStringLiteral("Missing strip: %1").arg(stripName)));
-            const auto buttons = strip->findChildren<QToolButton*>();
-            for (auto button : buttons) {
-                if (button->isHidden()) {
-                    continue;
-                }
-
-                const QRect buttonRect(button->mapTo(strip, QPoint(0, 0)), button->size());
-                QVERIFY2(
-                    strip->rect().contains(buttonRect),
-                    qPrintable(QStringLiteral("Button %1 is clipped in %2: button=%3,%4 %5x%6 strip=%7x%8")
-                                   .arg(button->toolTip(), stripName)
-                                   .arg(buttonRect.x())
-                                   .arg(buttonRect.y())
-                                   .arg(buttonRect.width())
-                                   .arg(buttonRect.height())
-                                   .arg(strip->width())
-                                   .arg(strip->height()))
-                );
-            }
-        }
-    }
-
 private:
     void createMainWindow()
     {
@@ -209,24 +158,6 @@ private:
         }
 
         return nullptr;
-    }
-
-    QList<QToolButton*> panelStripButtons() const
-    {
-        QList<QToolButton*> buttons;
-        const QStringList stripNames {
-            QStringLiteral("_fc_compact_left_panel_railContent"),
-            QStringLiteral("_fc_compact_right_panel_railContent"),
-        };
-
-        for (const auto& stripName : stripNames) {
-            auto strip = mainWindow->findChild<QWidget*>(stripName);
-            if (strip) {
-                buttons.append(strip->findChildren<QToolButton*>());
-            }
-        }
-
-        return buttons;
     }
 
     std::unique_ptr<Gui::Application> guiApplication;
