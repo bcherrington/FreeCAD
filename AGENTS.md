@@ -33,6 +33,16 @@ Async recompute work for
 `main`. Keep `main` as a clean upstream comparison branch and put implementation
 work on named `async/*` layer branches.
 
+`personal/integration-testing` is a merge-only integration branch. Do not make
+feature, test, or documentation edits directly on that branch. Create a source
+branch first, make and validate the change there, then merge the source branch
+into `personal/integration-testing`.
+
+New independent async layers should branch from `upstream/main`. If a layer
+depends on an earlier async layer, branch from the documented predecessor
+instead and record that dependency here before merging it into the integration
+branch.
+
 Current minimal responsiveness layer:
 
 - Branch: `async/03-minimal-recompute-feedback`
