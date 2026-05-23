@@ -1160,6 +1160,9 @@ bool ToolBarManager::eventFilter(QObject* source, QEvent* ev)
                     return true;
                 }
             }
+            if (mev->button() == Qt::LeftButton && qobject_cast<QToolBar*>(source)) {
+                getMainWindow()->saveWindowSettings(true);
+            }
         }
         // fall through
         case QEvent::MouseMove:
