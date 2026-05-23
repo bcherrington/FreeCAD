@@ -19,6 +19,7 @@
  *                                                                            *
  ******************************************************************************/
 
+#include <atomic>
 #include <chrono>
 #include <future>
 #include <thread>
@@ -89,6 +90,73 @@ TEST_F(AsyncRecomputeTest, CloseDocumentWaitsForInFlightAsyncRecompute)
     EXPECT_TRUE(closeFuture.get());
 
     _doc = nullptr;
+}
+
+TEST_F(AsyncRecomputeTest, CloseDocumentCancelsQueuedAsyncRecomputeCallback)
+{
+    auto* blockingObject = dynamic_cast<App::FeatureTestAsyncBlocker*>(
+        _doc->addObject("App::FeatureTestAsyncBlocker", "BlockingFeature")
+    );
+    ASSERT_NE(blockingObject, nullptr);
+
+    App::FeatureTestAsyncBlocker::resetBlocker();
+    BOOST_SCOPE_EXIT_ALL(&)
+    {
+        App::FeatureTestAsyncBlocker::releaseBlocker();
+    };
+
+    auto queuedDocName = App::GetApplication().getUniqueDocumentName("async_recompute_queued");
+    auto* queuedDoc = App::GetApplication().newDocument(queuedDocName.c_str(), "testUser");
+    ASSERT_NE(queuedDoc, nullptr);
+
+    BOOST_SCOPE_EXIT_ALL(&)
+    {
+        if (App::GetApplication().getDocument(queuedDocName.c_str())) {
+            App::GetApplication().closeDocument(queuedDocName.c_str());
+        }
+    };
+
+    auto* queuedObject = dynamic_cast<App::FeatureTest*>(
+        queuedDoc->addObject("App::FeatureTest", "QueuedFeature")
+    );
+    ASSERT_NE(queuedObject, nullptr);
+
+    blockingObject->touch();
+    App::GetApplication().queueRecomputeRequest(
+        App::RecomputeRequest::fromDocumentObject(*blockingObject)
+    );
+
+    ASSERT_TRUE(App::FeatureTestAsyncBlocker::waitUntilStarted(2s));
+
+    std::promise<App::RecomputeFailure> callbackFailure;
+    std::atomic<int> callbackCount {0};
+
+    queuedObject->touch();
+    auto request = App::RecomputeRequest::fromDocumentObject(*queuedObject);
+    auto callbackFuture = callbackFailure.get_future();
+    request.callback =
+        [&callbackFailure,
+         &callbackCount](const App::RecomputeRequest&, const App::RecomputeResult& result) {
+            if (callbackCount.fetch_add(1) == 0) {
+                callbackFailure.set_value(result.failure);
+            }
+        };
+
+    App::GetApplication().queueRecomputeRequest(std::move(request));
+
+    auto closeFuture = std::async(std::launch::async, [&queuedDocName] {
+        return App::GetApplication().closeDocument(queuedDocName.c_str());
+    });
+
+    ASSERT_EQ(callbackFuture.wait_for(2s), std::future_status::ready);
+    EXPECT_EQ(callbackFuture.get(), App::RecomputeFailure::Canceled);
+    EXPECT_EQ(callbackCount.load(), 1);
+
+    EXPECT_EQ(closeFuture.wait_for(50ms), std::future_status::timeout);
+    App::FeatureTestAsyncBlocker::releaseBlocker();
+
+    ASSERT_EQ(closeFuture.wait_for(2s), std::future_status::ready);
+    EXPECT_TRUE(closeFuture.get());
 }
 
 TEST_F(AsyncRecomputeTest, WorkerSafetyIsCheckedFromRequest)
