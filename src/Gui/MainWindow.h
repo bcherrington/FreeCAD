@@ -323,6 +323,8 @@ private:
     bool updateTaskView(bool show);
     bool updateComboView(bool show);
     bool updateDAGView(bool show);
+    void setupCompactUiPrototype();
+    void updateCompactUiPrototype();
 
     void populateToolBarMenu(QMenu*);
     void populateDockWindowMenu(QMenu*);

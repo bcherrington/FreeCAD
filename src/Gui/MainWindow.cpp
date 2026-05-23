@@ -31,6 +31,8 @@
 #include <QDesktopServices>
 #include <QDockWidget>
 #include <QFontMetrics>
+#include <QFrame>
+#include <QHBoxLayout>
 #include <QKeySequence>
 #include <QLabel>
 #include <QMdiSubWindow>
@@ -38,6 +40,7 @@
 #include <QMenuBar>
 #include <QMessageBox>
 #include <QMimeData>
+#include <QMouseEvent>
 #include <QOpenGLWidget>
 #include <QPainter>
 #include <QProcess>
@@ -47,10 +50,13 @@
 #include <QSettings>
 #include <QSignalMapper>
 #include <QStatusBar>
+#include <QStyle>
 #include <QThread>
 #include <QTimer>
 #include <QToolBar>
+#include <QToolButton>
 #include <QUrlQuery>
+#include <QVBoxLayout>
 #include <QWhatsThis>
 #include <QWindow>
 #include <QPushButton>
@@ -90,6 +96,7 @@
 #include "Action.h"
 #include "Assistant.h"
 #include "BitmapFactory.h"
+#include "CompactMainWindowChrome.h"
 #include "ComboView.h"
 #include "Command.h"
 #include "DockWindowManager.h"
@@ -325,6 +332,7 @@ struct MainWindowP
     int actionUpdateDelay = 0;
     QMap<QString, QPointer<UrlHandler>> urlHandler;
     std::string hiddenDockWindows;
+    CompactMainWindowChrome* compactChrome = nullptr;
     fastsignals::advanced_scoped_connection connParam;
     ParameterGrp::handle hGrp;
     bool _restoring = false;
@@ -336,8 +344,20 @@ struct MainWindowP
 
 /* TRANSLATOR Gui::MainWindow */
 
+namespace
+{
+Qt::WindowFlags compactMainWindowFlags(Qt::WindowFlags flags)
+{
+    if (Gui::CompactMainWindowChrome::shouldUseFramelessWindow()) {
+        flags |= Qt::FramelessWindowHint;
+    }
+
+    return flags;
+}
+}  // namespace
+
 MainWindow::MainWindow(QWidget* parent, Qt::WindowFlags f)
-    : QMainWindow(parent, f /*WDestructiveClose*/)
+    : QMainWindow(parent, compactMainWindowFlags(f) /*WDestructiveClose*/)
 {
     d = new MainWindowP;
     d->splashscreen = nullptr;
@@ -370,6 +390,12 @@ MainWindow::MainWindow(QWidget* parent, Qt::WindowFlags f)
             else if (boost::equals(Name, "MainWindowState")) {
                 OverlayManager::instance()->reload(OverlayManager::ReloadMode::ReloadPause);
                 d->restoreStateTimer.start(100);
+            }
+            else if (boost::equals(Name, "CompactJetBrainsLayout")) {
+                updateCompactUiPrototype();
+            }
+            else if (boost::equals(Name, "CompactJetBrainsFramelessWindow")) {
+                Base::Console().log("Restart FreeCAD to apply the compact frameless window setting.\n");
             }
         },
         fastsignals::advanced_tag()
@@ -515,6 +541,7 @@ MainWindow::MainWindow(QWidget* parent, Qt::WindowFlags f)
     connect(d->mdiArea, &QMdiArea::subWindowActivated, this, &MainWindow::onWindowActivated);
 
     setupDockWindows();
+    setupCompactUiPrototype();
 
     // accept drops on the window, get handled in dropEvent, dragEnterEvent
     setAcceptDrops(true);
@@ -530,6 +557,7 @@ MainWindow::~MainWindow()
     if (d->mdiArea) {
         disconnect(d->mdiArea, &QMdiArea::subWindowActivated, this, &MainWindow::onWindowActivated);
     }
+    delete d->compactChrome;
     delete d->status;
     delete d;
     instance = nullptr;
@@ -604,6 +632,25 @@ void MainWindow::setupDockWindows()
     if (value >= 0 && value < long(tabPos.size())) {
         setTabPosition(Qt::LeftDockWidgetArea, tabPos[value]);
     }
+}
+
+
+void MainWindow::setupCompactUiPrototype()
+{
+    if (!d->compactChrome) {
+        d->compactChrome = new CompactMainWindowChrome(this);
+    }
+    updateCompactUiPrototype();
+}
+
+void MainWindow::updateCompactUiPrototype()
+{
+    if (!d->compactChrome) {
+        return;
+    }
+
+    const bool enabled = d->hGrp->GetBool("CompactJetBrainsLayout", false);
+    d->compactChrome->setActive(enabled);
 }
 
 bool MainWindow::setupTaskView()
@@ -1116,6 +1163,9 @@ static View3DInventorViewer* spaceballMotionEventTarget()
 
 bool MainWindow::event(QEvent* e)
 {
+    const bool compactLayoutEvent = e->type() == QEvent::Resize || e->type() == QEvent::Show
+        || e->type() == QEvent::LayoutRequest || e->type() == QEvent::WindowStateChange;
+
     if (e->type() == QEvent::EnterWhatsThisMode) {
         // Unfortunately, for top-level widgets such as menus or dialogs we
         // won't be notified when the user clicks the link in the hypertext of
@@ -1139,6 +1189,9 @@ bool MainWindow::event(QEvent* e)
     else if (e->type() == QEvent::ApplicationWindowIconChange) {
         // if application icon changes apply it to the main window and the "About..." dialog
         this->setWindowIcon(QApplication::windowIcon());
+        if (d->compactChrome) {
+            d->compactChrome->updateWindowControls();
+        }
         Command* about = Application::Instance->commandManager().getCommandByName("Std_About");
         if (about) {
             Action* action = about->getAction();
@@ -1201,7 +1254,14 @@ bool MainWindow::event(QEvent* e)
             return true;
         }
     }
-    return QMainWindow::event(e);
+
+    const bool result = QMainWindow::event(e);
+    if (compactLayoutEvent) {
+        if (d->compactChrome) {
+            d->compactChrome->layoutChrome();
+        }
+    }
+    return result;
 }
 
 bool MainWindow::eventFilter(QObject* o, QEvent* e)
@@ -2106,6 +2166,7 @@ void MainWindow::loadWindowSettings()
     std::clog << "Toolbars restored" << std::endl;
 
     OverlayManager::instance()->restore();
+    updateCompactUiPrototype();
 }
 
 bool MainWindow::isRestoringWindowState() const
@@ -2567,6 +2628,16 @@ void MainWindow::changeEvent(QEvent* e)
             savedRealTimeInterval = SoDB::getRealTimeInterval();
             SoDB::enableRealTimeSensor(false);
         }
+    }
+    else if (
+        e->type() == QEvent::ApplicationPaletteChange || e->type() == QEvent::PaletteChange
+        || e->type() == QEvent::StyleChange
+    ) {
+        if (d->compactChrome) {
+            d->compactChrome->updateHamburgerIcon();
+            d->compactChrome->updateWindowControls();
+        }
+        QMainWindow::changeEvent(e);
     }
     else {
         QMainWindow::changeEvent(e);
