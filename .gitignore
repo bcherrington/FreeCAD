@@ -71,3 +71,8 @@ tsupdate_stdout.log
 # pixi environments
 *.egg-info
 .pixi
+
+# local Node artifacts
+/node_modules/
+/package.json
+/package-lock.json
