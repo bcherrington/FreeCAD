@@ -39,6 +39,7 @@
 #include <QStyle>
 #include <QSurfaceFormat>
 #include <QTextStream>
+#include <QPixmap>
 #include <QTimer>
 #include <QThread>
 #include <QWindow>
@@ -76,6 +77,7 @@
 #include "PreferencePages/DlgSettingsCacheDirectory.h"
 #include "DocumentPy.h"
 #include "DocumentRecovery.h"
+#include "EarlySplash.h"
 #include "EditableDatumLabelPy.h"
 #include "EditorView.h"
 #include "ExpressionBindingPy.h"
@@ -2661,6 +2663,8 @@ void Application::runApplication()
     int argc = App::Application::GetARGC();
     GUISingleApplication mainApp(argc, App::Application::GetARGV());
 
+    setAppNameAndIcon();
+
 #if (COIN_MAJOR_VERSION * 100 + COIN_MINOR_VERSION * 10 + COIN_MICRO_VERSION < 406) \
     && (defined(FC_OS_LINUX) || defined(FC_OS_BSD))
     // If QT is running with native Wayland then inform Coin to use EGL
@@ -2680,10 +2684,11 @@ void Application::runApplication()
         return;
     }
 
-    setAppNameAndIcon();
+    auto earlySplash = Gui::showEarlySplash();
 
     StartupProcess process;
     process.execute();
+    Gui::updateEarlySplash(earlySplash.get());
 
     Application app(true);
     MainWindow mw;
@@ -2697,7 +2702,7 @@ void Application::runApplication()
     SoDebugError::setHandlerCallback(messageHandlerCoin, 0);
 #endif
 
-    StartupPostProcess postProcess(&mw, app, &mainApp);
+    StartupPostProcess postProcess(&mw, app, &mainApp, earlySplash.get());
     postProcess.execute();
 
     init3DMouse(&mw, &mainApp);

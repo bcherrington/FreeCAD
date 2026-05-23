@@ -28,6 +28,7 @@
 
 class QApplication;
 class QMessageBox;
+class QWidget;
 
 namespace Gui
 {
@@ -54,7 +55,12 @@ private:
 class GuiExport StartupPostProcess
 {
 public:
-    StartupPostProcess(MainWindow* mw, Application& guiApp, QApplication* app);
+    StartupPostProcess(
+        MainWindow* mw,
+        Application& guiApp,
+        QApplication* app,
+        QWidget* earlySplash = nullptr
+    );
     void setLoadFromPythonModule(bool value);
     void execute();
 
@@ -85,6 +91,7 @@ private:
     MainWindow* mainWindow;
     Application& guiApp;
     QApplication* qtApp;
+    QWidget* earlySplash;
 };
 
 
