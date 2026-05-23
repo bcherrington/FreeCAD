@@ -44,12 +44,23 @@ Current minimal responsiveness layer:
   - `src/App/Application.h`
   - `src/Gui/CommandDoc.cpp`
 
+Current cancellation coverage layer:
+
+- Branch: `async/04-queued-recompute-cancel-callback`
+- Commit: `288c673babf App: cover queued async recompute cancellation`
+- Scope: App-level regression coverage proving that queued async recompute
+  requests canceled during document close report
+  `App::RecomputeFailure::Canceled` through their callback exactly once.
+- Files changed by this layer:
+  - `tests/src/App/AsyncRecompute.cpp`
+
 Expected layering:
 
 ```text
 main
 `-- async/02-explicit-refresh-async-recompute
     `-- async/03-minimal-recompute-feedback
+        `-- async/04-queued-recompute-cancel-callback
 ```
 
 If `async/02-explicit-refresh-async-recompute` exists and owns the explicit
@@ -70,9 +81,10 @@ task. The local integration branch manifest is:
 ```
 
 For future local integration rebuilds, keep
-`async/03-minimal-recompute-feedback` listed in the `branches` array of that
-manifest. Because the manifest is under `.git/`, it is local metadata, not a
-tracked source file.
+`async/03-minimal-recompute-feedback` and
+`async/04-queued-recompute-cancel-callback` listed in the `branches` array of
+that manifest. Because the manifest is under `.git/`, it is local metadata, not
+a tracked source file.
 
 Focused validation used for this layer:
 
