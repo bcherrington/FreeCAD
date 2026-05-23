@@ -70,9 +70,4 @@ tsupdate_stderr.log
 tsupdate_stdout.log
 # pixi environments
 *.egg-info
-.pixi/
-node_modules/
-.cache/
-.codegraph/
-package.*
-package-lock.*
+.pixi

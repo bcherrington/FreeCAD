@@ -28,18 +28,13 @@
 #include <QMargins>
 #include <QObject>
 #include <QPoint>
-#include <QPointer>
 #include <QRect>
 #include <QVector>
 #include <QWidget>
-#include <fastsignals/signal.h>
 
 #include <FCGlobal.h>
 
 class QDockWidget;
-class QMenuBar;
-class QMouseEvent;
-class QAction;
 class QToolButton;
 
 namespace Gui
@@ -47,23 +42,19 @@ namespace Gui
 
 class MainWindow;
 
-class GuiExport CompactMainWindowChrome: public QObject
+class GuiExport PanelRails: public QObject
 {
     Q_OBJECT
 
 public:
-    explicit CompactMainWindowChrome(MainWindow* mainWindow);
-    ~CompactMainWindowChrome() override;
+    explicit PanelRails(MainWindow* mainWindow);
+    ~PanelRails() override;
 
     void setActive(bool active);
     bool isActive() const;
 
     void layoutChrome();
     void refreshPanelStrips();
-    void updateWindowControls();
-    void updateHamburgerIcon();
-
-    static bool shouldUseFramelessWindow();
 
 protected:
     bool eventFilter(QObject* watched, QEvent* event) override;
@@ -96,12 +87,6 @@ private:
         int order = 0;
     };
 
-    struct ResizeGrip
-    {
-        QWidget* widget = nullptr;
-        Qt::Edges edges;
-    };
-
     struct KnownPanel
     {
         const char* actionId = nullptr;
@@ -112,32 +97,9 @@ private:
     };
 
     void setup();
-    void setGlobalEventFilterActive(bool active);
-    void syncMenuBar();
-    void showMainMenu();
-    void hideMainMenu();
-    void openFirstMenu();
-    void updateDocumentButton();
-    void rebuildDocumentMenu();
-    void rebuildMacroMenu();
-    void selectMacro(const QString& filePath);
-    void runSelectedMacro();
-    void updateEditModeButton();
-    void updateWorkbenchButton();
-    void rebuildWorkbenchMenuButtons();
-    void clearWorkbenchMenuButtons();
-    void updateMdiTabBarVisibility();
     void applyContentsMargins();
     void layoutWorkArea();
-    void layoutTopBar();
     void layoutPanelStrips();
-    void layoutResizeGrips();
-    void createResizeGrips();
-    void setResizeGripsVisible(bool visible);
-    void startManualResize(Qt::Edges edges, QMouseEvent* event, QWidget* grip);
-    void updateManualResize(QMouseEvent* event);
-    void finishManualResize();
-    void removeLegacyDockStrips();
 
     QList<QDockWidget*> managedDockContainers() const;
     PanelSlot panelSlotForDock(QDockWidget* dock) const;
@@ -168,66 +130,19 @@ private:
     void hideOtherPanelsInSlot(QDockWidget* dock, PanelSlot slot);
     void schedulePanelStripRefresh();
 
-    QToolButton* createTitleButton(const QString& tooltip, QWidget* parent);
-    void setButtonTextMetadata(QToolButton* button, const QString& text);
-    void setupFlatButton(QToolButton* button);
-
 private:
     MainWindow* mainWindow = nullptr;
-    QWidget* topBar = nullptr;
-    QWidget* switchArea = nullptr;
-    QPointer<QWidget> toolBar = nullptr;
-    QMenuBar* menuBar = nullptr;
-    QToolButton* appIconButton = nullptr;
-    QToolButton* menuButton = nullptr;
-    QToolButton* documentButton = nullptr;
-    QToolButton* macroButton = nullptr;
-    QToolButton* editModeButton = nullptr;
-    QToolButton* workbenchButton = nullptr;
-    QAction* workbenchMenuInsertionPoint = nullptr;
-    QList<QAction*> workbenchMenuTitleActions;
-    QToolButton* minimizeButton = nullptr;
-    QToolButton* maximizeButton = nullptr;
-    QToolButton* closeButton = nullptr;
     QWidget* leftStrip = nullptr;
     QWidget* rightStrip = nullptr;
     QWidget* leftStripContent = nullptr;
     QWidget* rightStripContent = nullptr;
     QWidget* panelDropIndicator = nullptr;
     QWidget* panelDropInsertionIndicator = nullptr;
-    QVector<ResizeGrip> resizeGrips;
-    QHash<QObject*, Qt::Edges> resizeGripEdges;
     QHash<QObject*, QPoint> panelDragStartPositions;
     bool panelStripRefreshQueued = false;
     bool active = false;
-    bool eventFilterInstalled = false;
-    bool framelessWindow = false;
-    bool titleDragActive = false;
-    bool menuBarVisibleBefore = true;
     bool contentsMarginsSaved = false;
-    bool manualResizeActive = false;
-    bool mdiTabBarVisibilitySaved = false;
-    bool mdiTabBarVisibleBefore = true;
-    bool shuttingDown = false;
-    int mdiTabBarMinimumHeightBefore = 0;
-    int mdiTabBarMaximumHeightBefore = QWIDGETSIZE_MAX;
-    Qt::Edges manualResizeEdges;
-    QPoint titleDragGlobalPosition;
-    QPoint titleDragWindowPosition;
-    QPoint manualResizeGlobalPosition;
-    QRect manualResizeGeometry;
     QMargins contentsMarginsBefore;
-    QString selectedMacroFile;
-    fastsignals::scoped_connection newDocumentConnection;
-    fastsignals::scoped_connection deleteDocumentConnection;
-    fastsignals::scoped_connection activeDocumentConnection;
-    fastsignals::scoped_connection relabelDocumentConnection;
-    fastsignals::scoped_connection renameDocumentConnection;
-    fastsignals::scoped_connection changedDocumentConnection;
-    fastsignals::scoped_connection finishSaveDocumentConnection;
-    fastsignals::scoped_connection activateViewConnection;
-    fastsignals::scoped_connection closeViewConnection;
-    fastsignals::scoped_connection userEditModeConnection;
 };
 
 }  // namespace Gui

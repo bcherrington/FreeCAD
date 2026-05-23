@@ -185,7 +185,6 @@ private:
 
     void onConstructionMethodChanged() override
     {
-        DrawSketchHandler::updateHint();
         toolWidgetManager.onConstructionMethodChanged();
     }
 

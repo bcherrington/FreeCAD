@@ -96,7 +96,7 @@
 #include "Action.h"
 #include "Assistant.h"
 #include "BitmapFactory.h"
-#include "CompactMainWindowChrome.h"
+#include "PanelRails.h"
 #include "ComboView.h"
 #include "Command.h"
 #include "DockWindowManager.h"
@@ -332,7 +332,7 @@ struct MainWindowP
     int actionUpdateDelay = 0;
     QMap<QString, QPointer<UrlHandler>> urlHandler;
     std::string hiddenDockWindows;
-    CompactMainWindowChrome* compactChrome = nullptr;
+    PanelRails* panelRails = nullptr;
     fastsignals::advanced_scoped_connection connParam;
     ParameterGrp::handle hGrp;
     bool _restoring = false;
@@ -344,20 +344,8 @@ struct MainWindowP
 
 /* TRANSLATOR Gui::MainWindow */
 
-namespace
-{
-Qt::WindowFlags compactMainWindowFlags(Qt::WindowFlags flags)
-{
-    if (Gui::CompactMainWindowChrome::shouldUseFramelessWindow()) {
-        flags |= Qt::FramelessWindowHint;
-    }
-
-    return flags;
-}
-}  // namespace
-
 MainWindow::MainWindow(QWidget* parent, Qt::WindowFlags f)
-    : QMainWindow(parent, compactMainWindowFlags(f) /*WDestructiveClose*/)
+    : QMainWindow(parent, f /*WDestructiveClose*/)
 {
     d = new MainWindowP;
     d->splashscreen = nullptr;
@@ -391,11 +379,8 @@ MainWindow::MainWindow(QWidget* parent, Qt::WindowFlags f)
                 OverlayManager::instance()->reload(OverlayManager::ReloadMode::ReloadPause);
                 d->restoreStateTimer.start(100);
             }
-            else if (boost::equals(Name, "CompactJetBrainsLayout")) {
-                updateCompactUiPrototype();
-            }
-            else if (boost::equals(Name, "CompactJetBrainsFramelessWindow")) {
-                Base::Console().log("Restart FreeCAD to apply the compact frameless window setting.\n");
+            else if (boost::equals(Name, "PanelRailsEnabled")) {
+                updatePanelRails();
             }
         },
         fastsignals::advanced_tag()
@@ -541,7 +526,7 @@ MainWindow::MainWindow(QWidget* parent, Qt::WindowFlags f)
     connect(d->mdiArea, &QMdiArea::subWindowActivated, this, &MainWindow::onWindowActivated);
 
     setupDockWindows();
-    setupCompactUiPrototype();
+    setupPanelRails();
 
     // accept drops on the window, get handled in dropEvent, dragEnterEvent
     setAcceptDrops(true);
@@ -557,7 +542,7 @@ MainWindow::~MainWindow()
     if (d->mdiArea) {
         disconnect(d->mdiArea, &QMdiArea::subWindowActivated, this, &MainWindow::onWindowActivated);
     }
-    delete d->compactChrome;
+    delete d->panelRails;
     delete d->status;
     delete d;
     instance = nullptr;
@@ -635,22 +620,22 @@ void MainWindow::setupDockWindows()
 }
 
 
-void MainWindow::setupCompactUiPrototype()
+void MainWindow::setupPanelRails()
 {
-    if (!d->compactChrome) {
-        d->compactChrome = new CompactMainWindowChrome(this);
+    if (!d->panelRails) {
+        d->panelRails = new PanelRails(this);
     }
-    updateCompactUiPrototype();
+    updatePanelRails();
 }
 
-void MainWindow::updateCompactUiPrototype()
+void MainWindow::updatePanelRails()
 {
-    if (!d->compactChrome) {
+    if (!d->panelRails) {
         return;
     }
 
-    const bool enabled = d->hGrp->GetBool("CompactJetBrainsLayout", false);
-    d->compactChrome->setActive(enabled);
+    const bool enabled = d->hGrp->GetBool("PanelRailsEnabled", false);
+    d->panelRails->setActive(enabled);
 }
 
 bool MainWindow::setupTaskView()
@@ -1163,7 +1148,7 @@ static View3DInventorViewer* spaceballMotionEventTarget()
 
 bool MainWindow::event(QEvent* e)
 {
-    const bool compactLayoutEvent = e->type() == QEvent::Resize || e->type() == QEvent::Show
+    const bool panelRailsEvent = e->type() == QEvent::Resize || e->type() == QEvent::Show
         || e->type() == QEvent::LayoutRequest || e->type() == QEvent::WindowStateChange;
 
     if (e->type() == QEvent::EnterWhatsThisMode) {
@@ -1189,9 +1174,6 @@ bool MainWindow::event(QEvent* e)
     else if (e->type() == QEvent::ApplicationWindowIconChange) {
         // if application icon changes apply it to the main window and the "About..." dialog
         this->setWindowIcon(QApplication::windowIcon());
-        if (d->compactChrome) {
-            d->compactChrome->updateWindowControls();
-        }
         Command* about = Application::Instance->commandManager().getCommandByName("Std_About");
         if (about) {
             Action* action = about->getAction();
@@ -1256,9 +1238,9 @@ bool MainWindow::event(QEvent* e)
     }
 
     const bool result = QMainWindow::event(e);
-    if (compactLayoutEvent) {
-        if (d->compactChrome) {
-            d->compactChrome->layoutChrome();
+    if (panelRailsEvent) {
+        if (d->panelRails) {
+            d->panelRails->layoutChrome();
         }
     }
     return result;
@@ -2166,7 +2148,7 @@ void MainWindow::loadWindowSettings()
     std::clog << "Toolbars restored" << std::endl;
 
     OverlayManager::instance()->restore();
-    updateCompactUiPrototype();
+    updatePanelRails();
 }
 
 bool MainWindow::isRestoringWindowState() const
@@ -2628,16 +2610,6 @@ void MainWindow::changeEvent(QEvent* e)
             savedRealTimeInterval = SoDB::getRealTimeInterval();
             SoDB::enableRealTimeSensor(false);
         }
-    }
-    else if (
-        e->type() == QEvent::ApplicationPaletteChange || e->type() == QEvent::PaletteChange
-        || e->type() == QEvent::StyleChange
-    ) {
-        if (d->compactChrome) {
-            d->compactChrome->updateHamburgerIcon();
-            d->compactChrome->updateWindowControls();
-        }
-        QMainWindow::changeEvent(e);
     }
     else {
         QMainWindow::changeEvent(e);

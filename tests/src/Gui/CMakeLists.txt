@@ -17,7 +17,7 @@ add_executable(Gui_tests_run
 )
 
 # Qt tests
-setup_qt_test(CompactMainWindowChrome)
+setup_qt_test(PanelRails)
 setup_qt_test(QuantitySpinBox)
 
 target_link_libraries(Gui_tests_run PRIVATE
