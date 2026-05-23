@@ -26,6 +26,62 @@ a raw CMake command or a lower-level diagnostic requires it. Direct CMake
 equivalents are `cmake --preset conda-linux-debug`,
 `cmake --build build/debug`, and `ctest --test-dir build/debug`.
 
+## Async Recompute Branch Workflow
+
+Async recompute work for
+`../FreeCAD-docs/docs/specs/29757-async-recompute-branching/` must stay off
+`main`. Keep `main` as a clean upstream comparison branch and put implementation
+work on named `async/*` layer branches.
+
+Current minimal responsiveness layer:
+
+- Branch: `async/03-minimal-recompute-feedback`
+- Commit: `8d65ac7968f Gui: show feedback for async document recompute`
+- Scope: coarse GUI feedback for explicit async `Std_Refresh` document
+  recompute, plus canceled callback cleanup for queued recompute requests.
+- Files changed by this layer:
+  - `src/App/Application.cpp`
+  - `src/App/Application.h`
+  - `src/Gui/CommandDoc.cpp`
+
+Expected layering:
+
+```text
+main
+`-- async/02-explicit-refresh-async-recompute
+    `-- async/03-minimal-recompute-feedback
+```
+
+If `async/02-explicit-refresh-async-recompute` exists and owns the explicit
+refresh routing, rebase or recreate `async/03-minimal-recompute-feedback` on top
+of it before integration. In this checkout, the explicit `Std_Refresh` async
+routing was already present on `main`, so `async/03-minimal-recompute-feedback`
+was created from `main`.
+
+Use integration branches only for combined testing. Do not make direct feature
+edits on `personal/integration-testing`, `pr-29757-async-freecad-gui`, or
+`main`. Merge tested layer branches into an integration branch instead.
+
+This repo currently has no `pixi run integration` or `pixi run intergation`
+task. The local integration branch manifest is:
+
+```text
+.git/personal-integration-branches.json
+```
+
+For future local integration rebuilds, keep
+`async/03-minimal-recompute-feedback` listed in the `branches` array of that
+manifest. Because the manifest is under `.git/`, it is local metadata, not a
+tracked source file.
+
+Focused validation used for this layer:
+
+```sh
+cmake --build build/debug --target FreeCADApp FreeCADGui App_tests_run Gui_tests_run -j2
+ctest --test-dir build/debug -R '^AsyncRecomputeTest\.' --output-on-failure
+build/debug/tests/Gui_tests_run --gtest_filter='*'
+```
+
 ## Coding Style & Naming Conventions
 
 Follow nearby code first. C++ is formatted by `.clang-format`; Python is
