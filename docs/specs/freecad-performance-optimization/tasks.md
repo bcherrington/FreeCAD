@@ -265,15 +265,70 @@ Validation:
 
 ## P3: Lower-Priority UI And Startup Work
 
-- [ ] Re-run tree tracing on a larger document before changing tree batching.
-- [ ] Investigate replacing repeated restore-time status timer restarts with a
+- [ ] Re-run tree tracing on a larger document before further tree batching.
+- [x] Investigate replacing repeated restore-time status timer restarts with a
       single pending-status flag.
-- [ ] Document `_slotDeleteObject()` side effects before proposing any
+- [x] Document `_slotDeleteObject()` side effects before proposing any
       whole-document tree bulk-delete path.
-- [ ] Trace stale workbench preference lookups, addon discovery, workbench
+- [x] Trace stale workbench preference lookups, addon discovery, workbench
       initialization, and telemetry send behavior for normal startup.
-- [ ] Rank startup work only after document-open restore and image-plane costs
+- [x] Rank startup work only after document-open restore and image-plane costs
       are remeasured.
+
+### Tree And Startup Follow-Up - 2026-05-22
+
+The prior tree trace on `Gridfinity Drawer v1.3.FCStd` showed repeated
+restore-time status timer restarts (`TreeWidget.statusTimer.start=178`) and
+deferred status processing (`TreeWidget.onUpdateStatus.deferred.dragOrRestore=27`),
+but only millisecond-scale measured tree costs in that document:
+`TreeWidget.slotDeleteDocument.us=11077` and
+`TreeWidget._slotDeleteObject.us=3188`.
+
+`TreeWidget` now tracks a single pending status update while the application is
+restoring and flushes it once from `signalFinishOpenDocument`. This removes the
+repeated restore-time timer restart path without changing the existing delayed
+timer behavior for drag state or transaction deferral.
+
+No whole-document bulk-delete path was implemented. `_slotDeleteObject()` has
+observable side effects beyond removing one item: it preserves focus and
+selection state, reparents children, updates `ObjectTable`,
+`DocumentItem::ObjectMap`, and `DocumentItem::_ParentMap`, adjusts child
+showability, may recreate child items, and schedules status refreshes. Any bulk
+delete path needs a separate design and larger-model trace before bypassing
+that method.
+
+Startup remains lower priority after the restore and image-plane measurements.
+Existing startup notes show addon/workbench preference churn and telemetry work,
+but the document-open path and image-plane full-resolution texture creation
+were the user-visible restore bottlenecks. Startup tracing is left as a separate
+follow-up so it can be measured independently from document-open optimization.
+
+A fresh normal-profile startup log from this build showed:
+
+- `1090` unknown-workbench preference warnings across `45` unique workbench IDs.
+- `38` repeated `GridfinityWorkbench` preference warnings.
+- `121` loaded workbench table rows.
+- `11` telemetry-related log lines, including startup sends for version, system,
+  addon, and preferences info plus a shutdown send.
+
+This confirms startup has cleanup opportunities, but they are dominated by
+normal-profile addon/workbench state rather than the restore path. Proposed
+follow-up is to coalesce or cache stale workbench preference resolution and to
+verify whether telemetry sends are synchronous before changing startup behavior.
+
+Validation:
+
+- `cmake --build build/debug --target Gui_tests_run -j 2`
+- `QT_QPA_PLATFORM=offscreen build/debug/tests/Gui_tests_run
+  --gtest_filter='BitmapFactoryTest.*'`
+- `pixi run build -j 2`
+- `xvfb-run -a timeout 45s pixi run build/debug/bin/FreeCAD
+  /tmp/freecad_gui_imageplane_open.py --pass
+  "/home/bcherrington/Projects/FreeCAD/Drawer/Gridfinity Drawer v1.3.FCStd"`
+  reported `objects=127`, `image_planes=3`, `visible=0`, `missing_paths=0`,
+  and `gui_doc=True`.
+- `xvfb-run -a timeout 25s pixi run build/debug/bin/FreeCAD --log-file
+  /tmp/freecad-p3-startup.log /tmp/freecad_startup_quit.py`
 
 ## Cleanup And Review Gates
 

@@ -688,6 +688,12 @@ TreeWidget::TreeWidget(const char* name, QWidget* parent)
     connectChangedViewObj = Application::Instance->signalChangedObject.connect(
         std::bind(&TreeWidget::slotChangedViewObject, this, sp::_1, sp::_2)
     );
+    connectStartOpenDocument = App::GetApplication().signalStartOpenDocument.connect(
+        std::bind(&TreeWidget::slotStartOpenDocument, this)
+    );
+    connectFinishOpenDocument = App::GetApplication().signalFinishOpenDocument.connect(
+        std::bind(&TreeWidget::slotFinishOpenDocument, this)
+    );
     // NOLINTEND
 
     setupResizableColumn(this);
@@ -1163,6 +1169,13 @@ void TreeWidget::_updateStatus(bool delay)
     // When running from a different thread Qt will raise a warning
     // when trying to start the QTimer
     if (Q_UNLIKELY(thread() != QThread::currentThread())) {
+        return;
+    }
+
+    if (App::GetApplication().isRestoring()) {
+        if (!ChangedObjects.empty() || !NewObjects.empty()) {
+            statusUpdatePendingAfterRestore = true;
+        }
         return;
     }
 
@@ -3412,6 +3425,21 @@ void TreeWidget::slotRenameDocument(const Gui::Document& Doc)
     Q_UNUSED(Doc);
 }
 
+void TreeWidget::slotStartOpenDocument()
+{
+    statusUpdatePendingAfterRestore = false;
+}
+
+void TreeWidget::slotFinishOpenDocument()
+{
+    if (!statusUpdatePendingAfterRestore) {
+        return;
+    }
+
+    statusUpdatePendingAfterRestore = false;
+    _updateStatus(false);
+}
+
 void TreeWidget::slotChangedViewObject(const Gui::ViewProvider& vp, const App::Property& prop)
 {
     if (!App::GetApplication().isRestoring() && vp.isDerivedFrom<ViewProviderDocumentObject>()) {
@@ -3510,6 +3538,9 @@ struct UpdateDisabler
 void TreeWidget::onUpdateStatus()
 {
     if (this->state() == DraggingState || App::GetApplication().isRestoring()) {
+        if (App::GetApplication().isRestoring() && (!ChangedObjects.empty() || !NewObjects.empty())) {
+            statusUpdatePendingAfterRestore = true;
+        }
         _updateStatus();
         return;
     }

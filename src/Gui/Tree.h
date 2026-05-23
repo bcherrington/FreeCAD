@@ -318,6 +318,7 @@ private:
 
     std::string myName;  // for debugging purpose
     int updateBlocked = 0;
+    bool statusUpdatePendingAfterRestore = false;
 
     // State tracking for the two-stage "Select All" operation
     bool lastSelectAllParent = false;   // true if last select was group-level, used for double-tap
@@ -338,6 +339,8 @@ private:
     Connection connectRelDocument;
     Connection connectShowHidden;
     Connection connectChangedViewObj;
+    Connection connectStartOpenDocument;
+    Connection connectFinishOpenDocument;
 };
 
 /** The link between the tree and a document.
