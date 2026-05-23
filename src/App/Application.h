@@ -103,6 +103,7 @@ enum class RecomputeFailure
 {
     None,
     DependencyCycle,
+    Canceled,
     Exception
 };
 
