@@ -45,6 +45,65 @@
 
 using namespace Gui;
 
+namespace
+{
+
+bool convertDirect32BitImage(const QImage& source, SoSFImage& image)
+{
+    const QImage::Format format = source.format();
+    const bool isRgb32 = format == QImage::Format_RGB32;
+    const bool isArgb32 = format == QImage::Format_ARGB32;
+    const bool isRgbx8888 = format == QImage::Format_RGBX8888;
+    const bool isRgba8888 = format == QImage::Format_RGBA8888;
+
+    if (!isRgb32 && !isArgb32 && !isRgbx8888 && !isRgba8888) {
+        return false;
+    }
+
+    SbVec2s size;
+    size[0] = source.width();
+    size[1] = source.height();
+
+    int numcomponents = 4;
+    image.setValue(size, numcomponents, nullptr);
+
+    unsigned char* bytes = image.startEditing(size, numcomponents);
+    const int width = source.width();
+    const int height = source.height();
+
+    for (int y = 0; y < height; ++y) {
+        unsigned char* target = &bytes[width * numcomponents * (height - (y + 1))];
+        const unsigned char* sourceLine = source.constScanLine(y);
+
+        if (isRgbx8888 || isRgba8888) {
+            for (int x = 0; x < width; ++x) {
+                const unsigned char* pixel = sourceLine + (x * numcomponents);
+                target[0] = pixel[0];
+                target[1] = pixel[1];
+                target[2] = pixel[2];
+                target[3] = isRgbx8888 ? 255 : pixel[3];
+                target += numcomponents;
+            }
+            continue;
+        }
+
+        const auto* pixels = reinterpret_cast<const QRgb*>(sourceLine);
+        for (int x = 0; x < width; ++x) {
+            const QRgb pixel = pixels[x];
+            target[0] = qRed(pixel);
+            target[1] = qGreen(pixel);
+            target[2] = qBlue(pixel);
+            target[3] = isRgb32 ? 255 : qAlpha(pixel);
+            target += numcomponents;
+        }
+    }
+
+    image.finishEditing();
+    return true;
+}
+
+}  // namespace
+
 namespace Gui
 {
 class BitmapFactoryInstP
@@ -559,6 +618,10 @@ QPixmap BitmapFactoryInst::empty(QSize size) const
 
 void BitmapFactoryInst::convert(const QImage& p, SoSFImage& img) const
 {
+    if (convertDirect32BitImage(p, img)) {
+        return;
+    }
+
     SbVec2s size;
     size[0] = p.width();
     size[1] = p.height();
