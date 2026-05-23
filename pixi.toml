@@ -156,6 +156,7 @@ pthreads-win32 = "*"
 
 [pypi-dependencies]
 freecad-stubs = "*"
+proj-devcli = { path = "tools/devcli", editable = true }
 
 ## Qt 6 Configuration Presets
 [target.linux-64.tasks]
