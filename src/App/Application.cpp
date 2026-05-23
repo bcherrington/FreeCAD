@@ -868,16 +868,36 @@ void Application::cancelRecomputeRequestsForDocument(const std::string& document
         return;
     }
 
-    std::unique_lock<std::mutex> lock(_recomputeMutex);
-    _recomputeStateChanged.wait(lock, [this, &documentName] {
-        return !_recomputeDocumentsInProgress.contains(documentName);
-    });
+    std::vector<RecomputeRequest> canceledRequests;
 
-    // Cancellation runs on document-close boundaries, so a linear scan keeps
-    // the queue simple without affecting the steady-state worker path.
-    std::erase_if(_recomputeRequests, [&documentName](const RecomputeRequest& request) {
-        return requestTargetsDocument(request, documentName);
-    });
+    {
+        std::unique_lock<std::mutex> lock(_recomputeMutex);
+        _recomputeStateChanged.wait(lock, [this, &documentName] {
+            return !_recomputeDocumentsInProgress.contains(documentName);
+        });
+
+        // Cancellation runs on document-close boundaries, so a linear scan keeps
+        // the queue simple without affecting the steady-state worker path.
+        auto request = _recomputeRequests.begin();
+        while (request != _recomputeRequests.end()) {
+            if (requestTargetsDocument(*request, documentName)) {
+                canceledRequests.push_back(std::move(*request));
+                request = _recomputeRequests.erase(request);
+            }
+            else {
+                ++request;
+            }
+        }
+    }
+
+    RecomputeResult result;
+    result.success = false;
+    result.failure = RecomputeFailure::Canceled;
+    for (auto& request : canceledRequests) {
+        if (request.callback) {
+            request.callback(request, result);
+        }
+    }
 }
 
 struct DocTiming {

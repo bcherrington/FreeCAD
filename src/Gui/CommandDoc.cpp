@@ -28,6 +28,8 @@
 #include <QClipboard>
 #include <QDateTime>
 #include <QMessageBox>
+#include <QPointer>
+#include <QProgressDialog>
 #include <QTextStream>
 #include <QTreeWidgetItem>
 
@@ -1730,6 +1732,11 @@ void handleDocumentRecomputeResult(const std::string& documentName, App::Recompu
         return;
     }
 
+    if (failure == App::RecomputeFailure::Canceled) {
+        getMainWindow()->showMessage(QObject::tr("Recompute canceled"), 3000);
+        return;
+    }
+
     if (failure != App::RecomputeFailure::DependencyCycle) {
         return;
     }
@@ -1764,6 +1771,41 @@ void refreshDocumentSynchronously(App::Document& document)
     }
 }
 
+QPointer<QProgressDialog> showAsyncRecomputeFeedback(const App::Document& document)
+{
+    auto* progress = new QProgressDialog(getMainWindow());
+    progress->setWindowTitle(QObject::tr("Recompute"));
+    progress->setLabelText(
+        QObject::tr("Recomputing %1…").arg(QString::fromUtf8(document.Label.getValue()))
+    );
+    progress->setCancelButton(nullptr);
+    progress->setRange(0, 0);
+    progress->setMinimumDuration(500);
+    progress->setWindowModality(Qt::NonModal);
+    progress->setAttribute(Qt::WA_DeleteOnClose);
+    progress->show();
+
+    getMainWindow()->showMessage(QObject::tr("Recomputing document…"));
+
+    return progress;
+}
+
+void finishAsyncRecomputeFeedback(const QPointer<QProgressDialog>& progress, App::RecomputeFailure failure)
+{
+    if (progress) {
+        progress->close();
+    }
+
+    if (failure == App::RecomputeFailure::None) {
+        getMainWindow()->showMessage(QObject::tr("Recompute finished"), 3000);
+        return;
+    }
+
+    if (failure != App::RecomputeFailure::Canceled) {
+        getMainWindow()->showMessage(QString());
+    }
+}
+
 }  // namespace
 
 void StdCmdRefresh::activated([[maybe_unused]] int iMsg)
@@ -1784,11 +1826,14 @@ void StdCmdRefresh::activated([[maybe_unused]] int iMsg)
         return;
     }
 
-    request.callback = [](App::RecomputeRequest& request, App::RecomputeResult& result) {
+    auto progress = showAsyncRecomputeFeedback(*doc);
+
+    request.callback = [progress](App::RecomputeRequest& request, App::RecomputeResult& result) {
         // Handle the result in the UI thread.
         QMetaObject::invokeMethod(
             qApp,
-            [documentName = request.documentName, failure = result.failure]() {
+            [progress, documentName = request.documentName, failure = result.failure]() {
+                finishAsyncRecomputeFeedback(progress, failure);
                 handleDocumentRecomputeResult(documentName, failure);
             },
             Qt::QueuedConnection
