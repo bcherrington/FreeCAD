@@ -30,6 +30,7 @@
 #include <QMessageBox>
 #include <QPointer>
 #include <QProgressDialog>
+#include <QPushButton>
 #include <QTextStream>
 #include <QTreeWidgetItem>
 
@@ -1778,11 +1779,30 @@ QPointer<QProgressDialog> showAsyncRecomputeFeedback(const App::Document& docume
     progress->setLabelText(
         QObject::tr("Recomputing %1…").arg(QString::fromUtf8(document.Label.getValue()))
     );
-    progress->setCancelButton(nullptr);
+    auto* cancelButton = new QPushButton(QObject::tr("Cancel"), progress);
+    progress->setCancelButton(cancelButton);
+    QObject::disconnect(cancelButton, nullptr, progress, nullptr);
     progress->setRange(0, 0);
     progress->setMinimumDuration(500);
     progress->setWindowModality(Qt::NonModal);
     progress->setAttribute(Qt::WA_DeleteOnClose);
+
+    const auto documentName = document.getName();
+    QObject::connect(cancelButton, &QPushButton::clicked, progress, [progress, cancelButton, documentName] {
+        const std::size_t canceledRequests
+            = App::GetApplication().cancelQueuedRecomputeRequestsForDocument(documentName);
+
+        cancelButton->setEnabled(false);
+        if (canceledRequests > 0) {
+            progress->setLabelText(QObject::tr("Canceling recompute…"));
+            getMainWindow()->showMessage(QObject::tr("Canceling recompute…"));
+            return;
+        }
+
+        progress->setLabelText(QObject::tr("Recompute is already running…"));
+        getMainWindow()->showMessage(QObject::tr("Recompute is already running…"), 3000);
+    });
+
     progress->show();
 
     getMainWindow()->showMessage(QObject::tr("Recomputing document…"));
