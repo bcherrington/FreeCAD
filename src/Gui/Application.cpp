@@ -39,7 +39,6 @@
 #include <QStyle>
 #include <QSurfaceFormat>
 #include <QTextStream>
-#include <QPixmap>
 #include <QTimer>
 #include <QThread>
 #include <QWindow>
@@ -77,7 +76,6 @@
 #include "PreferencePages/DlgSettingsCacheDirectory.h"
 #include "DocumentPy.h"
 #include "DocumentRecovery.h"
-#include "EarlySplash.h"
 #include "EditableDatumLabelPy.h"
 #include "EditorView.h"
 #include "ExpressionBindingPy.h"
@@ -101,6 +99,7 @@
 #include "SelectionFilterPy.h"
 #include "SoQtOffscreenRendererPy.h"
 #include "SplitView3DInventor.h"
+#include "SplashScreen.h"
 #include "StartupProcess.h"
 #include "TaskView/TaskView.h"
 #include "TaskView/TaskDialogPython.h"
@@ -2685,8 +2684,8 @@ void Application::runApplication()
     }
 
     StartupProcess process;
-    process.setupEarlySplashImagePaths();
-    auto earlySplash = Gui::showEarlySplash();
+    process.setupSplashScreenImagePaths();
+    auto splashScreen = Gui::showSplashScreen();
     process.execute();
 
     Application app(true);
@@ -2701,7 +2700,7 @@ void Application::runApplication()
     SoDebugError::setHandlerCallback(messageHandlerCoin, 0);
 #endif
 
-    StartupPostProcess postProcess(&mw, app, &mainApp, earlySplash.get());
+    StartupPostProcess postProcess(&mw, app, &mainApp, splashScreen.get());
     postProcess.execute();
 
     init3DMouse(&mw, &mainApp);

@@ -22,18 +22,32 @@
 
 #pragma once
 
-#include <QSplashScreen>
+#include <FCGlobal.h>
+
+#include <memory>
+
+#include <QColor>
+#include <QPixmap>
+#include <QWidget>
 
 namespace Gui
 {
 
 class SplashObserver;
 
+struct GuiExport SplashScreenOptions
+{
+    bool strictVerbose = false;
+    bool guiRunMode = true;
+    bool startHidden = false;
+    bool showSplasher = true;
+};
+
 /** This widget provides a splash screen that can be shown during application startup.
  *
  * \author Werner Mayer
  */
-class SplashScreen: public QSplashScreen
+class GuiExport SplashScreen: public QWidget
 {
     Q_OBJECT
 
@@ -42,14 +56,33 @@ public:
     ~SplashScreen() override;
 
     void setShowMessages(bool on);
+    void showMessage(
+        const QString& message,
+        int alignment = Qt::AlignLeft,
+        const QColor& color = Qt::black
+    );
+    void allowDialogsToCover();
+    void raiseSplash();
+    void waitForPaint();
 
     static QPixmap splashImage();
 
 protected:
-    void drawContents(QPainter* painter) override;
+    void paintEvent(QPaintEvent* event) override;
 
 private:
+    void resizeToPixmap();
+
+private:
+    QPixmap pixmap;
+    QString message;
+    int messageAlignment = Qt::AlignBottom | Qt::AlignLeft;
+    QColor messageColor = Qt::black;
     SplashObserver* messages;
+    bool painted = false;
 };
+
+GuiExport bool shouldShowSplashScreen(const SplashScreenOptions& options);
+GuiExport std::unique_ptr<SplashScreen> showSplashScreen();
 
 }  // namespace Gui

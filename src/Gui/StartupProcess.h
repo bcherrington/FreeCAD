@@ -28,10 +28,11 @@
 
 class QApplication;
 class QMessageBox;
-class QWidget;
 
 namespace Gui
 {
+
+class SplashScreen;
 
 class Application;
 class MainWindow;
@@ -41,7 +42,7 @@ class GuiExport StartupProcess
 public:
     StartupProcess();
     static void setupApplication();
-    void setupEarlySplashImagePaths();
+    void setupSplashScreenImagePaths();
     void execute();
 
 private:
@@ -60,7 +61,7 @@ public:
         MainWindow* mw,
         Application& guiApp,
         QApplication* app,
-        QWidget* earlySplash = nullptr
+        SplashScreen* splashScreen = nullptr
     );
     void setLoadFromPythonModule(bool value);
     void execute();
@@ -92,7 +93,7 @@ private:
     MainWindow* mainWindow;
     Application& guiApp;
     QApplication* qtApp;
-    QWidget* earlySplash;
+    SplashScreen* splashScreen;
 };
 
 
