@@ -466,6 +466,7 @@ SET(Command_CPP_SRCS
     ShortcutManager.cpp
     CommandCompleter.cpp
     CommandActionPy.cpp
+    AsyncRecomputeFeedback.cpp
 )
 SET(Command_SRCS
     ${Command_CPP_SRCS}
@@ -476,6 +477,7 @@ SET(Command_SRCS
     ShortcutManager.h
     CommandCompleter.h
     CommandActionPy.h
+    AsyncRecomputeFeedback.h
 )
 SOURCE_GROUP("Command" FILES ${Command_SRCS})
 

@@ -49,6 +49,7 @@
 
 #include "Action.h"
 #include "Application.h"
+#include "AsyncRecomputeFeedback.h"
 #include "BitmapFactory.h"
 #include "Command.h"
 #include "Control.h"
@@ -1789,18 +1790,14 @@ QPointer<QProgressDialog> showAsyncRecomputeFeedback(const App::Document& docume
 
     const auto documentName = document.getName();
     QObject::connect(cancelButton, &QPushButton::clicked, progress, [progress, cancelButton, documentName] {
-        const std::size_t canceledRequests
-            = App::GetApplication().cancelQueuedRecomputeRequestsForDocument(documentName);
-
-        cancelButton->setEnabled(false);
-        if (canceledRequests > 0) {
-            progress->setLabelText(QObject::tr("Canceling recompute…"));
-            getMainWindow()->showMessage(QObject::tr("Canceling recompute…"));
-            return;
-        }
-
-        progress->setLabelText(QObject::tr("Recompute is already running…"));
-        getMainWindow()->showMessage(QObject::tr("Recompute is already running…"), 3000);
+        cancelQueuedAsyncRecomputeFeedback(
+            documentName,
+            *progress,
+            *cancelButton,
+            [](const QString& message, int timeout) {
+                getMainWindow()->showMessage(message, timeout);
+            }
+        );
     });
 
     progress->show();
