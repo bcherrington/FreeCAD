@@ -76,6 +76,17 @@ Current queued cancellation foundation layer:
   - `src/App/Application.h`
   - `tests/src/App/AsyncRecompute.cpp`
 
+Current refresh cancel feedback layer:
+
+- Branch: `async/09-refresh-cancel-feedback`
+- Commit: `e248a2f0e3b Gui: allow canceling queued async refresh`
+- Scope: explicit `Std_Refresh` progress feedback now exposes a Cancel button
+  that removes queued recompute requests through
+  `cancelQueuedRecomputeRequestsForDocument(...)`; if recompute is already
+  running, the button is disabled and progress remains visible.
+- Files changed by this layer:
+  - `src/Gui/CommandDoc.cpp`
+
 Expected layering:
 
 ```text
@@ -84,6 +95,7 @@ main
     `-- async/03-minimal-recompute-feedback
         `-- async/04-queued-recompute-cancel-callback
             `-- async/07-queued-recompute-user-cancel-foundation
+                `-- async/09-refresh-cancel-feedback
 ```
 
 If `async/02-explicit-refresh-async-recompute` exists and owns the explicit
@@ -106,9 +118,10 @@ task. The local integration branch manifest is:
 For future local integration rebuilds, keep
 `async/03-minimal-recompute-feedback` and
 `async/04-queued-recompute-cancel-callback` and
-`async/07-queued-recompute-user-cancel-foundation` listed in the `branches`
-array of that manifest. Because the manifest is under `.git/`, it is local
-metadata, not a tracked source file.
+`async/07-queued-recompute-user-cancel-foundation` and
+`async/09-refresh-cancel-feedback` listed in the `branches` array of that
+manifest. Because the manifest is under `.git/`, it is local metadata, not a
+tracked source file.
 
 Focused validation used for this layer:
 
