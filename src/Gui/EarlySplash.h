@@ -22,5 +22,6 @@ struct GuiExport EarlySplashOptions
 GuiExport bool shouldShowEarlySplash(const EarlySplashOptions& options);
 GuiExport std::unique_ptr<QWidget> showEarlySplash();
 GuiExport void updateEarlySplash(QWidget* splash);
+GuiExport void allowEarlySplashToYieldToDialogs(QWidget* splash);
 
 }  // namespace Gui

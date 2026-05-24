@@ -2,9 +2,6 @@
 
 #include "EarlySplash.h"
 
-#include <QApplication>
-#include <QElapsedTimer>
-#include <QEventLoop>
 #include <QGuiApplication>
 #include <QPainter>
 #include <QPaintEvent>
@@ -52,15 +49,9 @@ public:
         setWindowTitle(QStringLiteral("FreeCAD"));
     }
 
-    bool hasPainted() const
-    {
-        return painted;
-    }
-
     void setPixmap(QPixmap newPixmap)
     {
         pixmap = std::move(newPixmap);
-        painted = false;
         resizeToPixmap();
         update();
     }
@@ -71,7 +62,6 @@ protected:
         QPainter painter(this);
         painter.setCompositionMode(QPainter::CompositionMode_Source);
         painter.drawPixmap(0, 0, pixmap);
-        painted = true;
     }
 
 private:
@@ -85,17 +75,7 @@ private:
 
 private:
     QPixmap pixmap;
-    bool painted = false;
 };
-
-void waitForSplashPaint(EarlySplashWidget* splash)
-{
-    QElapsedTimer paintTimer;
-    paintTimer.start();
-    while (!splash->hasPainted() && paintTimer.elapsed() < 250) {
-        QApplication::processEvents(QEventLoop::ExcludeUserInputEvents, 25);
-    }
-}
 }  // namespace
 
 namespace Gui
@@ -123,7 +103,6 @@ std::unique_ptr<QWidget> showEarlySplash()
     splash->show();
     splash->raise();
     splash->repaint();
-    waitForSplashPaint(splash.get());
     return splash;
 }
 
@@ -141,7 +120,18 @@ void updateEarlySplash(QWidget* splash)
 
     earlySplash->setPixmap(overlaySplash);
     earlySplash->repaint();
-    waitForSplashPaint(earlySplash);
+}
+
+void allowEarlySplashToYieldToDialogs(QWidget* splash)
+{
+    auto* earlySplash = dynamic_cast<EarlySplashWidget*>(splash);
+    if (!earlySplash || !earlySplash->windowFlags().testFlag(Qt::WindowStaysOnTopHint)) {
+        return;
+    }
+
+    earlySplash->setWindowFlag(Qt::WindowStaysOnTopHint, false);
+    earlySplash->show();
+    earlySplash->repaint();
 }
 
 }  // namespace Gui

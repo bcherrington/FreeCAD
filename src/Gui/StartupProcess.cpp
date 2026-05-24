@@ -48,6 +48,7 @@
 #include "Application.h"
 #include "AutoSaver.h"
 #include "Dialogs/DlgCheckableMessageBox.h"
+#include "EarlySplash.h"
 #include "FileDialog.h"
 #include "GuiApplication.h"
 #include "MainWindow.h"
@@ -237,11 +238,16 @@ void StartupPostProcess::execute()
     setCursorFlashing();
     setQtStyle();
     setStyleSheet();
+    Gui::allowEarlySplashToYieldToDialogs(earlySplash);
     checkOpenGL();
     loadOpenInventor();
     setBranding();
     showMainWindow();
     activateWorkbench();
+    if (earlySplash) {
+        earlySplash->close();
+        mainWindow->activateWindow();
+    }
     checkParameters();
     checkVersionMigration();
 }
@@ -480,15 +486,13 @@ void StartupPostProcess::showMainWindow()
         throw;
     }
 
-    // stop splash screen and set immediately the active window that may be of interest
-    // for scripts using Python binding for Qt
-    if (earlySplash) {
-        earlySplash->close();
-    }
-    else {
+    // stop legacy splash screen and set immediately the active window that may be of interest
+    // for scripts using Python binding for Qt. The early splash stays visible until
+    // workbench activation has brought the main window up.
+    if (!earlySplash) {
         mainWindow->stopSplasher();
+        mainWindow->activateWindow();
     }
-    mainWindow->activateWindow();
 }
 
 void StartupPostProcess::activateWorkbench()
