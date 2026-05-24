@@ -256,7 +256,9 @@ void StartupPostProcess::execute()
     activateWorkbench();
     if (splashScreen) {
         splashScreen->close();
-        mainWindow->activateWindow();
+        if (!Application::hiddenMainWindow()) {
+            mainWindow->activateWindow();
+        }
     }
     checkParameters();
     checkVersionMigration();
