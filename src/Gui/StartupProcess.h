@@ -41,6 +41,7 @@ class GuiExport StartupProcess
 public:
     StartupProcess();
     static void setupApplication();
+    void setupEarlySplashImagePaths();
     void execute();
 
 private:

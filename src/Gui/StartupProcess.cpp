@@ -132,6 +132,11 @@ void StartupProcess::execute()
     setupFileDialog();
 }
 
+void StartupProcess::setupEarlySplashImagePaths()
+{
+    setImagePaths();
+}
+
 void StartupProcess::setLibraryPath()
 {
     QString plugin;

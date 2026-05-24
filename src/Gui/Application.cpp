@@ -2684,11 +2684,10 @@ void Application::runApplication()
         return;
     }
 
-    auto earlySplash = Gui::showEarlySplash();
-
     StartupProcess process;
+    process.setupEarlySplashImagePaths();
+    auto earlySplash = Gui::showEarlySplash();
     process.execute();
-    Gui::updateEarlySplash(earlySplash.get());
 
     Application app(true);
     MainWindow mw;
