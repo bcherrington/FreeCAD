@@ -87,6 +87,21 @@ Current refresh cancel feedback layer:
 - Files changed by this layer:
   - `src/Gui/CommandDoc.cpp`
 
+Current refresh cancel feedback validation layer:
+
+- Branch: `async/11-refresh-cancel-feedback-validation`
+- Commit: `9f5c255df1a Gui: test async refresh cancel feedback`
+- Scope: extracted async refresh cancel feedback into a Gui helper and added
+  offscreen Qt validation for queued cancel feedback and already-running
+  feedback states.
+- Files changed by this layer:
+  - `src/Gui/AsyncRecomputeFeedback.cpp`
+  - `src/Gui/AsyncRecomputeFeedback.h`
+  - `src/Gui/CMakeLists.txt`
+  - `src/Gui/CommandDoc.cpp`
+  - `tests/src/Gui/AsyncRecomputeFeedback.cpp`
+  - `tests/src/Gui/CMakeLists.txt`
+
 Expected layering:
 
 ```text
@@ -96,6 +111,7 @@ main
         `-- async/04-queued-recompute-cancel-callback
             `-- async/07-queued-recompute-user-cancel-foundation
                 `-- async/09-refresh-cancel-feedback
+                    `-- async/11-refresh-cancel-feedback-validation
 ```
 
 If `async/02-explicit-refresh-async-recompute` exists and owns the explicit
@@ -119,9 +135,10 @@ For future local integration rebuilds, keep
 `async/03-minimal-recompute-feedback` and
 `async/04-queued-recompute-cancel-callback` and
 `async/07-queued-recompute-user-cancel-foundation` and
-`async/09-refresh-cancel-feedback` listed in the `branches` array of that
-manifest. Because the manifest is under `.git/`, it is local metadata, not a
-tracked source file.
+`async/09-refresh-cancel-feedback` and
+`async/11-refresh-cancel-feedback-validation` listed in the `branches` array of
+that manifest. Because the manifest is under `.git/`, it is local metadata, not
+a tracked source file.
 
 Focused validation used for this layer:
 
@@ -129,6 +146,8 @@ Focused validation used for this layer:
 cmake --build build/debug --target FreeCADApp FreeCADGui App_tests_run Gui_tests_run -j2
 ctest --test-dir build/debug -R '^AsyncRecomputeTest\.' --output-on-failure
 build/debug/tests/Gui_tests_run --gtest_filter='*'
+cmake --build build/debug --target FreeCADGui AsyncRecomputeFeedback_Tests_run -j2
+ctest --test-dir build/debug -R '^(AsyncRecomputeFeedback_Tests_run|AsyncRecomputeTest\.)' --output-on-failure
 ```
 
 ## Coding Style & Naming Conventions
