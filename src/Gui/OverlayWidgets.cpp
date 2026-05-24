@@ -732,7 +732,7 @@ void OverlayTabWidget::onRepaint()
 
 void OverlayTabWidget::scheduleRepaint()
 {
-    if (!repainting && isVisible() && _graphicsEffect) {
+    if (!repainting && isVisible() && _graphicsEffect && _graphicsEffect->enabled()) {
         repaintTimer.start(100);
     }
 }
@@ -2834,7 +2834,9 @@ OverlayGraphicsEffect::OverlayGraphicsEffect(QObject* parent)
     , _size(1, 1)
     , _blurRadius(2.0f)
     , _color(0, 0, 0, 80)
-{}
+{
+    QGraphicsEffect::setEnabled(false);
+}
 
 QT_BEGIN_NAMESPACE
 extern Q_WIDGETS_EXPORT void qt_blurImage(
@@ -2917,15 +2919,17 @@ void OverlayGraphicsEffect::draw(QPainter* painter)
     }
     tmpPainter.end();
 
-    // blur the alpha channel
-    QImage blurred(tmp.size(), QImage::Format_ARGB32_Premultiplied);
-    blurred.setDevicePixelRatio(px.devicePixelRatioF());
-    blurred.fill(0);
-    QPainter blurPainter(&blurred);
-    qt_blurImage(&blurPainter, tmp, blurRadius(), false, true);
-    blurPainter.end();
+    if (blurRadius() > 0) {
+        // blur the alpha channel
+        QImage blurred(tmp.size(), QImage::Format_ARGB32_Premultiplied);
+        blurred.setDevicePixelRatio(px.devicePixelRatioF());
+        blurred.fill(0);
+        QPainter blurPainter(&blurred);
+        qt_blurImage(&blurPainter, tmp, blurRadius(), false, true);
+        blurPainter.end();
 
-    tmp = blurred;
+        tmp = blurred;
+    }
 
     // blacken the image...
     tmpPainter.begin(&tmp);

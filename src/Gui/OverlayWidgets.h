@@ -734,6 +734,7 @@ public:
     {
         if (_enabled != enabled) {
             _enabled = enabled;
+            QGraphicsEffect::setEnabled(enabled);
             updateBoundingRect();
         }
     }
