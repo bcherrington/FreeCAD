@@ -862,22 +862,17 @@ void Application::queueRecomputeRequest(RecomputeRequest req)
     notifyRecomputeWorker();
 }
 
-void Application::cancelRecomputeRequestsForDocument(const std::string& documentName)
+std::size_t Application::cancelQueuedRecomputeRequestsForDocument(const std::string& documentName)
 {
     if (documentName.empty()) {
-        return;
+        return 0;
     }
 
     std::vector<RecomputeRequest> canceledRequests;
 
     {
-        std::unique_lock<std::mutex> lock(_recomputeMutex);
-        _recomputeStateChanged.wait(lock, [this, &documentName] {
-            return !_recomputeDocumentsInProgress.contains(documentName);
-        });
+        std::lock_guard<std::mutex> lock(_recomputeMutex);
 
-        // Cancellation runs on document-close boundaries, so a linear scan keeps
-        // the queue simple without affecting the steady-state worker path.
         auto request = _recomputeRequests.begin();
         while (request != _recomputeRequests.end()) {
             if (requestTargetsDocument(*request, documentName)) {
@@ -898,6 +893,24 @@ void Application::cancelRecomputeRequestsForDocument(const std::string& document
             request.callback(request, result);
         }
     }
+
+    return canceledRequests.size();
+}
+
+void Application::cancelRecomputeRequestsForDocument(const std::string& documentName)
+{
+    if (documentName.empty()) {
+        return;
+    }
+
+    {
+        std::unique_lock<std::mutex> lock(_recomputeMutex);
+        _recomputeStateChanged.wait(lock, [this, &documentName] {
+            return !_recomputeDocumentsInProgress.contains(documentName);
+        });
+    }
+
+    cancelQueuedRecomputeRequestsForDocument(documentName);
 }
 
 struct DocTiming {

@@ -398,6 +398,7 @@ public:
 
     // Adds a recompute request to the processing queue.
     void queueRecomputeRequest(RecomputeRequest req);
+    std::size_t cancelQueuedRecomputeRequestsForDocument(const std::string& documentName);
 
     // NOLINTBEGIN
     // clang-format off
