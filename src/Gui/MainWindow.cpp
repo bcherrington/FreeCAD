@@ -2082,6 +2082,15 @@ void MainWindow::loadWindowSettings()
     d->restoreWindowState(windowState);
     std::clog << "Main window restored" << std::endl;
 
+    statusBar()->setVisible(showStatusBar);
+
+    setAttribute(Qt::WA_AlwaysShowToolTips);
+
+    ToolBarManager::getInstance()->restoreState();
+    std::clog << "Toolbars restored" << std::endl;
+
+    OverlayManager::instance()->restore();
+
     max ? showMaximized() : show();
 
     // make menus and tooltips usable in fullscreen under Windows, see issue #7563
@@ -2097,15 +2106,6 @@ void MainWindow::loadWindowSettings()
     }
 # endif
 #endif
-
-    statusBar()->setVisible(showStatusBar);
-
-    setAttribute(Qt::WA_AlwaysShowToolTips);
-
-    ToolBarManager::getInstance()->restoreState();
-    std::clog << "Toolbars restored" << std::endl;
-
-    OverlayManager::instance()->restore();
 }
 
 bool MainWindow::isRestoringWindowState() const
