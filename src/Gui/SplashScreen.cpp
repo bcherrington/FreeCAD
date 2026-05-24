@@ -25,12 +25,17 @@
 #include <QApplication>
 #include <QClipboard>
 #include <QDir>
+#include <QElapsedTimer>
+#include <QEventLoop>
 #include <QFile>
 #include <QFileInfo>
+#include <QGuiApplication>
 #include <QMutex>
 #include <QPainter>
+#include <QPaintEvent>
 #include <QRegularExpression>
 #include <QRegularExpressionMatch>
+#include <QScreen>
 #include <QWaitCondition>
 
 
@@ -58,7 +63,7 @@ public:
     SplashObserver& operator=(const SplashObserver&) = delete;
     SplashObserver& operator=(SplashObserver&&) = delete;
 
-    explicit SplashObserver(QSplashScreen* splasher = nullptr)
+    explicit SplashObserver(SplashScreen* splasher = nullptr)
         : splash(splasher)
         , alignment(Qt::AlignBottom | Qt::AlignLeft)
         , textColor(Qt::black)
@@ -158,7 +163,7 @@ public:
     }
 
 private:
-    QSplashScreen* splash;
+    SplashScreen* splash;
     int alignment;
     QColor textColor;
 };
@@ -227,8 +232,16 @@ static void renderDevBuildWarning(
  * Constructs a splash screen that will display the pixmap.
  */
 SplashScreen::SplashScreen(const QPixmap& pixmap, Qt::WindowFlags f)
-    : QSplashScreen(pixmap, f)
+    : QWidget(nullptr, f | Qt::SplashScreen | Qt::FramelessWindowHint | Qt::WindowStaysOnTopHint)
+    , pixmap(pixmap)
 {
+    setAttribute(Qt::WA_DeleteOnClose, false);
+    setAttribute(Qt::WA_NativeWindow, true);
+    setAttribute(Qt::WA_TranslucentBackground, true);
+    setAutoFillBackground(false);
+    resizeToPixmap();
+    setWindowTitle(QStringLiteral("FreeCAD"));
+
     // write the messages to splasher
     messages = new SplashObserver(this);
 }
@@ -240,12 +253,21 @@ SplashScreen::~SplashScreen()
 }
 
 /**
- * Draws the contents of the splash screen using painter \a painter. The default
- * implementation draws the message passed by message().
+ * Draws the contents of the splash screen using painter \a painter.
  */
-void SplashScreen::drawContents(QPainter* painter)
+void SplashScreen::paintEvent(QPaintEvent*)
 {
-    QSplashScreen::drawContents(painter);
+    QPainter painter(this);
+    painter.setCompositionMode(QPainter::CompositionMode_Source);
+    painter.drawPixmap(0, 0, pixmap);
+
+    if (!message.isEmpty()) {
+        painter.setCompositionMode(QPainter::CompositionMode_SourceOver);
+        painter.setPen(messageColor);
+        painter.drawText(rect(), messageAlignment, message);
+    }
+
+    painted = true;
 }
 
 void SplashScreen::setShowMessages(bool on)
@@ -254,6 +276,62 @@ void SplashScreen::setShowMessages(bool on)
     messages->bMsg = on;
     messages->bLog = on;
     messages->bWrn = on;
+}
+
+void SplashScreen::showMessage(const QString& msg, int alignment, const QColor& color)
+{
+    message = msg;
+    messageAlignment = alignment;
+    messageColor = color;
+    painted = false;
+    update();
+    if (isVisible()) {
+        repaint();
+    }
+}
+
+void SplashScreen::allowDialogsToCover()
+{
+    if (!windowFlags().testFlag(Qt::WindowStaysOnTopHint)) {
+        return;
+    }
+
+    setWindowFlag(Qt::WindowStaysOnTopHint, false);
+    painted = false;
+    show();
+    repaint();
+    waitForPaint();
+}
+
+void SplashScreen::raiseSplash()
+{
+    painted = false;
+    show();
+    raise();
+    repaint();
+    waitForPaint();
+}
+
+void SplashScreen::waitForPaint()
+{
+    // Top-level window mapping is asynchronous on some platforms. This is not a
+    // minimum display delay; it exits as soon as Qt delivers the first paint.
+    QElapsedTimer paintTimer;
+    paintTimer.start();
+    while (!painted && paintTimer.elapsed() < 250) {
+        QApplication::processEvents(
+            QEventLoop::ExcludeUserInputEvents | QEventLoop::ExcludeSocketNotifiers,
+            25
+        );
+    }
+}
+
+void SplashScreen::resizeToPixmap()
+{
+    setFixedSize(pixmap.size() / pixmap.devicePixelRatio());
+    if (auto* screen = QGuiApplication::primaryScreen()) {
+        move(screen->availableGeometry().center() - rect().center());
+    }
 }
 
 QPixmap SplashScreen::splashImage()
@@ -409,3 +487,66 @@ QPixmap SplashScreen::splashImage()
 
     return splash_image;
 }
+
+namespace Gui
+{
+
+namespace
+{
+SplashScreenOptions splashScreenOptionsFromConfig()
+{
+    SplashScreenOptions options;
+    const auto& cfg = App::Application::Config();
+    const auto verbose = cfg.find("Verbose");
+    const auto runMode = cfg.find("RunMode");
+    options.strictVerbose = verbose != cfg.end() && verbose->second == "Strict";
+    options.guiRunMode = runMode == cfg.end() || runMode->second == "Gui";
+    options.startHidden = cfg.find("StartHidden") != cfg.end();
+
+    auto hGrp = App::GetApplication()
+                    .GetUserParameter()
+                    .GetGroup("BaseApp")
+                    ->GetGroup("Preferences")
+                    ->GetGroup("General");
+    options.showSplasher = hGrp->GetBool("ShowSplasher", true);
+    return options;
+}
+}  // namespace
+
+bool shouldShowSplashScreen(const SplashScreenOptions& options)
+{
+    return !options.strictVerbose && options.guiRunMode && !options.startHidden
+        && options.showSplasher;
+}
+
+std::unique_ptr<SplashScreen> showSplashScreen()
+{
+    if (!shouldShowSplashScreen(splashScreenOptionsFromConfig())) {
+        return nullptr;
+    }
+
+    QPixmap pixmap = SplashScreen::splashImage();
+    if (pixmap.isNull()) {
+        pixmap = QPixmap(QStringLiteral(":/icons/freecadsplash.png"));
+        if (pixmap.isNull()) {
+            return nullptr;
+        }
+    }
+
+    auto hGrp = App::GetApplication()
+                    .GetUserParameter()
+                    .GetGroup("BaseApp")
+                    ->GetGroup("Preferences")
+                    ->GetGroup("General");
+
+    auto splash = std::make_unique<SplashScreen>(pixmap);
+    if (!hGrp->GetBool("ShowSplasherMessages", false)) {
+        splash->setShowMessages(false);
+    }
+
+    splash->winId();
+    splash->raiseSplash();
+    return splash;
+}
+
+}  // namespace Gui

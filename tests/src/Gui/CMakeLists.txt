@@ -8,7 +8,7 @@ add_executable(Gui_tests_run
         Assistant.cpp
         BitmapFactory.cpp
         Camera.cpp
-        EarlySplash.cpp
+        SplashScreen.cpp
         FileDialog.cpp
         StyleParameters/StyleParametersApplicationTest.cpp
         StyleParameters/ParserTest.cpp

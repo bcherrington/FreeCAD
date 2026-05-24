@@ -2242,7 +2242,7 @@ void MainWindow::startSplasher()
                 d->splashscreen->setShowMessages(false);
             }
 
-            d->splashscreen->show();
+            d->splashscreen->raiseSplash();
         }
         else {
             d->splashscreen = nullptr;
@@ -2253,7 +2253,7 @@ void MainWindow::startSplasher()
 void MainWindow::stopSplasher()
 {
     if (d->splashscreen) {
-        d->splashscreen->finish(this);
+        d->splashscreen->close();
         delete d->splashscreen;
         d->splashscreen = nullptr;
     }
