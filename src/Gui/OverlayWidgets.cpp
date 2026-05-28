@@ -478,6 +478,8 @@ OverlayTabWidget::OverlayTabWidget(QWidget* parent, Qt::DockWidgetArea pos)
 
 OverlayTabWidget::~OverlayTabWidget()
 {
+    tabBar()->removeEventFilter(this);
+
     timer.stop();
     repaintTimer.stop();
 
@@ -512,7 +514,7 @@ OverlayTabWidget::~OverlayTabWidget()
             break;
     }
 
-    if (_Dragging == this) {
+    if (_Dragging == this || (_Dragging && isAncestorOf(_Dragging))) {
         _Dragging = nullptr;
     }
 }
@@ -732,7 +734,7 @@ void OverlayTabWidget::onRepaint()
 
 void OverlayTabWidget::scheduleRepaint()
 {
-    if (!repainting && isVisible() && _graphicsEffect && _graphicsEffect->enabled()) {
+    if (!repainting && isVisible() && _graphicsEffect) {
         repaintTimer.start(100);
     }
 }
@@ -1646,7 +1648,7 @@ bool OverlayTabWidget::getAutoHideRect(QRect& rect) const
     switch (dockArea) {
         case Qt::LeftDockWidgetArea:
         case Qt::RightDockWidgetArea:
-            if (_TopOverlay->isVisible() && _TopOverlay->_state <= State::Normal) {
+            if (_TopOverlay && _TopOverlay->isVisible() && _TopOverlay->_state <= State::Normal) {
                 rect.setTop(std::max(rect.top(), _TopOverlay->rectOverlay.bottom()));
             }
             if (dockArea == Qt::RightDockWidgetArea) {
@@ -1658,7 +1660,7 @@ bool OverlayTabWidget::getAutoHideRect(QRect& rect) const
             break;
         case Qt::TopDockWidgetArea:
         case Qt::BottomDockWidgetArea:
-            if (_LeftOverlay->isVisible() && _LeftOverlay->_state <= State::Normal) {
+            if (_LeftOverlay && _LeftOverlay->isVisible() && _LeftOverlay->_state <= State::Normal) {
                 rect.setLeft(std::max(rect.left(), _LeftOverlay->rectOverlay.right()));
             }
             if (dockArea == Qt::TopDockWidgetArea) {
@@ -1666,7 +1668,8 @@ bool OverlayTabWidget::getAutoHideRect(QRect& rect) const
             }
             else {
                 rect.setTop(rect.top() + std::max(rect.height() - hintWidth, 0));
-                if (_RightOverlay->isVisible() && _RightOverlay->_state <= State::Normal) {
+                if (_RightOverlay && _RightOverlay->isVisible()
+                    && _RightOverlay->_state <= State::Normal) {
                     QPoint offset = getMainWindow()->getMdiArea()->pos();
                     rect.setRight(std::min(rect.right(), _RightOverlay->x() - offset.x()));
                 }
@@ -2834,9 +2837,7 @@ OverlayGraphicsEffect::OverlayGraphicsEffect(QObject* parent)
     , _size(1, 1)
     , _blurRadius(2.0f)
     , _color(0, 0, 0, 80)
-{
-    QGraphicsEffect::setEnabled(false);
-}
+{}
 
 QT_BEGIN_NAMESPACE
 extern Q_WIDGETS_EXPORT void qt_blurImage(
@@ -2919,17 +2920,15 @@ void OverlayGraphicsEffect::draw(QPainter* painter)
     }
     tmpPainter.end();
 
-    if (blurRadius() > 0) {
-        // blur the alpha channel
-        QImage blurred(tmp.size(), QImage::Format_ARGB32_Premultiplied);
-        blurred.setDevicePixelRatio(px.devicePixelRatioF());
-        blurred.fill(0);
-        QPainter blurPainter(&blurred);
-        qt_blurImage(&blurPainter, tmp, blurRadius(), false, true);
-        blurPainter.end();
+    // blur the alpha channel
+    QImage blurred(tmp.size(), QImage::Format_ARGB32_Premultiplied);
+    blurred.setDevicePixelRatio(px.devicePixelRatioF());
+    blurred.fill(0);
+    QPainter blurPainter(&blurred);
+    qt_blurImage(&blurPainter, tmp, blurRadius(), false, true);
+    blurPainter.end();
 
-        tmp = blurred;
-    }
+    tmp = blurred;
 
     // blacken the image...
     tmpPainter.begin(&tmp);
