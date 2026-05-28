@@ -43,6 +43,12 @@ using namespace App;
 using namespace Base;
 using namespace std;
 
+namespace {
+
+constexpr std::size_t includedFileRestoreBufferSize = 64 * 1024;
+
+}
+
 
 //**************************************************************************
 // PropertyFileIncluded
@@ -471,7 +477,7 @@ void PropertyFileIncluded::RestoreDocFile(Base::Reader& reader)
 
     // copy plain data
     aboutToSetValue();
-    std::array<char, 64 * 1024> buffer {};
+    std::array<char, includedFileRestoreBufferSize> buffer {};
     while (reader) {
         reader.read(buffer.data(), static_cast<std::streamsize>(buffer.size()));
         const std::streamsize count = reader.gcount();
