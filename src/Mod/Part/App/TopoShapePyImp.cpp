@@ -24,6 +24,7 @@
 
 #include <limits>
 #include <sstream>
+#include <unordered_set>
 #include <boost/regex.hpp>
 
 #include <BRep_Tool.hxx>
@@ -980,10 +981,11 @@ PyObject* TopoShapePy::ancestorsOfType(PyObject* args) const
     }
 
     try {
-        const TopoDS_Shape& containingShape = getTopoShapePtr()->getShape();
+        const TopoShape& model = *getTopoShapePtr();
+        const TopoDS_Shape& containingShape = model.getShape();
         const TopoDS_Shape& descendentShape
             = static_cast<TopoShapePy*>(pcObj)->getTopoShapePtr()->getShape();
-        if (containingShape.IsNull() || descendentShape.IsNull()) {
+        if (model.isNull() || descendentShape.IsNull()) {
             PyErr_SetString(PyExc_ValueError, "Shape is null");
             return nullptr;
         }
@@ -996,6 +998,7 @@ PyObject* TopoShapePy::ancestorsOfType(PyObject* args) const
         }
 
         Py::List result;
+        std::unordered_set<int> appendedIndices = {};
         auto descendentType = descendentShape.ShapeType();
         // Explore all the possible ancestors (having the desired type)
         for (TopExp_Explorer exp(containingShape, desiredAncestorType); exp.More(); exp.Next()) {
@@ -1003,7 +1006,11 @@ PyObject* TopoShapePy::ancestorsOfType(PyObject* args) const
             for (TopExp_Explorer exp2(exp.Current(), descendentType); exp2.More(); exp2.Next()) {
                 if (exp2.Current().IsSame(descendentShape)) {
                     // ancestor is an ancestor of descendentShape; record it in the result.
-                    result.append(shape2pyshape(exp.Current()));
+                    const int idx = model.findShape(exp.Current());
+                    if (idx > 0 && !appendedIndices.count(idx)) {
+                        result.append(shape2pyshape(model.getSubTopoShape(desiredAncestorType, idx)));
+                        appendedIndices.emplace(idx);
+                    }
                     // This quick exit eliminates duplicate ancestors like you would find looking
                     // for the ancestor face of the longitudinal seam edge of a cylinder or the
                     // ancestor vertex of a full-circle wire.
