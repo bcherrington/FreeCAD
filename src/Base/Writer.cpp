@@ -176,12 +176,13 @@ void Writer::insertAsciiFile(const char* FileName)
         throw Base::FileException("Writer::insertAsciiFile() Could not open file!");
     }
 
-    Stream() << "<![CDATA[";
-    char ch {};
-    while (from.get(ch)) {
-        Stream().put(ch);
+    std::ostream& stream = Stream();
+    stream << "<![CDATA[";
+    stream << from.rdbuf();
+    if (from.bad()) {
+        throw Base::FileException("Writer::insertAsciiFile() Could not read file!");
     }
-    Stream() << "]]>" << std::endl;
+    stream << "]]>" << std::endl;
 
     checkErrNo();
 }
