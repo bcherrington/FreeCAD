@@ -254,7 +254,7 @@ void PointKernel::save(std::ostream& out) const
 {
     out << "# ASCII" << std::endl;
     for (const auto& pnt : _Points) {
-        out << pnt.x << " " << pnt.y << " " << pnt.z << std::endl;
+        out << pnt.x << " " << pnt.y << " " << pnt.z << '\n';
     }
 }
 

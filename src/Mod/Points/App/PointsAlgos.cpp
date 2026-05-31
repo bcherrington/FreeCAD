@@ -2110,7 +2110,7 @@ void PlyWriter::write(const std::string& filename)
             float value = data(r, c);
             out << converters[c]->toString(value) << " ";
         }
-        out << std::endl;
+        out << '\n';
     }
 }
 
@@ -2290,6 +2290,6 @@ void PcdWriter::write(const std::string& filename)
                 out << converters[c]->toString(value) << " ";
             }
         }
-        out << std::endl;
+        out << '\n';
     }
 }
