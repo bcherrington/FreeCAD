@@ -69,15 +69,20 @@ void ViewProviderExtern::setModeByFile(const char* name, const char* ivFileName)
 
         // read in the file
         std::vector<unsigned char> content;
-        content.reserve(size);
-        unsigned char c;
-        while (file.get((char&)c)) {
-            content.push_back(c);
+        if (size > 0) {
+            content.resize(static_cast<std::size_t>(size));
+            file.read(
+                reinterpret_cast<char*>(content.data()),
+                static_cast<std::streamsize>(content.size())
+            );
+            content.resize(static_cast<std::size_t>(file.gcount()));
         }
 
         file.close();
-        in.setBuffer(&(content[0]), content.size());
-        setModeBySoInput(name, in);
+        if (!content.empty()) {
+            in.setBuffer(content.data(), content.size());
+            setModeBySoInput(name, in);
+        }
     }
 }
 
