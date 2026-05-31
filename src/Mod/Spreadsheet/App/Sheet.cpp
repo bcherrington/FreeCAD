@@ -1359,7 +1359,9 @@ int Sheet::getRowHeight(int row) const
 std::vector<std::string> Sheet::getUsedCells() const
 {
     std::vector<std::string> usedCells;
-    for (const auto& addr : cells.getUsedCells()) {
+    const auto usedAddresses = cells.getUsedCells();
+    usedCells.reserve(usedAddresses.size());
+    for (const auto& addr : usedAddresses) {
         usedCells.push_back(addr.toString());
     }
 
