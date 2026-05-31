@@ -25,6 +25,7 @@
 
 
 #include <algorithm>
+#include <array>
 #include <iostream>
 #include <string>
 #include <vector>
@@ -42,6 +43,8 @@
 using namespace App;
 
 namespace {
+
+constexpr std::size_t pythonObjectDocFileBufferSize = 64 * 1024;
 
 /**
  * @brief Check whether a path starts with a given directory prefix.
@@ -535,8 +538,10 @@ void PropertyPythonObject::Restore(Base::XMLReader& reader)
 void PropertyPythonObject::SaveDocFile(Base::Writer& writer) const
 {
     std::string buffer = this->toString();
-    for (char it : buffer) {
-        writer.Stream().put(it);
+    std::ostream& stream = writer.Stream();
+    stream.write(buffer.data(), static_cast<std::streamsize>(buffer.size()));
+    if (!stream) {
+        throw Base::FileSystemError("PropertyPythonObject::SaveDocFile(): stream cannot be written.");
     }
 }
 
@@ -544,9 +549,16 @@ void PropertyPythonObject::RestoreDocFile(Base::Reader& reader)
 {
     aboutToSetValue();
     std::string buffer;
-    char ch {};
-    while (reader.get(ch)) {
-        buffer.push_back(ch);
+    std::array<char, pythonObjectDocFileBufferSize> chunk {};
+    while (reader) {
+        reader.read(chunk.data(), static_cast<std::streamsize>(chunk.size()));
+        const std::streamsize count = reader.gcount();
+        if (count > 0) {
+            buffer.append(chunk.data(), static_cast<std::string::size_type>(count));
+        }
+    }
+    if (reader.bad()) {
+        throw Base::FileSystemError("PropertyPythonObject::RestoreDocFile(): stream cannot be read.");
     }
     this->fromString(buffer);
     hasSetValue();
