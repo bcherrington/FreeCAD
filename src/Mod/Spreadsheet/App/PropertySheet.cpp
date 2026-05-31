@@ -205,6 +205,7 @@ std::tuple<CellAddress, CellAddress> extractRange(const std::vector<CellAddress>
 std::vector<CellAddress> PropertySheet::getUsedCells() const
 {
     std::vector<CellAddress> usedSet;
+    usedSet.reserve(data.size());
 
     for (const auto& i : data) {
         if (i.second->isUsed()) {
@@ -224,6 +225,7 @@ std::tuple<CellAddress, CellAddress> PropertySheet::getUsedRange() const
 std::vector<CellAddress> PropertySheet::getNonEmptyCells() const
 {
     std::vector<CellAddress> usedSet;
+    usedSet.reserve(data.size());
 
     std::string str;
     for (const auto& i : data) {
@@ -1001,6 +1003,7 @@ bool PropertySheet::rowSortFunc(const CellAddress& a, const CellAddress& b)
 std::vector<CellAddress> PropertySheet::getRows(int row, int count) const
 {
     std::vector<CellAddress> keys;
+    keys.reserve(data.size());
 
     for (const auto& i : data) {
         auto key = i.first;
@@ -1148,6 +1151,7 @@ bool PropertySheet::colSortFunc(const CellAddress& a, const CellAddress& b)
 std::vector<CellAddress> PropertySheet::getColumns(int column, int count) const
 {
     std::vector<CellAddress> keys;
+    keys.reserve(data.size());
 
     for (const auto& i : data) {
         auto key = i.first;
