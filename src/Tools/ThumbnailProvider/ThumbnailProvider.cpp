@@ -28,6 +28,8 @@
 #include "ThumbnailProvider.h"
 #include "Common.h"
 
+#include <array>
+#include <cstddef>
 #include <iostream>
 #include <wincodec.h>
 #include <wincodecsdk.h>
@@ -265,16 +267,29 @@ STDMETHODIMP CThumbnailProvider::GetThumbnail(UINT cx, HBITMAP* phbmp, WTS_ALPHA
             entry = zipstream.getNextEntry();
         }
         if (entry && entry->isValid()) {
-            // ok, we have found the file. Now, read it in byte for byte
+            // ok, we have found the file. Now, read it into memory
             std::istream* str = &zipstream;
             std::vector<unsigned char> content;
-            unsigned char c;
-            while (str->get((char&)c)) {
-                content.push_back(c);
+            std::array<unsigned char, 64 * 1024> buffer {};
+            while (*str) {
+                str->read(
+                    reinterpret_cast<char*>(buffer.data()),
+                    static_cast<std::streamsize>(buffer.size())
+                );
+                const std::streamsize count = str->gcount();
+                if (count > 0) {
+                    content.insert(
+                        content.end(),
+                        buffer.begin(),
+                        buffer.begin() + static_cast<std::ptrdiff_t>(count)
+                    );
+                }
             }
 
             // pass the memory buffer to an IStream to create the bitmap handle
-            IStream* stream = CreateStreamOnResource(&(content[0]), content.size());
+            IStream* stream = content.empty()
+                ? nullptr
+                : CreateStreamOnResource(content.data(), content.size());
             if (stream) {
                 IWICBitmapSource* bmpSrc = LoadBitmapFromStream(stream);
                 stream->Release();
