@@ -27,7 +27,6 @@ setup_qt_test(SelectionView)
 target_link_libraries(Gui_tests_run PRIVATE
     GTest::gtest_main
     GTest::gmock_main
-    ${Google_Tests_LIBS}
     FreeCADApp
     FreeCADGui
 )
