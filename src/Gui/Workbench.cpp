@@ -826,7 +826,7 @@ MenuItem* StdWorkbench::setupMenuBar() const
           << "Separator"
           // Start page and additional separator are dynamically inserted here
           << "Std_FreeCADUserHub" << "Std_FreeCADForum" << "Std_ReportBug" << "Separator"
-          << "Std_RestartInSafeMode" << "Separator"
+          << "Std_GpuDiagnostics" << "Std_RestartInSafeMode" << "Separator"
           << "Std_DevHandbook" << "Std_PythonHelp" << "Separator"
           << "Std_FreeCADWebsite" << "Std_FreeCADDonation" << "Std_About";
 
@@ -1035,7 +1035,7 @@ MenuItem* NoneWorkbench::setupMenuBar() const
     // Help
     auto help = new MenuItem(menuBar);
     help->setCommand("&Help");
-    *help << "Std_OnlineHelp" << "Std_About";
+    *help << "Std_OnlineHelp" << "Std_GpuDiagnostics" << "Std_About";
 
     return menuBar;
 }

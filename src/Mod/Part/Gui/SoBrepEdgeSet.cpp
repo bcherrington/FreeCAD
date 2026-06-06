@@ -24,7 +24,11 @@
 #include <FCConfig.h>
 
 #include <algorithm>
+#include <array>
+#include <cmath>
+#include <cstdlib>
 #include <limits>
+#include <string_view>
 #include <Inventor/SoPickedPoint.h>
 #include <Inventor/SoPrimitiveVertex.h>
 #include <Inventor/actions/SoGetBoundingBoxAction.h>
@@ -44,6 +48,7 @@
 
 #include <Gui/Selection/SoFCUnifiedSelection.h>
 #include <Gui/Selection/Selection.h>
+#include <Gui/GpuDiagnostics.h>
 #include <Base/Color.h>
 #include "SoBrepEdgeSet.h"
 #include "ViewProviderExt.h"
@@ -218,6 +223,358 @@ static void renderColorOverrides(
     }
 }
 
+static QString glString(GLenum name)
+{
+    const auto* value = glGetString(name);
+    return value ? QString::fromLatin1(reinterpret_cast<const char*>(value)) : QString();
+}
+
+class ScopedLineSmoothing
+{
+public:
+    explicit ScopedLineSmoothing(bool enable)
+        : active(enable)
+    {
+        if (!active) {
+            return;
+        }
+
+        wasLineSmooth = glIsEnabled(GL_LINE_SMOOTH) == GL_TRUE;
+        wasBlend = glIsEnabled(GL_BLEND) == GL_TRUE;
+        glGetIntegerv(GL_BLEND_SRC_RGB, &blendSrcRgb);
+        glGetIntegerv(GL_BLEND_DST_RGB, &blendDstRgb);
+        glGetIntegerv(GL_LINE_SMOOTH_HINT, &lineSmoothHint);
+
+        glEnable(GL_LINE_SMOOTH);
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        glHint(GL_LINE_SMOOTH_HINT, GL_NICEST);
+    }
+
+    ~ScopedLineSmoothing()
+    {
+        if (!active) {
+            return;
+        }
+
+        glBlendFunc(static_cast<GLenum>(blendSrcRgb), static_cast<GLenum>(blendDstRgb));
+        glHint(GL_LINE_SMOOTH_HINT, static_cast<GLenum>(lineSmoothHint));
+
+        if (wasBlend) {
+            glEnable(GL_BLEND);
+        }
+        else {
+            glDisable(GL_BLEND);
+        }
+
+        if (wasLineSmooth) {
+            glEnable(GL_LINE_SMOOTH);
+        }
+        else {
+            glDisable(GL_LINE_SMOOTH);
+        }
+    }
+
+private:
+    bool active {false};
+    bool wasLineSmooth {false};
+    bool wasBlend {false};
+    GLint blendSrcRgb {0};
+    GLint blendDstRgb {0};
+    GLint lineSmoothHint {0};
+};
+
+enum class EdgeAaDiagnosticMode
+{
+    Disabled,
+    Overlay,
+    Only,
+    DebugOnly,
+    Hide,
+};
+
+EdgeAaDiagnosticMode edgeAaDiagnosticMode()
+{
+    const char* value = std::getenv("FREECAD_EDGE_AA_DIAGNOSTIC");
+    if (!value) {
+        return EdgeAaDiagnosticMode::Disabled;
+    }
+
+    const std::string_view mode(value);
+    if (mode == "hide") {
+        return EdgeAaDiagnosticMode::Hide;
+    }
+    if (mode == "screen-space-only") {
+        return EdgeAaDiagnosticMode::Only;
+    }
+    if (mode == "screen-space-debug") {
+        return EdgeAaDiagnosticMode::DebugOnly;
+    }
+    if (mode == "screen-space" || mode == "screen-space-overlay") {
+        return EdgeAaDiagnosticMode::Overlay;
+    }
+
+    return EdgeAaDiagnosticMode::Disabled;
+}
+
+bool isScreenSpaceOnlyMode(EdgeAaDiagnosticMode mode)
+{
+    return mode == EdgeAaDiagnosticMode::Only || mode == EdgeAaDiagnosticMode::DebugOnly;
+}
+
+struct ProjectedPoint
+{
+    double x {0.0};
+    double y {0.0};
+    double z {0.0};
+    bool valid {false};
+};
+
+ProjectedPoint projectPoint(
+    const SbVec3f& point,
+    const GLdouble* modelView,
+    const GLdouble* projection,
+    const GLint* viewport
+)
+{
+    const double object[4] = {point[0], point[1], point[2], 1.0};
+    double eye[4] = {0.0, 0.0, 0.0, 0.0};
+    double clip[4] = {0.0, 0.0, 0.0, 0.0};
+
+    for (int row = 0; row < 4; ++row) {
+        eye[row] = modelView[row] * object[0] + modelView[4 + row] * object[1]
+            + modelView[8 + row] * object[2] + modelView[12 + row] * object[3];
+    }
+    for (int row = 0; row < 4; ++row) {
+        clip[row] = projection[row] * eye[0] + projection[4 + row] * eye[1]
+            + projection[8 + row] * eye[2] + projection[12 + row] * eye[3];
+    }
+
+    if (std::abs(clip[3]) <= 1.0e-9) {
+        return {};
+    }
+
+    const double ndcX = clip[0] / clip[3];
+    const double ndcY = clip[1] / clip[3];
+    const double ndcZ = clip[2] / clip[3];
+    return {
+        viewport[0] + (ndcX + 1.0) * viewport[2] * 0.5,
+        viewport[1] + (ndcY + 1.0) * viewport[3] * 0.5,
+        ndcZ,
+        ndcX >= -1.25 && ndcX <= 1.25 && ndcY >= -1.25 && ndcY <= 1.25
+    };
+}
+
+class ScopedScreenSpaceEdgeAaState
+{
+public:
+    explicit ScopedScreenSpaceEdgeAaState(const GLint* viewport)
+    {
+        glGetIntegerv(GL_MATRIX_MODE, &previousMatrixMode);
+        previousDepthTest = glIsEnabled(GL_DEPTH_TEST) == GL_TRUE;
+        previousBlend = glIsEnabled(GL_BLEND) == GL_TRUE;
+        previousLighting = glIsEnabled(GL_LIGHTING) == GL_TRUE;
+        previousTexture2D = glIsEnabled(GL_TEXTURE_2D) == GL_TRUE;
+        previousCullFace = glIsEnabled(GL_CULL_FACE) == GL_TRUE;
+        previousLineSmooth = glIsEnabled(GL_LINE_SMOOTH) == GL_TRUE;
+        previousShadeModel = 0;
+        previousDepthMask = GL_TRUE;
+        glGetIntegerv(GL_SHADE_MODEL, &previousShadeModel);
+        glGetIntegerv(GL_DEPTH_FUNC, &previousDepthFunc);
+        glGetBooleanv(GL_DEPTH_WRITEMASK, &previousDepthMask);
+        glGetIntegerv(GL_BLEND_SRC_RGB, &previousBlendSrc);
+        glGetIntegerv(GL_BLEND_DST_RGB, &previousBlendDst);
+
+        glMatrixMode(GL_PROJECTION);
+        glPushMatrix();
+        glLoadIdentity();
+        glOrtho(0.0, viewport[2], 0.0, viewport[3], -1.0, 1.0);
+        glMatrixMode(GL_MODELVIEW);
+        glPushMatrix();
+        glLoadIdentity();
+
+        glDisable(GL_LIGHTING);
+        glDisable(GL_TEXTURE_2D);
+        glDisable(GL_CULL_FACE);
+        glDisable(GL_LINE_SMOOTH);
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        glShadeModel(GL_SMOOTH);
+        glDepthMask(GL_FALSE);
+        glEnable(GL_DEPTH_TEST);
+        glDepthFunc(GL_LEQUAL);
+    }
+
+    ~ScopedScreenSpaceEdgeAaState()
+    {
+        glMatrixMode(GL_MODELVIEW);
+        glPopMatrix();
+        glMatrixMode(GL_PROJECTION);
+        glPopMatrix();
+        glMatrixMode(previousMatrixMode);
+
+        glDepthMask(previousDepthMask);
+        glDepthFunc(static_cast<GLenum>(previousDepthFunc));
+        glBlendFunc(static_cast<GLenum>(previousBlendSrc), static_cast<GLenum>(previousBlendDst));
+        glShadeModel(static_cast<GLenum>(previousShadeModel));
+
+        previousDepthTest ? glEnable(GL_DEPTH_TEST) : glDisable(GL_DEPTH_TEST);
+        previousBlend ? glEnable(GL_BLEND) : glDisable(GL_BLEND);
+        previousLighting ? glEnable(GL_LIGHTING) : glDisable(GL_LIGHTING);
+        previousTexture2D ? glEnable(GL_TEXTURE_2D) : glDisable(GL_TEXTURE_2D);
+        previousCullFace ? glEnable(GL_CULL_FACE) : glDisable(GL_CULL_FACE);
+        previousLineSmooth ? glEnable(GL_LINE_SMOOTH) : glDisable(GL_LINE_SMOOTH);
+    }
+
+private:
+    GLint previousMatrixMode {GL_MODELVIEW};
+    GLint previousShadeModel {GL_SMOOTH};
+    GLint previousDepthFunc {GL_LESS};
+    GLint previousBlendSrc {0};
+    GLint previousBlendDst {0};
+    GLboolean previousDepthMask {GL_TRUE};
+    bool previousDepthTest {false};
+    bool previousBlend {false};
+    bool previousLighting {false};
+    bool previousTexture2D {false};
+    bool previousCullFace {false};
+    bool previousLineSmooth {false};
+};
+
+void renderScreenSpaceEdgeAaSegment(
+    const ProjectedPoint& first,
+    const ProjectedPoint& second,
+    EdgeAaDiagnosticMode mode
+)
+{
+    if (!first.valid || !second.valid) {
+        return;
+    }
+
+    const double dx = second.x - first.x;
+    const double dy = second.y - first.y;
+    const double length = std::sqrt(dx * dx + dy * dy);
+    if (length <= 1.0e-6) {
+        return;
+    }
+
+    const double nx = -dy / length;
+    const double ny = dx / length;
+    const bool debug = mode == EdgeAaDiagnosticMode::DebugOnly;
+    const std::array<double, 4> offsets = debug ? std::array<double, 4> {-2.0, -0.5, 0.5, 2.0}
+                                                : std::array<double, 4> {-1.05, -0.25, 0.25, 1.05};
+    const std::array<double, 4> alphas = debug ? std::array<double, 4> {0.0, 0.85, 0.85, 0.0}
+                                               : std::array<double, 4> {0.0, 0.45, 0.45, 0.0};
+    const GLfloat red = debug ? 1.0F : 0.0F;
+    const GLfloat green = 0.0F;
+    const GLfloat blue = debug ? 0.0F : 0.0F;
+    const double z1 = -std::clamp(first.z, -1.0, 1.0);
+    const double z2 = -std::clamp(second.z, -1.0, 1.0);
+
+    glBegin(GL_TRIANGLE_STRIP);
+    for (std::size_t i = 0; i < offsets.size(); ++i) {
+        const double offset = offsets[i];
+        const auto alpha = static_cast<GLfloat>(alphas[i]);
+        glColor4f(red, green, blue, alpha);
+        glVertex3d(first.x + nx * offset, first.y + ny * offset, z1);
+        glVertex3d(second.x + nx * offset, second.y + ny * offset, z2);
+    }
+    glEnd();
+}
+
+void renderScreenSpaceEdgeAaOverlay(
+    SoGLRenderAction* action,
+    const SoCoordinateElement* coords,
+    const int32_t* indices,
+    int numIndices,
+    EdgeAaDiagnosticMode mode
+)
+{
+    if (!action || !coords || !indices || numIndices <= 0) {
+        return;
+    }
+
+    GLdouble modelView[16];
+    GLdouble projection[16];
+    GLint viewport[4];
+    glGetDoublev(GL_MODELVIEW_MATRIX, modelView);
+    glGetDoublev(GL_PROJECTION_MATRIX, projection);
+    glGetIntegerv(GL_VIEWPORT, viewport);
+
+    ScopedScreenSpaceEdgeAaState state(viewport);
+
+    int32_t previous = -1;
+    for (int i = 0; i < numIndices; ++i) {
+        const int32_t current = indices[i];
+        if (current < 0) {
+            previous = -1;
+            continue;
+        }
+        if (previous >= 0 && previous < coords->getNum() && current < coords->getNum()) {
+            const auto first = projectPoint(coords->get3(previous), modelView, projection, viewport);
+            const auto second = projectPoint(coords->get3(current), modelView, projection, viewport);
+            renderScreenSpaceEdgeAaSegment(first, second, mode);
+        }
+        previous = current;
+    }
+}
+
+static void recordEdgeRenderProbe(SoGLRenderAction* action, const char* stage, int coordIndexCount)
+{
+    if (!action) {
+        return;
+    }
+
+    Gui::GpuDiagnosticsRenderProbe probe;
+    probe.node = QStringLiteral("SoBrepEdgeSet");
+    probe.stage = QString::fromLatin1(stage);
+    probe.coordIndexCount = coordIndexCount;
+    probe.actionSmoothing = action->isSmoothing();
+    probe.renderingDelayedPaths = action->isRenderingDelayedPaths();
+
+    GLint sampleBuffers = 0;
+    GLint samples = 0;
+    GLint drawFramebuffer = 0;
+    GLint readFramebuffer = 0;
+    GLint lineSmoothHint = 0;
+    GLint blendSrcRgb = 0;
+    GLint blendDstRgb = 0;
+    GLint blendSrcAlpha = 0;
+    GLint blendDstAlpha = 0;
+    GLfloat lineWidth = 0.0F;
+    glGetIntegerv(GL_SAMPLE_BUFFERS, &sampleBuffers);
+    glGetIntegerv(GL_SAMPLES, &samples);
+    glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &drawFramebuffer);
+    glGetIntegerv(GL_READ_FRAMEBUFFER_BINDING, &readFramebuffer);
+    glGetIntegerv(GL_LINE_SMOOTH_HINT, &lineSmoothHint);
+    glGetIntegerv(GL_BLEND_SRC_RGB, &blendSrcRgb);
+    glGetIntegerv(GL_BLEND_DST_RGB, &blendDstRgb);
+    glGetIntegerv(GL_BLEND_SRC_ALPHA, &blendSrcAlpha);
+    glGetIntegerv(GL_BLEND_DST_ALPHA, &blendDstAlpha);
+    glGetFloatv(GL_LINE_WIDTH, &lineWidth);
+
+    probe.glSampleBuffers = sampleBuffers;
+    probe.glSamples = samples;
+    probe.glMultisampleEnabled = glIsEnabled(GL_MULTISAMPLE) == GL_TRUE;
+    probe.glLineSmoothEnabled = glIsEnabled(GL_LINE_SMOOTH) == GL_TRUE;
+    probe.glBlendEnabled = glIsEnabled(GL_BLEND) == GL_TRUE;
+    probe.lineSmoothingBlendReady = probe.glLineSmoothEnabled.value_or(false)
+        && probe.glBlendEnabled.value_or(false);
+    probe.glBlendSrcRgb = blendSrcRgb;
+    probe.glBlendDstRgb = blendDstRgb;
+    probe.glBlendSrcAlpha = blendSrcAlpha;
+    probe.glBlendDstAlpha = blendDstAlpha;
+    probe.glLineWidth = static_cast<double>(lineWidth);
+    probe.glLineSmoothHint = lineSmoothHint;
+    probe.drawFramebuffer = drawFramebuffer;
+    probe.readFramebuffer = readFramebuffer;
+    probe.vendor = glString(GL_VENDOR);
+    probe.renderer = glString(GL_RENDERER);
+    probe.version = glString(GL_VERSION);
+
+    Gui::GpuDiagnostics::recordRenderProbe(probe);
+}
+
 void SoBrepEdgeSet::initClass()
 {
     SO_NODE_INIT_CLASS(SoBrepEdgeSet, SoIndexedLineSet, "IndexedLineSet");
@@ -366,12 +723,64 @@ void SoBrepEdgeSet::GLRender(SoGLRenderAction* action)
         state->push();
         SoDepthBufferElement::set(state, FALSE, FALSE, SoDepthBufferElement::ALWAYS, SbVec2f(0.0f, 1.0f));
 
-        inherited::GLRender(action);
+        const auto edgeAaMode = edgeAaDiagnosticMode();
+        if (edgeAaMode == EdgeAaDiagnosticMode::Hide) {
+            recordEdgeRenderProbe(action, "clarify-hidden", this->coordIndex.getNum());
+        }
+        else if (isScreenSpaceOnlyMode(edgeAaMode)) {
+            recordEdgeRenderProbe(action, "clarify-before-screen-space-only", this->coordIndex.getNum());
+        }
+        else {
+            ScopedLineSmoothing lineSmoothing(action->isSmoothing());
+            recordEdgeRenderProbe(action, "clarify-before-inherited", this->coordIndex.getNum());
+            inherited::GLRender(action);
+            recordEdgeRenderProbe(action, "clarify-after-inherited", this->coordIndex.getNum());
+        }
+        if (edgeAaMode != EdgeAaDiagnosticMode::Disabled && edgeAaMode != EdgeAaDiagnosticMode::Hide) {
+            renderScreenSpaceEdgeAaOverlay(
+                action,
+                SoCoordinateElement::getInstance(action->getState()),
+                this->coordIndex.getValues(0),
+                this->coordIndex.getNum(),
+                edgeAaMode
+            );
+            if (isScreenSpaceOnlyMode(edgeAaMode)) {
+                recordEdgeRenderProbe(
+                    action,
+                    "clarify-after-screen-space-only",
+                    this->coordIndex.getNum()
+                );
+            }
+        }
 
         state->pop();
     }
     else {
-        inherited::GLRender(action);
+        const auto edgeAaMode = edgeAaDiagnosticMode();
+        if (edgeAaMode == EdgeAaDiagnosticMode::Hide) {
+            recordEdgeRenderProbe(action, "hidden", this->coordIndex.getNum());
+        }
+        else if (isScreenSpaceOnlyMode(edgeAaMode)) {
+            recordEdgeRenderProbe(action, "before-screen-space-only", this->coordIndex.getNum());
+        }
+        else {
+            ScopedLineSmoothing lineSmoothing(action->isSmoothing());
+            recordEdgeRenderProbe(action, "before-inherited", this->coordIndex.getNum());
+            inherited::GLRender(action);
+            recordEdgeRenderProbe(action, "after-inherited", this->coordIndex.getNum());
+        }
+        if (edgeAaMode != EdgeAaDiagnosticMode::Disabled && edgeAaMode != EdgeAaDiagnosticMode::Hide) {
+            renderScreenSpaceEdgeAaOverlay(
+                action,
+                SoCoordinateElement::getInstance(action->getState()),
+                this->coordIndex.getValues(0),
+                this->coordIndex.getNum(),
+                edgeAaMode
+            );
+            if (isScreenSpaceOnlyMode(edgeAaMode)) {
+                recordEdgeRenderProbe(action, "after-screen-space-only", this->coordIndex.getNum());
+            }
+        }
     }
 
     // Workaround for #0000433

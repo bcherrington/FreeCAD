@@ -467,6 +467,7 @@ SET(Command_CPP_SRCS
     CommandCompleter.cpp
     CommandActionPy.cpp
     AsyncRecomputeFeedback.cpp
+    GpuDiagnostics.cpp
 )
 SET(Command_SRCS
     ${Command_CPP_SRCS}
@@ -478,6 +479,7 @@ SET(Command_SRCS
     CommandCompleter.h
     CommandActionPy.h
     AsyncRecomputeFeedback.h
+    GpuDiagnostics.h
 )
 SOURCE_GROUP("Command" FILES ${Command_SRCS})
 

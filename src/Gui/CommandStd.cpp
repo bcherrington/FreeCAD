@@ -47,6 +47,7 @@
 #include "Dialogs/DlgPreferencesImp.h"
 #include "Dialogs/DlgUnitsCalculatorImp.h"
 #include "GuiConsole.h"
+#include "GpuDiagnostics.h"
 #include "MainWindow.h"
 #include "OnlineDocumentation.h"
 #include "Selection.h"
@@ -331,6 +332,28 @@ void StdCmdWhatsThis::activated(int iMsg)
 {
     Q_UNUSED(iMsg);
     QWhatsThis::enterWhatsThisMode();
+}
+
+//===========================================================================
+// Std_GpuDiagnostics
+//===========================================================================
+DEF_STD_CMD(StdCmdGpuDiagnostics)
+
+StdCmdGpuDiagnostics::StdCmdGpuDiagnostics()
+    : Command("Std_GpuDiagnostics")
+{
+    sGroup = "Help";
+    sMenuText = QT_TR_NOOP("&GPU Diagnostics");
+    sToolTipText = QT_TR_NOOP("Shows graphics, display, OpenGL, and anti-aliasing diagnostics");
+    sWhatsThis = "Std_GpuDiagnostics";
+    sStatusTip = sToolTipText;
+    eType = 0;
+}
+
+void StdCmdGpuDiagnostics::activated(int iMsg)
+{
+    Q_UNUSED(iMsg);
+    Gui::GpuDiagnosticsDialog::showDialog(getMainWindow());
 }
 
 //===========================================================================
@@ -1064,6 +1087,7 @@ void CreateStdCommands()
     rcCmdMgr.addCommand(new StdCmdRecentFiles());
     rcCmdMgr.addCommand(new StdCmdRecentMacros());
     rcCmdMgr.addCommand(new StdCmdWhatsThis());
+    rcCmdMgr.addCommand(new StdCmdGpuDiagnostics());
     rcCmdMgr.addCommand(new StdCmdRestartInSafeMode());
     rcCmdMgr.addCommand(new StdCmdPythonHelp());
     rcCmdMgr.addCommand(new StdCmdOnlineHelp());
