@@ -933,8 +933,8 @@ wartość Fałsz = uzębienie wewnętrzne</translation>
       <translation>Utwórz cechę funkcją logiczną</translation>
     </message>
     <message>
-      <location filename="../../CommandBody.cpp" line="224"/>
       <location filename="../../DlgActiveBody.cpp" line="102"/>
+      <location filename="../../CommandBody.cpp" line="224"/>
       <source>Add a Body</source>
       <translation>Dodaj zawartość</translation>
     </message>
@@ -1103,8 +1103,8 @@ Wybierz zawartość z poniższej listy lub utwórz nową.</translation>
     </message>
     <message>
       <location filename="../../DlgActiveBody.cpp" line="53"/>
-      <source>Please select</source>
-      <translation>Proszę wybrać</translation>
+      <source>Select an active body</source>
+      <translation>Wybierz aktywną zawartość</translation>
     </message>
   </context>
   <context>
@@ -3177,11 +3177,11 @@ mierzona wzdłuż podanego kierunku</translation>
       <translation>Brak prawidłowej płaszczyzny w tym dokumencie</translation>
     </message>
     <message>
-      <location filename="../../ViewProvider.cpp" line="137"/>
-      <location filename="../../Command.cpp" line="1142"/>
-      <location filename="../../ViewProviderDatum.cpp" line="259"/>
       <location filename="../../SketchWorkflow.cpp" line="761"/>
+      <location filename="../../Command.cpp" line="1142"/>
       <location filename="../../ViewProviderShapeBinder.cpp" line="97"/>
+      <location filename="../../ViewProviderDatum.cpp" line="259"/>
+      <location filename="../../ViewProvider.cpp" line="137"/>
       <source>A dialog is already open in the task panel</source>
       <translation>Okno dialogowe jest już otwarte w panelu zadań</translation>
     </message>
@@ -3206,6 +3206,11 @@ mierzona wzdłuż podanego kierunku</translation>
       <translation>Nie ma aktywnej zawartości. Aktywuj zawartość przed wstawieniem elementu bazowego.</translation>
     </message>
     <message>
+      <location filename="../../Command.cpp" line="149"/>
+      <source>Invalid Selection</source>
+      <translation>Nieprawidłowy wybór</translation>
+    </message>
+    <message>
       <location filename="../../Command.cpp" line="470"/>
       <source>Sub-shape binder</source>
       <translation>Łącznik kształtów podrzędnych</translation>
@@ -3221,11 +3226,16 @@ mierzona wzdłuż podanego kierunku</translation>
       <translation>Szkic nie jest dostępny w dokumencie</translation>
     </message>
     <message>
-      <location filename="../../ViewProvider.cpp" line="138"/>
-      <location filename="../../Command.cpp" line="1143"/>
-      <location filename="../../ViewProviderDatum.cpp" line="260"/>
+      <location filename="../../Command.cpp" line="2196"/>
+      <source>Select only one feature in an active body.</source>
+      <translation>Wybierz tylko jedną cechę w aktywnej zawartości.</translation>
+    </message>
+    <message>
       <location filename="../../SketchWorkflow.cpp" line="762"/>
+      <location filename="../../Command.cpp" line="1143"/>
       <location filename="../../ViewProviderShapeBinder.cpp" line="98"/>
+      <location filename="../../ViewProviderDatum.cpp" line="260"/>
+      <location filename="../../ViewProvider.cpp" line="138"/>
       <source>Close this dialog?</source>
       <translation>Zamknąć to okno dialogowe?</translation>
     </message>
@@ -3257,11 +3267,6 @@ mierzona wzdłuż podanego kierunku</translation>
       <translation>Wybierz krawędź, ścianę lub zawartość z aktywnej zawartości.</translation>
     </message>
     <message>
-      <location filename="../../Command.cpp" line="149"/>
-      <source>Invalid Selection</source>
-      <translation>Nieprawidłowy wybór</translation>
-    </message>
-    <message>
       <location filename="../../Command.cpp" line="1026"/>
       <source>Consider using a shape binder or a base feature to reference external geometry in a body</source>
       <translation>Rozważ użycie Łącznika Kształtu lub Cechy Podstawowej do odniesienia zewnętrznej geometrii w zawartości</translation>
@@ -3275,11 +3280,6 @@ mierzona wzdłuż podanego kierunku</translation>
       <location filename="../../Command.cpp" line="1848"/>
       <source>%1 works only on parts.</source>
       <translation>%1 działa tylko na częściach.</translation>
-    </message>
-    <message>
-      <location filename="../../Command.cpp" line="2196"/>
-      <source>Please select only one feature in an active body.</source>
-      <translation>Wybierz tylko jedną cechę w aktywnej zawartości.</translation>
     </message>
     <message>
       <location filename="../../CommandBody.cpp" line="73"/>
@@ -3363,6 +3363,11 @@ Może to prowadzić do nieoczekiwanych rezultatów.</translation>
       <translation>Nic do zaimportowania</translation>
     </message>
     <message>
+      <location filename="../../CommandBody.cpp" line="622"/>
+      <source>Edit '%1' and redefine it to use a Base or Datum plane as the sketch plane.</source>
+      <translation>Edytuj "%1" i zdefiniuj ponownie, aby użyć płaszczyzny bazowej lub referencyjnej jako płaszczyzny szkicu.</translation>
+    </message>
+    <message>
       <location filename="../../CommandBody.cpp" line="697"/>
       <source>Select exactly one Part Design feature or a body.</source>
       <translation>Zaznacz dokładnie jedną cechę środowiska Projekt Części lub jedną zawartość.</translation>
@@ -3387,11 +3392,6 @@ Może to prowadzić do nieoczekiwanych rezultatów.</translation>
       <source>No Part Design features without body found Nothing to migrate.</source>
       <translation>Nie znaleziono żadnych cech środowiska Projekt Części poza zawartością. 
 Brak elementów do migracji.</translation>
-    </message>
-    <message>
-      <location filename="../../CommandBody.cpp" line="622"/>
-      <source>Please edit '%1' and redefine it to use a Base or Datum plane as the sketch plane.</source>
-      <translation>Proszę edytować %1 i przedefiniuj go, aby używać płaszczyzny bazowej lub odniesienia jako płaszczyzny szkicu.</translation>
     </message>
     <message>
       <location filename="../../CommandBody.cpp" line="696"/>
@@ -3526,10 +3526,10 @@ Aktywuj istniejącą zawartość (podwójne kliknięcie) lub utwórz nową.</tra
       <translation>Ta cecha musi przynależeć do obiektu części w danym dokumencie, by można ją było wykorzystać.</translation>
     </message>
     <message>
-      <location filename="../../ViewProviderTransformed.cpp" line="67"/>
-      <location filename="../../ViewProvider.cpp" line="94"/>
-      <location filename="../../ViewProviderDressUp.cpp" line="64"/>
       <location filename="../../ViewProviderShapeBinder.cpp" line="227"/>
+      <location filename="../../ViewProvider.cpp" line="94"/>
+      <location filename="../../ViewProviderTransformed.cpp" line="67"/>
+      <location filename="../../ViewProviderDressUp.cpp" line="64"/>
       <source>Edit %1</source>
       <translation>Edytuj %1</translation>
     </message>
@@ -4427,12 +4427,12 @@ Zainstaluj ją, aby włączyć tę funkcję.</translation>
   <context>
     <name>Exception</name>
     <message>
-      <location filename="../../../App/Body.cpp" line="405"/>
+      <location filename="../../../App/Body.cpp" line="406"/>
       <source>Linked object is not a PartDesign feature</source>
       <translation>Powiązany obiekt nie ma cech środowiska Projekt Części</translation>
     </message>
     <message>
-      <location filename="../../../App/Body.cpp" line="414"/>
+      <location filename="../../../App/Body.cpp" line="415"/>
       <source>Tip shape is empty</source>
       <translation>Kształt czubka nie został zdefiniowany</translation>
     </message>
@@ -4467,23 +4467,23 @@ Zainstaluj ją, aby włączyć tę funkcję.</translation>
       <translation>Nie można przeprowadzić operacji logicznej z nieprawidłowym kształtem podstawowym</translation>
     </message>
     <message>
-      <location filename="../../../App/FeatureBoolean.cpp" line="161"/>
-      <location filename="../../../App/FeatureChamfer.cpp" line="196"/>
+      <location filename="../../../App/FeatureHole.cpp" line="2091"/>
       <location filename="../../../App/FeatureDraft.cpp" line="335"/>
       <location filename="../../../App/FeatureFillet.cpp" line="142"/>
-      <location filename="../../../App/FeatureLoft.cpp" line="333"/>
-      <location filename="../../../App/FeatureLoft.cpp" line="377"/>
-      <location filename="../../../App/FeatureExtrude.cpp" line="775"/>
-      <location filename="../../../App/FeatureExtrude.cpp" line="791"/>
-      <location filename="../../../App/FeatureExtrude.cpp" line="804"/>
-      <location filename="../../../App/FeatureHole.cpp" line="2091"/>
-      <location filename="../../../App/FeatureRevolved.cpp" line="217"/>
-      <location filename="../../../App/FeaturePipe.cpp" line="537"/>
-      <location filename="../../../App/FeaturePipe.cpp" line="571"/>
-      <location filename="../../../App/FeaturePipe.cpp" line="600"/>
       <location filename="../../../App/FeatureHelix.cpp" line="420"/>
       <location filename="../../../App/FeatureHelix.cpp" line="442"/>
       <location filename="../../../App/FeatureHelix.cpp" line="488"/>
+      <location filename="../../../App/FeatureLoft.cpp" line="333"/>
+      <location filename="../../../App/FeatureLoft.cpp" line="377"/>
+      <location filename="../../../App/FeaturePipe.cpp" line="537"/>
+      <location filename="../../../App/FeaturePipe.cpp" line="571"/>
+      <location filename="../../../App/FeaturePipe.cpp" line="600"/>
+      <location filename="../../../App/FeatureBoolean.cpp" line="161"/>
+      <location filename="../../../App/FeatureExtrude.cpp" line="775"/>
+      <location filename="../../../App/FeatureExtrude.cpp" line="791"/>
+      <location filename="../../../App/FeatureExtrude.cpp" line="804"/>
+      <location filename="../../../App/FeatureChamfer.cpp" line="196"/>
+      <location filename="../../../App/FeatureRevolved.cpp" line="217"/>
       <source>Result has multiple solids: enable 'Allow Compound' in the active body.</source>
       <translation>Wynik zawiera wiele brył: włącz opcję "Zezwalaj na złożenia" w aktywnej zawartości.</translation>
     </message>
@@ -4519,9 +4519,9 @@ Zainstaluj ją, aby włączyć tę funkcję.</translation>
     </message>
     <message>
       <location filename="../../../App/FeatureLoft.cpp" line="370"/>
-      <location filename="../../../App/FeatureExtrude.cpp" line="766"/>
       <location filename="../../../App/FeaturePipe.cpp" line="592"/>
       <location filename="../../../App/FeaturePrimitive.cpp" line="141"/>
+      <location filename="../../../App/FeatureExtrude.cpp" line="766"/>
       <source>Resulting shape is not a solid</source>
       <translation>Otrzymany kształt nie jest bryłą</translation>
     </message>
@@ -4896,7 +4896,7 @@ Przecinające się elementy szkicu lub wiele ścian w szkicu nie są dozwolone.<
     <message>
       <location filename="../../../App/FeaturePipe.cpp" line="584"/>
       <source>Pipe: Invalid Boolean Type</source>
-      <translation type="unfinished">Pipe: Invalid Boolean Type</translation>
+      <translation>Rura: Nieprawidłowy typ operacji logicznej</translation>
     </message>
     <message>
       <location filename="../../../App/FeaturePipe.cpp" line="614"/>
@@ -5442,6 +5442,14 @@ Wybierz krawędź, płaszczyznę lub linię odniesienia.</translation>
     </message>
   </context>
   <context>
+    <name>PartDesignGui::TaskDlgShapeBinder</name>
+    <message>
+      <location filename="../../TaskShapeBinder.cpp" line="443"/>
+      <source>Input Error</source>
+      <translation>Błąd danych wejściowych</translation>
+    </message>
+  </context>
+  <context>
     <name>PartDesignGui::TaskFeatureParameters</name>
     <message>
       <location filename="../../TaskFeatureParameters.cpp" line="138"/>
@@ -5460,18 +5468,10 @@ Wybierz krawędź, płaszczyznę lub linię odniesienia.</translation>
       <location filename="../../TaskFeatureParameters.cpp" line="264"/>
       <source>The feature could not be created with the given parameters.
 The geometry may be invalid or the parameters may be incompatible.
-Please adjust the parameters and try again.</source>
-      <translation>Nie można utworzyć cechy z podanymi parametrami.
-Geometria może być nieprawidłowa lub parametry są ze sobą niezgodne.
-Proszę dostosować parametry i spróbować ponownie.</translation>
-    </message>
-  </context>
-  <context>
-    <name>PartDesignGui::TaskDlgShapeBinder</name>
-    <message>
-      <location filename="../../TaskShapeBinder.cpp" line="443"/>
-      <source>Input Error</source>
-      <translation>Błąd danych wejściowych</translation>
+Adjust the parameters and try again.</source>
+      <translation>Nie można utworzyć cechy przy podanych parametrach. 
+Geometria może być nieprawidłowa lub parametry mogą być ze sobą niezgodne. 
+Dostosuj parametry i spróbuj ponownie.</translation>
     </message>
   </context>
 </TS>

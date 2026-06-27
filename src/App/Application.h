@@ -394,6 +394,7 @@ public:
 
     // Returns if document and object recomputes should be done async.
     bool isAsyncRecomputeEnabled();
+    bool isFineGrainedRecomputeEnabled();
     bool canRecomputeRequestOnWorker(const RecomputeRequest& req) const;
 
     // Adds a recompute request to the processing queue.
@@ -895,6 +896,7 @@ public:
     /// Check if there is any link to the given object
     bool hasLinksTo(const DocumentObject *obj) const;
     /// @}
+
 
     friend class App::Document;
 

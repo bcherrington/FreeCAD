@@ -541,7 +541,7 @@ valeurs faibles créent des reflets larges et flous. Notez que l'intensité des 
     <message>
       <location filename="../../DlgSettingsMaterial.ui" line="72"/>
       <source>Use materials from the Materials preference directory</source>
-      <translation>Utiliser les matériaux du répertoire des préférences de Materials</translation>
+      <translation>Utiliser les matériaux du répertoire des préférences de FreeCAD</translation>
     </message>
     <message>
       <location filename="../../DlgSettingsMaterial.ui" line="88"/>
@@ -1200,9 +1200,9 @@ S'ils ne sont pas cochés, ils seront triés par leur nom.</translation>
       <translation>Si ce n'est pas fait, toutes les modifications seront perdues.</translation>
     </message>
     <message>
+      <location filename="../../MaterialSave.cpp" line="567"/>
       <location filename="../../Array2D.cpp" line="170"/>
       <location filename="../../ListEdit.cpp" line="142"/>
-      <location filename="../../MaterialSave.cpp" line="567"/>
       <source>Confirm Delete</source>
       <translation>Confirmer la suppression</translation>
     </message>
