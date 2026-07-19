@@ -20,7 +20,6 @@
  *                                                                         *
  ***************************************************************************/
 
-
 #include <cstdlib>
 #include <QApplication>
 #include <QClipboard>
@@ -36,8 +35,9 @@
 #include <QRegularExpression>
 #include <QRegularExpressionMatch>
 #include <QScreen>
+#include <QThread>
 #include <QWaitCondition>
-
+#include <QWindow>
 
 #include <App/Application.h>
 #include <App/Metadata.h>
@@ -315,14 +315,23 @@ void SplashScreen::raiseSplash()
 void SplashScreen::waitForPaint()
 {
     // Top-level window mapping is asynchronous on some platforms. This is not a
-    // minimum display delay; it exits as soon as Qt delivers the first paint.
+    // minimum display delay; it exits as soon as Qt delivers the first paint and
+    // the native window is exposed.
+    constexpr int timeOut = 250;
+    constexpr int timeSlice = 20;
     QElapsedTimer paintTimer;
     paintTimer.start();
-    while (!painted && paintTimer.elapsed() < 250) {
+    while (paintTimer.elapsed() < timeOut) {
         QApplication::processEvents(
             QEventLoop::ExcludeUserInputEvents | QEventLoop::ExcludeSocketNotifiers,
-            25
+            timeSlice
         );
+        QApplication::sendPostedEvents();
+        const auto* window = windowHandle();
+        if (painted && window && window->isExposed()) {
+            break;
+        }
+        QThread::msleep(timeSlice);
     }
 }
 

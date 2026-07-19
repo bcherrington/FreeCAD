@@ -137,6 +137,7 @@ void Gui::SoFCDB::init()
     SoSelectionElementAction ::initClass();
     SoVRMLAction ::initClass();
     SoSkipBoundingGroup ::initClass();
+    SoSkipBoundingBoxElement ::initClass();
     SoTextLabel ::initClass();
     SoDatumLabel ::initClass();
     SoColorBarLabel ::initClass();
@@ -206,6 +207,7 @@ void Gui::SoFCDB::init()
     PropertyTransientFileItem ::init();
     PropertyLinkItem ::init();
     PropertyLinkListItem ::init();
+    PropertyMapItem ::init();
 
     NavigationStyle ::init();
     UserNavigationStyle ::init();

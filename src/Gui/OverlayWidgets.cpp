@@ -1293,7 +1293,10 @@ bool OverlayTabWidget::checkAutoHide() const
     }
 
     if (autoMode == AutoMode::TaskShow) {
-        return (!Control().taskPanel() || Control().taskPanel()->isEmpty());
+        if (isTransparent()) {
+            return false;
+        }
+        return (!Control().taskPanel() || Control().taskPanel()->isEmpty(false));
     }
 
     if (autoMode == AutoMode::EditHide && activeDocInEdit) {
