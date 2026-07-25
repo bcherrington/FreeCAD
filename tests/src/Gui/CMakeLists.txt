@@ -9,6 +9,7 @@ add_executable(Gui_tests_run
         BitmapFactory.cpp
         Camera.cpp
         SplashScreen.cpp
+        ColorScaleOverlayTest.cpp
         FileDialog.cpp
         StyleParameters/StyleParametersApplicationTest.cpp
         StyleParameters/ParserTest.cpp
