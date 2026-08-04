@@ -300,6 +300,17 @@ class DocumentBasicCases(unittest.TestCase):
     def testMem(self):
         self.Doc.MemSize
 
+    def testViewObjectWithFreeCADGuiImportedInConsoleMode(self):
+        if FreeCAD.GuiUp:
+            self.skipTest("Console-mode regression test")
+
+        import FreeCADGui
+
+        obj = self.Doc.addObject("App::FeatureTest", "HeadlessViewObject")
+        self.assertIsNotNone(FreeCADGui)
+        self.assertFalse(hasattr(FreeCADGui, "getDocument"))
+        self.assertIsNone(obj.ViewObject)
+
     def testDuplicateLinks(self):
         obj = self.Doc.addObject("App::FeatureTest", "obj")
         grp = self.Doc.addObject("App::DocumentObjectGroup", "group")
@@ -1903,7 +1914,7 @@ class DocumentFileIncludeCases(unittest.TestCase):
         self.assertTrue(os.path.exists(L7.File))
         FreeCAD.closeDocument("Doc2")
 
-    def testBinaryRestore(self):
+    def testBinarySaveRestore(self):
         payload = bytes((i % 251 for i in range(150000))) + b"\x00FreeCAD\x00restore\x00"
         source_path = os.path.join(tempfile.gettempdir(), "FileIncludeBinarySource.bin")
         doc_path = os.path.join(tempfile.gettempdir(), "FileIncludeTests.FCStd")
