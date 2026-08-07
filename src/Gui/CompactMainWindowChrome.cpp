@@ -765,6 +765,9 @@ CompactMainWindowChrome::CompactMainWindowChrome(MainWindow* mainWindow)
 {
     framelessWindow = mainWindow && (mainWindow->windowFlags() & Qt::FramelessWindowHint);
     setup();
+    setProperty("_fc_compact_document_button_request_count", documentButtonUpdateRequestCount);
+    setProperty("_fc_compact_document_button_update_count", documentButtonUpdateCount);
+    setProperty("_fc_compact_document_button_update_queued", documentButtonUpdateQueued);
 }
 
 CompactMainWindowChrome::~CompactMainWindowChrome()
@@ -1052,49 +1055,31 @@ void CompactMainWindowChrome::setup()
         clearWorkbenchMenuButtons();
     });
     newDocumentConnection = App::GetApplication().signalNewDocument.connect(
-        [this](const App::Document&, bool) {
-            QTimer::singleShot(0, this, &CompactMainWindowChrome::updateDocumentButton);
-        }
+        [this](const App::Document&, bool) { scheduleDocumentButtonUpdate(); }
     );
     deleteDocumentConnection = App::GetApplication().signalDeleteDocument.connect(
-        [this](const App::Document&) {
-            QTimer::singleShot(0, this, &CompactMainWindowChrome::updateDocumentButton);
-        }
+        [this](const App::Document&) { scheduleDocumentButtonUpdate(); }
     );
     activeDocumentConnection = App::GetApplication().signalActiveDocument.connect(
-        [this](const App::Document&) {
-            QTimer::singleShot(0, this, &CompactMainWindowChrome::updateDocumentButton);
-        }
+        [this](const App::Document&) { scheduleDocumentButtonUpdate(); }
     );
     relabelDocumentConnection = App::GetApplication().signalRelabelDocument.connect(
-        [this](const App::Document&) {
-            QTimer::singleShot(0, this, &CompactMainWindowChrome::updateDocumentButton);
-        }
+        [this](const App::Document&) { scheduleDocumentButtonUpdate(); }
     );
     renameDocumentConnection = App::GetApplication().signalRenameDocument.connect(
-        [this](const App::Document&) {
-            QTimer::singleShot(0, this, &CompactMainWindowChrome::updateDocumentButton);
-        }
+        [this](const App::Document&) { scheduleDocumentButtonUpdate(); }
     );
     changedDocumentConnection = App::GetApplication().signalChangedDocument.connect(
-        [this](const App::Document&, const App::Property&) {
-            QTimer::singleShot(0, this, &CompactMainWindowChrome::updateDocumentButton);
-        }
+        [this](const App::Document&, const App::Property&) { scheduleDocumentButtonUpdate(); }
     );
     finishSaveDocumentConnection = App::GetApplication().signalFinishSaveDocument.connect(
-        [this](const App::Document&, const std::string&) {
-            QTimer::singleShot(0, this, &CompactMainWindowChrome::updateDocumentButton);
-        }
+        [this](const App::Document&, const std::string&) { scheduleDocumentButtonUpdate(); }
     );
     activateViewConnection = Gui::Application::Instance->signalActivateView.connect(
-        [this](const Gui::MDIView*) {
-            QTimer::singleShot(0, this, &CompactMainWindowChrome::updateDocumentButton);
-        }
+        [this](const Gui::MDIView*) { scheduleDocumentButtonUpdate(); }
     );
     closeViewConnection = Gui::Application::Instance->signalCloseView.connect(
-        [this](const Gui::MDIView*) {
-            QTimer::singleShot(0, this, &CompactMainWindowChrome::updateDocumentButton);
-        }
+        [this](const Gui::MDIView*) { scheduleDocumentButtonUpdate(); }
     );
     userEditModeConnection = Gui::Application::Instance->signalUserEditModeChanged.connect(
         [this](int) { QTimer::singleShot(0, this, &CompactMainWindowChrome::updateEditModeButton); }
@@ -1115,13 +1100,6 @@ void CompactMainWindowChrome::setActive(bool enabled)
         menuBarVisibleBefore = !mainWindow->menuBar()->isHidden();
         contentsMarginsBefore = mainWindow->contentsMargins();
         contentsMarginsSaved = true;
-        if (auto tabBar
-            = mainWindow->getMdiArea()->findChild<QTabBar*>(QStringLiteral("mdiAreaTabBar"))) {
-            mdiTabBarVisibleBefore = tabBar->isVisible();
-            mdiTabBarMinimumHeightBefore = tabBar->minimumHeight();
-            mdiTabBarMaximumHeightBefore = tabBar->maximumHeight();
-            mdiTabBarVisibilitySaved = true;
-        }
         mainWindow->menuBar()->hide();
         updateMdiTabBarVisibility();
         syncMenuBar();
@@ -1136,11 +1114,24 @@ void CompactMainWindowChrome::setActive(bool enabled)
         }
         if (auto tabBar
             = mainWindow->getMdiArea()->findChild<QTabBar*>(QStringLiteral("mdiAreaTabBar"))) {
-            tabBar->setMinimumHeight(mdiTabBarMinimumHeightBefore);
-            tabBar->setMaximumHeight(mdiTabBarMaximumHeightBefore);
-            tabBar->setVisible(!mdiTabBarVisibilitySaved || mdiTabBarVisibleBefore);
-            tabBar->updateGeometry();
-            mainWindow->getMdiArea()->updateGeometry();
+            bool tabBarChanged = false;
+            if (mdiTabBarVisibilitySaved && tabBar->minimumHeight() != mdiTabBarMinimumHeightBefore) {
+                tabBar->setMinimumHeight(mdiTabBarMinimumHeightBefore);
+                tabBarChanged = true;
+            }
+            if (mdiTabBarVisibilitySaved && tabBar->maximumHeight() != mdiTabBarMaximumHeightBefore) {
+                tabBar->setMaximumHeight(mdiTabBarMaximumHeightBefore);
+                tabBarChanged = true;
+            }
+            const bool tabBarVisible = !mdiTabBarVisibilitySaved || mdiTabBarVisibleBefore;
+            if ((!tabBar->isHidden()) != tabBarVisible) {
+                tabBar->setVisible(tabBarVisible);
+                tabBarChanged = true;
+            }
+            if (tabBarChanged) {
+                tabBar->updateGeometry();
+                mainWindow->getMdiArea()->updateGeometry();
+            }
         }
         mdiTabBarVisibilitySaved = false;
         finishManualResize();
@@ -1152,7 +1143,9 @@ void CompactMainWindowChrome::setActive(bool enabled)
         toolBar->show();
     }
 
-    updateDocumentButton();
+    if (enabled) {
+        scheduleDocumentButtonUpdate();
+    }
     updateMdiTabBarVisibility();
     updateWindowControls();
     layoutChrome();
@@ -1190,6 +1183,38 @@ void CompactMainWindowChrome::syncMenuBar()
     menuBar->addActions(mainWindow->menuBar()->actions());
 }
 
+void CompactMainWindowChrome::scheduleDocumentButtonUpdate()
+{
+    if (shuttingDown || !active) {
+        return;
+    }
+
+    ++documentButtonUpdateRequestCount;
+    setProperty("_fc_compact_document_button_request_count", documentButtonUpdateRequestCount);
+    if (documentButtonUpdateQueued) {
+        return;
+    }
+
+    documentButtonUpdateQueued = true;
+    setProperty("_fc_compact_document_button_update_queued", documentButtonUpdateQueued);
+    QMetaObject::invokeMethod(
+        this,
+        &CompactMainWindowChrome::flushDocumentButtonUpdate,
+        Qt::QueuedConnection
+    );
+}
+
+void CompactMainWindowChrome::flushDocumentButtonUpdate()
+{
+    documentButtonUpdateQueued = false;
+    setProperty("_fc_compact_document_button_update_queued", documentButtonUpdateQueued);
+    if (shuttingDown || !active) {
+        return;
+    }
+
+    updateDocumentButton();
+}
+
 void CompactMainWindowChrome::updateDocumentButton()
 {
     if (shuttingDown || !documentButton) {
@@ -1204,6 +1229,8 @@ void CompactMainWindowChrome::updateDocumentButton()
     documentButton->setAccessibleName(trText("Current tab"));
     documentButton->setStatusTip(trText("Current tab"));
     CompactTitleBarStyle::resizeMenuButton(documentButton);
+    ++documentButtonUpdateCount;
+    setProperty("_fc_compact_document_button_update_count", documentButtonUpdateCount);
 }
 
 void CompactMainWindowChrome::rebuildDocumentMenu()
@@ -1449,16 +1476,28 @@ void CompactMainWindowChrome::updateMdiTabBarVisibility()
 
     if (auto tabBar = mainWindow->getMdiArea()->findChild<QTabBar*>(QStringLiteral("mdiAreaTabBar"))) {
         if (!mdiTabBarVisibilitySaved) {
-            mdiTabBarVisibleBefore = tabBar->isVisible();
+            mdiTabBarVisibleBefore = !tabBar->isHidden();
             mdiTabBarMinimumHeightBefore = tabBar->minimumHeight();
             mdiTabBarMaximumHeightBefore = tabBar->maximumHeight();
             mdiTabBarVisibilitySaved = true;
         }
-        tabBar->setMinimumHeight(0);
-        tabBar->setMaximumHeight(0);
-        tabBar->hide();
-        tabBar->updateGeometry();
-        mainWindow->getMdiArea()->updateGeometry();
+        bool tabBarChanged = false;
+        if (tabBar->minimumHeight() != 0) {
+            tabBar->setMinimumHeight(0);
+            tabBarChanged = true;
+        }
+        if (tabBar->maximumHeight() != 0) {
+            tabBar->setMaximumHeight(0);
+            tabBarChanged = true;
+        }
+        if (!tabBar->isHidden()) {
+            tabBar->hide();
+            tabBarChanged = true;
+        }
+        if (tabBarChanged) {
+            tabBar->updateGeometry();
+            mainWindow->getMdiArea()->updateGeometry();
+        }
     }
 }
 
@@ -1556,13 +1595,15 @@ void CompactMainWindowChrome::openFirstMenu()
 
 void CompactMainWindowChrome::layoutChrome()
 {
+    const int layoutCount = property("_fc_compact_layout_count").toInt() + 1;
+    setProperty("_fc_compact_layout_count", layoutCount);
+
     if (!active || !topBar) {
         setResizeGripsVisible(false);
         return;
     }
 
     updateWindowControls();
-    updateDocumentButton();
     updateMdiTabBarVisibility();
     layoutTopBar();
     applyContentsMargins();
