@@ -147,12 +147,14 @@ private Q_SLOTS:
     {
         createMainWindow();
 
+        const int initialLayoutCount = chromeProperty("_fc_compact_layout_count");
         layoutEventCounter.reset();
         QCoreApplication::postEvent(mainWindow.get(), new QEvent(QEvent::LayoutRequest));
         waitForLayoutConvergence();
         const int convergedCount = layoutEventCounter.mainWindowCount();
         processEvents(5);
 
+        QCOMPARE(chromeProperty("_fc_compact_layout_count"), initialLayoutCount);
         QCOMPARE(layoutEventCounter.mainWindowCount(), convergedCount);
         QVERIFY2(
             convergedCount <= 1,

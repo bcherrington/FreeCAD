@@ -1595,6 +1595,9 @@ void CompactMainWindowChrome::openFirstMenu()
 
 void CompactMainWindowChrome::layoutChrome()
 {
+    const int layoutCount = property("_fc_compact_layout_count").toInt() + 1;
+    setProperty("_fc_compact_layout_count", layoutCount);
+
     if (!active || !topBar) {
         setResizeGripsVisible(false);
         return;
