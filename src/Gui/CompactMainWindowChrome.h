@@ -78,6 +78,8 @@ private:
     void showMainMenu();
     void hideMainMenu();
     void openFirstMenu();
+    void scheduleDocumentButtonUpdate();
+    void flushDocumentButtonUpdate();
     void updateDocumentButton();
     void rebuildDocumentMenu();
     void rebuildMacroMenu();
@@ -128,10 +130,13 @@ private:
     bool contentsMarginsSaved = false;
     bool manualResizeActive = false;
     bool mdiTabBarVisibilitySaved = false;
+    bool documentButtonUpdateQueued = false;
     bool mdiTabBarVisibleBefore = true;
     bool shuttingDown = false;
     int mdiTabBarMinimumHeightBefore = 0;
     int mdiTabBarMaximumHeightBefore = QWIDGETSIZE_MAX;
+    int documentButtonUpdateRequestCount = 0;
+    int documentButtonUpdateCount = 0;
     Qt::Edges manualResizeEdges;
     QPoint titleDragGlobalPosition;
     QPoint titleDragWindowPosition;
