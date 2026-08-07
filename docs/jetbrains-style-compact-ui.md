@@ -1,9 +1,9 @@
 ---
 title: JetBrains-style compact titlebar
 doc_type: design
-status: draft
-owner: local-developer
-last_reviewed: 2026-05-23
+status: active
+owner: bcherrington
+last_reviewed: 2026-08-07
 ---
 
 # JetBrains-Style Compact Titlebar
@@ -46,6 +46,27 @@ FreeCAD's existing dock and overlay systems.
 | Config Source | Key Or Parameter | Applied By | Effect | Failure Mode |
 | --- | --- | --- | --- | --- |
 | User preferences | `BaseApp/Preferences/MainWindow/CompactJetBrainsLayout` | `Gui::MainWindow` | Enables or disables the compact titlebar prototype. | Defaults to normal FreeCAD UI when absent or false. |
+| User preferences | `BaseApp/Preferences/MainWindow/CompactJetBrainsFramelessWindow` | `Gui::MainWindow` at startup | Replaces native window decorations with compact drag, resize, and window controls. | Defaults to native window decorations when absent or false; restart is required after changing it. |
+
+## Layout And Refresh Contracts
+
+Compact chrome must converge once startup or an explicit window transition has
+settled. `Gui::MainWindow` therefore invokes the full compact layout only for
+show, resize, and window-state changes. A bare `QEvent::LayoutRequest` is not a
+full-layout trigger: routing it back through `layoutChrome()` can turn
+`updateGeometry()` into a self-sustaining Qt event loop.
+
+MDI tab suppression is idempotent. Compact mode saves the prior tab visibility
+and height constraints, changes them only when they differ from the compact
+target, and requests geometry updates only after a real state change. Disabling
+compact mode restores the saved visibility, constraints, menu-bar state, and
+contents margins.
+
+Document-button metadata is independent of geometry layout. Document and view
+signals schedule one receiver-bound queued refresh per event-loop turn. A burst
+therefore renders the latest state once; deactivation or object destruction
+cancels the pending work safely. Layout-only activity does not refresh document
+metadata.
 
 ## Current Implementation Status
 
@@ -82,6 +103,10 @@ Current behavior:
 - Hides the normal menu bar while compact mode is active, then restores its
   previous visibility when compact mode is disabled.
 - Hides the active MDI document tab-bar container while compact mode is active.
+- Leaves a settled compact window quiescent: repeated `LayoutRequest` delivery
+  does not re-enter the full compact relayout path.
+- Coalesces document/view signal bursts into one latest-state document-button
+  refresh per event-loop turn.
 - The document menu lists New, Open, Import, Export, Save, Save All, Close,
   Close All, open document views with close affordances, and recent files.
   Document modified markers update on document change/save signals.
@@ -107,7 +132,7 @@ Current limitations:
 ## Current Test Coverage
 
 `tests/src/Gui/CompactMainWindowChrome.cpp` covers compact titlebar behavior
-that can be validated without screenshot comparison:
+that can be validated without screenshot comparison, including:
 
 - Titlebar buttons expose accessible names/status text and match compact toolbar
   icon sizing.
@@ -115,10 +140,49 @@ that can be validated without screenshot comparison:
   disabled.
 - The hamburger menu bar is vertically centered in the toolbar/menu switch
   area.
+- A bare `LayoutRequest` does not invoke compact relayout, and layout events
+  converge within bounded event-loop turns.
+- Stable MDI tab suppression produces no redundant geometry invalidation.
+- Document-button refresh bursts coalesce, and queued work is safe across
+  deactivation and `MainWindow` destruction.
+- Compact activation/deactivation restores saved menu, margin, visibility, and
+  MDI tab constraints; compact-disabled layout requests remain quiescent.
+- Deferred workbench activation updates settle without sustained layout work.
 
 Manual validation is still required for final visual alignment, theme
-appearance, frameless window drag/resize behavior, and workbench-specific menu
-content.
+appearance, pointer-driven frameless drag/resize behavior, and
+workbench-specific menu content on each supported window system. This residual
+belongs to the FreeCAD GUI maintainer or release tester validating the target
+platform; it does not change the X11 idle-loop acceptance described below.
+
+## Idle CPU Regression Diagnosis
+
+Use one committed Debug binary and one controlled user home for all cases.
+Restart after changing the two compact flags, close documents and the Start
+page, wait 30 seconds, and sample the Qt main thread three times for:
+
+1. layout off, frameless off;
+2. layout on, frameless off; and
+3. layout on, frameless on.
+
+For example:
+
+```sh
+pidstat -t -p <freecad-pid> 5 3
+```
+
+When `perf` is unavailable, launch the same binary under `gdb`, interrupt it
+after the warm-up, and capture repeated main-thread backtraces. A healthy idle
+stack waits in `ppoll`/GLib/`QEventDispatcherGlib`/`QEventLoop`. Repeated
+`CompactMainWindowChrome::layoutChrome`, `updateMdiTabBarVisibility`,
+`QWidget::updateGeometry`, or `QLayout` frames indicate a layout feedback
+cycle. CPU percentages are comparative evidence, not a portable absolute
+threshold.
+
+The 2026-08-07 Linux/X11 validation of committed Debug build
+`1.0rc1-9333-g62ff9e3b1c5` recorded main-thread averages of 0.13% with both
+flags off, 0.13% with compact framed, and 0.07% with compact frameless. All
+nine debugger snapshots were in the sleeping Qt dispatcher path.
 
 ## Change Impact Strategy
 
