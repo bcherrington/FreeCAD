@@ -545,7 +545,8 @@ const std::string& TopoShape::shapeName(bool silent) const
 
 PyObject* TopoShape::getPySubShape(const char* Type, bool silent) const
 {
-    return Py::new_reference_to(shape2pyshape(getSubShape(Type, silent)));
+    TopoShape s(*this);
+    return Py::new_reference_to(shape2pyshape(s.getSubTopoShape(Type, silent)));
 }
 
 PyObject* TopoShape::getPyObject()
@@ -900,7 +901,16 @@ void TopoShape::exportStep(const char* filename) const
 
         // write step file
         STEPControl_Writer aWriter;
-
+#if OCC_VERSION_HEX >= 0x070900
+        // Temporary workaround for OCCT 7.9+, see:
+        // https://github.com/Open-Cascade-SAS/OCCT/issues/1327
+        // TODO: Remove or refine the guards or remove when the issue is fixed in OCCT 8.0.1
+        aWriter.SetShapeFixParameters(DESTEP_Parameters::GetDefaultShapeFixParameters());
+        ShapeProcess::OperationsFlags aFlags;
+        aFlags.set(ShapeProcess::Operation::SplitCommonVertex);
+        aFlags.set(ShapeProcess::Operation::DirectFaces);
+        aWriter.SetShapeProcessFlags(aFlags);
+#endif
         const Handle(XSControl_TransferWriter) & hTransferWriter = aWriter.WS()->TransferWriter();
         Handle(Transfer_FinderProcess) hFinder = hTransferWriter->FinderProcess();
 
@@ -4291,7 +4301,7 @@ TopoShape& TopoShape::makeFace(const std::vector<TopoShape>& shapes, const char*
     _Shape.Nullify();
 
     if (!maker || !maker[0]) {
-        maker = "Part::FaceMakerBullseye";
+        maker = "Part::FaceMakerUnified";
     }
 
     std::unique_ptr<FaceMaker> mkFace = FaceMaker::ConstructFromType(maker);
