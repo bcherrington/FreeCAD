@@ -24,6 +24,7 @@ setup_qt_test(AsyncRecomputeFeedback)
 setup_qt_test(CompactMainWindowChrome)
 setup_qt_test(QuantitySpinBox)
 setup_qt_test(SelectionView)
+setup_qt_test(SplashScreenLifecycle)
 
 target_link_libraries(Gui_tests_run PRIVATE
     GTest::gmock_main
