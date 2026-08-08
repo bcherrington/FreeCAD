@@ -483,6 +483,7 @@ SET(Command_CPP_SRCS
     ShortcutManager.cpp
     CommandCompleter.cpp
     CommandActionPy.cpp
+    GpuDiagnostics.cpp
 )
 SET(Command_SRCS
     ${Command_CPP_SRCS}
@@ -493,6 +494,7 @@ SET(Command_SRCS
     ShortcutManager.h
     CommandCompleter.h
     CommandActionPy.h
+    GpuDiagnostics.h
 )
 SOURCE_GROUP("Command" FILES ${Command_SRCS})
 

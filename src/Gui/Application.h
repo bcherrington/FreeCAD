@@ -277,6 +277,7 @@ public:
     static void initApplication();
     static void initTypes();
     static void initOpenInventor();
+    static void setupDefaultSurfaceFormat();
     static void runInitGuiScript();
     static void runApplication();
     void tryClose(QCloseEvent* e);
