@@ -65,6 +65,8 @@ Testing
 compile_commands.json
 *.sublime-project
 *.sublime-workspace
+*.trace
+/Reference Horizontal Stationary Steam Engine.FCStd
 
 # crowdin file
 files_to_translate.txt
