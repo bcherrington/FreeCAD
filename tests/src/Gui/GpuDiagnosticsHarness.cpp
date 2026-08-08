@@ -180,11 +180,17 @@ int main(int argc, char* argv[])
             }
         });
         contextPoll.start();
-        QTimer::singleShot(autoExitMs, &qtApplication, [&]() {
+        QTimer shutdownTimer(&view);
+        shutdownTimer.setInterval(autoExitMs);
+        QObject::connect(&shutdownTimer, &QTimer::timeout, [&]() {
+            // Collection performed while opening the dialog can span the deadline. Keep
+            // polling after it so the modal dialog is rejected as soon as it enters exec().
+            shutdownTimer.setInterval(25);
             collectReport(false);
             closeDiagnosticsDialogs();
             qtApplication.quit();
         });
+        shutdownTimer.start();
 
         result = qtApplication.exec();
         view.close();

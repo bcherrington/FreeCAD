@@ -9,10 +9,52 @@
 #include <gtest/gtest.h>
 
 #include "Gui/GpuDiagnostics.h"
+#include "Gui/GpuDiagnosticsInternal.h"
+
+namespace
+{
+
+Gui::GpuDiagnosticsReport makeReport(
+    int requestedSamples,
+    const std::vector<std::optional<int>>& viewportSamples
+)
+{
+    Gui::GpuDiagnosticsReport report;
+    report.schema = QStringLiteral("org.freecad.gpu-diagnostics.v1");
+    report.requestedSamples = requestedSamples;
+    report.msaaRequested = requestedSamples > 1;
+    report.lineSmoothingRequested = requestedSamples == 1;
+    report.antiAliasingMode = QString::number(requestedSamples);
+    report.qtVersion = QStringLiteral("test");
+    report.freecadVersion = QStringLiteral("FreeCAD test");
+    report.platform = QStringLiteral("test");
+    report.defaultShapeLineWidth = 2;
+    report.defaultShapePointSize = 2;
+    report.useVbo = true;
+    report.useNewSelection = true;
+
+    for (const auto& samples : viewportSamples) {
+        Gui::GpuDiagnosticsViewport viewport;
+        viewport.widgetClass = QStringLiteral("QOpenGLWidget");
+        viewport.requestedSamples = requestedSamples;
+        viewport.glSamples = samples;
+        if (report.lineSmoothingRequested) {
+            viewport.glLineSmoothEnabled = true;
+            viewport.glBlendEnabled = false;
+            viewport.lineSmoothingBlendReady = false;
+        }
+        report.viewports.push_back(viewport);
+    }
+
+    Gui::GpuDiagnosticsInternal::classifyReport(report);
+    return report;
+}
+
+}  // namespace
 
 TEST(GpuDiagnostics, RequestedSamplesWithZeroActualSamplesIsInactive)
 {
-    const auto report = Gui::GpuDiagnostics::makeReportForTesting(8, {0});
+    const auto report = makeReport(8, {0});
 
     EXPECT_EQ(report.msaaStatus, Gui::GpuDiagnosticsReport::MsaaStatus::Inactive);
     EXPECT_TRUE(report.summary.contains(QStringLiteral("zero active samples")));
@@ -20,7 +62,7 @@ TEST(GpuDiagnostics, RequestedSamplesWithZeroActualSamplesIsInactive)
 
 TEST(GpuDiagnostics, RequestedSamplesWithActualSamplesIsActive)
 {
-    const auto report = Gui::GpuDiagnostics::makeReportForTesting(8, {4});
+    const auto report = makeReport(8, {4});
 
     EXPECT_EQ(report.msaaStatus, Gui::GpuDiagnosticsReport::MsaaStatus::Active);
     EXPECT_TRUE(report.summary.contains(QStringLiteral("active samples")));
@@ -28,7 +70,7 @@ TEST(GpuDiagnostics, RequestedSamplesWithActualSamplesIsActive)
 
 TEST(GpuDiagnostics, MissingViewportIsUnknown)
 {
-    const auto report = Gui::GpuDiagnostics::makeReportForTesting(8, {});
+    const auto report = makeReport(8, {});
 
     EXPECT_EQ(report.msaaStatus, Gui::GpuDiagnosticsReport::MsaaStatus::Unknown);
     EXPECT_TRUE(report.summary.contains(QStringLiteral("No OpenGL viewport")));
@@ -36,7 +78,7 @@ TEST(GpuDiagnostics, MissingViewportIsUnknown)
 
 TEST(GpuDiagnostics, LineSmoothingIsReportedSeparatelyFromMsaa)
 {
-    auto report = Gui::GpuDiagnostics::makeReportForTesting(1, {0});
+    auto report = makeReport(1, {0});
     report.viewports.front().glLineSmoothEnabled = true;
     report.viewports.front().glBlendEnabled = false;
     report.viewports.front().lineSmoothingBlendReady = false;
@@ -63,7 +105,7 @@ TEST(GpuDiagnostics, LineSmoothingIsReportedSeparatelyFromMsaa)
 
 TEST(GpuDiagnostics, JsonExportIncludesSchemaSummaryAndUnavailableFields)
 {
-    auto report = Gui::GpuDiagnostics::makeReportForTesting(8, {std::nullopt});
+    auto report = makeReport(8, {std::nullopt});
 
     const auto json = Gui::GpuDiagnostics::toJson(report);
     const auto document = QJsonDocument::fromJson(json.toUtf8());

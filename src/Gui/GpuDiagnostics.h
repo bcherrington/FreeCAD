@@ -98,10 +98,6 @@ class GuiExport GpuDiagnostics
 {
 public:
     static GpuDiagnosticsReport collect(QWidget* parent = nullptr);
-    static GpuDiagnosticsReport makeReportForTesting(
-        int requestedSamples,
-        const std::vector<std::optional<int>>& viewportSamples
-    );
     static QString toJson(const GpuDiagnosticsReport& report);
     static QString toText(const GpuDiagnosticsReport& report);
     static QString msaaStatusToString(GpuDiagnosticsReport::MsaaStatus status);

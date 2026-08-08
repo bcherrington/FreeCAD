@@ -495,6 +495,7 @@ SET(Command_SRCS
     CommandCompleter.h
     CommandActionPy.h
     GpuDiagnostics.h
+    GpuDiagnosticsInternal.h
 )
 SOURCE_GROUP("Command" FILES ${Command_SRCS})
 
