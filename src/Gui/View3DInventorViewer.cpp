@@ -246,7 +246,9 @@ void updateDimensionPane(const View3DInventorViewer& viewer, bool forceUpdate)
 
     state.text = text;
     state.updateTimer.restart();
-    getMainWindow()->setPaneText(2, text);
+    if (auto* mainWindow = getMainWindow()) {
+        mainWindow->setPaneText(2, text);
+    }
 }
 
 void clearDimensionPaneState()

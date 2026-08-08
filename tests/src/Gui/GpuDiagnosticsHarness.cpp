@@ -2,8 +2,6 @@
 
 #include <algorithm>
 #include <array>
-#include <functional>
-#include <memory>
 
 #include <QApplication>
 #include <QCommandLineParser>
@@ -14,7 +12,6 @@
 #include <QTemporaryDir>
 #include <QTextStream>
 #include <QTimer>
-#include <QVBoxLayout>
 
 #include <App/Application.h>
 
@@ -22,13 +19,14 @@
 #include <Gui/GpuDiagnostics.h>
 #include <Gui/Multisample.h>
 #include <Gui/NaviCube.h>
-#include <Gui/View3DInventor.h>
+#include <Gui/View3DInventorViewer.h>
 
 namespace
 {
 
 constexpr int defaultAutoExitMs = 2000;
 constexpr int maximumAutoExitMs = 60000;
+constexpr int shutdownGraceMs = 250;
 
 void closeDiagnosticsDialogs()
 {
@@ -124,31 +122,24 @@ int main(int argc, char* argv[])
         // product commands because their active-state checks require MainWindow.
         NaviCube::setNaviCubeCommands({"GpuDiagnosticsHarness_NoCommand"});
 
-        QWidget window;
-        window.setWindowTitle(QStringLiteral("FreeCAD GPU Diagnostics Harness"));
-        window.resize(960, 640);
-        auto* layout = new QVBoxLayout(&window);
-        auto* view = new Gui::View3DInventor(nullptr, &window);
-        layout->addWidget(view);
-        window.show();
-
-        QTimer::singleShot(autoExitMs, &qtApplication, [&qtApplication]() {
-            closeDiagnosticsDialogs();
-            qtApplication.quit();
-        });
+        Gui::View3DInventorViewer view(nullptr);
+        view.setWindowTitle(QStringLiteral("FreeCAD GPU Diagnostics Harness"));
+        view.resize(960, 640);
+        view.show();
 
         QElapsedTimer contextDeadline;
         contextDeadline.start();
-        auto collect = std::make_shared<std::function<void()>>();
-        *collect = [&, collect]() {
-            auto* glWidget = view->findChild<QOpenGLWidget*>();
-            const bool contextReady = glWidget && glWidget->context() && glWidget->isValid();
-            if (!contextReady && contextDeadline.elapsed() < autoExitMs - 50) {
-                QTimer::singleShot(25, &window, *collect);
+        const int contextWaitMs = std::max(0, autoExitMs - shutdownGraceMs);
+        bool reportCollected = false;
+        QTimer contextPoll(&view);
+        contextPoll.setInterval(25);
+        auto collectReport = [&](bool allowDialog) {
+            if (reportCollected) {
                 return;
             }
-
-            const auto report = Gui::GpuDiagnostics::collect(&window);
+            reportCollected = true;
+            contextPoll.stop();
+            const auto report = Gui::GpuDiagnostics::collect(&view);
             QTextStream output(stdout);
             if (parser.isSet(jsonOption)) {
                 output << Gui::GpuDiagnostics::toJson(report);
@@ -158,17 +149,30 @@ int main(int argc, char* argv[])
             }
             output.flush();
 
-            const bool showDialog = parser.isSet(dialogOption)
-                || (!parser.isSet(jsonOption) && !parser.isSet(textOption));
+            const bool showDialog = allowDialog
+                && (parser.isSet(dialogOption)
+                    || (!parser.isSet(jsonOption) && !parser.isSet(textOption)));
             if (showDialog) {
-                Gui::GpuDiagnosticsDialog::showDialog(&window);
+                Gui::GpuDiagnosticsDialog::showDialog(&view);
             }
             qtApplication.quit();
         };
-        QTimer::singleShot(0, &window, *collect);
+        QObject::connect(&contextPoll, &QTimer::timeout, [&]() {
+            auto* glWidget = view.findChild<QOpenGLWidget*>();
+            const bool contextReady = glWidget && glWidget->context() && glWidget->isValid();
+            if (contextReady || contextDeadline.elapsed() >= contextWaitMs) {
+                collectReport(true);
+            }
+        });
+        contextPoll.start();
+        QTimer::singleShot(autoExitMs, &qtApplication, [&]() {
+            collectReport(false);
+            closeDiagnosticsDialogs();
+            qtApplication.quit();
+        });
 
         result = qtApplication.exec();
-        window.close();
+        view.close();
     }
 
     App::Application::destruct();
