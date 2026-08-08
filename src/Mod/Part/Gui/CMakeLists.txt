@@ -150,6 +150,7 @@ SET(PartGui_SRCS
     PreviewUpdateScheduler.h
     PropertyEnumAttacherItem.cpp
     PropertyEnumAttacherItem.h
+    ProjectedSegmentDeduplication.h
     SoFCShapeObject.cpp
     SoFCShapeObject.h
     SoBrepEdgeSet.cpp

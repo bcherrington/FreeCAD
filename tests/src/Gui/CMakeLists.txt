@@ -15,6 +15,7 @@ add_executable(Gui_tests_run
         StyleParameters/ParameterManagerTest.cpp
         StyleParameters/YamlParameterSourceTest.cpp
         InputHintTest.cpp
+        ProjectedSegmentDeduplication.cpp
         SelectionTest.cpp
 )
 
@@ -85,6 +86,7 @@ if(UNIX AND NOT APPLE AND DEFINED ENV{DISPLAY} AND NOT "$ENV{DISPLAY}" STREQUAL 
             hide
             line-smooth
             line-smooth-off
+            dedup-screen-space
             screen-space-debug
             screen-space-only
             screen-space-overlay
@@ -93,6 +95,13 @@ if(UNIX AND NOT APPLE AND DEFINED ENV{DISPLAY} AND NOT "$ENV{DISPLAY}" STREQUAL 
             set(edge_aa_mode_fixture_args)
             if(edge_aa_mode STREQUAL "suppress-overlays")
                 list(APPEND edge_aa_mode_fixture_args --brep-overlays)
+            endif()
+            if(edge_aa_mode STREQUAL "dedup-screen-space")
+                list(APPEND edge_aa_mode_fixture_args
+                    --brep-duplicate-edges
+                    --edge-aa-dedup-tolerance 0.5
+                    --edge-aa-stats
+                )
             endif()
             add_test(
                 NAME GpuDiagnosticsHarness_brep_${edge_aa_mode}_x11
@@ -109,6 +118,13 @@ if(UNIX AND NOT APPLE AND DEFINED ENV{DISPLAY} AND NOT "$ENV{DISPLAY}" STREQUAL 
                 ENVIRONMENT "QT_QPA_PLATFORM=xcb"
                 TIMEOUT 8
             )
+            if(edge_aa_mode STREQUAL "dedup-screen-space")
+                set_tests_properties(
+                    GpuDiagnosticsHarness_brep_${edge_aa_mode}_x11 PROPERTIES
+                    PASS_REGULAR_EXPRESSION
+                        "FREECAD_EDGE_AA_DEDUP_STATS input=24 rejected=0 duplicate=12 output=12 tolerance_px=0.500"
+                )
+            endif()
         endforeach()
     endif()
 endif()

@@ -26,6 +26,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <cstdio>
 #include <cstdlib>
 #include <limits>
 #include <string_view>
@@ -53,6 +54,7 @@
 #include <Gui/Selection/Selection.h>
 #include <Base/Color.h>
 #include "SoBrepEdgeSet.h"
+#include "ProjectedSegmentDeduplication.h"
 #include "ViewProviderExt.h"
 
 #include <Gui/Inventor/So3DAnnotation.h>
@@ -268,6 +270,7 @@ enum class EdgeAaDiagnosticMode
     Hide,
     LineSmooth,
     LineSmoothOff,
+    DeduplicateScreenSpace,
     ScreenSpaceDebug,
     ScreenSpaceOnly,
     ScreenSpaceOverlay,
@@ -292,6 +295,9 @@ static EdgeAaDiagnosticMode edgeAaDiagnosticMode()
         if (configuredMode == "line-smooth-off") {
             return EdgeAaDiagnosticMode::LineSmoothOff;
         }
+        if (configuredMode == "dedup-screen-space") {
+            return EdgeAaDiagnosticMode::DeduplicateScreenSpace;
+        }
         if (configuredMode == "screen-space-debug") {
             return EdgeAaDiagnosticMode::ScreenSpaceDebug;
         }
@@ -313,12 +319,37 @@ static EdgeAaDiagnosticMode edgeAaDiagnosticMode()
 static bool isScreenSpaceOnlyMode(EdgeAaDiagnosticMode mode)
 {
     return mode == EdgeAaDiagnosticMode::ScreenSpaceDebug
-        || mode == EdgeAaDiagnosticMode::ScreenSpaceOnly;
+        || mode == EdgeAaDiagnosticMode::ScreenSpaceOnly
+        || mode == EdgeAaDiagnosticMode::DeduplicateScreenSpace;
 }
 
 static bool isLineSmoothComparisonMode(EdgeAaDiagnosticMode mode)
 {
     return mode == EdgeAaDiagnosticMode::LineSmooth || mode == EdgeAaDiagnosticMode::LineSmoothOff;
+}
+
+static double edgeAaDeduplicationTolerance()
+{
+    static const double tolerance = [] {
+        const char* value = std::getenv("FREECAD_EDGE_AA_DEDUP_TOLERANCE_PX");
+        if (!value) {
+            return 0.5;
+        }
+
+        char* end = nullptr;
+        const double parsed = std::strtod(value, &end);
+        if (end != value && *end == '\0' && std::isfinite(parsed) && parsed > 0.0) {
+            return parsed;
+        }
+        return 0.5;
+    }();
+    return tolerance;
+}
+
+static bool edgeAaDeduplicationStatsEnabled()
+{
+    const char* value = std::getenv("FREECAD_EDGE_AA_DIAGNOSTIC_STATS");
+    return value && std::string_view(value) != "0";
 }
 
 struct ProjectedPoint
@@ -356,12 +387,16 @@ static ProjectedPoint projectPoint(
     const double ndcX = clip[0] / clip[3];
     const double ndcY = clip[1] / clip[3];
     const double ndcZ = clip[2] / clip[3];
-    return {
+    const ProjectedPoint projected {
         viewport[0] + (ndcX + 1.0) * viewport[2] * 0.5,
         viewport[1] + (ndcY + 1.0) * viewport[3] * 0.5,
         ndcZ,
-        ndcX >= -1.25 && ndcX <= 1.25 && ndcY >= -1.25 && ndcY <= 1.25
+        true,
     };
+    if (!std::isfinite(projected.x) || !std::isfinite(projected.y) || !std::isfinite(projected.z)) {
+        return {};
+    }
+    return projected;
 }
 
 class ScopedScreenSpaceEdgeAaState
@@ -588,6 +623,68 @@ static void renderScreenSpaceEdgeAa(
     glGetIntegerv(GL_VIEWPORT, viewport);
 
     ScopedScreenSpaceEdgeAaState state(viewport);
+    if (mode == EdgeAaDiagnosticMode::DeduplicateScreenSpace) {
+        std::vector<Detail::ProjectedSegment> projectedSegments;
+        int32_t previous = -1;
+        for (int index = 0; index < numIndices; ++index) {
+            const int32_t current = indices[index];
+            if (current < 0) {
+                previous = -1;
+                continue;
+            }
+            if (previous >= 0) {
+                Detail::ProjectedSegment segment;
+                if (previous < coordinates->getNum() && current < coordinates->getNum()) {
+                    const auto first
+                        = projectPoint(coordinates->get3(previous), modelView, projection, viewport);
+                    const auto second
+                        = projectPoint(coordinates->get3(current), modelView, projection, viewport);
+                    segment = {
+                        first.x,
+                        first.y,
+                        first.z,
+                        second.x,
+                        second.y,
+                        second.z,
+                        first.valid && second.valid,
+                    };
+                }
+                projectedSegments.push_back(segment);
+            }
+            previous = current;
+        }
+
+        const double tolerance = edgeAaDeduplicationTolerance();
+        const Detail::ProjectedViewport projectedViewport {
+            static_cast<double>(viewport[0]),
+            static_cast<double>(viewport[1]),
+            static_cast<double>(viewport[0] + viewport[2]),
+            static_cast<double>(viewport[1] + viewport[3]),
+        };
+        const auto deduplicated
+            = Detail::deduplicateProjectedSegments(projectedSegments, projectedViewport, tolerance);
+        for (const auto& segment : deduplicated.segments) {
+            renderScreenSpaceEdgeAaSegment(
+                {segment.firstX, segment.firstY, segment.firstZ, true},
+                {segment.secondX, segment.secondY, segment.secondZ, true},
+                mode
+            );
+        }
+        if (edgeAaDeduplicationStatsEnabled()) {
+            std::fprintf(
+                stderr,
+                "FREECAD_EDGE_AA_DEDUP_STATS input=%zu rejected=%zu duplicate=%zu output=%zu "
+                "tolerance_px=%.3f\n",
+                deduplicated.stats.inputSegments,
+                deduplicated.stats.rejectedSegments,
+                deduplicated.stats.duplicateSegments,
+                deduplicated.stats.outputSegments,
+                tolerance
+            );
+        }
+        return;
+    }
+
     int32_t previous = -1;
     for (int index = 0; index < numIndices; ++index) {
         const int32_t current = indices[index];

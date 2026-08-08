@@ -2,7 +2,9 @@
 
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <memory>
+#include <vector>
 
 #include <QApplication>
 #include <QCommandLineParser>
@@ -58,7 +60,7 @@ void closeDiagnosticsDialogs()
 }
 
 #ifdef FREECAD_GPU_DIAGNOSTICS_HAS_PART
-void installBrepFixture(Gui::View3DInventorViewer& view, bool includeOverlays)
+void installBrepFixture(Gui::View3DInventorViewer& view, bool includeOverlays, bool includeDuplicateEdges)
 {
     if (PartGui::SoBrepEdgeSet::getClassTypeId() == SoType::badType()) {
         PartGui::SoBrepEdgeSet::initClass();
@@ -74,10 +76,18 @@ void installBrepFixture(Gui::View3DInventorViewer& view, bool includeOverlays)
         SbVec3f(5.0F, 5.0F, 5.0F),
         SbVec3f(-5.0F, 5.0F, 5.0F),
     };
-    constexpr std::array<int32_t, 36> edgeIndices {
+    constexpr std::array<int32_t, 36> baseEdgeIndices {
         0, 1, -1, 1, 2, -1, 2, 3, -1, 3, 0, -1, 4, 5, -1, 5, 6, -1,
         6, 7, -1, 7, 4, -1, 0, 4, -1, 1, 5, -1, 2, 6, -1, 3, 7, -1,
     };
+    std::vector<int32_t> edgeIndices(baseEdgeIndices.begin(), baseEdgeIndices.end());
+    if (includeDuplicateEdges) {
+        for (std::size_t index = 0; index < baseEdgeIndices.size(); index += 3) {
+            edgeIndices.push_back(baseEdgeIndices[index + 1]);
+            edgeIndices.push_back(baseEdgeIndices[index]);
+            edgeIndices.push_back(-1);
+        }
+    }
 
     auto* root = new SoSeparator;
     root->ref();
@@ -213,11 +223,25 @@ int main(int argc, char* argv[])
         QStringLiteral("brep-overlays"),
         QStringLiteral("Add deterministic BRep highlight and selection overlay lines.")
     );
+    const QCommandLineOption brepDuplicateEdgesOption(
+        QStringLiteral("brep-duplicate-edges"),
+        QStringLiteral("Add reversed duplicate BRep edge segments to the fixture.")
+    );
     const QCommandLineOption edgeAaModeOption(
         QStringLiteral("edge-aa-mode"),
         QStringLiteral("Select an opt-in production BRep edge diagnostic mode."),
         QStringLiteral("mode"),
         QStringLiteral("disabled")
+    );
+    const QCommandLineOption edgeAaDedupToleranceOption(
+        QStringLiteral("edge-aa-dedup-tolerance"),
+        QStringLiteral("Set the projected segment de-duplication tolerance in pixels."),
+        QStringLiteral("pixels"),
+        QStringLiteral("0.5")
+    );
+    const QCommandLineOption edgeAaStatsOption(
+        QStringLiteral("edge-aa-stats"),
+        QStringLiteral("Report projected segment de-duplication statistics to stderr.")
     );
     parser.addOptions({
         jsonOption,
@@ -229,7 +253,10 @@ int main(int argc, char* argv[])
         brepFixtureOption,
         screenshotOption,
         brepOverlaysOption,
+        brepDuplicateEdgesOption,
         edgeAaModeOption,
+        edgeAaDedupToleranceOption,
+        edgeAaStatsOption,
     });
     parser.process(qtApplication);
 
@@ -243,11 +270,12 @@ int main(int argc, char* argv[])
     const int autoExitMs = std::min(requestedAutoExitMs, maximumAutoExitMs);
 
     const auto edgeAaMode = parser.value(edgeAaModeOption);
-    const std::array<QString, 8> supportedEdgeAaModes {
+    const std::array<QString, 9> supportedEdgeAaModes {
         QStringLiteral("disabled"),
         QStringLiteral("hide"),
         QStringLiteral("line-smooth"),
         QStringLiteral("line-smooth-off"),
+        QStringLiteral("dedup-screen-space"),
         QStringLiteral("screen-space-debug"),
         QStringLiteral("screen-space-only"),
         QStringLiteral("screen-space-overlay"),
@@ -256,8 +284,9 @@ int main(int argc, char* argv[])
     if (std::find(supportedEdgeAaModes.begin(), supportedEdgeAaModes.end(), edgeAaMode)
         == supportedEdgeAaModes.end()) {
         QTextStream(stderr) << "--edge-aa-mode must be disabled, hide, line-smooth, "
-                               "line-smooth-off, screen-space-debug, screen-space-only, "
-                               "screen-space-overlay, or suppress-overlays.\n";
+                               "line-smooth-off, dedup-screen-space, screen-space-debug, "
+                               "screen-space-only, screen-space-overlay, or "
+                               "suppress-overlays.\n";
         App::Application::destruct();
         return 2;
     }
@@ -268,8 +297,35 @@ int main(int argc, char* argv[])
         qputenv("FREECAD_EDGE_AA_DIAGNOSTIC", edgeAaMode.toUtf8());
     }
 
+    bool dedupToleranceOk = false;
+    const double dedupTolerance = parser.value(edgeAaDedupToleranceOption).toDouble(&dedupToleranceOk);
+    if (!dedupToleranceOk || !std::isfinite(dedupTolerance) || dedupTolerance <= 0.0) {
+        QTextStream(stderr) << "--edge-aa-dedup-tolerance must be a positive number.\n";
+        App::Application::destruct();
+        return 2;
+    }
+    if (edgeAaMode == QStringLiteral("dedup-screen-space")) {
+        qputenv("FREECAD_EDGE_AA_DEDUP_TOLERANCE_PX", QByteArray::number(dedupTolerance, 'g', 15));
+    }
+    else {
+        qunsetenv("FREECAD_EDGE_AA_DEDUP_TOLERANCE_PX");
+    }
+    // Enable statistics only for the settled evidence redraw so early camera
+    // setup frames do not produce misleading counts.
+    qunsetenv("FREECAD_EDGE_AA_DIAGNOSTIC_STATS");
+
     if (parser.isSet(brepOverlaysOption) && !parser.isSet(brepFixtureOption)) {
         QTextStream(stderr) << "--brep-overlays requires --brep-fixture.\n";
+        App::Application::destruct();
+        return 2;
+    }
+    if (parser.isSet(brepDuplicateEdgesOption) && !parser.isSet(brepFixtureOption)) {
+        QTextStream(stderr) << "--brep-duplicate-edges requires --brep-fixture.\n";
+        App::Application::destruct();
+        return 2;
+    }
+    if (parser.isSet(edgeAaStatsOption) && edgeAaMode != QStringLiteral("dedup-screen-space")) {
+        QTextStream(stderr) << "--edge-aa-stats requires --edge-aa-mode dedup-screen-space.\n";
         App::Application::destruct();
         return 2;
     }
@@ -310,7 +366,11 @@ int main(int argc, char* argv[])
         view.resize(960, 640);
 #ifdef FREECAD_GPU_DIAGNOSTICS_HAS_PART
         if (parser.isSet(brepFixtureOption)) {
-            installBrepFixture(view, parser.isSet(brepOverlaysOption));
+            installBrepFixture(
+                view,
+                parser.isSet(brepOverlaysOption),
+                parser.isSet(brepDuplicateEdgesOption)
+            );
         }
 #endif
         view.show();
@@ -356,6 +416,13 @@ int main(int argc, char* argv[])
                 }
             }
             const auto report = Gui::GpuDiagnostics::collect(&view);
+            if (parser.isSet(edgeAaStatsOption)) {
+                qputenv("FREECAD_EDGE_AA_DIAGNOSTIC_STATS", "1");
+                view.getSceneGraph()->touch();
+                view.redraw();
+                qtApplication.processEvents();
+            }
+            qunsetenv("FREECAD_EDGE_AA_DIAGNOSTIC_STATS");
             QTextStream output(stdout);
             if (parser.isSet(jsonOption)) {
                 output << Gui::GpuDiagnostics::toJson(report);
