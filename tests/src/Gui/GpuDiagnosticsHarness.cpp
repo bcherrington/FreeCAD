@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <array>
 #include <cmath>
+#include <cstdio>
 #include <memory>
 #include <vector>
 
@@ -219,6 +220,15 @@ int main(int argc, char* argv[])
         QStringLiteral("Save the rendered viewport to this path."),
         QStringLiteral("path")
     );
+    const QCommandLineOption sceneAaSamplesOption(
+        QStringLiteral("scene-aa-samples"),
+        QStringLiteral("Render a scene-only capture through an owned FBO with this sample count."),
+        QStringLiteral("count")
+    );
+    const QCommandLineOption sceneAaStatsOption(
+        QStringLiteral("scene-aa-stats"),
+        QStringLiteral("Report owned-FBO sample and timing statistics to stderr.")
+    );
     const QCommandLineOption brepOverlaysOption(
         QStringLiteral("brep-overlays"),
         QStringLiteral("Add deterministic BRep highlight and selection overlay lines.")
@@ -264,6 +274,8 @@ int main(int argc, char* argv[])
         edgeAaDedupToleranceOption,
         edgeAaStatsOption,
         edgeAaShaderWidthOption,
+        sceneAaSamplesOption,
+        sceneAaStatsOption,
     });
     parser.process(qtApplication);
 
@@ -361,6 +373,30 @@ int main(int argc, char* argv[])
         return 2;
     }
 
+    int sceneAaSamples = 0;
+    if (parser.isSet(sceneAaSamplesOption)) {
+        bool sceneAaSamplesOk = false;
+        sceneAaSamples = parser.value(sceneAaSamplesOption).toInt(&sceneAaSamplesOk);
+        constexpr std::array<int, 4> supportedSceneAaSamples {0, 2, 4, 8};
+        if (!sceneAaSamplesOk
+            || std::find(supportedSceneAaSamples.begin(), supportedSceneAaSamples.end(), sceneAaSamples)
+                == supportedSceneAaSamples.end()) {
+            QTextStream(stderr) << "--scene-aa-samples must be one of 0, 2, 4, or 8.\n";
+            App::Application::destruct();
+            return 2;
+        }
+        if (!parser.isSet(brepFixtureOption)) {
+            QTextStream(stderr) << "--scene-aa-samples requires --brep-fixture.\n";
+            App::Application::destruct();
+            return 2;
+        }
+    }
+    if (parser.isSet(sceneAaStatsOption) && !parser.isSet(sceneAaSamplesOption)) {
+        QTextStream(stderr) << "--scene-aa-stats requires --scene-aa-samples.\n";
+        App::Application::destruct();
+        return 2;
+    }
+
     if (parser.isSet(samplesOption)) {
         bool samplesOk = false;
         const int samples = parser.value(samplesOption).toInt(&samplesOk);
@@ -435,11 +471,34 @@ int main(int argc, char* argv[])
             }
             reportCollected = true;
             contextPoll.stop();
-            if (parser.isSet(screenshotOption)) {
+            if (parser.isSet(screenshotOption) || parser.isSet(sceneAaSamplesOption)) {
                 view.redraw();
-                const auto screenshot = view.grabFramebuffer();
+                QImage screenshot;
+                if (parser.isSet(sceneAaSamplesOption)) {
+                    Gui::View3DInventorViewer::RenderImageOptions options;
+                    options.samples = sceneAaSamples;
+                    options.intent = Gui::View3DInventorViewer::RenderIntent::RasterCapture;
+                    if (parser.isSet(sceneAaStatsOption)) {
+                        qputenv("FREECAD_SCENE_AA_DIAGNOSTIC_STATS", "1");
+                    }
+                    screenshot = view.renderToImage(options);
+                    qunsetenv("FREECAD_SCENE_AA_DIAGNOSTIC_STATS");
+                    if (screenshot.isNull()) {
+                        std::fprintf(
+                            stderr,
+                            "FREECAD_SCENE_AA_FALLBACK requested_samples=%d "
+                            "method=live-framebuffer\n",
+                            sceneAaSamples
+                        );
+                        screenshot = view.grabFramebuffer();
+                    }
+                }
+                else {
+                    screenshot = view.grabFramebuffer();
+                }
                 const auto screenshotPath = parser.value(screenshotOption);
-                if (screenshot.isNull() || !screenshot.save(screenshotPath)) {
+                if (screenshot.isNull()
+                    || (parser.isSet(screenshotOption) && !screenshot.save(screenshotPath))) {
                     QTextStream(stderr)
                         << "Could not save viewport screenshot to " << screenshotPath << ".\n";
                     qtApplication.exit(3);

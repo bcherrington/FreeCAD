@@ -25,6 +25,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdio>
 
 #include <Inventor/SoFCPlacementIndicatorKit.h>
 
@@ -3032,6 +3033,11 @@ QImage View3DInventorViewer::grabFramebuffer()
 
 QImage View3DInventorViewer::renderToImage(const RenderImageOptions& options)
 {
+    const bool reportSceneAaStats = qEnvironmentVariableIsSet("FREECAD_SCENE_AA_DIAGNOSTIC_STATS");
+    QElapsedTimer totalTimer;
+    if (reportSceneAaStats) {
+        totalTimer.start();
+    }
     const SbViewportRegion vp = this->getSoRenderManager()->getViewportRegion();
     const SbVec2s size = vp.getViewportSizePixels();
     const int width = options.width > 0 ? options.width : size[0];
@@ -3076,6 +3082,14 @@ QImage View3DInventorViewer::renderToImage(const RenderImageOptions& options)
         return {};
     }
 
+    GLint actualSampleBuffers = 0;
+    GLint actualSamples = 0;
+    if (reportSceneAaStats && fbo.bind()) {
+        glGetIntegerv(GL_SAMPLE_BUFFERS, &actualSampleBuffers);
+        glGetIntegerv(GL_SAMPLES, &actualSamples);
+        fbo.release();
+    }
+
     constexpr const int maxAlpha = 255;
     int alpha = maxAlpha;
     QColor opaqueBackground = options.background;
@@ -3101,10 +3115,20 @@ QImage View3DInventorViewer::renderToImage(const RenderImageOptions& options)
         setGradientBackground(Background::NoGradient);
     }
 
+    QElapsedTimer renderTimer;
+    if (reportSceneAaStats) {
+        renderTimer.start();
+    }
     if (!renderToFramebuffer(&fbo, options.includeViewerLighting)) {
         return {};
     }
+    const qint64 renderMicroseconds = reportSceneAaStats ? renderTimer.nsecsElapsed() / 1000 : 0;
+    QElapsedTimer readbackTimer;
+    if (reportSceneAaStats) {
+        readbackTimer.start();
+    }
     img = fbo.toImage();
+    const qint64 readbackMicroseconds = reportSceneAaStats ? readbackTimer.nsecsElapsed() / 1000 : 0;
     if (img.isNull()) {
         Base::Console().warning("renderToImage failed to read the framebuffer\n");
         return {};
@@ -3133,6 +3157,25 @@ QImage View3DInventorViewer::renderToImage(const RenderImageOptions& options)
         painter.drawImage(0, 0, img);
         painter.end();
         img = image;
+    }
+
+    if (reportSceneAaStats) {
+        std::fprintf(
+            stderr,
+            "FREECAD_SCENE_AA_STATS method=owned-fbo requested_samples=%d "
+            "format_samples=%d sample_buffers=%d actual_samples=%d width=%d height=%d "
+            "decorations=%d render_us=%lld readback_us=%lld total_us=%lld\n",
+            samples,
+            fbo.format().samples(),
+            actualSampleBuffers,
+            actualSamples,
+            width,
+            height,
+            shouldRenderDecorations(options.intent) ? 1 : 0,
+            static_cast<long long>(renderMicroseconds),
+            static_cast<long long>(readbackMicroseconds),
+            static_cast<long long>(totalTimer.nsecsElapsed() / 1000)
+        );
     }
 
     return img;

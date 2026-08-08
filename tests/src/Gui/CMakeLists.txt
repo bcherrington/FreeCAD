@@ -83,6 +83,47 @@ if(UNIX AND NOT APPLE AND DEFINED ENV{DISPLAY} AND NOT "$ENV{DISPLAY}" STREQUAL 
             TIMEOUT 8
         )
 
+        foreach(scene_aa_samples 0 8)
+            add_test(
+                NAME GpuDiagnosticsHarness_brep_owned-fbo-${scene_aa_samples}x_x11
+                COMMAND GpuDiagnosticsHarness_run
+                    --brep-fixture
+                    --samples 8
+                    --scene-aa-samples ${scene_aa_samples}
+                    --scene-aa-stats
+                    --json
+                    --screenshot
+                        ${CMAKE_CURRENT_BINARY_DIR}/GpuDiagnosticsHarness_brep_owned-fbo-${scene_aa_samples}x_x11.png
+                    --auto-exit-ms 2000
+            )
+            set_tests_properties(
+                GpuDiagnosticsHarness_brep_owned-fbo-${scene_aa_samples}x_x11 PROPERTIES
+                ENVIRONMENT "QT_QPA_PLATFORM=xcb"
+                TIMEOUT 8
+                PASS_REGULAR_EXPRESSION
+                    "FREECAD_SCENE_AA_STATS method=owned-fbo requested_samples=${scene_aa_samples} format_samples=[0-9]+ sample_buffers=[0-9]+ actual_samples=[0-9]+ width=960 height=640 decorations=0"
+            )
+        endforeach()
+
+        add_test(
+            NAME GpuDiagnosticsHarness_brep_owned-fbo-8x-hidpi_x11
+            COMMAND GpuDiagnosticsHarness_run
+                --brep-fixture
+                --brep-overlays
+                --samples 8
+                --scene-aa-samples 8
+                --scene-aa-stats
+                --json
+                --auto-exit-ms 3000
+        )
+        set_tests_properties(
+            GpuDiagnosticsHarness_brep_owned-fbo-8x-hidpi_x11 PROPERTIES
+            ENVIRONMENT "QT_QPA_PLATFORM=xcb;QT_SCALE_FACTOR=2"
+            TIMEOUT 8
+            PASS_REGULAR_EXPRESSION
+                "FREECAD_SCENE_AA_STATS method=owned-fbo requested_samples=8 format_samples=[0-9]+ sample_buffers=[0-9]+ actual_samples=[0-9]+ width=1920 height=1280 decorations=0"
+        )
+
         foreach(edge_aa_mode
             hide
             line-smooth
