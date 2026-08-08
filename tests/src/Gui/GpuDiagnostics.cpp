@@ -87,6 +87,10 @@ TEST(GpuDiagnostics, JsonExportIncludesSchemaSummaryAndUnavailableFields)
     const auto viewports = root.value(QStringLiteral("viewports")).toArray();
     ASSERT_EQ(viewports.size(), 1);
     const auto viewport = viewports.at(0).toObject();
+    EXPECT_TRUE(viewport.contains(QStringLiteral("widgetFormatSamples")));
+    EXPECT_TRUE(viewport.value(QStringLiteral("widgetFormatSamples")).isNull());
+    EXPECT_TRUE(viewport.contains(QStringLiteral("contextFormatSamples")));
+    EXPECT_TRUE(viewport.value(QStringLiteral("contextFormatSamples")).isNull());
     EXPECT_TRUE(viewport.contains(QStringLiteral("glSamples")));
     EXPECT_TRUE(viewport.value(QStringLiteral("glSamples")).isNull());
     EXPECT_TRUE(viewport.contains(QStringLiteral("glMultisampleEnabled")));

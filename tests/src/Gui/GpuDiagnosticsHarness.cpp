@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <array>
+#include <memory>
 
 #include <QApplication>
 #include <QCommandLineParser>
@@ -87,7 +88,13 @@ int main(int argc, char* argv[])
         QStringLiteral("milliseconds"),
         QString::number(defaultAutoExitMs)
     );
-    parser.addOptions({jsonOption, textOption, dialogOption, samplesOption, autoExitOption});
+    const QCommandLineOption unrelatedWidgetOption(
+        QStringLiteral("unrelated-widget"),
+        QStringLiteral("Create an unrelated QOpenGLWidget to verify viewport filtering.")
+    );
+    parser.addOptions(
+        {jsonOption, textOption, dialogOption, samplesOption, autoExitOption, unrelatedWidgetOption}
+    );
     parser.process(qtApplication);
 
     bool millisecondsOk = false;
@@ -126,6 +133,14 @@ int main(int argc, char* argv[])
         view.setWindowTitle(QStringLiteral("FreeCAD GPU Diagnostics Harness"));
         view.resize(960, 640);
         view.show();
+
+        std::unique_ptr<QOpenGLWidget> unrelatedWidget;
+        if (parser.isSet(unrelatedWidgetOption)) {
+            unrelatedWidget = std::make_unique<QOpenGLWidget>();
+            unrelatedWidget->setObjectName(QStringLiteral("GpuDiagnosticsUnrelatedWidget"));
+            unrelatedWidget->resize(64, 64);
+            unrelatedWidget->show();
+        }
 
         QElapsedTimer contextDeadline;
         contextDeadline.start();

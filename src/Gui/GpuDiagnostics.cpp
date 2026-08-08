@@ -21,6 +21,7 @@
 #include <QOpenGLWidget>
 #include <QPlainTextEdit>
 #include <QPushButton>
+#include <QSaveFile>
 #include <QScreen>
 #include <QScrollArea>
 #include <QSurfaceFormat>
@@ -32,6 +33,7 @@
 #include <App/Application.h>
 
 #include "Multisample.h"
+#include "View3DInventorViewer.h"
 #include "ViewParams.h"
 
 #if HAVE_CONFIG_H
@@ -62,6 +64,50 @@ QString sizeToString(const QSizeF& size)
 QString optionalIntToString(const std::optional<int>& value)
 {
     return value ? QString::number(*value) : QObject::tr("Unavailable");
+}
+
+std::optional<int> availableSampleCount(int samples)
+{
+    return samples >= 0 ? std::optional<int>(samples) : std::nullopt;
+}
+
+void showExportWarning(QDialog* dialog, const QString& message)
+{
+    QMessageBox::warning(dialog, QObject::tr("Export GPU Diagnostics"), message);
+}
+
+void copyReportToClipboard(QDialog* dialog, const QString& report)
+{
+    auto* clipboard = QApplication::clipboard();
+    if (!clipboard) {
+        showExportWarning(dialog, QObject::tr("The system clipboard is not available."));
+        return;
+    }
+
+    clipboard->setText(report);
+    if (clipboard->text() != report) {
+        showExportWarning(dialog, QObject::tr("Could not copy the diagnostics report."));
+    }
+}
+
+void saveJsonReport(QDialog* dialog, const QString& fileName, const QString& json)
+{
+    QSaveFile file(fileName);
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        showExportWarning(
+            dialog,
+            QObject::tr("Could not write the diagnostics report: %1").arg(file.errorString())
+        );
+        return;
+    }
+
+    const auto data = json.toUtf8();
+    if (file.write(data) != data.size() || !file.commit()) {
+        showExportWarning(
+            dialog,
+            QObject::tr("Could not finish writing the diagnostics report: %1").arg(file.errorString())
+        );
+    }
 }
 
 QString optionalUIntToString(const std::optional<unsigned int>& value)
@@ -489,7 +535,12 @@ Gui::GpuDiagnosticsReport Gui::GpuDiagnostics::collect(QWidget* parent)
 
     const auto widgets = QApplication::allWidgets();
     for (auto* widget : widgets) {
-        auto* glWidget = qobject_cast<QOpenGLWidget*>(widget);
+        auto* viewer = qobject_cast<View3DInventorViewer*>(widget);
+        if (!viewer) {
+            continue;
+        }
+
+        auto* glWidget = qobject_cast<QOpenGLWidget*>(viewer->viewport());
         if (!glWidget) {
             continue;
         }
@@ -500,14 +551,16 @@ Gui::GpuDiagnosticsReport Gui::GpuDiagnostics::collect(QWidget* parent)
         viewport.size = glWidget->size();
         viewport.devicePixelRatio = glWidget->devicePixelRatioF();
         viewport.requestedSamples = report.requestedSamples;
-        viewport.widgetFormatSamples = glWidget->format().samples();
+        viewport.widgetFormatSamples = availableSampleCount(glWidget->format().samples());
 
         const auto* nativeWindow = glWidget->window() ? glWidget->window()->windowHandle() : nullptr;
         const auto* screen = nativeWindow ? nativeWindow->screen() : nullptr;
         viewport.screenName = screen ? screen->name() : QString();
 
         if (glWidget->context()) {
-            viewport.contextFormatSamples = glWidget->context()->format().samples();
+            viewport.contextFormatSamples = availableSampleCount(
+                glWidget->context()->format().samples()
+            );
             viewport.contextProfile = profileToString(glWidget->context()->format().profile());
 
             auto* previousContext = QOpenGLContext::currentContext();
@@ -1031,11 +1084,11 @@ void Gui::GpuDiagnosticsDialog::showDialog(QWidget* parent)
     auto* copyJson = buttons->addButton(QObject::tr("Copy JSON"), QDialogButtonBox::ActionRole);
     auto* copyText = buttons->addButton(QObject::tr("Copy Text"), QDialogButtonBox::ActionRole);
     auto* saveJson = buttons->addButton(QObject::tr("Save JSON..."), QDialogButtonBox::ActionRole);
-    QObject::connect(copyJson, &QPushButton::clicked, [&json]() {
-        QApplication::clipboard()->setText(json);
+    QObject::connect(copyJson, &QPushButton::clicked, [&dialog, &json]() {
+        copyReportToClipboard(&dialog, json);
     });
-    QObject::connect(copyText, &QPushButton::clicked, [&text]() {
-        QApplication::clipboard()->setText(text);
+    QObject::connect(copyText, &QPushButton::clicked, [&dialog, &text]() {
+        copyReportToClipboard(&dialog, text);
     });
     QObject::connect(saveJson, &QPushButton::clicked, [&dialog, &json]() {
         const auto fileName = QFileDialog::getSaveFileName(
@@ -1048,16 +1101,7 @@ void Gui::GpuDiagnosticsDialog::showDialog(QWidget* parent)
             return;
         }
 
-        QFile file(fileName);
-        if (!file.open(QIODevice::WriteOnly | QIODevice::Text)) {
-            QMessageBox::warning(
-                &dialog,
-                QObject::tr("Save GPU Diagnostics"),
-                QObject::tr("Could not write the diagnostics report.")
-            );
-            return;
-        }
-        file.write(json.toUtf8());
+        saveJsonReport(&dialog, fileName, json);
     });
     QObject::connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
     layout->addWidget(buttons);
