@@ -16,6 +16,7 @@ add_executable(Gui_tests_run
         StyleParameters/YamlParameterSourceTest.cpp
         InputHintTest.cpp
         ProjectedSegmentDeduplication.cpp
+        ScreenSpaceEdgeGeometry.cpp
         SelectionTest.cpp
 )
 
@@ -87,6 +88,9 @@ if(UNIX AND NOT APPLE AND DEFINED ENV{DISPLAY} AND NOT "$ENV{DISPLAY}" STREQUAL 
             line-smooth
             line-smooth-off
             dedup-screen-space
+            shader-screen-space
+            shader-screen-space-dedup
+            shader-screen-space-overlay
             screen-space-debug
             screen-space-only
             screen-space-overlay
@@ -102,6 +106,20 @@ if(UNIX AND NOT APPLE AND DEFINED ENV{DISPLAY} AND NOT "$ENV{DISPLAY}" STREQUAL 
                     --edge-aa-dedup-tolerance 0.5
                     --edge-aa-stats
                 )
+            endif()
+            if(edge_aa_mode MATCHES "^shader-screen-space")
+                list(APPEND edge_aa_mode_fixture_args
+                    --brep-duplicate-edges
+                    --edge-aa-shader-width 1.5
+                    --edge-aa-stats
+                )
+            endif()
+            if(edge_aa_mode STREQUAL "shader-screen-space-dedup"
+               OR edge_aa_mode STREQUAL "shader-screen-space-overlay")
+                list(APPEND edge_aa_mode_fixture_args --edge-aa-dedup-tolerance 0.5)
+            endif()
+            if(edge_aa_mode STREQUAL "shader-screen-space-overlay")
+                list(APPEND edge_aa_mode_fixture_args --brep-overlays)
             endif()
             add_test(
                 NAME GpuDiagnosticsHarness_brep_${edge_aa_mode}_x11
@@ -123,6 +141,21 @@ if(UNIX AND NOT APPLE AND DEFINED ENV{DISPLAY} AND NOT "$ENV{DISPLAY}" STREQUAL 
                     GpuDiagnosticsHarness_brep_${edge_aa_mode}_x11 PROPERTIES
                     PASS_REGULAR_EXPRESSION
                         "FREECAD_EDGE_AA_DEDUP_STATS input=24 rejected=0 duplicate=12 output=12 tolerance_px=0.500"
+                )
+            endif()
+            if(edge_aa_mode STREQUAL "shader-screen-space")
+                set_tests_properties(
+                    GpuDiagnosticsHarness_brep_${edge_aa_mode}_x11 PROPERTIES
+                    PASS_REGULAR_EXPRESSION
+                        "FREECAD_EDGE_AA_SHADER_STATS input=24 rejected=0 duplicate=0 output=24 vertices=144 draw_calls=1 dpr=1.000 width_logical=1.500 width_physical=1.500 dedup=0 shader_ready=1"
+                )
+            endif()
+            if(edge_aa_mode STREQUAL "shader-screen-space-dedup"
+               OR edge_aa_mode STREQUAL "shader-screen-space-overlay")
+                set_tests_properties(
+                    GpuDiagnosticsHarness_brep_${edge_aa_mode}_x11 PROPERTIES
+                    PASS_REGULAR_EXPRESSION
+                        "FREECAD_EDGE_AA_SHADER_STATS input=24 rejected=0 duplicate=12 output=12 vertices=72 draw_calls=1 dpr=1.000 width_logical=1.500 width_physical=1.500 dedup=1 shader_ready=1"
                 )
             endif()
         endforeach()

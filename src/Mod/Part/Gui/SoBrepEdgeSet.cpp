@@ -25,13 +25,20 @@
 
 #include <algorithm>
 #include <array>
+#include <chrono>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <limits>
 #include <string_view>
+#include <QOpenGLBuffer>
 #include <QOpenGLContext>
 #include <QOpenGLFunctions>
+#include <QOpenGLShaderProgram>
+#include <QSurface>
+#include <QVector2D>
+#include <QVector4D>
+#include <QWindow>
 #include <Inventor/SoPickedPoint.h>
 #include <Inventor/SoPrimitiveVertex.h>
 #include <Inventor/actions/SoGetBoundingBoxAction.h>
@@ -55,6 +62,7 @@
 #include <Base/Color.h>
 #include "SoBrepEdgeSet.h"
 #include "ProjectedSegmentDeduplication.h"
+#include "ScreenSpaceEdgeGeometry.h"
 #include "ViewProviderExt.h"
 
 #include <Gui/Inventor/So3DAnnotation.h>
@@ -271,6 +279,9 @@ enum class EdgeAaDiagnosticMode
     LineSmooth,
     LineSmoothOff,
     DeduplicateScreenSpace,
+    ShaderScreenSpace,
+    ShaderScreenSpaceDeduplicated,
+    ShaderScreenSpaceOverlay,
     ScreenSpaceDebug,
     ScreenSpaceOnly,
     ScreenSpaceOverlay,
@@ -297,6 +308,15 @@ static EdgeAaDiagnosticMode edgeAaDiagnosticMode()
         }
         if (configuredMode == "dedup-screen-space") {
             return EdgeAaDiagnosticMode::DeduplicateScreenSpace;
+        }
+        if (configuredMode == "shader-screen-space") {
+            return EdgeAaDiagnosticMode::ShaderScreenSpace;
+        }
+        if (configuredMode == "shader-screen-space-dedup") {
+            return EdgeAaDiagnosticMode::ShaderScreenSpaceDeduplicated;
+        }
+        if (configuredMode == "shader-screen-space-overlay") {
+            return EdgeAaDiagnosticMode::ShaderScreenSpaceOverlay;
         }
         if (configuredMode == "screen-space-debug") {
             return EdgeAaDiagnosticMode::ScreenSpaceDebug;
@@ -328,6 +348,18 @@ static bool isLineSmoothComparisonMode(EdgeAaDiagnosticMode mode)
     return mode == EdgeAaDiagnosticMode::LineSmooth || mode == EdgeAaDiagnosticMode::LineSmoothOff;
 }
 
+static bool isShaderScreenSpaceOnlyMode(EdgeAaDiagnosticMode mode)
+{
+    return mode == EdgeAaDiagnosticMode::ShaderScreenSpace
+        || mode == EdgeAaDiagnosticMode::ShaderScreenSpaceDeduplicated;
+}
+
+static bool isShaderScreenSpaceMode(EdgeAaDiagnosticMode mode)
+{
+    return isShaderScreenSpaceOnlyMode(mode)
+        || mode == EdgeAaDiagnosticMode::ShaderScreenSpaceOverlay;
+}
+
 static double edgeAaDeduplicationTolerance()
 {
     static const double tolerance = [] {
@@ -350,6 +382,37 @@ static bool edgeAaDeduplicationStatsEnabled()
 {
     const char* value = std::getenv("FREECAD_EDGE_AA_DIAGNOSTIC_STATS");
     return value && std::string_view(value) != "0";
+}
+
+static double edgeAaShaderLogicalWidth()
+{
+    static const double width = [] {
+        const char* value = std::getenv("FREECAD_EDGE_AA_SHADER_WIDTH_PX");
+        if (!value) {
+            return 1.5;
+        }
+
+        char* end = nullptr;
+        const double parsed = std::strtod(value, &end);
+        if (end != value && *end == '\0' && std::isfinite(parsed) && parsed > 0.0) {
+            return parsed;
+        }
+        return 1.5;
+    }();
+    return width;
+}
+
+static double currentDevicePixelRatio()
+{
+    auto* context = QOpenGLContext::currentContext();
+    auto* surface = context ? context->surface() : nullptr;
+    if (surface && surface->surfaceClass() == QSurface::Window) {
+        const double ratio = static_cast<QWindow*>(surface)->devicePixelRatio();
+        if (std::isfinite(ratio) && ratio > 0.0) {
+            return ratio;
+        }
+    }
+    return 1.0;
 }
 
 struct ProjectedPoint
@@ -558,6 +621,193 @@ private:
     bool previousBlend {false};
 };
 
+struct ShaderScreenSpaceRenderResult
+{
+    bool shaderReady {false};
+    std::size_t inputSegments {0};
+    std::size_t rejectedSegments {0};
+    std::size_t duplicateSegments {0};
+    std::size_t outputSegments {0};
+    std::size_t vertexCount {0};
+    double devicePixelRatio {1.0};
+    double logicalWidth {1.5};
+    double physicalWidth {1.5};
+    long long elapsedMicroseconds {0};
+};
+
+struct VertexAttributeState
+{
+    GLint enabled {GL_FALSE};
+    GLint size {4};
+    GLint type {GL_FLOAT};
+    GLint normalized {GL_FALSE};
+    GLint stride {0};
+    GLint bufferBinding {0};
+    void* pointer {nullptr};
+};
+
+static VertexAttributeState captureVertexAttributeState(QOpenGLFunctions* functions, GLuint index)
+{
+    VertexAttributeState state;
+    functions->glGetVertexAttribiv(index, GL_VERTEX_ATTRIB_ARRAY_ENABLED, &state.enabled);
+    functions->glGetVertexAttribiv(index, GL_VERTEX_ATTRIB_ARRAY_SIZE, &state.size);
+    functions->glGetVertexAttribiv(index, GL_VERTEX_ATTRIB_ARRAY_TYPE, &state.type);
+    functions->glGetVertexAttribiv(index, GL_VERTEX_ATTRIB_ARRAY_NORMALIZED, &state.normalized);
+    functions->glGetVertexAttribiv(index, GL_VERTEX_ATTRIB_ARRAY_STRIDE, &state.stride);
+    functions->glGetVertexAttribiv(index, GL_VERTEX_ATTRIB_ARRAY_BUFFER_BINDING, &state.bufferBinding);
+    functions->glGetVertexAttribPointerv(index, GL_VERTEX_ATTRIB_ARRAY_POINTER, &state.pointer);
+    return state;
+}
+
+static void restoreVertexAttributeState(
+    QOpenGLFunctions* functions,
+    GLuint index,
+    const VertexAttributeState& state
+)
+{
+    functions->glBindBuffer(GL_ARRAY_BUFFER, static_cast<GLuint>(state.bufferBinding));
+    functions->glVertexAttribPointer(
+        index,
+        state.size,
+        static_cast<GLenum>(state.type),
+        static_cast<GLboolean>(state.normalized),
+        state.stride,
+        state.pointer
+    );
+    state.enabled == GL_TRUE ? functions->glEnableVertexAttribArray(index)
+                             : functions->glDisableVertexAttribArray(index);
+}
+
+static QOpenGLShaderProgram* screenSpaceEdgeShaderProgram()
+{
+    auto* context = QOpenGLContext::currentContext();
+    if (!context) {
+        return nullptr;
+    }
+
+    constexpr auto objectName = "FreeCAD_BRepEdgeAaDiagnosticShader";
+    if (auto* existing = context->findChild<QOpenGLShaderProgram*>(
+            QString::fromLatin1(objectName),
+            Qt::FindDirectChildrenOnly
+        )) {
+        return existing;
+    }
+
+    auto* program = new QOpenGLShaderProgram(context);
+    program->setObjectName(QString::fromLatin1(objectName));
+    constexpr auto vertexShader = R"(
+#version 120
+attribute vec3 vertexPosition;
+attribute vec3 edgeCoordinates;
+uniform vec2 viewportOrigin;
+uniform vec2 viewportSize;
+varying vec3 edgeData;
+
+void main()
+{
+    vec2 viewportPosition = (vertexPosition.xy - viewportOrigin) / viewportSize;
+    gl_Position = vec4(viewportPosition * 2.0 - 1.0, vertexPosition.z, 1.0);
+    edgeData = edgeCoordinates;
+}
+)";
+    constexpr auto fragmentShader = R"(
+#version 120
+uniform float halfWidth;
+uniform float feather;
+uniform vec4 edgeColor;
+varying vec3 edgeData;
+
+void main()
+{
+    float axialDistance = max(max(-edgeData.x, edgeData.x - edgeData.z), 0.0);
+    float distanceToSegment = length(vec2(axialDistance, edgeData.y));
+    float coverage = 1.0 - smoothstep(halfWidth, halfWidth + feather, distanceToSegment);
+    gl_FragColor = vec4(edgeColor.rgb, edgeColor.a * coverage);
+}
+)";
+
+    const bool compiled = program->addShaderFromSourceCode(QOpenGLShader::Vertex, vertexShader)
+        && program->addShaderFromSourceCode(QOpenGLShader::Fragment, fragmentShader);
+    program->bindAttributeLocation("vertexPosition", 0);
+    program->bindAttributeLocation("edgeCoordinates", 1);
+    if (!compiled || !program->link()) {
+        SoDebugError::postWarning(
+            "SoBrepEdgeSet::screenSpaceEdgeShaderProgram",
+            "%s",
+            program->log().toUtf8().constData()
+        );
+        delete program;
+        return nullptr;
+    }
+    return program;
+}
+
+static bool renderShaderScreenSpaceBatch(const Detail::ScreenSpaceEdgeBatch& batch, const GLint* viewport)
+{
+    if (batch.vertices.empty() || viewport[2] <= 0 || viewport[3] <= 0) {
+        return false;
+    }
+
+    auto* context = QOpenGLContext::currentContext();
+    auto* functions = context ? context->functions() : nullptr;
+    auto* program = screenSpaceEdgeShaderProgram();
+    if (!functions || !program || !program->bind()) {
+        return false;
+    }
+
+    GLint previousArrayBuffer = 0;
+    glGetIntegerv(GL_ARRAY_BUFFER_BINDING, &previousArrayBuffer);
+    const auto positionState = captureVertexAttributeState(functions, 0);
+    const auto edgeState = captureVertexAttributeState(functions, 1);
+
+    QOpenGLBuffer vertexBuffer(QOpenGLBuffer::VertexBuffer);
+    if (!vertexBuffer.create() || !vertexBuffer.bind()) {
+        program->release();
+        return false;
+    }
+    vertexBuffer.allocate(
+        batch.vertices.data(),
+        static_cast<int>(batch.vertices.size() * sizeof(Detail::ScreenSpaceEdgeVertex))
+    );
+
+    program->enableAttributeArray(0);
+    program->setAttributeBuffer(
+        0,
+        GL_FLOAT,
+        offsetof(Detail::ScreenSpaceEdgeVertex, x),
+        3,
+        sizeof(Detail::ScreenSpaceEdgeVertex)
+    );
+    program->enableAttributeArray(1);
+    program->setAttributeBuffer(
+        1,
+        GL_FLOAT,
+        offsetof(Detail::ScreenSpaceEdgeVertex, along),
+        3,
+        sizeof(Detail::ScreenSpaceEdgeVertex)
+    );
+    program->setUniformValue(
+        "viewportOrigin",
+        QVector2D(static_cast<float>(viewport[0]), static_cast<float>(viewport[1]))
+    );
+    program->setUniformValue(
+        "viewportSize",
+        QVector2D(static_cast<float>(viewport[2]), static_cast<float>(viewport[3]))
+    );
+    program->setUniformValue("halfWidth", static_cast<float>(batch.halfWidthPhysical));
+    program->setUniformValue("feather", static_cast<float>(batch.featherPhysical));
+    program->setUniformValue("edgeColor", QVector4D(0.0F, 0.0F, 0.0F, 0.82F));
+
+    functions->glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(batch.vertices.size()));
+
+    vertexBuffer.release();
+    program->release();
+    restoreVertexAttributeState(functions, 0, positionState);
+    restoreVertexAttributeState(functions, 1, edgeState);
+    functions->glBindBuffer(GL_ARRAY_BUFFER, static_cast<GLuint>(previousArrayBuffer));
+    return true;
+}
+
 static void renderScreenSpaceEdgeAaSegment(
     const ProjectedPoint& first,
     const ProjectedPoint& second,
@@ -703,6 +953,137 @@ static void renderScreenSpaceEdgeAa(
     }
 }
 
+static ShaderScreenSpaceRenderResult renderShaderScreenSpaceEdgeAa(
+    SoGLRenderAction* action,
+    const int32_t* indices,
+    int numIndices,
+    EdgeAaDiagnosticMode mode
+)
+{
+    ShaderScreenSpaceRenderResult result;
+    if (!action || !indices || numIndices <= 0 || !isShaderScreenSpaceMode(mode)) {
+        return result;
+    }
+
+    const auto* coordinates = SoCoordinateElement::getInstance(action->getState());
+    if (!coordinates) {
+        return result;
+    }
+
+    SoCacheElement::invalidate(action->getState());
+    GLdouble modelView[16];
+    GLdouble projection[16];
+    GLint viewport[4];
+    glGetDoublev(GL_MODELVIEW_MATRIX, modelView);
+    glGetDoublev(GL_PROJECTION_MATRIX, projection);
+    glGetIntegerv(GL_VIEWPORT, viewport);
+
+    std::vector<Detail::ProjectedSegment> projectedSegments;
+    int32_t previous = -1;
+    for (int index = 0; index < numIndices; ++index) {
+        const int32_t current = indices[index];
+        if (current < 0) {
+            previous = -1;
+            continue;
+        }
+        if (previous >= 0) {
+            Detail::ProjectedSegment segment;
+            if (previous < coordinates->getNum() && current < coordinates->getNum()) {
+                const auto first
+                    = projectPoint(coordinates->get3(previous), modelView, projection, viewport);
+                const auto second
+                    = projectPoint(coordinates->get3(current), modelView, projection, viewport);
+                segment = {
+                    first.x,
+                    first.y,
+                    first.z,
+                    second.x,
+                    second.y,
+                    second.z,
+                    first.valid && second.valid,
+                };
+            }
+            projectedSegments.push_back(segment);
+        }
+        previous = current;
+    }
+
+    result.inputSegments = projectedSegments.size();
+    const Detail::ProjectedViewport projectedViewport {
+        static_cast<double>(viewport[0]),
+        static_cast<double>(viewport[1]),
+        static_cast<double>(viewport[0] + viewport[2]),
+        static_cast<double>(viewport[1] + viewport[3]),
+    };
+    const bool deduplicate = mode != EdgeAaDiagnosticMode::ShaderScreenSpace;
+    std::vector<Detail::ProjectedSegment> selectedSegments;
+    if (deduplicate) {
+        const auto deduplicated = Detail::deduplicateProjectedSegments(
+            projectedSegments,
+            projectedViewport,
+            edgeAaDeduplicationTolerance()
+        );
+        selectedSegments = deduplicated.segments;
+        result.rejectedSegments = deduplicated.stats.rejectedSegments;
+        result.duplicateSegments = deduplicated.stats.duplicateSegments;
+    }
+    else {
+        selectedSegments.reserve(projectedSegments.size());
+        for (const auto& segment : projectedSegments) {
+            if (Detail::isProjectedSegmentRenderable(segment, projectedViewport)) {
+                selectedSegments.push_back(segment);
+            }
+            else {
+                ++result.rejectedSegments;
+            }
+        }
+    }
+    result.outputSegments = selectedSegments.size();
+
+    result.devicePixelRatio = currentDevicePixelRatio();
+    result.logicalWidth = edgeAaShaderLogicalWidth();
+    auto batch = Detail::buildScreenSpaceEdgeBatch(
+        selectedSegments,
+        result.logicalWidth,
+        result.devicePixelRatio
+    );
+    result.rejectedSegments += batch.rejectedSegments;
+    result.vertexCount = batch.vertices.size();
+    result.physicalWidth = result.logicalWidth * result.devicePixelRatio;
+
+    const auto start = std::chrono::steady_clock::now();
+    {
+        ScopedScreenSpaceEdgeAaState state(viewport);
+        result.shaderReady = renderShaderScreenSpaceBatch(batch, viewport);
+    }
+    result.elapsedMicroseconds = std::chrono::duration_cast<std::chrono::microseconds>(
+                                     std::chrono::steady_clock::now() - start
+    )
+                                     .count();
+
+    if (edgeAaDeduplicationStatsEnabled()) {
+        std::fprintf(
+            stderr,
+            "FREECAD_EDGE_AA_SHADER_STATS input=%zu rejected=%zu duplicate=%zu output=%zu "
+            "vertices=%zu draw_calls=%d dpr=%.3f width_logical=%.3f width_physical=%.3f "
+            "dedup=%d shader_ready=%d elapsed_us=%lld\n",
+            result.inputSegments,
+            result.rejectedSegments,
+            result.duplicateSegments,
+            result.outputSegments,
+            result.vertexCount,
+            result.shaderReady ? 1 : 0,
+            result.devicePixelRatio,
+            result.logicalWidth,
+            result.physicalWidth,
+            deduplicate ? 1 : 0,
+            result.shaderReady ? 1 : 0,
+            result.elapsedMicroseconds
+        );
+    }
+    return result;
+}
+
 void SoBrepEdgeSet::initClass()
 {
     SO_NODE_INIT_CLASS(SoBrepEdgeSet, SoIndexedLineSet, "IndexedLineSet");
@@ -756,6 +1137,23 @@ void SoBrepEdgeSet::GLRender(SoGLRenderAction* action)
             this->coordIndex.getNum(),
             diagnosticMode
         );
+        return;
+    }
+    if (isShaderScreenSpaceOnlyMode(diagnosticMode)) {
+        const auto shaderResult = renderShaderScreenSpaceEdgeAa(
+            action,
+            this->coordIndex.getValues(0),
+            this->coordIndex.getNum(),
+            diagnosticMode
+        );
+        if (!shaderResult.shaderReady) {
+            renderScreenSpaceEdgeAa(
+                action,
+                this->coordIndex.getValues(0),
+                this->coordIndex.getNum(),
+                EdgeAaDiagnosticMode::ScreenSpaceOnly
+            );
+        }
         return;
     }
     if (diagnosticMode == EdgeAaDiagnosticMode::SuppressOverlays) {
@@ -883,6 +1281,15 @@ void SoBrepEdgeSet::GLRender(SoGLRenderAction* action)
     }
     else {
         renderBaseEdges();
+    }
+
+    if (diagnosticMode == EdgeAaDiagnosticMode::ShaderScreenSpaceOverlay) {
+        renderShaderScreenSpaceEdgeAa(
+            action,
+            this->coordIndex.getValues(0),
+            this->coordIndex.getNum(),
+            diagnosticMode
+        );
     }
 
     // Workaround for #0000433

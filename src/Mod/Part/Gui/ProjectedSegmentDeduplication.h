@@ -62,6 +62,20 @@ struct ProjectedSegmentKeyHash
     }
 };
 
+inline bool isProjectedSegmentRenderable(const ProjectedSegment& segment, const ProjectedViewport& viewport)
+{
+    const bool finite = std::isfinite(segment.firstX) && std::isfinite(segment.firstY)
+        && std::isfinite(segment.firstZ) && std::isfinite(segment.secondX)
+        && std::isfinite(segment.secondY) && std::isfinite(segment.secondZ);
+    const bool fullyOffscreen = (segment.firstX < viewport.left && segment.secondX < viewport.left)
+        || (segment.firstX > viewport.right && segment.secondX > viewport.right)
+        || (segment.firstY < viewport.bottom && segment.secondY < viewport.bottom)
+        || (segment.firstY > viewport.top && segment.secondY > viewport.top);
+    const double dx = segment.secondX - segment.firstX;
+    const double dy = segment.secondY - segment.firstY;
+    return segment.valid && finite && !fullyOffscreen && std::hypot(dx, dy) > 1.0e-6;
+}
+
 inline ProjectedSegmentDeduplicationResult deduplicateProjectedSegments(
     const std::vector<ProjectedSegment>& input,
     const ProjectedViewport& viewport,
@@ -93,16 +107,7 @@ inline ProjectedSegmentDeduplicationResult deduplicateProjectedSegments(
     };
 
     for (auto segment : input) {
-        const bool finite = std::isfinite(segment.firstX) && std::isfinite(segment.firstY)
-            && std::isfinite(segment.firstZ) && std::isfinite(segment.secondX)
-            && std::isfinite(segment.secondY) && std::isfinite(segment.secondZ);
-        const bool fullyOffscreen = (segment.firstX < viewport.left && segment.secondX < viewport.left)
-            || (segment.firstX > viewport.right && segment.secondX > viewport.right)
-            || (segment.firstY < viewport.bottom && segment.secondY < viewport.bottom)
-            || (segment.firstY > viewport.top && segment.secondY > viewport.top);
-        const double dx = segment.secondX - segment.firstX;
-        const double dy = segment.secondY - segment.firstY;
-        if (!segment.valid || !finite || fullyOffscreen || std::hypot(dx, dy) <= 1.0e-6) {
+        if (!isProjectedSegmentRenderable(segment, viewport)) {
             ++result.stats.rejectedSegments;
             continue;
         }

@@ -151,6 +151,7 @@ SET(PartGui_SRCS
     PropertyEnumAttacherItem.cpp
     PropertyEnumAttacherItem.h
     ProjectedSegmentDeduplication.h
+    ScreenSpaceEdgeGeometry.h
     SoFCShapeObject.cpp
     SoFCShapeObject.h
     SoBrepEdgeSet.cpp

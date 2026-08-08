@@ -243,6 +243,12 @@ int main(int argc, char* argv[])
         QStringLiteral("edge-aa-stats"),
         QStringLiteral("Report projected segment de-duplication statistics to stderr.")
     );
+    const QCommandLineOption edgeAaShaderWidthOption(
+        QStringLiteral("edge-aa-shader-width"),
+        QStringLiteral("Set the shader edge core width in logical pixels."),
+        QStringLiteral("pixels"),
+        QStringLiteral("1.5")
+    );
     parser.addOptions({
         jsonOption,
         textOption,
@@ -257,6 +263,7 @@ int main(int argc, char* argv[])
         edgeAaModeOption,
         edgeAaDedupToleranceOption,
         edgeAaStatsOption,
+        edgeAaShaderWidthOption,
     });
     parser.process(qtApplication);
 
@@ -270,12 +277,15 @@ int main(int argc, char* argv[])
     const int autoExitMs = std::min(requestedAutoExitMs, maximumAutoExitMs);
 
     const auto edgeAaMode = parser.value(edgeAaModeOption);
-    const std::array<QString, 9> supportedEdgeAaModes {
+    const std::array<QString, 12> supportedEdgeAaModes {
         QStringLiteral("disabled"),
         QStringLiteral("hide"),
         QStringLiteral("line-smooth"),
         QStringLiteral("line-smooth-off"),
         QStringLiteral("dedup-screen-space"),
+        QStringLiteral("shader-screen-space"),
+        QStringLiteral("shader-screen-space-dedup"),
+        QStringLiteral("shader-screen-space-overlay"),
         QStringLiteral("screen-space-debug"),
         QStringLiteral("screen-space-only"),
         QStringLiteral("screen-space-overlay"),
@@ -285,7 +295,8 @@ int main(int argc, char* argv[])
         == supportedEdgeAaModes.end()) {
         QTextStream(stderr) << "--edge-aa-mode must be disabled, hide, line-smooth, "
                                "line-smooth-off, dedup-screen-space, screen-space-debug, "
-                               "screen-space-only, screen-space-overlay, or "
+                               "screen-space-only, screen-space-overlay, shader-screen-space, "
+                               "shader-screen-space-dedup, shader-screen-space-overlay, or "
                                "suppress-overlays.\n";
         App::Application::destruct();
         return 2;
@@ -297,6 +308,10 @@ int main(int argc, char* argv[])
         qputenv("FREECAD_EDGE_AA_DIAGNOSTIC", edgeAaMode.toUtf8());
     }
 
+    const bool shaderMode = edgeAaMode.startsWith(QStringLiteral("shader-screen-space"));
+    const bool dedupMode = edgeAaMode == QStringLiteral("dedup-screen-space")
+        || edgeAaMode == QStringLiteral("shader-screen-space-dedup")
+        || edgeAaMode == QStringLiteral("shader-screen-space-overlay");
     bool dedupToleranceOk = false;
     const double dedupTolerance = parser.value(edgeAaDedupToleranceOption).toDouble(&dedupToleranceOk);
     if (!dedupToleranceOk || !std::isfinite(dedupTolerance) || dedupTolerance <= 0.0) {
@@ -304,11 +319,24 @@ int main(int argc, char* argv[])
         App::Application::destruct();
         return 2;
     }
-    if (edgeAaMode == QStringLiteral("dedup-screen-space")) {
+    if (dedupMode) {
         qputenv("FREECAD_EDGE_AA_DEDUP_TOLERANCE_PX", QByteArray::number(dedupTolerance, 'g', 15));
     }
     else {
         qunsetenv("FREECAD_EDGE_AA_DEDUP_TOLERANCE_PX");
+    }
+    bool shaderWidthOk = false;
+    const double shaderWidth = parser.value(edgeAaShaderWidthOption).toDouble(&shaderWidthOk);
+    if (!shaderWidthOk || !std::isfinite(shaderWidth) || shaderWidth <= 0.0) {
+        QTextStream(stderr) << "--edge-aa-shader-width must be a positive number.\n";
+        App::Application::destruct();
+        return 2;
+    }
+    if (shaderMode) {
+        qputenv("FREECAD_EDGE_AA_SHADER_WIDTH_PX", QByteArray::number(shaderWidth, 'g', 15));
+    }
+    else {
+        qunsetenv("FREECAD_EDGE_AA_SHADER_WIDTH_PX");
     }
     // Enable statistics only for the settled evidence redraw so early camera
     // setup frames do not produce misleading counts.
@@ -324,8 +352,11 @@ int main(int argc, char* argv[])
         App::Application::destruct();
         return 2;
     }
-    if (parser.isSet(edgeAaStatsOption) && edgeAaMode != QStringLiteral("dedup-screen-space")) {
-        QTextStream(stderr) << "--edge-aa-stats requires --edge-aa-mode dedup-screen-space.\n";
+    if (parser.isSet(edgeAaStatsOption) && edgeAaMode != QStringLiteral("dedup-screen-space")
+        && !shaderMode) {
+        QTextStream(
+            stderr
+        ) << "--edge-aa-stats requires a de-duplication or shader screen-space mode.\n";
         App::Application::destruct();
         return 2;
     }
