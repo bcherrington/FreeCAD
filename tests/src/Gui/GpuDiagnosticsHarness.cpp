@@ -46,6 +46,7 @@ namespace
 constexpr int defaultAutoExitMs = 2000;
 constexpr int maximumAutoExitMs = 60000;
 constexpr int shutdownGraceMs = 250;
+constexpr int fixtureSettleMs = 250;
 
 void closeDiagnosticsDialogs()
 {
@@ -242,9 +243,11 @@ int main(int argc, char* argv[])
     const int autoExitMs = std::min(requestedAutoExitMs, maximumAutoExitMs);
 
     const auto edgeAaMode = parser.value(edgeAaModeOption);
-    const std::array<QString, 6> supportedEdgeAaModes {
+    const std::array<QString, 8> supportedEdgeAaModes {
         QStringLiteral("disabled"),
         QStringLiteral("hide"),
+        QStringLiteral("line-smooth"),
+        QStringLiteral("line-smooth-off"),
         QStringLiteral("screen-space-debug"),
         QStringLiteral("screen-space-only"),
         QStringLiteral("screen-space-overlay"),
@@ -252,8 +255,9 @@ int main(int argc, char* argv[])
     };
     if (std::find(supportedEdgeAaModes.begin(), supportedEdgeAaModes.end(), edgeAaMode)
         == supportedEdgeAaModes.end()) {
-        QTextStream(stderr) << "--edge-aa-mode must be disabled, hide, screen-space-debug, "
-                               "screen-space-only, screen-space-overlay, or suppress-overlays.\n";
+        QTextStream(stderr) << "--edge-aa-mode must be disabled, hide, line-smooth, "
+                               "line-smooth-off, screen-space-debug, screen-space-only, "
+                               "screen-space-overlay, or suppress-overlays.\n";
         App::Application::destruct();
         return 2;
     }
@@ -372,7 +376,9 @@ int main(int argc, char* argv[])
         QObject::connect(&contextPoll, &QTimer::timeout, [&]() {
             auto* glWidget = view.findChild<QOpenGLWidget*>();
             const bool contextReady = glWidget && glWidget->context() && glWidget->isValid();
-            if (contextReady || contextDeadline.elapsed() >= contextWaitMs) {
+            const bool fixtureReady = !parser.isSet(brepFixtureOption)
+                || contextDeadline.elapsed() >= fixtureSettleMs;
+            if ((contextReady && fixtureReady) || contextDeadline.elapsed() >= contextWaitMs) {
                 collectReport(true);
             }
         });

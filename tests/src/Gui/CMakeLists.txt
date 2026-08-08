@@ -83,6 +83,8 @@ if(UNIX AND NOT APPLE AND DEFINED ENV{DISPLAY} AND NOT "$ENV{DISPLAY}" STREQUAL 
 
         foreach(edge_aa_mode
             hide
+            line-smooth
+            line-smooth-off
             screen-space-debug
             screen-space-only
             screen-space-overlay

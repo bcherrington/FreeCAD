@@ -266,6 +266,8 @@ enum class EdgeAaDiagnosticMode
 {
     Disabled,
     Hide,
+    LineSmooth,
+    LineSmoothOff,
     ScreenSpaceDebug,
     ScreenSpaceOnly,
     ScreenSpaceOverlay,
@@ -283,6 +285,12 @@ static EdgeAaDiagnosticMode edgeAaDiagnosticMode()
         const std::string_view configuredMode(value);
         if (configuredMode == "hide") {
             return EdgeAaDiagnosticMode::Hide;
+        }
+        if (configuredMode == "line-smooth") {
+            return EdgeAaDiagnosticMode::LineSmooth;
+        }
+        if (configuredMode == "line-smooth-off") {
+            return EdgeAaDiagnosticMode::LineSmoothOff;
         }
         if (configuredMode == "screen-space-debug") {
             return EdgeAaDiagnosticMode::ScreenSpaceDebug;
@@ -306,6 +314,11 @@ static bool isScreenSpaceOnlyMode(EdgeAaDiagnosticMode mode)
 {
     return mode == EdgeAaDiagnosticMode::ScreenSpaceDebug
         || mode == EdgeAaDiagnosticMode::ScreenSpaceOnly;
+}
+
+static bool isLineSmoothComparisonMode(EdgeAaDiagnosticMode mode)
+{
+    return mode == EdgeAaDiagnosticMode::LineSmooth || mode == EdgeAaDiagnosticMode::LineSmoothOff;
 }
 
 struct ProjectedPoint
@@ -455,6 +468,61 @@ private:
     bool previousLineSmooth {false};
 };
 
+class ScopedLineSmoothingState
+{
+public:
+    explicit ScopedLineSmoothingState(bool enabled)
+    {
+        previousLineSmooth = glIsEnabled(GL_LINE_SMOOTH) == GL_TRUE;
+        previousBlend = glIsEnabled(GL_BLEND) == GL_TRUE;
+        glGetIntegerv(GL_LINE_SMOOTH_HINT, &previousLineSmoothHint);
+        glGetIntegerv(GL_BLEND_SRC_RGB, &previousBlendSrcRgb);
+        glGetIntegerv(GL_BLEND_DST_RGB, &previousBlendDstRgb);
+        glGetIntegerv(GL_BLEND_SRC_ALPHA, &previousBlendSrcAlpha);
+        glGetIntegerv(GL_BLEND_DST_ALPHA, &previousBlendDstAlpha);
+        if (auto* context = QOpenGLContext::currentContext()) {
+            openGlFunctions = context->functions();
+        }
+
+        enabled ? glEnable(GL_LINE_SMOOTH) : glDisable(GL_LINE_SMOOTH);
+        glHint(GL_LINE_SMOOTH_HINT, GL_NICEST);
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    }
+
+    ~ScopedLineSmoothingState()
+    {
+        glHint(GL_LINE_SMOOTH_HINT, static_cast<GLenum>(previousLineSmoothHint));
+        if (openGlFunctions) {
+            openGlFunctions->glBlendFuncSeparate(
+                static_cast<GLenum>(previousBlendSrcRgb),
+                static_cast<GLenum>(previousBlendDstRgb),
+                static_cast<GLenum>(previousBlendSrcAlpha),
+                static_cast<GLenum>(previousBlendDstAlpha)
+            );
+        }
+        else {
+            glBlendFunc(
+                static_cast<GLenum>(previousBlendSrcRgb),
+                static_cast<GLenum>(previousBlendDstRgb)
+            );
+        }
+
+        previousBlend ? glEnable(GL_BLEND) : glDisable(GL_BLEND);
+        previousLineSmooth ? glEnable(GL_LINE_SMOOTH) : glDisable(GL_LINE_SMOOTH);
+    }
+
+private:
+    GLint previousLineSmoothHint {GL_DONT_CARE};
+    GLint previousBlendSrcRgb {GL_ONE};
+    GLint previousBlendDstRgb {GL_ZERO};
+    GLint previousBlendSrcAlpha {GL_ONE};
+    GLint previousBlendDstAlpha {GL_ZERO};
+    QOpenGLFunctions* openGlFunctions {nullptr};
+    bool previousLineSmooth {false};
+    bool previousBlend {false};
+};
+
 static void renderScreenSpaceEdgeAaSegment(
     const ProjectedPoint& first,
     const ProjectedPoint& second,
@@ -573,6 +641,14 @@ void SoBrepEdgeSet::GLRender(SoGLRenderAction* action)
     selCounter.checkRenderCache(state);
 
     const auto diagnosticMode = edgeAaDiagnosticMode();
+    const auto renderBaseEdges = [&] {
+        if (isLineSmoothComparisonMode(diagnosticMode)) {
+            ScopedLineSmoothingState lineSmoothing(diagnosticMode == EdgeAaDiagnosticMode::LineSmooth);
+            inherited::GLRender(action);
+            return;
+        }
+        inherited::GLRender(action);
+    };
     if (diagnosticMode == EdgeAaDiagnosticMode::Hide) {
         return;
     }
@@ -586,7 +662,7 @@ void SoBrepEdgeSet::GLRender(SoGLRenderAction* action)
         return;
     }
     if (diagnosticMode == EdgeAaDiagnosticMode::SuppressOverlays) {
-        inherited::GLRender(action);
+        renderBaseEdges();
         return;
     }
 
@@ -704,12 +780,12 @@ void SoBrepEdgeSet::GLRender(SoGLRenderAction* action)
         state->push();
         SoDepthBufferElement::set(state, FALSE, FALSE, SoDepthBufferElement::ALWAYS, SbVec2f(0.0f, 1.0f));
 
-        inherited::GLRender(action);
+        renderBaseEdges();
 
         state->pop();
     }
     else {
-        inherited::GLRender(action);
+        renderBaseEdges();
     }
 
     // Workaround for #0000433
