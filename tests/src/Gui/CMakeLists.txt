@@ -306,6 +306,23 @@ if(UNIX AND NOT APPLE AND DEFINED ENV{DISPLAY} AND NOT "$ENV{DISPLAY}" STREQUAL 
                 "FREECAD_BREP_DOCUMENT_FIXTURE revision=009-document-v1 composition=RoundedHousing,RoundedBoss,RoundedTransparentCanopy,HiddenRoundedSolid selected=RoundedBoss preselected=RoundedHousing hidden=HiddenRoundedSolid transparent=RoundedTransparentCanopy.*FREECAD_BREP_DOCUMENT_FRAME visible_center_pixels=[0-9]+ hidden_red_pixels=[0-9]+ navigation_cube_pixels=[0-9]+ selection_pixels=[0-9]+ preselection_pixels=[0-9]+ canopy_overlap_pixels=[0-9]+"
         )
 
+        add_test(
+            NAME GpuDiagnosticsHarness_brep_document-tessellation-profile_x11
+            COMMAND GpuDiagnosticsHarness_run
+                --brep-fixture
+                --brep-document-fixture
+                --brep-document-tessellation
+                --samples 4
+                --auto-exit-ms 3000
+        )
+        set_tests_properties(
+            GpuDiagnosticsHarness_brep_document-tessellation-profile_x11 PROPERTIES
+            ENVIRONMENT "QT_QPA_PLATFORM=xcb"
+            TIMEOUT 10
+            PASS_REGULAR_EXPRESSION
+                "FREECAD_BREP_DOCUMENT_TESSELLATION_RELATION outcome=pass baseline=[a-z_]+ finer=[a-z_]+ angle=[a-z_]+ scale=[a-z_]+ triangle_cap=3000000 memory_cap_bytes=67108864 time_cap_us=1200000 baseline_triangles=[0-9]+ finer_triangles=[0-9]+ angle_triangles=[0-9]+ scale_triangles=[0-9]+ cap_probe_fallback=triangle_cap cap_probe_triangles=[0-9]+ fallback_count=1"
+        )
+
         foreach(edge_aa_mode
             hide
             line-smooth

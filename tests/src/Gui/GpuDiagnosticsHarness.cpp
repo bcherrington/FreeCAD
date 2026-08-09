@@ -8,6 +8,24 @@
 #include <string_view>
 #include <vector>
 
+#ifdef FREECAD_GPU_DIAGNOSTICS_HAS_PART
+# include <Base/Tools.h>
+# include <BRepBuilderAPI_Copy.hxx>
+# include <BRepMesh_IncrementalMesh.hxx>
+# include <BRep_Tool.hxx>
+# include <BRepTools.hxx>
+# include <IMeshTools_Parameters.hxx>
+# include <Precision.hxx>
+# include <Mod/Part/App/PartFeature.h>
+# include <Mod/Part/App/Tools.h>
+# include <Poly_Triangulation.hxx>
+# include <TopAbs.hxx>
+# include <TopExp_Explorer.hxx>
+# include <TopTools_IndexedMapOfShape.hxx>
+# include <TopLoc_Location.hxx>
+# include <TopoDS.hxx>
+#endif
+
 #include <QApplication>
 #include <QCommandLineParser>
 #include <QDialog>
@@ -60,6 +78,11 @@ constexpr int defaultAutoExitMs = 2000;
 constexpr int maximumAutoExitMs = 60000;
 constexpr int shutdownGraceMs = 250;
 constexpr int fixtureSettleMs = 250;
+constexpr long long nanosecondsPerMicrosecond = 1000LL;
+constexpr long long approximateBytesPerTriangle = 48LL;
+constexpr long long approximateBytesPerNode = 32LL;
+constexpr auto documentName = "GpuDiagnosticsBrepDocument";
+constexpr auto fixtureRevision = "009-document-v1";
 
 void closeDiagnosticsDialogs()
 {
@@ -213,8 +236,6 @@ void installBrepFixture(
 
 bool installDocumentBrepFixture(Gui::View3DInventorViewer& view)
 {
-    constexpr auto documentName = "GpuDiagnosticsBrepDocument";
-    constexpr auto fixtureRevision = "009-document-v1";
     const char* const fixtureComposition[]
         = {"RoundedHousing", "RoundedBoss", "RoundedTransparentCanopy", "HiddenRoundedSolid"};
     const char* const fixtureSelected = "RoundedBoss";
@@ -323,6 +344,202 @@ doc.recompute()
         fixtureTransparent
     );
     return true;
+}
+
+struct TessellationProfileResult
+{
+    const char* profile = "";
+    double deviation = 0.0;
+    double angularDeg = 0.0;
+    double viewScale = 0.0;
+    double effectiveDeviation = 0.0;
+    double computedDeflection = 0.0;
+    int triangles = 0;
+    int nodes = 0;
+    long long approxMemoryBytes = 0LL;
+    long long meshTimeUs = 0LL;
+    const char* fallback = "none";
+};
+
+struct TessellationProfileInput
+{
+    const char* name;
+    double deviation;
+    double angularDeg;
+    double viewScale;
+    int triangleCap;
+};
+
+void runTessellationProfile(
+    const TopoDS_Shape& sourceShape,
+    const TessellationProfileInput& input,
+    long long memoryCapBytes,
+    long long timeCapUs,
+    TessellationProfileResult& result
+)
+{
+    const double safeViewScale = std::max(0.25, input.viewScale);
+    TopoDS_Shape copiedShape = BRepBuilderAPI_Copy(sourceShape).Shape();
+    IMeshTools_Parameters params;
+
+    result.profile = input.name;
+    result.deviation = input.deviation;
+    result.angularDeg = input.angularDeg;
+    result.viewScale = safeViewScale;
+    result.effectiveDeviation = input.deviation / safeViewScale;
+    result.computedDeflection = Part::Tools::getDeflection(copiedShape, result.effectiveDeviation);
+    if (result.computedDeflection < Precision::Confusion()) {
+        result.computedDeflection = Precision::Confusion();
+    }
+    params.Deflection = result.computedDeflection;
+    params.Relative = Standard_False;
+    params.Angle = Base::toRadians(input.angularDeg);
+    params.InParallel = Standard_True;
+    params.AllowQualityDecrease = Standard_True;
+
+# if OCC_VERSION_HEX < 0x070600
+    BRepTools::Clean(copiedShape);
+# else
+    BRepTools::Clean(copiedShape, Standard_True);
+# endif
+
+    QElapsedTimer timer;
+    timer.start();
+    [[maybe_unused]] BRepMesh_IncrementalMesh mesher(copiedShape, params);
+    result.meshTimeUs = timer.nsecsElapsed() / nanosecondsPerMicrosecond;
+
+    TopTools_IndexedMapOfShape faceMap;
+    TopExp::MapShapes(copiedShape, TopAbs_FACE, faceMap);
+    TopLoc_Location location;
+    int triangles = 0;
+    int nodes = 0;
+    for (int index = 1; index <= faceMap.Extent(); ++index) {
+        Handle(Poly_Triangulation)
+            mesh = BRep_Tool::Triangulation(TopoDS::Face(faceMap(index)), location);
+        if (mesh.IsNull()) {
+            continue;
+        }
+        triangles += mesh->NbTriangles();
+        nodes += mesh->NbNodes();
+    }
+    result.triangles = triangles;
+    result.nodes = nodes;
+    result.approxMemoryBytes = static_cast<long long>(triangles) * approximateBytesPerTriangle
+        + static_cast<long long>(nodes) * approximateBytesPerNode;
+
+    if (result.triangles == 0 || result.nodes == 0) {
+        result.fallback = "mesh_failed";
+    }
+    else if (result.triangles > input.triangleCap) {
+        result.fallback = "triangle_cap";
+    }
+    else if (result.approxMemoryBytes > memoryCapBytes) {
+        result.fallback = "memory_cap";
+    }
+    else if (result.meshTimeUs > timeCapUs) {
+        result.fallback = "time_cap";
+    }
+
+    // Estimated memory bytes from face mesh counts.
+    std::fprintf(
+        stderr,
+        "FREECAD_BREP_DOCUMENT_TESSELLATION profile=%s deviation=%0.6f angular_deg=%0.3f "
+        "effective_deviation=%0.6f view_scale=%0.3f computed_deflection=%0.6f triangles=%d "
+        "nodes=%d approximate_memory_bytes=%lld mesh_time_us=%lld triangle_cap=%d "
+        "memory_cap_bytes=%lld time_cap_us=%lld fallback=%s\n",
+        result.profile,
+        result.deviation,
+        result.angularDeg,
+        result.effectiveDeviation,
+        result.viewScale,
+        result.computedDeflection,
+        result.triangles,
+        result.nodes,
+        result.approxMemoryBytes,
+        result.meshTimeUs,
+        input.triangleCap,
+        memoryCapBytes,
+        timeCapUs,
+        result.fallback
+    );
+}
+
+bool runDocumentTessellationProbe()
+{
+    constexpr int triangleCap = 3000000;
+    constexpr long long memoryCapBytes = 64LL * 1024LL * 1024LL;
+    constexpr long long timeCapUs = 1200000LL;
+    constexpr auto fixtureMeshObject = "RoundedHousing";
+
+    auto* appDocument = App::GetApplication().getDocument(documentName);
+    if (!appDocument) {
+        std::fprintf(stderr, "Could not locate the document BRep fixture.\n");
+        return false;
+    }
+
+    auto* sourceObject = dynamic_cast<Part::Feature*>(appDocument->getObject(fixtureMeshObject));
+    if (!sourceObject) {
+        std::fprintf(stderr, "Could not access fixture mesh object %s.\n", fixtureMeshObject);
+        return false;
+    }
+
+    const TopoDS_Shape sourceShape = sourceObject->Shape.getValue();
+    if (sourceShape.IsNull()) {
+        std::fprintf(stderr, "Fixture mesh object %s is empty.\n", fixtureMeshObject);
+        return false;
+    }
+
+    const std::array<TessellationProfileInput, 5> profiles {
+        TessellationProfileInput {"baseline", 0.2, 28.65, 1.0, 3000000},
+        TessellationProfileInput {"finer", 0.05, 28.65, 1.0, 3000000},
+        TessellationProfileInput {"angle_reduced", 0.2, 4.0, 1.0, 3000000},
+        TessellationProfileInput {"view_scale_simulated", 0.2, 28.65, 2.25, 3000000},
+        TessellationProfileInput {"triangle_cap_probe", 0.2, 28.65, 1.0, 1},
+    };
+
+    std::array<TessellationProfileResult, 5> results;
+    for (std::size_t index = 0; index < profiles.size(); ++index) {
+        runTessellationProfile(sourceShape, profiles[index], memoryCapBytes, timeCapUs, results[index]);
+    }
+
+    const auto fallbackCount = std::count_if(results.begin(), results.end(), [](const auto& result) {
+        return std::string_view(result.fallback) != std::string_view("none");
+    });
+    const bool baselineOk = results[0].triangles >= 1000;
+    const bool finerOk = results[1].triangles >= results[0].triangles;
+    const bool angleOk = results[2].triangles >= results[0].triangles;
+    const bool scaleOk = results[3].triangles >= results[0].triangles;
+    const bool capProbeOk = results[4].fallback == std::string_view("triangle_cap");
+    const bool relationOk = baselineOk && finerOk && angleOk && scaleOk && capProbeOk
+        && (fallbackCount == 1);
+
+    std::fprintf(
+        stderr,
+        "FREECAD_BREP_DOCUMENT_TESSELLATION_RELATION outcome=%s baseline=%s finer=%s angle=%s "
+        "scale=%s "
+        "triangle_cap=%d memory_cap_bytes=%lld time_cap_us=%lld "
+        "baseline_triangles=%d finer_triangles=%d angle_triangles=%d scale_triangles=%d "
+        "cap_probe_fallback=%s cap_probe_triangles=%d fallback_count=%td\n",
+        relationOk ? "pass" : "fail",
+        results[0].fallback,
+        results[1].fallback,
+        results[2].fallback,
+        results[3].fallback,
+        triangleCap,
+        memoryCapBytes,
+        timeCapUs,
+        results[0].triangles,
+        results[1].triangles,
+        results[2].triangles,
+        results[3].triangles,
+        results[4].fallback,
+        results[4].triangles,
+        fallbackCount
+    );
+    if (!relationOk) {
+        std::fprintf(stderr, "Mesh profile relation check failed.\n");
+    }
+    return relationOk;
 }
 
 bool validateDocumentBrepFrame(const QImage& frame)
@@ -467,6 +684,10 @@ int main(int argc, char* argv[])
             "Use rounded, selected, preselected, and hidden Part document objects for the fixture."
         )
     );
+    const QCommandLineOption brepDocumentTessellationOption(
+        QStringLiteral("brep-document-tessellation"),
+        QStringLiteral("Run adaptive tessellation probes on the document BRep fixture.")
+    );
     const QCommandLineOption screenshotOption(
         QStringLiteral("screenshot"),
         QStringLiteral("Save the rendered viewport to this path."),
@@ -552,6 +773,7 @@ int main(int argc, char* argv[])
         brepOverlaysOption,
         brepDuplicateEdgesOption,
         brepDenseFixtureOption,
+        brepDocumentTessellationOption,
         edgeAaModeOption,
         edgeAaDedupToleranceOption,
         edgeAaStatsOption,
@@ -729,6 +951,11 @@ int main(int argc, char* argv[])
     }
     if (parser.isSet(frameStatsOption) && !parser.isSet(brepFixtureOption)) {
         QTextStream(stderr) << "--frame-stats requires --brep-fixture.\n";
+        App::Application::destruct();
+        return 2;
+    }
+    if (parser.isSet(brepDocumentTessellationOption) && !parser.isSet(brepDocumentFixtureOption)) {
+        QTextStream(stderr) << "--brep-document-tessellation requires --brep-document-fixture.\n";
         App::Application::destruct();
         return 2;
     }
@@ -931,11 +1158,18 @@ int main(int argc, char* argv[])
                     return;
                 }
             }
-            else if (parser.isSet(sceneAaLiveOption)) {
+            if (parser.isSet(sceneAaLiveOption)) {
                 view.getSceneGraph()->touch();
                 view.redraw();
                 qtApplication.processEvents();
             }
+#ifdef FREECAD_GPU_DIAGNOSTICS_HAS_PART
+            if (parser.isSet(brepDocumentTessellationOption) && !runDocumentTessellationProbe()) {
+                QTextStream(stderr) << "Document BRep tessellation probe failed.\n";
+                qtApplication.exit(3);
+                return;
+            }
+#endif
             qunsetenv("FREECAD_SCENE_AA_LIVE_STATS");
             const auto report = Gui::GpuDiagnostics::collect(&view);
             if (parser.isSet(edgeAaStatsOption)) {
