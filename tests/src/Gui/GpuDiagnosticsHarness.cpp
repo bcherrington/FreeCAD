@@ -36,6 +36,7 @@
 #include <QElapsedTimer>
 #include <QImage>
 #include <QOpenGLFunctions>
+#include <QOpenGLExtraFunctions>
 #include <QOpenGLWidget>
 #include <QSurfaceFormat>
 #include <QTemporaryDir>
@@ -1186,6 +1187,466 @@ bool runDocumentTessellationProbe()
     return relationOk;
 }
 
+constexpr int postprocessDepthProbeWidth = 960;
+constexpr int postprocessDepthProbeHeight = 640;
+
+struct DocumentPostprocessDepthProbeResult
+{
+    const char* profile = "document_postprocess_depth";
+    int requestedWidth = 0;
+    int requestedHeight = 0;
+    int available = 0;
+    const char* fallback = "none";
+    const char* reason = "none";
+    const char* gammaPolicy = "unmanaged-linear";
+    int colorInternalFormat = 0;
+    int depthInternalFormat = 0;
+    int colorWidth = 0;
+    int colorHeight = 0;
+    int depthBits = 0;
+    const char* colorEncoding = "unknown";
+    const char* depthAttachmentType = "unknown";
+    const char* depthAttachmentTarget = "unknown";
+    int sampleableDepth = 0;
+    long long allocationUs = 0LL;
+    long long clearUs = 0LL;
+    long long estimatedBytes = 0LL;
+    int framebufferRestored = 0;
+    int viewportRestored = 0;
+    int textureRestored = 0;
+    int framebufferSrgbRestored = 0;
+    int framebufferSrgbBefore = 0;
+    int framebufferSrgbAfter = 0;
+    int objectsDeleted = 0;
+};
+
+const char* colorEncodingFromFramebufferAttachment(int value)
+{
+    if (value == GL_SRGB) {
+        return "GL_SRGB";
+    }
+    if (value == GL_LINEAR) {
+        return "GL_LINEAR";
+    }
+    return "unknown";
+}
+
+const char* framebufferAttachmentType(int type)
+{
+    if (type == GL_TEXTURE) {
+        return "GL_TEXTURE";
+    }
+    if (type == GL_RENDERBUFFER) {
+        return "GL_RENDERBUFFER";
+    }
+    return "unknown";
+}
+
+const char* framebufferAttachmentTarget(int target)
+{
+    if (target == GL_TEXTURE_2D) {
+        return "GL_TEXTURE_2D";
+    }
+    if (target == GL_TEXTURE_CUBE_MAP_POSITIVE_X) {
+        return "GL_TEXTURE_CUBE_MAP_POSITIVE_X";
+    }
+    return "none";
+}
+
+void printDocumentPostprocessDepthProfile(const DocumentPostprocessDepthProbeResult& result)
+{
+    std::fprintf(
+        stderr,
+        "FREECAD_BREP_DOCUMENT_POSTPROCESS_DEPTH profile=%s requested=%dx%d available=%d "
+        "fallback=%s reason=%s "
+        "gamma_policy=%s "
+        "color_internal=%s depth_internal=%s depth_bits=%d color_encoding=%s "
+        "depth_attachment_type=%s depth_attachment_target=%s sampleable_depth=%d "
+        "no_pixel_readback=1 size=%dx%d estimated_bytes=%lld allocation_us=%lld clear_us=%lld\n",
+        result.profile,
+        result.requestedWidth,
+        result.requestedHeight,
+        result.available,
+        result.fallback,
+        result.reason,
+        result.gammaPolicy,
+        result.colorInternalFormat == GL_RGBA8 ? "GL_RGBA8" : "other",
+        result.depthInternalFormat == GL_DEPTH_COMPONENT24 ? "GL_DEPTH_COMPONENT24" : "other",
+        result.depthBits,
+        result.colorEncoding,
+        result.depthAttachmentType,
+        result.depthAttachmentTarget,
+        result.sampleableDepth,
+        result.colorWidth,
+        result.colorHeight,
+        result.estimatedBytes,
+        result.allocationUs,
+        result.clearUs
+    );
+}
+
+void printDocumentPostprocessDepthRelation(
+    const DocumentPostprocessDepthProbeResult& result,
+    bool relationOk
+)
+{
+    std::fprintf(
+        stderr,
+        "FREECAD_BREP_DOCUMENT_POSTPROCESS_DEPTH_RELATION outcome=%s requested=%dx%d available=%d "
+        "fallback=%s reason=%s gamma_policy=%s color_internal=%s depth_internal=%s depth_bits=%d "
+        "color_encoding=%s depth_attachment_type=%s sampleable_depth=%d no_pixel_readback=1 "
+        "framebuffer_restored=%d viewport_restored=%d "
+        "texture_restored=%d framebuffer_srgb_before=%d framebuffer_srgb_after=%d "
+        "framebuffer_srgb_restored=%d "
+        "objects_deleted=%d\n",
+        relationOk ? "pass" : "fail",
+        result.requestedWidth,
+        result.requestedHeight,
+        result.available,
+        result.fallback,
+        result.reason,
+        result.gammaPolicy,
+        result.colorInternalFormat == GL_RGBA8 ? "GL_RGBA8" : "other",
+        result.depthInternalFormat == GL_DEPTH_COMPONENT24 ? "GL_DEPTH_COMPONENT24" : "other",
+        result.depthBits,
+        result.colorEncoding,
+        result.depthAttachmentType,
+        result.sampleableDepth,
+        result.framebufferRestored,
+        result.viewportRestored,
+        result.textureRestored,
+        result.framebufferSrgbBefore,
+        result.framebufferSrgbAfter,
+        result.framebufferSrgbRestored,
+        result.objectsDeleted
+    );
+}
+
+bool runDocumentPostprocessDepthProbe(Gui::View3DInventorViewer& view, bool forceNativeFallback)
+{
+    DocumentPostprocessDepthProbeResult result;
+    result.requestedWidth = postprocessDepthProbeWidth;
+    result.requestedHeight = postprocessDepthProbeHeight;
+
+    auto* glWidget = view.findChild<QOpenGLWidget*>();
+    if (!glWidget) {
+        std::fprintf(stderr, "No QOpenGLWidget found for document postprocess depth probe.\n");
+        return false;
+    }
+    auto* context = glWidget->context();
+    if (!context || !context->isValid()) {
+        std::fprintf(stderr, "Invalid GL context for document postprocess depth probe.\n");
+        return false;
+    }
+    auto* functions = context->extraFunctions();
+    if (!functions) {
+        std::fprintf(stderr, "Could not access OpenGL extra functions for depth probe.\n");
+        return false;
+    }
+    glWidget->makeCurrent();
+    functions->initializeOpenGLFunctions();
+
+    GLint prevDrawFbo = 0;
+    GLint prevReadFbo = 0;
+    GLint prevViewport[4] = {0, 0, 0, 0};
+    GLfloat prevClearColor[4] = {0.0F, 0.0F, 0.0F, 0.0F};
+    GLfloat prevClearDepth = 1.0F;
+    const bool prevSrgbEnabled = functions->glIsEnabled(GL_FRAMEBUFFER_SRGB);
+    GLint framebufferColorEncoding = 0;
+    GLint prevActiveTexture = 0;
+    GLint prevTextureBinding = 0;
+    functions->glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &prevDrawFbo);
+    functions->glGetIntegerv(GL_READ_FRAMEBUFFER_BINDING, &prevReadFbo);
+    functions->glGetIntegerv(GL_VIEWPORT, prevViewport);
+    functions->glGetFloatv(GL_COLOR_CLEAR_VALUE, prevClearColor);
+    functions->glGetFloatv(GL_DEPTH_CLEAR_VALUE, &prevClearDepth);
+    functions->glGetIntegerv(GL_ACTIVE_TEXTURE, &prevActiveTexture);
+    if (prevActiveTexture == 0) {
+        prevActiveTexture = GL_TEXTURE0;
+    }
+    functions->glActiveTexture(prevActiveTexture);
+    functions->glGetIntegerv(GL_TEXTURE_BINDING_2D, &prevTextureBinding);
+    bool relationOk = true;
+    bool framebufferRestored = false;
+    bool viewportRestored = false;
+    bool textureRestored = false;
+    bool srgbRestored = false;
+    bool objectsDeleted = false;
+    result.framebufferSrgbBefore = static_cast<int>(prevSrgbEnabled);
+
+    if (forceNativeFallback) {
+        result.fallback = "native";
+        result.reason = "forced";
+        result.available = 0;
+        result.colorInternalFormat = GL_RGBA8;
+        result.depthInternalFormat = GL_DEPTH_COMPONENT24;
+        result.colorWidth = postprocessDepthProbeWidth;
+        result.colorHeight = postprocessDepthProbeHeight;
+        result.depthBits = 24;
+        result.colorEncoding = "unknown";
+        result.depthAttachmentType = "none";
+        result.depthAttachmentTarget = "none";
+        result.sampleableDepth = 0;
+        result.estimatedBytes = static_cast<long long>(postprocessDepthProbeWidth)
+            * postprocessDepthProbeHeight * 7LL;
+        result.allocationUs = 0LL;
+        result.clearUs = 0LL;
+        objectsDeleted = true;
+    }
+    else {
+        GLuint colorTexture = 0;
+        GLuint depthTexture = 0;
+        GLuint fbo = 0;
+        bool sampledDepth = false;
+        bool colorAliveBeforeDelete = false;
+        bool depthAliveBeforeDelete = false;
+        bool fboAliveBeforeDelete = false;
+        GLint depthAttachmentType = 0;
+        GLint depthAttachmentTarget = 0;
+        GLint depthAttachmentName = 0;
+        GLint colorWidth = 0;
+        GLint colorHeight = 0;
+        GLint depthWidth = 0;
+        GLint depthHeight = 0;
+        GLint depthBits = 0;
+        GLint colorInternal = 0;
+        GLint depthInternal = 0;
+        QElapsedTimer allocationTimer;
+        allocationTimer.start();
+        functions->glViewport(0, 0, postprocessDepthProbeWidth, postprocessDepthProbeHeight);
+        functions->glGenTextures(1, &colorTexture);
+        functions->glBindTexture(GL_TEXTURE_2D, colorTexture);
+        functions->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        functions->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        functions->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        functions->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        functions->glTexImage2D(
+            GL_TEXTURE_2D,
+            0,
+            GL_RGBA8,
+            postprocessDepthProbeWidth,
+            postprocessDepthProbeHeight,
+            0,
+            GL_RGBA,
+            GL_UNSIGNED_BYTE,
+            nullptr
+        );
+
+        functions->glGenTextures(1, &depthTexture);
+        functions->glBindTexture(GL_TEXTURE_2D, depthTexture);
+        functions->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        functions->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        functions->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        functions->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        functions->glTexImage2D(
+            GL_TEXTURE_2D,
+            0,
+            GL_DEPTH_COMPONENT24,
+            postprocessDepthProbeWidth,
+            postprocessDepthProbeHeight,
+            0,
+            GL_DEPTH_COMPONENT,
+            GL_UNSIGNED_INT,
+            nullptr
+        );
+
+        functions->glGenFramebuffers(1, &fbo);
+        functions->glBindFramebuffer(GL_FRAMEBUFFER, fbo);
+        functions->glFramebufferTexture2D(
+            GL_FRAMEBUFFER,
+            GL_COLOR_ATTACHMENT0,
+            GL_TEXTURE_2D,
+            colorTexture,
+            0
+        );
+        functions->glFramebufferTexture2D(
+            GL_FRAMEBUFFER,
+            GL_DEPTH_ATTACHMENT,
+            GL_TEXTURE_2D,
+            depthTexture,
+            0
+        );
+
+        const GLenum framebufferStatus = functions->glCheckFramebufferStatus(GL_FRAMEBUFFER);
+        result.available = framebufferStatus == GL_FRAMEBUFFER_COMPLETE ? 1 : 0;
+        result.fallback = result.available ? "none" : "native";
+        result.reason = result.available ? "none" : "framebuffer_incomplete";
+
+        functions->glBindTexture(GL_TEXTURE_2D, colorTexture);
+        functions->glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_WIDTH, &colorWidth);
+        functions->glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_HEIGHT, &colorHeight);
+        functions->glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_INTERNAL_FORMAT, &colorInternal);
+        functions->glBindTexture(GL_TEXTURE_2D, depthTexture);
+        functions->glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_WIDTH, &depthWidth);
+        functions->glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_HEIGHT, &depthHeight);
+        functions->glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_DEPTH_SIZE, &depthBits);
+        functions->glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_INTERNAL_FORMAT, &depthInternal);
+
+        functions->glGetFramebufferAttachmentParameteriv(
+            GL_FRAMEBUFFER,
+            GL_DEPTH_ATTACHMENT,
+            GL_FRAMEBUFFER_ATTACHMENT_OBJECT_TYPE,
+            &depthAttachmentType
+        );
+        functions->glGetFramebufferAttachmentParameteriv(
+            GL_FRAMEBUFFER,
+            GL_DEPTH_ATTACHMENT,
+            GL_FRAMEBUFFER_ATTACHMENT_OBJECT_NAME,
+            &depthAttachmentName
+        );
+        if (depthAttachmentType == GL_TEXTURE) {
+# ifdef GL_FRAMEBUFFER_ATTACHMENT_TEXTURE_TARGET
+            functions->glGetFramebufferAttachmentParameteriv(
+                GL_FRAMEBUFFER,
+                GL_DEPTH_ATTACHMENT,
+                GL_FRAMEBUFFER_ATTACHMENT_TEXTURE_TARGET,
+                &depthAttachmentTarget
+            );
+# endif
+            sampledDepth = depthAttachmentName == static_cast<GLint>(depthTexture);
+        }
+
+        result.colorInternalFormat = colorInternal;
+        result.depthInternalFormat = depthInternal;
+# ifdef GL_FRAMEBUFFER_ATTACHMENT_COLOR_ENCODING
+        functions->glGetFramebufferAttachmentParameteriv(
+            GL_FRAMEBUFFER,
+            GL_COLOR_ATTACHMENT0,
+            GL_FRAMEBUFFER_ATTACHMENT_COLOR_ENCODING,
+            &framebufferColorEncoding
+        );
+        result.colorEncoding = colorEncodingFromFramebufferAttachment(framebufferColorEncoding);
+# else
+        result.colorEncoding = "unknown";
+# endif
+        result.colorWidth = colorWidth;
+        result.colorHeight = colorHeight;
+        result.depthBits = depthBits;
+        result.depthAttachmentType = framebufferAttachmentType(depthAttachmentType);
+        result.depthAttachmentTarget = framebufferAttachmentTarget(depthAttachmentTarget);
+        result.sampleableDepth = (depthAttachmentType == GL_TEXTURE && sampledDepth) ? 1 : 0;
+        result.estimatedBytes = static_cast<long long>(result.colorWidth)
+                * static_cast<long long>(result.colorHeight) * 4LL
+            + static_cast<long long>(result.colorWidth) * static_cast<long long>(result.colorHeight)
+                * 3LL;
+        result.allocationUs = allocationTimer.nsecsElapsed() / nanosecondsPerMicrosecond;
+
+        if (result.available) {
+            QElapsedTimer clearTimer;
+            clearTimer.start();
+            functions->glClearColor(0.0F, 0.0F, 0.0F, 1.0F);
+            functions->glClearDepthf(1.0F);
+            functions->glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+            functions->glFinish();
+            result.clearUs = clearTimer.nsecsElapsed() / nanosecondsPerMicrosecond;
+        }
+        objectsDeleted = false;
+
+        if (result.available
+            && (result.colorWidth != depthWidth || result.colorHeight != depthHeight)) {
+            result.fallback = "inconsistent_attachment_sizes";
+            result.reason = "inconsistent_attachment_sizes";
+            relationOk = false;
+        }
+        if (result.available
+            && (result.colorWidth != postprocessDepthProbeWidth
+                || result.colorHeight != postprocessDepthProbeHeight)) {
+            result.fallback = "unexpected_texture_size";
+            result.reason = "unexpected_texture_size";
+            relationOk = false;
+        }
+
+        colorAliveBeforeDelete = functions->glIsTexture(colorTexture);
+        depthAliveBeforeDelete = functions->glIsTexture(depthTexture);
+        fboAliveBeforeDelete = functions->glIsFramebuffer(fbo);
+        if (colorTexture == 0 || depthTexture == 0 || fbo == 0 || !colorAliveBeforeDelete
+            || !depthAliveBeforeDelete || !fboAliveBeforeDelete) {
+            result.fallback = "allocation_failed";
+            result.reason = "allocation_failed";
+            result.available = 0;
+            relationOk = false;
+        }
+
+        const GLuint allocatedColorTexture = colorTexture;
+        const GLuint allocatedDepthTexture = depthTexture;
+        const GLuint allocatedFbo = fbo;
+        functions->glBindFramebuffer(GL_DRAW_FRAMEBUFFER, prevDrawFbo);
+        functions->glBindFramebuffer(GL_READ_FRAMEBUFFER, prevReadFbo);
+        functions->glActiveTexture(prevActiveTexture);
+        functions->glBindTexture(GL_TEXTURE_2D, prevTextureBinding);
+        if (fbo != 0) {
+            functions->glDeleteFramebuffers(1, &fbo);
+        }
+        if (colorTexture != 0) {
+            functions->glDeleteTextures(1, &colorTexture);
+        }
+        if (depthTexture != 0) {
+            functions->glDeleteTextures(1, &depthTexture);
+        }
+        objectsDeleted = allocatedColorTexture != 0 && allocatedDepthTexture != 0
+            && allocatedFbo != 0 && colorAliveBeforeDelete && depthAliveBeforeDelete
+            && fboAliveBeforeDelete && !functions->glIsTexture(allocatedColorTexture)
+            && !functions->glIsTexture(allocatedDepthTexture)
+            && !functions->glIsFramebuffer(allocatedFbo);
+    }
+
+    functions->glBindFramebuffer(GL_DRAW_FRAMEBUFFER, prevDrawFbo);
+    functions->glBindFramebuffer(GL_READ_FRAMEBUFFER, prevReadFbo);
+    functions->glViewport(prevViewport[0], prevViewport[1], prevViewport[2], prevViewport[3]);
+    functions->glClearColor(prevClearColor[0], prevClearColor[1], prevClearColor[2], prevClearColor[3]);
+    functions->glClearDepthf(prevClearDepth);
+    functions->glActiveTexture(prevActiveTexture);
+    functions->glBindTexture(GL_TEXTURE_2D, prevTextureBinding);
+    if (prevSrgbEnabled) {
+        functions->glEnable(GL_FRAMEBUFFER_SRGB);
+    }
+    else {
+        functions->glDisable(GL_FRAMEBUFFER_SRGB);
+    }
+
+    GLint restoredActiveTexture = 0;
+    GLint restoredTextureBinding = 0;
+    GLint restoredDrawFbo = 0;
+    GLint restoredReadFbo = 0;
+    bool restoredSrgb = false;
+    GLint restoredViewport[4] = {0, 0, 0, 0};
+    functions->glGetIntegerv(GL_ACTIVE_TEXTURE, &restoredActiveTexture);
+    functions->glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &restoredDrawFbo);
+    functions->glGetIntegerv(GL_READ_FRAMEBUFFER_BINDING, &restoredReadFbo);
+    functions->glGetIntegerv(GL_VIEWPORT, restoredViewport);
+    restoredSrgb = functions->glIsEnabled(GL_FRAMEBUFFER_SRGB);
+    functions->glActiveTexture(restoredActiveTexture);
+    functions->glGetIntegerv(GL_TEXTURE_BINDING_2D, &restoredTextureBinding);
+
+    framebufferRestored = restoredDrawFbo == prevDrawFbo && restoredReadFbo == prevReadFbo;
+    viewportRestored = restoredViewport[0] == prevViewport[0]
+        && restoredViewport[1] == prevViewport[1] && restoredViewport[2] == prevViewport[2]
+        && restoredViewport[3] == prevViewport[3];
+    textureRestored = restoredTextureBinding == prevTextureBinding
+        && prevActiveTexture == restoredActiveTexture;
+    srgbRestored = static_cast<int>(restoredSrgb) == static_cast<int>(prevSrgbEnabled);
+    result.framebufferSrgbAfter = static_cast<int>(restoredSrgb);
+
+    result.framebufferRestored = static_cast<int>(framebufferRestored);
+    result.viewportRestored = static_cast<int>(viewportRestored);
+    result.textureRestored = static_cast<int>(textureRestored);
+    result.framebufferSrgbRestored = static_cast<int>(srgbRestored);
+    result.objectsDeleted = static_cast<int>(objectsDeleted);
+    printDocumentPostprocessDepthProfile(result);
+
+    const bool supportedOutcome = result.available && result.sampleableDepth && objectsDeleted;
+    const bool fallbackOutcome = !result.available && result.fallback == std::string_view("native")
+        && objectsDeleted;
+    relationOk = relationOk && framebufferRestored && viewportRestored && textureRestored
+        && srgbRestored && (forceNativeFallback || supportedOutcome || fallbackOutcome);
+    printDocumentPostprocessDepthRelation(result, relationOk);
+
+    if (!relationOk) {
+        std::fprintf(stderr, "Document postprocess depth probe relation check failed.\n");
+    }
+    return relationOk;
+}
+
 #endif
 
 }  // namespace
@@ -1276,6 +1737,14 @@ int main(int argc, char* argv[])
         QStringLiteral("brep-document-tessellation"),
         QStringLiteral("Run adaptive tessellation probes on the document BRep fixture.")
     );
+    const QCommandLineOption brepDocumentPostprocessDepthOption(
+        QStringLiteral("brep-document-postprocess-depth"),
+        QStringLiteral("Run deterministic postprocess depth attachment probe on the document fixture.")
+    );
+    const QCommandLineOption brepDocumentPostprocessDepthForceNativeOption(
+        QStringLiteral("brep-document-postprocess-depth-force-native"),
+        QStringLiteral("Force document postprocess depth probe to use native fallback.")
+    );
     const QCommandLineOption screenshotOption(
         QStringLiteral("screenshot"),
         QStringLiteral("Save the rendered viewport to this path."),
@@ -1363,6 +1832,8 @@ int main(int argc, char* argv[])
         brepDuplicateEdgesOption,
         brepDenseFixtureOption,
         brepDocumentTessellationOption,
+        brepDocumentPostprocessDepthOption,
+        brepDocumentPostprocessDepthForceNativeOption,
         edgeAaModeOption,
         edgeAaDedupToleranceOption,
         edgeAaStatsOption,
@@ -1555,6 +2026,20 @@ int main(int argc, char* argv[])
         App::Application::destruct();
         return 2;
     }
+    if (parser.isSet(brepDocumentPostprocessDepthOption) && !parser.isSet(brepDocumentFixtureOption)) {
+        QTextStream(
+            stderr
+        ) << "--brep-document-postprocess-depth requires --brep-document-fixture.\n";
+        App::Application::destruct();
+        return 2;
+    }
+    if (parser.isSet(brepDocumentPostprocessDepthForceNativeOption)
+        && !parser.isSet(brepDocumentPostprocessDepthOption)) {
+        QTextStream(stderr) << "--brep-document-postprocess-depth-force-native requires "
+                            << "--brep-document-postprocess-depth.\n";
+        App::Application::destruct();
+        return 2;
+    }
     if (parser.isSet(sceneAaLiveOption)) {
         qputenv(
             "FREECAD_SCENE_AA_LIVE",
@@ -1589,7 +2074,9 @@ int main(int argc, char* argv[])
         return 2;
     }
     if (parser.isSet(brepDocumentFixtureOption) || parser.isSet(brepDocumentLightingMaterialOption)
-        || parser.isSet(brepDocumentTessellationOption)) {
+        || parser.isSet(brepDocumentTessellationOption)
+        || parser.isSet(brepDocumentPostprocessDepthOption)
+        || parser.isSet(brepDocumentPostprocessDepthForceNativeOption)) {
         QTextStream(
             stderr
         ) << "--brep-document-* options require a build with the Part workbench.\n";
@@ -1778,6 +2265,15 @@ int main(int argc, char* argv[])
 #ifdef FREECAD_GPU_DIAGNOSTICS_HAS_PART
             if (parser.isSet(brepDocumentTessellationOption) && !runDocumentTessellationProbe()) {
                 QTextStream(stderr) << "Document BRep tessellation probe failed.\n";
+                qtApplication.exit(3);
+                return;
+            }
+            if (parser.isSet(brepDocumentPostprocessDepthOption)
+                && !runDocumentPostprocessDepthProbe(
+                    view,
+                    parser.isSet(brepDocumentPostprocessDepthForceNativeOption)
+                )) {
+                QTextStream(stderr) << "Document postprocess depth probe failed.\n";
                 qtApplication.exit(3);
                 return;
             }

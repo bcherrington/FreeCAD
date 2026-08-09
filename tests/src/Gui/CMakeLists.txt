@@ -341,6 +341,41 @@ if(UNIX AND NOT APPLE AND DEFINED ENV{DISPLAY} AND NOT "$ENV{DISPLAY}" STREQUAL 
                 "FREECAD_BREP_DOCUMENT_LIGHTING_MATERIAL_RELATION outcome=pass baseline=1 lighting=1 material=1 combined=1 restore_match=1 camera_stable=1 visibility_stable=1 material_restore=1 light_restore=1 light_preferences_stable=1"
         )
 
+        add_test(
+            NAME GpuDiagnosticsHarness_brep_document-postprocess-depth_x11
+            COMMAND GpuDiagnosticsHarness_run
+                --brep-fixture
+                --brep-document-fixture
+                --brep-document-postprocess-depth
+                --samples 4
+                --auto-exit-ms 3000
+        )
+        set_tests_properties(
+            GpuDiagnosticsHarness_brep_document-postprocess-depth_x11 PROPERTIES
+            ENVIRONMENT "QT_QPA_PLATFORM=xcb"
+            TIMEOUT 10
+            PASS_REGULAR_EXPRESSION
+                "FREECAD_BREP_DOCUMENT_POSTPROCESS_DEPTH_RELATION outcome=pass requested=960x640 available=1 fallback=none reason=none gamma_policy=unmanaged-linear color_internal=GL_RGBA8 depth_internal=GL_DEPTH_COMPONENT24 depth_bits=24 color_encoding=GL_LINEAR depth_attachment_type=GL_TEXTURE sampleable_depth=1 no_pixel_readback=1"
+        )
+
+        add_test(
+            NAME GpuDiagnosticsHarness_brep_document-postprocess-depth-force-native_x11
+            COMMAND GpuDiagnosticsHarness_run
+                --brep-fixture
+                --brep-document-fixture
+                --brep-document-postprocess-depth
+                --brep-document-postprocess-depth-force-native
+                --samples 4
+                --auto-exit-ms 3000
+        )
+        set_tests_properties(
+            GpuDiagnosticsHarness_brep_document-postprocess-depth-force-native_x11 PROPERTIES
+            ENVIRONMENT "QT_QPA_PLATFORM=xcb"
+            TIMEOUT 10
+            PASS_REGULAR_EXPRESSION
+                "FREECAD_BREP_DOCUMENT_POSTPROCESS_DEPTH_RELATION outcome=pass requested=960x640 available=0 fallback=native reason=forced gamma_policy=unmanaged-linear color_internal=GL_RGBA8 depth_internal=GL_DEPTH_COMPONENT24 depth_bits=24 color_encoding=unknown depth_attachment_type=none sampleable_depth=0 no_pixel_readback=1"
+        )
+
         foreach(edge_aa_mode
             hide
             line-smooth
