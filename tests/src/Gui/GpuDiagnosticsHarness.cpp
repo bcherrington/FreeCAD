@@ -13,6 +13,7 @@
 #include <QDir>
 #include <QElapsedTimer>
 #include <QImage>
+#include <QOpenGLFunctions>
 #include <QOpenGLWidget>
 #include <QTemporaryDir>
 #include <QTextStream>
@@ -39,6 +40,7 @@
 # include <Inventor/nodes/SoMaterial.h>
 # include <Inventor/nodes/SoPolygonOffset.h>
 # include <Inventor/nodes/SoSeparator.h>
+# include <Inventor/nodes/SoTranslation.h>
 
 # include <Mod/Part/Gui/SoBrepEdgeSet.h>
 #endif
@@ -61,13 +63,18 @@ void closeDiagnosticsDialogs()
 }
 
 #ifdef FREECAD_GPU_DIAGNOSTICS_HAS_PART
-void installBrepFixture(Gui::View3DInventorViewer& view, bool includeOverlays, bool includeDuplicateEdges)
+void installBrepFixture(
+    Gui::View3DInventorViewer& view,
+    bool includeOverlays,
+    bool includeDuplicateEdges,
+    bool denseFixture
+)
 {
     if (PartGui::SoBrepEdgeSet::getClassTypeId() == SoType::badType()) {
         PartGui::SoBrepEdgeSet::initClass();
     }
 
-    const std::array<SbVec3f, 8> points {
+    const std::array<SbVec3f, 8> cubePoints {
         SbVec3f(-5.0F, -5.0F, -5.0F),
         SbVec3f(5.0F, -5.0F, -5.0F),
         SbVec3f(5.0F, 5.0F, -5.0F),
@@ -77,10 +84,40 @@ void installBrepFixture(Gui::View3DInventorViewer& view, bool includeOverlays, b
         SbVec3f(5.0F, 5.0F, 5.0F),
         SbVec3f(-5.0F, 5.0F, 5.0F),
     };
-    constexpr std::array<int32_t, 36> baseEdgeIndices {
+    constexpr std::array<int32_t, 36> cubeEdgeIndices {
         0, 1, -1, 1, 2, -1, 2, 3, -1, 3, 0, -1, 4, 5, -1, 5, 6, -1,
         6, 7, -1, 7, 4, -1, 0, 4, -1, 1, 5, -1, 2, 6, -1, 3, 7, -1,
     };
+    constexpr int denseFixtureSide = 10;
+    constexpr float denseFixtureSpacing = 12.0F;
+    const int fixtureSide = denseFixture ? denseFixtureSide : 1;
+    const float fixtureOffset = 0.5F * static_cast<float>(fixtureSide - 1) * denseFixtureSpacing;
+    std::vector<SbVec3f> cubeCenters;
+    std::vector<SbVec3f> points;
+    std::vector<int32_t> baseEdgeIndices;
+    const auto cubeCount = static_cast<std::size_t>(fixtureSide)
+        * static_cast<std::size_t>(fixtureSide);
+    cubeCenters.reserve(cubeCount);
+    points.reserve(cubeCenters.capacity() * cubePoints.size());
+    baseEdgeIndices.reserve(cubeCenters.capacity() * cubeEdgeIndices.size());
+    for (int row = 0; row < fixtureSide; ++row) {
+        for (int column = 0; column < fixtureSide; ++column) {
+            const SbVec3f center(
+                static_cast<float>(column) * denseFixtureSpacing - fixtureOffset,
+                static_cast<float>(row) * denseFixtureSpacing - fixtureOffset,
+                0.0F
+            );
+            const auto pointOffset = static_cast<int32_t>(points.size());
+            cubeCenters.push_back(center);
+            for (const auto& point : cubePoints) {
+                points.push_back(point + center);
+            }
+            for (const auto index : cubeEdgeIndices) {
+                baseEdgeIndices.push_back(index < 0 ? index : pointOffset + index);
+            }
+        }
+    }
+
     std::vector<int32_t> edgeIndices(baseEdgeIndices.begin(), baseEdgeIndices.end());
     if (includeDuplicateEdges) {
         for (std::size_t index = 0; index < baseEdgeIndices.size(); index += 3) {
@@ -111,11 +148,18 @@ void installBrepFixture(Gui::View3DInventorViewer& view, bool includeOverlays, b
     polygonOffset->styles = SoPolygonOffset::FILLED;
     faceRoot->addChild(polygonOffset);
 
-    auto* faces = new SoCube;
-    faces->width = 10.0F;
-    faces->height = 10.0F;
-    faces->depth = 10.0F;
-    faceRoot->addChild(faces);
+    for (const auto& center : cubeCenters) {
+        auto* cubeRoot = new SoSeparator;
+        auto* translation = new SoTranslation;
+        translation->translation = center;
+        cubeRoot->addChild(translation);
+        auto* faces = new SoCube;
+        faces->width = 10.0F;
+        faces->height = 10.0F;
+        faces->depth = 10.0F;
+        cubeRoot->addChild(faces);
+        faceRoot->addChild(cubeRoot);
+    }
     root->addChild(faceRoot);
 
     auto* edgeRoot = new SoSeparator;
@@ -229,6 +273,26 @@ int main(int argc, char* argv[])
         QStringLiteral("scene-aa-stats"),
         QStringLiteral("Report owned-FBO sample and timing statistics to stderr.")
     );
+    const QCommandLineOption sceneAaLiveOption(
+        QStringLiteral("scene-aa-live"),
+        QStringLiteral("Enable the developer-gated live owned-MSAA-FBO presentation path.")
+    );
+    const QCommandLineOption sceneAaLiveStatsOption(
+        QStringLiteral("scene-aa-live-stats"),
+        QStringLiteral("Report live owned-FBO activation and GPU-complete timing statistics.")
+    );
+    const QCommandLineOption sceneAaLiveResizeOption(
+        QStringLiteral("scene-aa-live-resize"),
+        QStringLiteral("Resize the settled live-AA viewport to exercise FBO reallocation.")
+    );
+    const QCommandLineOption sceneAaLiveFallbackTransitionOption(
+        QStringLiteral("scene-aa-live-fallback-transition"),
+        QStringLiteral("Switch from an allocated live-AA frame to the native zero-sample fallback.")
+    );
+    const QCommandLineOption frameStatsOption(
+        QStringLiteral("frame-stats"),
+        QStringLiteral("Report five GPU-complete settled frame timings without readback.")
+    );
     const QCommandLineOption brepOverlaysOption(
         QStringLiteral("brep-overlays"),
         QStringLiteral("Add deterministic BRep highlight and selection overlay lines.")
@@ -236,6 +300,10 @@ int main(int argc, char* argv[])
     const QCommandLineOption brepDuplicateEdgesOption(
         QStringLiteral("brep-duplicate-edges"),
         QStringLiteral("Add reversed duplicate BRep edge segments to the fixture.")
+    );
+    const QCommandLineOption brepDenseFixtureOption(
+        QStringLiteral("brep-dense-fixture"),
+        QStringLiteral("Expand the BRep fixture to a deterministic 10x10 cube grid.")
     );
     const QCommandLineOption edgeAaModeOption(
         QStringLiteral("edge-aa-mode"),
@@ -270,12 +338,18 @@ int main(int argc, char* argv[])
         screenshotOption,
         brepOverlaysOption,
         brepDuplicateEdgesOption,
+        brepDenseFixtureOption,
         edgeAaModeOption,
         edgeAaDedupToleranceOption,
         edgeAaStatsOption,
         edgeAaShaderWidthOption,
         sceneAaSamplesOption,
         sceneAaStatsOption,
+        sceneAaLiveOption,
+        sceneAaLiveStatsOption,
+        sceneAaLiveResizeOption,
+        sceneAaLiveFallbackTransitionOption,
+        frameStatsOption,
     });
     parser.process(qtApplication);
 
@@ -364,6 +438,11 @@ int main(int argc, char* argv[])
         App::Application::destruct();
         return 2;
     }
+    if (parser.isSet(brepDenseFixtureOption) && !parser.isSet(brepFixtureOption)) {
+        QTextStream(stderr) << "--brep-dense-fixture requires --brep-fixture.\n";
+        App::Application::destruct();
+        return 2;
+    }
     if (parser.isSet(edgeAaStatsOption) && edgeAaMode != QStringLiteral("dedup-screen-space")
         && !shaderMode) {
         QTextStream(
@@ -396,6 +475,40 @@ int main(int argc, char* argv[])
         App::Application::destruct();
         return 2;
     }
+    if (parser.isSet(sceneAaLiveOption) && !parser.isSet(brepFixtureOption)) {
+        QTextStream(stderr) << "--scene-aa-live requires --brep-fixture.\n";
+        App::Application::destruct();
+        return 2;
+    }
+    if (parser.isSet(sceneAaLiveStatsOption) && !parser.isSet(sceneAaLiveOption)) {
+        QTextStream(stderr) << "--scene-aa-live-stats requires --scene-aa-live.\n";
+        App::Application::destruct();
+        return 2;
+    }
+    if (parser.isSet(sceneAaLiveResizeOption) && !parser.isSet(sceneAaLiveOption)) {
+        QTextStream(stderr) << "--scene-aa-live-resize requires --scene-aa-live.\n";
+        App::Application::destruct();
+        return 2;
+    }
+    if (parser.isSet(sceneAaLiveFallbackTransitionOption)
+        && (!parser.isSet(sceneAaLiveOption) || !parser.isSet(sceneAaLiveStatsOption))) {
+        QTextStream(stderr) << "--scene-aa-live-fallback-transition requires --scene-aa-live and "
+                               "--scene-aa-live-stats.\n";
+        App::Application::destruct();
+        return 2;
+    }
+    if (parser.isSet(frameStatsOption) && !parser.isSet(brepFixtureOption)) {
+        QTextStream(stderr) << "--frame-stats requires --brep-fixture.\n";
+        App::Application::destruct();
+        return 2;
+    }
+    if (parser.isSet(sceneAaLiveOption)) {
+        qputenv("FREECAD_SCENE_AA_LIVE", "1");
+    }
+    else {
+        qunsetenv("FREECAD_SCENE_AA_LIVE");
+    }
+    qunsetenv("FREECAD_SCENE_AA_LIVE_STATS");
 
     if (parser.isSet(samplesOption)) {
         bool samplesOk = false;
@@ -436,7 +549,8 @@ int main(int argc, char* argv[])
             installBrepFixture(
                 view,
                 parser.isSet(brepOverlaysOption),
-                parser.isSet(brepDuplicateEdgesOption)
+                parser.isSet(brepDuplicateEdgesOption),
+                parser.isSet(brepDenseFixtureOption)
             );
         }
 #endif
@@ -471,8 +585,54 @@ int main(int argc, char* argv[])
             }
             reportCollected = true;
             contextPoll.stop();
+            if (parser.isSet(sceneAaLiveResizeOption)) {
+                view.resize(800, 600);
+                qtApplication.processEvents();
+            }
+            if (parser.isSet(sceneAaLiveStatsOption)) {
+                qputenv("FREECAD_SCENE_AA_LIVE_STATS", "1");
+            }
+            if (parser.isSet(sceneAaLiveFallbackTransitionOption)) {
+                view.getSceneGraph()->touch();
+                view.redraw();
+                qtApplication.processEvents();
+                Gui::Multisample::writeMSAAToSettings(Gui::AntiAliasing::None);
+                view.getSceneGraph()->touch();
+                view.redraw();
+                qtApplication.processEvents();
+            }
+            if (parser.isSet(frameStatsOption)) {
+                auto* glWidget = view.findChild<QOpenGLWidget*>();
+                QOpenGLFunctions* functions = glWidget && glWidget->context()
+                    ? glWidget->context()->functions()
+                    : nullptr;
+                if (!glWidget || !functions) {
+                    QTextStream(stderr) << "Could not time frames without a current GL context.\n";
+                    qtApplication.exit(3);
+                    return;
+                }
+                for (int frame = 1; frame <= 5; ++frame) {
+                    glWidget->makeCurrent();
+                    functions->glFinish();
+                    QElapsedTimer frameTimer;
+                    frameTimer.start();
+                    view.getSceneGraph()->touch();
+                    view.redraw();
+                    qtApplication.processEvents();
+                    glWidget->makeCurrent();
+                    functions->glFinish();
+                    std::fprintf(
+                        stderr,
+                        "FREECAD_SCENE_AA_FRAME_STATS mode=%s frame=%d frame_us=%lld\n",
+                        parser.isSet(sceneAaLiveOption) ? "live-owned-fbo" : "native",
+                        frame,
+                        static_cast<long long>(frameTimer.nsecsElapsed() / 1000)
+                    );
+                }
+            }
             if (parser.isSet(screenshotOption) || parser.isSet(sceneAaSamplesOption)) {
                 view.redraw();
+                qtApplication.processEvents();
                 QImage screenshot;
                 if (parser.isSet(sceneAaSamplesOption)) {
                     Gui::View3DInventorViewer::RenderImageOptions options;
@@ -505,6 +665,12 @@ int main(int argc, char* argv[])
                     return;
                 }
             }
+            else if (parser.isSet(sceneAaLiveOption)) {
+                view.getSceneGraph()->touch();
+                view.redraw();
+                qtApplication.processEvents();
+            }
+            qunsetenv("FREECAD_SCENE_AA_LIVE_STATS");
             const auto report = Gui::GpuDiagnostics::collect(&view);
             if (parser.isSet(edgeAaStatsOption)) {
                 qputenv("FREECAD_EDGE_AA_DIAGNOSTIC_STATS", "1");

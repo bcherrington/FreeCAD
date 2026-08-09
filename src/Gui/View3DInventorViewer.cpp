@@ -101,6 +101,8 @@
 #include <QKeyEvent>
 #include <QMessageBox>
 #include <QMimeData>
+#include <QOpenGLContext>
+#include <QOpenGLExtraFunctions>
 #include <QOpenGLFramebufferObject>
 #include <QOpenGLWidget>
 #include <QScopeGuard>
@@ -189,6 +191,19 @@ public:
 
 private:
     View3DInventorViewer& viewer;
+};
+
+class View3DInventorViewer::LiveSceneAaState
+{
+public:
+    std::unique_ptr<QOpenGLFramebufferObject> framebuffer;
+    QOpenGLContext* context = nullptr;
+    QSize size;
+    QString failureReason;
+    int requestedSamples = 0;
+    int actualSampleBuffers = 0;
+    int actualSamples = 0;
+    unsigned long long allocations = 0;
 };
 
 namespace
@@ -1046,6 +1061,13 @@ void View3DInventorViewer::init()
     fpsEnabled = false;
     vboEnabled = false;
 
+    bool liveSceneAaOk = false;
+    const int liveSceneAaEnabled
+        = qEnvironmentVariableIntValue("FREECAD_SCENE_AA_LIVE", &liveSceneAaOk);
+    if (liveSceneAaOk && liveSceneAaEnabled > 0) {
+        liveSceneAa = std::make_unique<LiveSceneAaState>();
+    }
+
     attachSelection();
 
     // Coin should not clear the pixel-buffer, so the background image
@@ -1429,10 +1451,12 @@ void View3DInventorViewer::createStandardCursors()
 
 void View3DInventorViewer::aboutToDestroyGLContext()
 {
+    if (auto gl = qobject_cast<QOpenGLWidget*>(this->viewport())) {
+        gl->makeCurrent();
+    }
+    releaseLiveSceneAaResources();
+
     if (naviCube) {
-        if (auto gl = qobject_cast<QOpenGLWidget*>(this->viewport())) {
-            gl->makeCurrent();
-        }
         if (naviCubeAnnotation) {
             naviCubeAnnotation->removeAllChildren();
         }
@@ -3238,11 +3262,262 @@ bool View3DInventorViewer::renderToFramebuffer(QOpenGLFramebufferObject* fbo, bo
     return true;
 }
 
+void View3DInventorViewer::releaseLiveSceneAaResources()
+{
+    if (!liveSceneAa) {
+        return;
+    }
+
+    liveSceneAa->framebuffer.reset();
+    liveSceneAa->context = nullptr;
+    liveSceneAa->size = {};
+    liveSceneAa->failureReason.clear();
+    liveSceneAa->requestedSamples = 0;
+    liveSceneAa->actualSampleBuffers = 0;
+    liveSceneAa->actualSamples = 0;
+}
+
+void View3DInventorViewer::renderLiveSceneAaDecorations()
+{
+    const SbViewportRegion vp = this->getSoRenderManager()->getViewportRegion();
+    const SbVec2s origin = vp.getViewportOriginPixels();
+    const SbVec2s size = vp.getViewportSizePixels();
+    glViewport(origin[0], origin[1], size[0], size[1]);
+
+    auto* glra = this->getSoRenderManager()->getGLRenderAction();
+    if (glra) {
+        SoState* state = glra->getState();
+        SoDevicePixelRatioElement::set(state, static_cast<float>(devicePixelRatio()));
+        SoGLWidgetElement::set(state, qobject_cast<QOpenGLWidget*>(this->getGLWidget()));
+        SoGLRenderActionElement::set(state, glra);
+        SoGLVBOActivatedElement::set(state, this->vboEnabled);
+        glra->apply(this->decorationroot);
+    }
+    if (this->axiscrossEnabled) {
+        this->drawAxisCross();
+    }
+
+    if (this->isAnimating()) {
+        this->getSoRenderManager()->scheduleRedraw();
+    }
+
+    printDimension();
+    for (auto it : this->graphicsItems) {
+        it->paintGL();
+    }
+    renderRubberbandOverlay();
+
+    // Keep the live QOpenGLWidget output opaque, matching renderScene().
+    GLboolean colorMask[4] = {GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE};
+    glGetBooleanv(GL_COLOR_WRITEMASK, colorMask);
+    GLfloat clearColor[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+    glGetFloatv(GL_COLOR_CLEAR_VALUE, clearColor);
+
+    glColorMask(false, false, false, true);
+    glClearColor(0, 0, 0, 1);
+    glClear(GL_COLOR_BUFFER_BIT);
+
+    glColorMask(colorMask[0], colorMask[1], colorMask[2], colorMask[3]);
+    glClearColor(clearColor[0], clearColor[1], clearColor[2], clearColor[3]);
+}
+
+bool View3DInventorViewer::tryRenderLiveSceneAa()
+{
+    if (!liveSceneAa) {
+        return false;
+    }
+
+    const bool reportStats = qEnvironmentVariableIsSet("FREECAD_SCENE_AA_LIVE_STATS");
+    QElapsedTimer totalTimer;
+    if (reportStats) {
+        totalTimer.start();
+    }
+
+    const SbViewportRegion vp = this->getSoRenderManager()->getViewportRegion();
+    const SbVec2s size = vp.getViewportSizePixels();
+    const int width = size[0];
+    const int height = size[1];
+    const int requestedSamples = getNumSamples();
+    int widgetSampleBuffers = 0;
+    int widgetSamples = 0;
+    qint64 renderMicroseconds = 0;
+    qint64 resolveMicroseconds = 0;
+    qint64 decorationsMicroseconds = 0;
+
+    auto report = [&](const char* state, const char* reason) {
+        if (!reportStats) {
+            return;
+        }
+        std::fprintf(
+            stderr,
+            "FREECAD_SCENE_AA_LIVE_STATS state=%s reason=%s requested_samples=%d "
+            "widget_sample_buffers=%d widget_samples=%d owned_sample_buffers=%d "
+            "actual_samples=%d width=%d height=%d allocations=%llu "
+            "render_us=%lld resolve_us=%lld decorations_us=%lld total_us=%lld\n",
+            state,
+            reason,
+            requestedSamples,
+            widgetSampleBuffers,
+            widgetSamples,
+            liveSceneAa->actualSampleBuffers,
+            liveSceneAa->actualSamples,
+            width,
+            height,
+            liveSceneAa->allocations,
+            static_cast<long long>(renderMicroseconds),
+            static_cast<long long>(resolveMicroseconds),
+            static_cast<long long>(decorationsMicroseconds),
+            static_cast<long long>(totalTimer.nsecsElapsed() / 1000)
+        );
+    };
+
+    if (requestedSamples <= 0) {
+        releaseLiveSceneAaResources();
+        report("fallback", "requested-samples-zero");
+        return false;
+    }
+    if (width <= 0 || height <= 0) {
+        report("fallback", "empty-viewport");
+        return false;
+    }
+
+    auto* gl = qobject_cast<QOpenGLWidget*>(this->viewport());
+    if (!gl || !gl->isValid()) {
+        report("fallback", "invalid-widget");
+        return false;
+    }
+    gl->makeCurrent();
+    QOpenGLContext* context = gl->context();
+    QOpenGLExtraFunctions* functions = context ? context->extraFunctions() : nullptr;
+    if (!context || !functions) {
+        report("fallback", "invalid-context");
+        return false;
+    }
+
+    const GLuint defaultFramebuffer = gl->defaultFramebufferObject();
+    functions->glBindFramebuffer(GL_FRAMEBUFFER, defaultFramebuffer);
+    if (reportStats) {
+        glFinish();
+        totalTimer.restart();
+    }
+    glGetIntegerv(GL_SAMPLE_BUFFERS, &widgetSampleBuffers);
+    glGetIntegerv(GL_SAMPLES, &widgetSamples);
+    if (widgetSampleBuffers > 0 && widgetSamples > 0) {
+        releaseLiveSceneAaResources();
+        report("native", "widget-multisampled");
+        return false;
+    }
+    if (!hasFramebufferBlitSupport()) {
+        releaseLiveSceneAaResources();
+        report("fallback", "blit-unavailable");
+        return false;
+    }
+
+    const QSize framebufferSize(width, height);
+    const bool configurationChanged = liveSceneAa->context != context
+        || liveSceneAa->size != framebufferSize || liveSceneAa->requestedSamples != requestedSamples;
+    if (configurationChanged) {
+        releaseLiveSceneAaResources();
+        liveSceneAa->context = context;
+        liveSceneAa->size = framebufferSize;
+        liveSceneAa->requestedSamples = requestedSamples;
+        ++liveSceneAa->allocations;
+
+        QOpenGLFramebufferObjectFormat format;
+        format.setSamples(requestedSamples);
+        format.setAttachment(QOpenGLFramebufferObject::Depth);
+        format.setInternalTextureFormat(getInternalTextureFormat());
+        liveSceneAa->framebuffer = std::make_unique<QOpenGLFramebufferObject>(framebufferSize, format);
+        if (!liveSceneAa->framebuffer->isValid()) {
+            liveSceneAa->failureReason = QStringLiteral("allocation-failed");
+        }
+        else if (!liveSceneAa->framebuffer->bind()) {
+            liveSceneAa->failureReason = QStringLiteral("bind-failed");
+        }
+        else {
+            glGetIntegerv(GL_SAMPLE_BUFFERS, &liveSceneAa->actualSampleBuffers);
+            glGetIntegerv(GL_SAMPLES, &liveSceneAa->actualSamples);
+            liveSceneAa->framebuffer->release();
+            functions->glBindFramebuffer(GL_FRAMEBUFFER, defaultFramebuffer);
+            if (liveSceneAa->actualSampleBuffers <= 0 || liveSceneAa->actualSamples <= 0) {
+                liveSceneAa->failureReason = QStringLiteral("multisample-unavailable");
+            }
+        }
+    }
+
+    if (!liveSceneAa->failureReason.isEmpty() || !liveSceneAa->framebuffer) {
+        const QByteArray reason = liveSceneAa->failureReason.isEmpty()
+            ? QByteArrayLiteral("framebuffer-unavailable")
+            : liveSceneAa->failureReason.toLatin1();
+        report("fallback", reason.constData());
+        return false;
+    }
+
+    QElapsedTimer stageTimer;
+    if (reportStats) {
+        stageTimer.start();
+    }
+    {
+        ScopedRenderIntent captureIntent(*this, RenderIntent::RasterCapture);
+        if (!renderToFramebuffer(liveSceneAa->framebuffer.get())) {
+            liveSceneAa->failureReason = QStringLiteral("render-failed");
+            functions->glBindFramebuffer(GL_FRAMEBUFFER, defaultFramebuffer);
+            report("fallback", "render-failed");
+            return false;
+        }
+    }
+    if (reportStats) {
+        glFinish();
+        renderMicroseconds = stageTimer.nsecsElapsed() / 1000;
+        stageTimer.restart();
+    }
+
+    functions->glBindFramebuffer(GL_READ_FRAMEBUFFER, liveSceneAa->framebuffer->handle());
+    functions->glBindFramebuffer(GL_DRAW_FRAMEBUFFER, defaultFramebuffer);
+    const bool framebuffersComplete = functions->glCheckFramebufferStatus(GL_READ_FRAMEBUFFER)
+            == GL_FRAMEBUFFER_COMPLETE
+        && functions->glCheckFramebufferStatus(GL_DRAW_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE;
+    if (!framebuffersComplete) {
+        liveSceneAa->failureReason = QStringLiteral("resolve-framebuffer-incomplete");
+        functions->glBindFramebuffer(GL_FRAMEBUFFER, defaultFramebuffer);
+        report("fallback", "resolve-framebuffer-incomplete");
+        return false;
+    }
+    functions->glBlitFramebuffer(
+        0,
+        0,
+        width,
+        height,
+        0,
+        0,
+        width,
+        height,
+        GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT,
+        GL_NEAREST
+    );
+    functions->glBindFramebuffer(GL_FRAMEBUFFER, defaultFramebuffer);
+    if (reportStats) {
+        glFinish();
+        resolveMicroseconds = stageTimer.nsecsElapsed() / 1000;
+        stageTimer.restart();
+    }
+
+    renderLiveSceneAaDecorations();
+    if (reportStats) {
+        glFinish();
+        decorationsMicroseconds = stageTimer.nsecsElapsed() / 1000;
+    }
+    report("active", "none");
+    return true;
+}
+
 void View3DInventorViewer::actualRedraw()
 {
     switch (renderType) {
         case Native:
-            renderScene();
+            if (!tryRenderLiveSceneAa()) {
+                renderScene();
+            }
             break;
         case Framebuffer:
             renderFramebuffer();

@@ -623,6 +623,7 @@ private:
 
 private:
     class ScopedRenderIntent;
+    class LiveSceneAaState;
     static void selectCB(void* viewer, SoPath* path);
     // A small intent stack lets nested export/capture code paths temporarily
     // override the default live-view traversal behavior.
@@ -641,6 +642,9 @@ private:
     void renderDelayedAnnotations(SoGLRenderAction* glra);
     void renderGLActionScene(const QColor& backgroundColor, SoGLRenderAction* glra);
     bool renderToFramebuffer(QOpenGLFramebufferObject*, bool includeViewerLighting = true);
+    bool tryRenderLiveSceneAa();
+    void renderLiveSceneAaDecorations();
+    void releaseLiveSceneAaResources();
     void setCursorRepresentation(int mode);
     void aboutToDestroyGLContext();
     void createStandardCursors();
@@ -687,6 +691,7 @@ private:
 
     RenderType renderType;
     QOpenGLFramebufferObject* framebuffer;
+    std::unique_ptr<LiveSceneAaState> liveSceneAa;
     QImage glImage;
     bool shading;
     SoSwitch* dimensionRoot;
