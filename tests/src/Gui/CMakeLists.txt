@@ -323,6 +323,24 @@ if(UNIX AND NOT APPLE AND DEFINED ENV{DISPLAY} AND NOT "$ENV{DISPLAY}" STREQUAL 
                 "FREECAD_BREP_DOCUMENT_TESSELLATION_RELATION outcome=pass baseline=[a-z_]+ finer=[a-z_]+ angle=[a-z_]+ scale=[a-z_]+ triangle_cap=3000000 memory_cap_bytes=67108864 time_cap_us=1200000 baseline_triangles=[0-9]+ finer_triangles=[0-9]+ angle_triangles=[0-9]+ scale_triangles=[0-9]+ cap_probe_fallback=triangle_cap cap_probe_triangles=[0-9]+ fallback_count=1"
         )
 
+        add_test(
+            NAME GpuDiagnosticsHarness_brep_document-lighting-material_x11
+            COMMAND GpuDiagnosticsHarness_run
+                --brep-fixture
+                --brep-document-fixture
+                --brep-document-lighting-material
+                --samples 4
+                --json
+                --auto-exit-ms 5000
+        )
+        set_tests_properties(
+            GpuDiagnosticsHarness_brep_document-lighting-material_x11 PROPERTIES
+            ENVIRONMENT "QT_QPA_PLATFORM=xcb"
+            TIMEOUT 12
+            PASS_REGULAR_EXPRESSION
+                "FREECAD_BREP_DOCUMENT_LIGHTING_MATERIAL_RELATION outcome=pass baseline=1 lighting=1 material=1 combined=1 restore_match=1 camera_stable=1 visibility_stable=1 material_restore=1 light_restore=1 light_preferences_stable=1"
+        )
+
         foreach(edge_aa_mode
             hide
             line-smooth

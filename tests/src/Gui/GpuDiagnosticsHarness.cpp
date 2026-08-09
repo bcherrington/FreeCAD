@@ -5,6 +5,7 @@
 #include <cmath>
 #include <cstdio>
 #include <memory>
+#include <tuple>
 #include <string_view>
 #include <vector>
 
@@ -24,12 +25,14 @@
 # include <TopTools_IndexedMapOfShape.hxx>
 # include <TopLoc_Location.hxx>
 # include <TopoDS.hxx>
+# include <App/Material.h>
 #endif
 
 #include <QApplication>
 #include <QCommandLineParser>
 #include <QDialog>
 #include <QDir>
+#include <QCryptographicHash>
 #include <QElapsedTimer>
 #include <QImage>
 #include <QOpenGLFunctions>
@@ -67,8 +70,10 @@
 # include <Inventor/nodes/SoPolygonOffset.h>
 # include <Inventor/nodes/SoSeparator.h>
 # include <Inventor/nodes/SoTranslation.h>
+# include <Inventor/nodes/SoDirectionalLight.h>
 
 # include <Mod/Part/Gui/SoBrepEdgeSet.h>
+# include <Gui/ViewProviderGeometryObject.h>
 #endif
 
 namespace
@@ -83,6 +88,16 @@ constexpr long long approximateBytesPerTriangle = 48LL;
 constexpr long long approximateBytesPerNode = 32LL;
 constexpr auto documentName = "GpuDiagnosticsBrepDocument";
 constexpr auto fixtureRevision = "009-document-v1";
+constexpr std::array<std::string_view, 4> fixtureComposition = {
+    "RoundedHousing",
+    "RoundedBoss",
+    "RoundedTransparentCanopy",
+    "HiddenRoundedSolid",
+};
+constexpr std::string_view fixtureSelected = "RoundedBoss";
+constexpr std::string_view fixturePreselected = "RoundedHousing";
+constexpr std::string_view fixtureHidden = "HiddenRoundedSolid";
+constexpr std::string_view fixtureTransparent = "RoundedTransparentCanopy";
 
 void closeDiagnosticsDialogs()
 {
@@ -236,12 +251,6 @@ void installBrepFixture(
 
 bool installDocumentBrepFixture(Gui::View3DInventorViewer& view)
 {
-    const char* const fixtureComposition[]
-        = {"RoundedHousing", "RoundedBoss", "RoundedTransparentCanopy", "HiddenRoundedSolid"};
-    const char* const fixtureSelected = "RoundedBoss";
-    const char* const fixturePreselected = "RoundedHousing";
-    const char* const fixtureHidden = "HiddenRoundedSolid";
-    const char* const fixtureTransparent = "RoundedTransparentCanopy";
     App::Document* appDocument = nullptr;
     try {
         Base::Interpreter().runString("import PartGui");
@@ -306,17 +315,16 @@ doc.recompute()
     }
 
     view.setDocument(guiDocument);
-    const char* const objectNames[]
-        = {"RoundedHousing", "RoundedBoss", "RoundedTransparentCanopy", "HiddenRoundedSolid"};
-    for (const char* objectName : objectNames) {
-        App::DocumentObject* object = appDocument->getObject(objectName);
+    const auto objectNames = fixtureComposition;
+    for (const auto objectName : objectNames) {
+        App::DocumentObject* object = appDocument->getObject(objectName.data());
         Gui::ViewProvider* provider = object ? Gui::Application::Instance->getViewProvider(object)
                                              : nullptr;
         if (!provider || !provider->getRoot()) {
-            std::fprintf(stderr, "Document BRep fixture is missing %s.\n", objectName);
+            std::fprintf(stderr, "Document BRep fixture is missing %s.\n", objectName.data());
             return false;
         }
-        if (std::string_view(objectName) == "HiddenRoundedSolid" && provider->isShow()) {
+        if (objectName == fixtureHidden && provider->isShow()) {
             std::fprintf(stderr, "Document BRep fixture hidden object became visible.\n");
             return false;
         }
@@ -334,16 +342,652 @@ doc.recompute()
         "FREECAD_BREP_DOCUMENT_FIXTURE revision=%s composition=%s,%s,%s,%s selected=%s "
         "preselected=%s hidden=%s transparent=%s\n",
         fixtureRevision,
-        fixtureComposition[0],
-        fixtureComposition[1],
-        fixtureComposition[2],
-        fixtureComposition[3],
-        fixtureSelected,
-        fixturePreselected,
-        fixtureHidden,
-        fixtureTransparent
+        fixtureComposition[0].data(),
+        fixtureComposition[1].data(),
+        fixtureComposition[2].data(),
+        fixtureComposition[3].data(),
+        fixtureSelected.data(),
+        fixturePreselected.data(),
+        fixtureHidden.data(),
+        fixtureTransparent.data()
     );
     return true;
+}
+
+struct FixtureMaterialState
+{
+    std::string name;
+    bool visible = false;
+    bool expectedVisible = true;
+    std::vector<App::Material> shapeAppearance;
+};
+
+using DocumentFixtureMaterialSet = std::array<FixtureMaterialState, fixtureComposition.size()>;
+
+struct DocumentViewerLightState
+{
+    bool backlightEnabled = false;
+    bool fillLightEnabled = false;
+    SbColor backlightColor;
+    SbColor fillLightColor;
+    SbVec3f backlightDirection;
+    SbVec3f fillLightDirection;
+    float backlightIntensity = 0.0F;
+    float fillLightIntensity = 0.0F;
+};
+
+struct DocumentViewerPoseState
+{
+    SbRotation orientation;
+    SbVec3f viewDirection;
+    SbVec3f upDirection;
+};
+
+struct DocumentLightPreferenceState
+{
+    std::vector<std::pair<std::string, bool>> boolValues;
+    std::vector<std::pair<std::string, long>> intValues;
+    std::vector<std::pair<std::string, unsigned long>> unsignedValues;
+    std::vector<std::pair<std::string, double>> floatValues;
+    std::vector<std::pair<std::string, std::string>> stringValues;
+};
+
+struct DocumentBrepFrameStats
+{
+    int visibleCenterPixels = 0;
+    int hiddenRedPixels = 0;
+    int navigationCubePixels = 0;
+    int selectionPixels = 0;
+    int preselectionPixels = 0;
+    int canopyOverlapPixels = 0;
+    int differingPixels = 0;
+    long long renderUs = 0LL;
+};
+
+bool fixtureMaterialStateFromDocument(
+    const std::array<std::string_view, 4>& names,
+    DocumentFixtureMaterialSet& snapshot
+)
+{
+    auto* appDocument = App::GetApplication().getDocument(documentName);
+    if (!appDocument) {
+        std::fprintf(stderr, "Could not locate the document BRep fixture.\n");
+        return false;
+    }
+    for (std::size_t index = 0; index < names.size(); ++index) {
+        const auto& objectName = names[index];
+        snapshot[index].name = objectName;
+        snapshot[index].expectedVisible = std::string_view(objectName) != fixtureHidden;
+        const bool expectedVisible = snapshot[index].expectedVisible;
+
+        App::DocumentObject* object = appDocument->getObject(objectName.data());
+        auto* provider = object ? dynamic_cast<Gui::ViewProviderGeometryObject*>(
+                                      Gui::Application::Instance->getViewProvider(object)
+                                  )
+                                : nullptr;
+        if (!provider) {
+            std::fprintf(stderr, "Could not access fixture object %s.\n", objectName.data());
+            return false;
+        }
+        if (provider->isShow() != expectedVisible) {
+            std::fprintf(
+                stderr,
+                "Fixture object visibility changed for %s expected=%d actual=%d.\n",
+                objectName.data(),
+                static_cast<int>(expectedVisible),
+                static_cast<int>(provider->isShow())
+            );
+            return false;
+        }
+        snapshot[index].visible = provider->isShow();
+        snapshot[index].shapeAppearance = provider->ShapeAppearance.getValues();
+    }
+    return true;
+}
+
+DocumentViewerLightState captureDocumentViewerLightState(Gui::View3DInventorViewer& view)
+{
+    const SoDirectionalLight* backlight = view.getBacklight();
+    const SoDirectionalLight* fillLight = view.getFillLight();
+    DocumentViewerLightState state;
+    state.backlightEnabled = view.isBacklightEnabled();
+    state.fillLightEnabled = view.isFillLightEnabled();
+    if (backlight) {
+        state.backlightColor = backlight->color.getValue();
+        state.backlightDirection = backlight->direction.getValue();
+        state.backlightIntensity = backlight->intensity.getValue();
+    }
+    if (fillLight) {
+        state.fillLightColor = fillLight->color.getValue();
+        state.fillLightDirection = fillLight->direction.getValue();
+        state.fillLightIntensity = fillLight->intensity.getValue();
+    }
+    return state;
+}
+
+DocumentLightPreferenceState captureDocumentLightPreferenceState()
+{
+    const auto lightPreferences = App::GetApplication()
+                                      .GetParameterGroupByPath("User parameter:BaseApp/Preferences/View")
+                                      ->GetGroup("LightSources");
+    return {
+        lightPreferences->GetBoolMap(),
+        lightPreferences->GetIntMap(),
+        lightPreferences->GetUnsignedMap(),
+        lightPreferences->GetFloatMap(),
+        lightPreferences->GetASCIIMap(),
+    };
+}
+
+bool lightPreferencesEqual(
+    const DocumentLightPreferenceState& lhs,
+    const DocumentLightPreferenceState& rhs
+)
+{
+    return lhs.boolValues == rhs.boolValues && lhs.intValues == rhs.intValues
+        && lhs.unsignedValues == rhs.unsignedValues && lhs.floatValues == rhs.floatValues
+        && lhs.stringValues == rhs.stringValues;
+}
+
+bool viewerLightStatesEqual(const DocumentViewerLightState& lhs, const DocumentViewerLightState& rhs)
+{
+    return lhs.backlightEnabled == rhs.backlightEnabled
+        && lhs.fillLightEnabled == rhs.fillLightEnabled && lhs.backlightColor == rhs.backlightColor
+        && lhs.fillLightColor == rhs.fillLightColor
+        && lhs.backlightDirection == rhs.backlightDirection
+        && lhs.fillLightDirection == rhs.fillLightDirection
+        && lhs.backlightIntensity == rhs.backlightIntensity
+        && lhs.fillLightIntensity == rhs.fillLightIntensity;
+}
+
+void restoreDocumentViewerLightState(
+    Gui::View3DInventorViewer& view,
+    const DocumentViewerLightState& state
+)
+{
+    SoDirectionalLight* backlight = view.getBacklight();
+    SoDirectionalLight* fillLight = view.getFillLight();
+    if (backlight) {
+        backlight->on.setValue(state.backlightEnabled);
+        backlight->color.setValue(state.backlightColor);
+        backlight->direction.setValue(state.backlightDirection);
+        backlight->intensity.setValue(state.backlightIntensity);
+    }
+    if (fillLight) {
+        fillLight->on.setValue(state.fillLightEnabled);
+        fillLight->color.setValue(state.fillLightColor);
+        fillLight->direction.setValue(state.fillLightDirection);
+        fillLight->intensity.setValue(state.fillLightIntensity);
+    }
+}
+
+void applyCandidateDocumentLighting(Gui::View3DInventorViewer& view)
+{
+    if (auto* backlight = view.getBacklight()) {
+        backlight->on.setValue(true);
+        backlight->color.setValue(SbColor(0.82F, 0.88F, 1.0F));
+        backlight->direction.setValue(SbVec3f(-0.24F, -0.42F, -0.88F));
+        backlight->intensity.setValue(0.32F);
+    }
+    if (auto* fillLight = view.getFillLight()) {
+        fillLight->on.setValue(true);
+        fillLight->color.setValue(SbColor(1.0F, 0.96F, 0.90F));
+        fillLight->direction.setValue(SbVec3f(0.36F, -0.56F, 0.74F));
+        fillLight->intensity.setValue(0.24F);
+    }
+}
+
+void applyCandidateDocumentMaterials(const DocumentFixtureMaterialSet& baselineMaterialState)
+{
+    auto* appDocument = App::GetApplication().getDocument(documentName);
+    if (!appDocument) {
+        return;
+    }
+    for (const auto& entry : baselineMaterialState) {
+        if (entry.name != fixtureHidden) {
+            auto materials = entry.shapeAppearance;
+            if (materials.empty()) {
+                materials.resize(1);
+            }
+            for (auto& material : materials) {
+                material.specularColor.set(0.45F, 0.45F, 0.45F);
+                material.shininess = std::max(material.shininess, 0.65F);
+            }
+            App::DocumentObject* object = appDocument->getObject(entry.name.c_str());
+            if (!object) {
+                continue;
+            }
+            auto* provider = dynamic_cast<Gui::ViewProviderGeometryObject*>(
+                Gui::Application::Instance->getViewProvider(object)
+            );
+            if (!provider) {
+                continue;
+            }
+            provider->ShapeAppearance.setValues(materials);
+        }
+    }
+}
+
+void restoreDocumentMaterials(const DocumentFixtureMaterialSet& snapshot)
+{
+    auto* appDocument = App::GetApplication().getDocument(documentName);
+    if (!appDocument) {
+        return;
+    }
+    for (const auto& entry : snapshot) {
+        App::DocumentObject* object = appDocument->getObject(entry.name.c_str());
+        auto* provider = object ? dynamic_cast<Gui::ViewProviderGeometryObject*>(
+                                      Gui::Application::Instance->getViewProvider(object)
+                                  )
+                                : nullptr;
+        if (provider) {
+            provider->ShapeAppearance.setValues(entry.shapeAppearance);
+        }
+    }
+}
+
+QByteArray computeDocumentImageHash(const QImage& frame)
+{
+    const QImage image = frame.convertToFormat(QImage::Format_RGB32);
+    return QCryptographicHash::hash(
+               QByteArray::fromRawData(
+                   reinterpret_cast<const char*>(image.constBits()),
+                   image.sizeInBytes()
+               ),
+               QCryptographicHash::Sha256
+    )
+        .toHex();
+}
+
+int diffDocumentImagePixels(const QImage& lhs, const QImage& rhs)
+{
+    if (lhs.size() != rhs.size()) {
+        return -1;
+    }
+    const QImage lhsImage = lhs.convertToFormat(QImage::Format_RGB32);
+    const QImage rhsImage = rhs.convertToFormat(QImage::Format_RGB32);
+    if (lhsImage.isNull() || rhsImage.isNull()) {
+        return -1;
+    }
+    int differing = 0;
+    for (int y = 0; y < lhsImage.height(); ++y) {
+        const auto* lhsPixels = reinterpret_cast<const QRgb*>(lhsImage.constScanLine(y));
+        const auto* rhsPixels = reinterpret_cast<const QRgb*>(rhsImage.constScanLine(y));
+        for (int x = 0; x < lhsImage.width(); ++x) {
+            if (lhsPixels[x] != rhsPixels[x]) {
+                ++differing;
+            }
+        }
+    }
+    return differing;
+}
+
+DocumentBrepFrameStats gatherDocumentBrepFrameStats(const QImage& frame)
+{
+    const QImage image = frame.convertToFormat(QImage::Format_RGB32);
+    const int centerLeft = image.width() / 2 - 80;
+    const int centerRight = image.width() / 2 + 80;
+    const int centerTop = image.height() / 2 - 80;
+    const int centerBottom = image.height() / 2 + 80;
+    DocumentBrepFrameStats stats;
+    for (int y = 0; y < image.height(); ++y) {
+        const auto* pixels = reinterpret_cast<const QRgb*>(image.constScanLine(y));
+        for (int x = 0; x < image.width(); ++x) {
+            const int red = qRed(pixels[x]);
+            const int green = qGreen(pixels[x]);
+            const int blue = qBlue(pixels[x]);
+            if (x >= centerLeft && x < centerRight && y >= centerTop && y < centerBottom
+                && red < 210 && green < 210 && blue < 220) {
+                ++stats.visibleCenterPixels;
+            }
+            if (red > 140 && red > green + 40 && red > blue + 30) {
+                ++stats.hiddenRedPixels;
+            }
+            if (red > 200 && green < 80 && blue > 200) {
+                ++stats.selectionPixels;
+            }
+            if (red < 80 && green > 150 && blue > 220) {
+                ++stats.preselectionPixels;
+            }
+            if (green > 170 && green > red + 30 && green > blue + 30) {
+                ++stats.canopyOverlapPixels;
+            }
+            if (x >= image.width() - 180 && y < 160
+                && std::max({red, green, blue}) - std::min({red, green, blue}) < 20
+                && std::max({red, green, blue}) > 80 && std::max({red, green, blue}) < 240) {
+                ++stats.navigationCubePixels;
+            }
+        }
+    }
+    return stats;
+}
+
+void printDocumentBrepFrameStats(const DocumentBrepFrameStats& stats)
+{
+    std::fprintf(
+        stderr,
+        "FREECAD_BREP_DOCUMENT_FRAME visible_center_pixels=%d hidden_red_pixels=%d "
+        "navigation_cube_pixels=%d selection_pixels=%d preselection_pixels=%d "
+        "canopy_overlap_pixels=%d\n",
+        stats.visibleCenterPixels,
+        stats.hiddenRedPixels,
+        stats.navigationCubePixels,
+        stats.selectionPixels,
+        stats.preselectionPixels,
+        stats.canopyOverlapPixels
+    );
+}
+
+bool validateDocumentBrepFrame(const QImage& frame)
+{
+    const auto stats = gatherDocumentBrepFrameStats(frame);
+    printDocumentBrepFrameStats(stats);
+    return stats.visibleCenterPixels >= 5000
+        && stats.hiddenRedPixels <= frame.width() * frame.height() / 200
+        && stats.navigationCubePixels >= 25 && stats.selectionPixels >= 1000
+        && stats.preselectionPixels >= 1000 && stats.canopyOverlapPixels >= 500;
+}
+
+DocumentViewerPoseState captureDocumentViewerPoseState(const Gui::View3DInventorViewer& view)
+{
+    return {
+        view.getCameraOrientation(),
+        view.getViewDirection(),
+        view.getUpDirection(),
+    };
+}
+
+bool vectorsClose(const SbVec3f& lhs, const SbVec3f& rhs, float epsilon = 1e-6F)
+{
+    return std::fabs(lhs[0] - rhs[0]) < epsilon && std::fabs(lhs[1] - rhs[1]) < epsilon
+        && std::fabs(lhs[2] - rhs[2]) < epsilon;
+}
+
+bool posesClose(
+    const DocumentViewerPoseState& lhs,
+    const DocumentViewerPoseState& rhs,
+    float epsilon = 1e-6F
+)
+{
+    float lhsAngle = 0.0F;
+    float rhsAngle = 0.0F;
+    SbVec3f lhsAxis;
+    SbVec3f rhsAxis;
+    lhs.orientation.getValue(lhsAxis, lhsAngle);
+    rhs.orientation.getValue(rhsAxis, rhsAngle);
+    return vectorsClose(lhs.viewDirection, rhs.viewDirection, epsilon)
+        && vectorsClose(lhs.upDirection, rhs.upDirection, epsilon)
+        && vectorsClose(lhsAxis, rhsAxis, epsilon) && std::fabs(lhsAngle - rhsAngle) < epsilon;
+}
+
+bool fixtureVisibilityInvariant(
+    const DocumentFixtureMaterialSet& expected,
+    const DocumentFixtureMaterialSet& actual
+)
+{
+    for (std::size_t index = 0; index < expected.size(); ++index) {
+        if (expected[index].name != actual[index].name
+            || expected[index].visible != actual[index].visible) {
+            std::fprintf(
+                stderr,
+                "Fixture visibility invariant changed at index=%zu expected=%s:%d actual=%s:%d.\n",
+                index,
+                expected[index].name.c_str(),
+                static_cast<int>(expected[index].visible),
+                actual[index].name.c_str(),
+                static_cast<int>(actual[index].visible)
+            );
+            return false;
+        }
+    }
+    return true;
+}
+
+bool fixtureMaterialsInvariant(
+    const DocumentFixtureMaterialSet& expected,
+    const DocumentFixtureMaterialSet& actual
+)
+{
+    for (std::size_t index = 0; index < expected.size(); ++index) {
+        if (expected[index].name != actual[index].name
+            || expected[index].shapeAppearance != actual[index].shapeAppearance) {
+            std::fprintf(
+                stderr,
+                "Fixture material invariant changed at index=%zu object=%s.\n",
+                index,
+                expected[index].name.c_str()
+            );
+            return false;
+        }
+    }
+    return true;
+}
+
+QImage renderDocumentFrameForLightingMatrix(Gui::View3DInventorViewer& view, long long& renderUs)
+{
+    renderUs = 0LL;
+    QElapsedTimer timer;
+    timer.start();
+    if (auto* graph = view.getSceneGraph()) {
+        graph->touch();
+    }
+    view.redraw();
+    QCoreApplication::processEvents();
+    renderUs = timer.nsecsElapsed() / nanosecondsPerMicrosecond;
+    return view.grabFramebuffer();
+}
+
+struct DocumentLightingMaterialProfileResult
+{
+    const char* profile = "";
+    bool lighting = false;
+    bool material = false;
+    long long renderUs = 0LL;
+    int diffPixels = 0;
+    QByteArray hash;
+    DocumentBrepFrameStats stats;
+};
+
+void printDocumentLightingMaterialProfile(
+    const DocumentLightingMaterialProfileResult& result,
+    int diffVsBaseline
+)
+{
+    std::fprintf(
+        stderr,
+        "FREECAD_BREP_DOCUMENT_LIGHTING_MATERIAL profile=%s lighting=%d material=%d "
+        "render_us=%lld visible_center_pixels=%d hidden_red_pixels=%d navigation_cube_pixels=%d "
+        "selection_pixels=%d preselection_pixels=%d canopy_overlap_pixels=%d "
+        "diff_vs_baseline_pixels=%d "
+        "hash=%s\n",
+        result.profile,
+        static_cast<int>(result.lighting),
+        static_cast<int>(result.material),
+        result.renderUs,
+        result.stats.visibleCenterPixels,
+        result.stats.hiddenRedPixels,
+        result.stats.navigationCubePixels,
+        result.stats.selectionPixels,
+        result.stats.preselectionPixels,
+        result.stats.canopyOverlapPixels,
+        diffVsBaseline,
+        result.hash.constData()
+    );
+}
+
+bool runDocumentLightingMaterialProbe(Gui::View3DInventorViewer& view)
+{
+    constexpr int minimumVisualChangePixels = 500;
+    DocumentFixtureMaterialSet baselineMaterialState {};
+    DocumentFixtureMaterialSet currentMaterialState {};
+    if (!fixtureMaterialStateFromDocument(fixtureComposition, baselineMaterialState)
+        || !fixtureMaterialStateFromDocument(fixtureComposition, currentMaterialState)) {
+        return false;
+    }
+    if (!fixtureVisibilityInvariant(baselineMaterialState, currentMaterialState)) {
+        return false;
+    }
+
+    const auto baselinePose = captureDocumentViewerPoseState(view);
+    const auto baselineLightState = captureDocumentViewerLightState(view);
+    const auto baselineLightPreferences = captureDocumentLightPreferenceState();
+
+    const std::array<std::tuple<const char*, bool, bool>, 4> profiles {
+        std::tuple<const char*, bool, bool> {"baseline", false, false},
+        {"lighting_only", true, false},
+        {"material_only", false, true},
+        {"combined", true, true},
+    };
+    std::array<DocumentLightingMaterialProfileResult, 4> results {};
+    std::array<QImage, 4> renderedFrames {};
+    bool relationOk = true;
+
+    for (std::size_t index = 0; index < profiles.size(); ++index) {
+        const auto& profile = profiles[index];
+        const bool lighting = std::get<1>(profile);
+        const bool material = std::get<2>(profile);
+
+        restoreDocumentMaterials(baselineMaterialState);
+        restoreDocumentViewerLightState(view, baselineLightState);
+        if (lighting) {
+            applyCandidateDocumentLighting(view);
+        }
+        if (material) {
+            applyCandidateDocumentMaterials(baselineMaterialState);
+        }
+
+        if (!fixtureMaterialStateFromDocument(fixtureComposition, currentMaterialState)) {
+            return false;
+        }
+        if (!fixtureVisibilityInvariant(baselineMaterialState, currentMaterialState)) {
+            relationOk = false;
+        }
+        const auto profilePose = captureDocumentViewerPoseState(view);
+        if (!posesClose(profilePose, baselinePose)) {
+            relationOk = false;
+        }
+
+        long long renderUs = 0LL;
+        const QImage frame = renderDocumentFrameForLightingMatrix(view, renderUs);
+        if (frame.isNull()) {
+            relationOk = false;
+            break;
+        }
+        renderedFrames[index] = frame;
+
+        auto& result = results[index];
+        result.profile = std::get<0>(profile);
+        result.lighting = lighting;
+        result.material = material;
+        result.renderUs = renderUs;
+        result.stats = gatherDocumentBrepFrameStats(frame);
+        result.hash = computeDocumentImageHash(frame);
+        if (index > 0) {
+            result.diffPixels = diffDocumentImagePixels(frame, renderedFrames[0]);
+        }
+        printDocumentLightingMaterialProfile(result, result.diffPixels);
+        printDocumentBrepFrameStats(result.stats);
+    }
+
+    if (renderedFrames[0].isNull()) {
+        return false;
+    }
+
+    restoreDocumentMaterials(baselineMaterialState);
+    restoreDocumentViewerLightState(view, baselineLightState);
+    long long restoredRenderUs = 0LL;
+    const QImage restoredFrame = renderDocumentFrameForLightingMatrix(view, restoredRenderUs);
+    if (restoredFrame.isNull()) {
+        return false;
+    }
+    const int restoreDiffPixels = diffDocumentImagePixels(restoredFrame, renderedFrames[0]);
+    const QByteArray restoredHash = computeDocumentImageHash(restoredFrame);
+    const bool restoreMatch = restoreDiffPixels == 0 && !restoredHash.isEmpty()
+        && !results[0].hash.isEmpty() && restoredHash == results[0].hash;
+    const auto restoredPose = captureDocumentViewerPoseState(view);
+    if (!posesClose(restoredPose, baselinePose)) {
+        relationOk = false;
+    }
+    if (!fixtureMaterialStateFromDocument(fixtureComposition, currentMaterialState)) {
+        return false;
+    }
+    const bool visibilityStable
+        = fixtureVisibilityInvariant(baselineMaterialState, currentMaterialState);
+    const bool materialsRestored
+        = fixtureMaterialsInvariant(baselineMaterialState, currentMaterialState);
+    const bool lightStateRestored
+        = viewerLightStatesEqual(baselineLightState, captureDocumentViewerLightState(view));
+    const bool preferencesStable
+        = lightPreferencesEqual(baselineLightPreferences, captureDocumentLightPreferenceState());
+    if (!visibilityStable || !materialsRestored || !lightStateRestored || !preferencesStable) {
+        relationOk = false;
+    }
+
+    const bool baselineValid = validateDocumentBrepFrame(renderedFrames[0]);
+    const bool lightingChanged = results[1].diffPixels > minimumVisualChangePixels;
+    const bool materialChanged = results[2].diffPixels > minimumVisualChangePixels;
+    const bool combinedChanged = results[3].diffPixels > minimumVisualChangePixels;
+    const int baselineDiffLighting = results[1].diffPixels;
+    const int baselineDiffMaterial = results[2].diffPixels;
+    const int baselineDiffCombined = results[3].diffPixels;
+    const int lightingVsMaterialDiff = diffDocumentImagePixels(renderedFrames[1], renderedFrames[2]);
+    const int lightingVsCombinedDiff = diffDocumentImagePixels(renderedFrames[1], renderedFrames[3]);
+    const int materialVsCombinedDiff = diffDocumentImagePixels(renderedFrames[2], renderedFrames[3]);
+    relationOk = relationOk && baselineValid && lightingChanged && materialChanged
+        && combinedChanged && restoreMatch && visibilityStable && materialsRestored
+        && lightStateRestored && preferencesStable && lightingVsMaterialDiff >= 0
+        && lightingVsCombinedDiff >= 0 && materialVsCombinedDiff >= 0;
+
+    std::fprintf(
+        stderr,
+        "FREECAD_BREP_DOCUMENT_LIGHTING_MATERIAL_DIFF profile=lighting_vs_material "
+        "diff_pixels=%d\n",
+        lightingVsMaterialDiff
+    );
+    std::fprintf(
+        stderr,
+        "FREECAD_BREP_DOCUMENT_LIGHTING_MATERIAL_DIFF profile=lighting_vs_combined "
+        "diff_pixels=%d\n",
+        lightingVsCombinedDiff
+    );
+    std::fprintf(
+        stderr,
+        "FREECAD_BREP_DOCUMENT_LIGHTING_MATERIAL_DIFF profile=material_vs_combined "
+        "diff_pixels=%d\n",
+        materialVsCombinedDiff
+    );
+    std::fprintf(
+        stderr,
+        "FREECAD_BREP_DOCUMENT_LIGHTING_MATERIAL_RELATION outcome=%s baseline=%d lighting=%d "
+        "material=%d combined=%d restore_match=%d camera_stable=%d visibility_stable=%d "
+        "material_restore=%d light_restore=%d light_preferences_stable=%d "
+        "baseline_render_us=%lld lighting_render_us=%lld material_render_us=%lld "
+        "combined_render_us=%lld restore_render_us=%lld baseline_diff_lighting=%d "
+        "baseline_diff_material=%d baseline_diff_combined=%d\n",
+        relationOk ? "pass" : "fail",
+        static_cast<int>(baselineValid),
+        static_cast<int>(lightingChanged),
+        static_cast<int>(materialChanged),
+        static_cast<int>(combinedChanged),
+        static_cast<int>(restoreMatch),
+        static_cast<int>(posesClose(restoredPose, baselinePose)),
+        static_cast<int>(visibilityStable),
+        static_cast<int>(materialsRestored),
+        static_cast<int>(lightStateRestored),
+        static_cast<int>(preferencesStable),
+        results[0].renderUs,
+        results[1].renderUs,
+        results[2].renderUs,
+        results[3].renderUs,
+        restoredRenderUs,
+        baselineDiffLighting,
+        baselineDiffMaterial,
+        baselineDiffCombined
+    );
+    if (!relationOk) {
+        std::fprintf(stderr, "Document lighting-material matrix failed.\n");
+    }
+    return relationOk;
 }
 
 struct TessellationProfileResult
@@ -542,66 +1186,6 @@ bool runDocumentTessellationProbe()
     return relationOk;
 }
 
-bool validateDocumentBrepFrame(const QImage& frame)
-{
-    const QImage image = frame.convertToFormat(QImage::Format_RGB32);
-    const int centerLeft = image.width() / 2 - 80;
-    const int centerRight = image.width() / 2 + 80;
-    const int centerTop = image.height() / 2 - 80;
-    const int centerBottom = image.height() / 2 + 80;
-    int visibleCenterPixels = 0;
-    int hiddenRedPixels = 0;
-    int navigationCubePixels = 0;
-    int selectionPixels = 0;
-    int preselectionPixels = 0;
-    int canopyOverlapPixels = 0;
-
-    for (int y = 0; y < image.height(); ++y) {
-        const auto* pixels = reinterpret_cast<const QRgb*>(image.constScanLine(y));
-        for (int x = 0; x < image.width(); ++x) {
-            const int red = qRed(pixels[x]);
-            const int green = qGreen(pixels[x]);
-            const int blue = qBlue(pixels[x]);
-            if (x >= centerLeft && x < centerRight && y >= centerTop && y < centerBottom
-                && red < 210 && green < 210 && blue < 220) {
-                ++visibleCenterPixels;
-            }
-            if (red > 140 && red > green + 40 && red > blue + 30) {
-                ++hiddenRedPixels;
-            }
-            if (red > 200 && green < 80 && blue > 200) {
-                ++selectionPixels;
-            }
-            if (red < 80 && green > 150 && blue > 220) {
-                ++preselectionPixels;
-            }
-            if (green > 170 && green > red + 30 && green > blue + 30) {
-                ++canopyOverlapPixels;
-            }
-            if (x >= image.width() - 180 && y < 160
-                && std::max({red, green, blue}) - std::min({red, green, blue}) < 20
-                && std::max({red, green, blue}) > 80 && std::max({red, green, blue}) < 240) {
-                ++navigationCubePixels;
-            }
-        }
-    }
-
-    std::fprintf(
-        stderr,
-        "FREECAD_BREP_DOCUMENT_FRAME visible_center_pixels=%d hidden_red_pixels=%d "
-        "navigation_cube_pixels=%d selection_pixels=%d preselection_pixels=%d "
-        "canopy_overlap_pixels=%d\n",
-        visibleCenterPixels,
-        hiddenRedPixels,
-        navigationCubePixels,
-        selectionPixels,
-        preselectionPixels,
-        canopyOverlapPixels
-    );
-    return visibleCenterPixels >= 5000 && hiddenRedPixels <= image.width() * image.height() / 200
-        && navigationCubePixels >= 25 && selectionPixels >= 1000 && preselectionPixels >= 1000
-        && canopyOverlapPixels >= 500;
-}
 #endif
 
 }  // namespace
@@ -683,6 +1267,10 @@ int main(int argc, char* argv[])
         QStringLiteral(
             "Use rounded, selected, preselected, and hidden Part document objects for the fixture."
         )
+    );
+    const QCommandLineOption brepDocumentLightingMaterialOption(
+        QStringLiteral("brep-document-lighting-material"),
+        QStringLiteral("Run deterministic lighting/material matrix checks on the document fixture.")
     );
     const QCommandLineOption brepDocumentTessellationOption(
         QStringLiteral("brep-document-tessellation"),
@@ -769,6 +1357,7 @@ int main(int argc, char* argv[])
         unrelatedWidgetOption,
         brepFixtureOption,
         brepDocumentFixtureOption,
+        brepDocumentLightingMaterialOption,
         screenshotOption,
         brepOverlaysOption,
         brepDuplicateEdgesOption,
@@ -959,6 +1548,13 @@ int main(int argc, char* argv[])
         App::Application::destruct();
         return 2;
     }
+    if (parser.isSet(brepDocumentLightingMaterialOption) && !parser.isSet(brepDocumentFixtureOption)) {
+        QTextStream(
+            stderr
+        ) << "--brep-document-lighting-material requires --brep-document-fixture.\n";
+        App::Application::destruct();
+        return 2;
+    }
     if (parser.isSet(sceneAaLiveOption)) {
         qputenv(
             "FREECAD_SCENE_AA_LIVE",
@@ -989,6 +1585,14 @@ int main(int argc, char* argv[])
 #ifndef FREECAD_GPU_DIAGNOSTICS_HAS_PART
     if (parser.isSet(brepFixtureOption)) {
         QTextStream(stderr) << "--brep-fixture requires a build with the Part workbench.\n";
+        App::Application::destruct();
+        return 2;
+    }
+    if (parser.isSet(brepDocumentFixtureOption) || parser.isSet(brepDocumentLightingMaterialOption)
+        || parser.isSet(brepDocumentTessellationOption)) {
+        QTextStream(
+            stderr
+        ) << "--brep-document-* options require a build with the Part workbench.\n";
         App::Application::destruct();
         return 2;
     }
@@ -1115,6 +1719,14 @@ int main(int argc, char* argv[])
                     );
                 }
             }
+#ifdef FREECAD_GPU_DIAGNOSTICS_HAS_PART
+            if (parser.isSet(brepDocumentLightingMaterialOption)
+                && !runDocumentLightingMaterialProbe(view)) {
+                QTextStream(stderr) << "Document BRep lighting/material matrix failed.\n";
+                qtApplication.exit(3);
+                return;
+            }
+#endif
             if (parser.isSet(screenshotOption) || parser.isSet(sceneAaSamplesOption)) {
                 view.redraw();
                 qtApplication.processEvents();
