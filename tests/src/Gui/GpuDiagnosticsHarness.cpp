@@ -5,6 +5,7 @@
 #include <cmath>
 #include <cstdio>
 #include <memory>
+#include <string_view>
 #include <vector>
 
 #include <QApplication>
@@ -15,18 +16,25 @@
 #include <QImage>
 #include <QOpenGLFunctions>
 #include <QOpenGLWidget>
+#include <QSurfaceFormat>
 #include <QTemporaryDir>
 #include <QTextStream>
 #include <QTimer>
 
 #include <App/Application.h>
+#include <App/Document.h>
+
+#include <Base/Interpreter.h>
 
 #include <Gui/Application.h>
 #include <Gui/Camera.h>
+#include <Gui/Document.h>
 #include <Gui/GpuDiagnostics.h>
 #include <Gui/Multisample.h>
 #include <Gui/NaviCube.h>
+#include <Gui/Selection/Selection.h>
 #include <Gui/View3DInventorViewer.h>
+#include <Gui/ViewProvider.h>
 
 #ifdef FREECAD_GPU_DIAGNOSTICS_HAS_PART
 # include <Inventor/SbName.h>
@@ -63,6 +71,20 @@ void closeDiagnosticsDialogs()
 }
 
 #ifdef FREECAD_GPU_DIAGNOSTICS_HAS_PART
+SoGroup* findObjectGroup(Gui::View3DInventorViewer& view)
+{
+    auto* viewerRoot = static_cast<SoSeparator*>(view.getSceneGraph());
+    auto* modelRoot = static_cast<SoSeparator*>(viewerRoot->getChild(1));
+    for (int index = 0; index < modelRoot->getNumChildren(); ++index) {
+        auto* child = modelRoot->getChild(index);
+        if (child->getName() == SbName("ObjectGroup")
+            && child->getTypeId().isDerivedFrom(SoGroup::getClassTypeId())) {
+            return static_cast<SoGroup*>(child);
+        }
+    }
+    return modelRoot;
+}
+
 void installBrepFixture(
     Gui::View3DInventorViewer& view,
     bool includeOverlays,
@@ -185,19 +207,150 @@ void installBrepFixture(
     edgeRoot->addChild(edges);
     root->addChild(edgeRoot);
 
-    auto* viewerRoot = static_cast<SoSeparator*>(view.getSceneGraph());
-    auto* modelRoot = static_cast<SoSeparator*>(viewerRoot->getChild(1));
-    SoGroup* objectRoot = modelRoot;
-    for (int index = 0; index < modelRoot->getNumChildren(); ++index) {
-        auto* child = modelRoot->getChild(index);
-        if (child->getName() == SbName("ObjectGroup")
-            && child->getTypeId().isDerivedFrom(SoGroup::getClassTypeId())) {
-            objectRoot = static_cast<SoGroup*>(child);
-            break;
+    findObjectGroup(view)->addChild(root);
+    root->unref();
+}
+
+bool installDocumentBrepFixture(Gui::View3DInventorViewer& view)
+{
+    constexpr auto documentName = "GpuDiagnosticsBrepDocument";
+    App::Document* appDocument = nullptr;
+    try {
+        Base::Interpreter().runString("import PartGui");
+        App::DocumentInitFlags createFlags;
+        createFlags.createView = false;
+        appDocument = App::GetApplication().newDocument(documentName, "gpuDiagnostics", createFlags);
+        Base::Interpreter().runString(R"PY(
+import FreeCAD as App
+import Part
+
+doc = App.getDocument("GpuDiagnosticsBrepDocument")
+
+housing = Part.makeBox(60, 30, 16, App.Vector(-30, -15, -8))
+housing = housing.makeFillet(4, housing.Edges)
+for x in (-17, 0, 17):
+    hole = Part.makeCylinder(5, 40, App.Vector(x, -20, 0), App.Vector(0, 1, 0))
+    housing = housing.cut(hole)
+
+housing_feature = doc.addObject("Part::Feature", "RoundedHousing")
+housing_feature.Label = "Rounded housing with through holes"
+housing_feature.Shape = housing
+housing_feature.ViewObject.ShapeColor = (0.55, 0.68, 0.80)
+housing_feature.ViewObject.LineColor = (0.12, 0.16, 0.20)
+
+boss = Part.makeBox(16, 12, 5, App.Vector(-8, -6, 8))
+boss = boss.makeFillet(1.5, boss.Edges)
+boss_feature = doc.addObject("Part::Feature", "RoundedBoss")
+boss_feature.Label = "Rounded top boss"
+boss_feature.Shape = boss
+boss_feature.ViewObject.ShapeColor = (0.62, 0.80, 0.65)
+
+hidden_shape = Part.makeBox(24, 18, 10, App.Vector(-12, -9, -5))
+hidden_shape = hidden_shape.makeFillet(3, hidden_shape.Edges)
+hidden_feature = doc.addObject("Part::Feature", "HiddenRoundedSolid")
+hidden_feature.Label = "Hidden rounded solid"
+hidden_feature.Shape = hidden_shape
+hidden_feature.ViewObject.ShapeColor = (0.85, 0.25, 0.35)
+hidden_feature.ViewObject.Visibility = False
+
+doc.recompute()
+)PY");
+    }
+    catch (const Base::Exception& error) {
+        std::fprintf(stderr, "Could not create the document BRep fixture: %s\n", error.what());
+        return false;
+    }
+
+    Gui::Document* guiDocument = Gui::Application::Instance
+        ? Gui::Application::Instance->getDocument(appDocument)
+        : nullptr;
+    if (!appDocument || !guiDocument) {
+        std::fprintf(stderr, "Could not attach the document BRep fixture to the GUI.\n");
+        return false;
+    }
+
+    view.setDocument(guiDocument);
+    constexpr std::array<const char*, 3> objectNames {
+        "RoundedHousing",
+        "RoundedBoss",
+        "HiddenRoundedSolid",
+    };
+    for (const char* objectName : objectNames) {
+        App::DocumentObject* object = appDocument->getObject(objectName);
+        Gui::ViewProvider* provider = object ? Gui::Application::Instance->getViewProvider(object)
+                                             : nullptr;
+        if (!provider || !provider->getRoot()) {
+            std::fprintf(stderr, "Document BRep fixture is missing %s.\n", objectName);
+            return false;
+        }
+        if (std::string_view(objectName) == "HiddenRoundedSolid" && provider->isShow()) {
+            std::fprintf(stderr, "Document BRep fixture hidden object became visible.\n");
+            return false;
+        }
+        view.addViewProvider(provider);
+    }
+
+    {
+        Gui::SelectionLogDisabler disableSelectionLog(true);
+        Gui::Selection().clearCompleteSelection();
+        Gui::Selection().addSelection(documentName, "RoundedBoss", "", 0, 0, 0, nullptr, false);
+        Gui::Selection().setPreselect(documentName, "RoundedHousing", "");
+    }
+    return true;
+}
+
+bool validateDocumentBrepFrame(const QImage& frame)
+{
+    const QImage image = frame.convertToFormat(QImage::Format_RGB32);
+    const int centerLeft = image.width() / 2 - 80;
+    const int centerRight = image.width() / 2 + 80;
+    const int centerTop = image.height() / 2 - 80;
+    const int centerBottom = image.height() / 2 + 80;
+    int visibleCenterPixels = 0;
+    int hiddenRedPixels = 0;
+    int navigationCubePixels = 0;
+    int selectionPixels = 0;
+    int preselectionPixels = 0;
+
+    for (int y = 0; y < image.height(); ++y) {
+        const auto* pixels = reinterpret_cast<const QRgb*>(image.constScanLine(y));
+        for (int x = 0; x < image.width(); ++x) {
+            const int red = qRed(pixels[x]);
+            const int green = qGreen(pixels[x]);
+            const int blue = qBlue(pixels[x]);
+            if (x >= centerLeft && x < centerRight && y >= centerTop && y < centerBottom
+                && red < 210 && green < 210 && blue < 220) {
+                ++visibleCenterPixels;
+            }
+            if (red > 140 && red > green + 40 && red > blue + 30) {
+                ++hiddenRedPixels;
+            }
+            if (red > 200 && green < 80 && blue > 200) {
+                ++selectionPixels;
+            }
+            if (red < 80 && green > 150 && blue > 220) {
+                ++preselectionPixels;
+            }
+            if (x >= image.width() - 180 && y < 160
+                && std::max({red, green, blue}) - std::min({red, green, blue}) < 20
+                && std::max({red, green, blue}) > 80 && std::max({red, green, blue}) < 240) {
+                ++navigationCubePixels;
+            }
         }
     }
-    objectRoot->addChild(root);
-    root->unref();
+
+    std::fprintf(
+        stderr,
+        "FREECAD_BREP_DOCUMENT_FRAME visible_center_pixels=%d hidden_red_pixels=%d "
+        "navigation_cube_pixels=%d selection_pixels=%d preselection_pixels=%d\n",
+        visibleCenterPixels,
+        hiddenRedPixels,
+        navigationCubePixels,
+        selectionPixels,
+        preselectionPixels
+    );
+    return visibleCenterPixels >= 5000 && hiddenRedPixels <= image.width() * image.height() / 200
+        && navigationCubePixels >= 25 && selectionPixels >= 1000 && preselectionPixels >= 1000;
 }
 #endif
 
@@ -219,6 +372,22 @@ int main(int argc, char* argv[])
     App::Application::init(static_cast<int>(freecadArgv.size()), freecadArgv.data());
     Gui::Application::initApplication();
     Gui::Application::setupDefaultSurfaceFormat();
+
+    const bool forceLiveSceneAa = std::any_of(argv + 1, argv + argc, [](const char* argument) {
+        return QByteArrayView(argument) == QByteArrayView("--scene-aa-live-force");
+    });
+    int forcedWidgetSamples = 0;
+    if (forceLiveSceneAa) {
+        for (int index = 1; index + 1 < argc; ++index) {
+            if (QByteArrayView(argv[index]) != QByteArrayView("--samples")) {
+                continue;
+            }
+            bool samplesOk = false;
+            const int samples = QByteArray(argv[index + 1]).toInt(&samplesOk);
+            forcedWidgetSamples = samplesOk ? samples : 0;
+            break;
+        }
+    }
 
     QApplication qtApplication(argc, argv);
     QCoreApplication::setApplicationName(QStringLiteral("GpuDiagnosticsHarness"));
@@ -259,6 +428,12 @@ int main(int argc, char* argv[])
         QStringLiteral("brep-fixture"),
         QStringLiteral("Render a deterministic production SoBrepEdgeSet fixture.")
     );
+    const QCommandLineOption brepDocumentFixtureOption(
+        QStringLiteral("brep-document-fixture"),
+        QStringLiteral(
+            "Use rounded, selected, preselected, and hidden Part document objects for the fixture."
+        )
+    );
     const QCommandLineOption screenshotOption(
         QStringLiteral("screenshot"),
         QStringLiteral("Save the rendered viewport to this path."),
@@ -276,6 +451,10 @@ int main(int argc, char* argv[])
     const QCommandLineOption sceneAaLiveOption(
         QStringLiteral("scene-aa-live"),
         QStringLiteral("Enable the developer-gated live owned-MSAA-FBO presentation path.")
+    );
+    const QCommandLineOption sceneAaLiveForceOption(
+        QStringLiteral("scene-aa-live-force"),
+        QStringLiteral("Force the live owned-MSAA-FBO path with a single-sample Qt widget.")
     );
     const QCommandLineOption sceneAaLiveStatsOption(
         QStringLiteral("scene-aa-live-stats"),
@@ -335,6 +514,7 @@ int main(int argc, char* argv[])
         autoExitOption,
         unrelatedWidgetOption,
         brepFixtureOption,
+        brepDocumentFixtureOption,
         screenshotOption,
         brepOverlaysOption,
         brepDuplicateEdgesOption,
@@ -346,6 +526,7 @@ int main(int argc, char* argv[])
         sceneAaSamplesOption,
         sceneAaStatsOption,
         sceneAaLiveOption,
+        sceneAaLiveForceOption,
         sceneAaLiveStatsOption,
         sceneAaLiveResizeOption,
         sceneAaLiveFallbackTransitionOption,
@@ -443,6 +624,14 @@ int main(int argc, char* argv[])
         App::Application::destruct();
         return 2;
     }
+    if (parser.isSet(brepDocumentFixtureOption)
+        && (parser.isSet(brepDenseFixtureOption) || parser.isSet(brepDuplicateEdgesOption))) {
+        QTextStream(
+            stderr
+        ) << "--brep-document-fixture cannot be combined with dense or duplicate-edge fixtures.\n";
+        App::Application::destruct();
+        return 2;
+    }
     if (parser.isSet(edgeAaStatsOption) && edgeAaMode != QStringLiteral("dedup-screen-space")
         && !shaderMode) {
         QTextStream(
@@ -480,6 +669,14 @@ int main(int argc, char* argv[])
         App::Application::destruct();
         return 2;
     }
+    if (parser.isSet(sceneAaLiveForceOption)
+        && (!parser.isSet(sceneAaLiveOption) || !parser.isSet(brepFixtureOption))) {
+        QTextStream(
+            stderr
+        ) << "--scene-aa-live-force requires --scene-aa-live and --brep-fixture.\n";
+        App::Application::destruct();
+        return 2;
+    }
     if (parser.isSet(sceneAaLiveStatsOption) && !parser.isSet(sceneAaLiveOption)) {
         QTextStream(stderr) << "--scene-aa-live-stats requires --scene-aa-live.\n";
         App::Application::destruct();
@@ -503,7 +700,10 @@ int main(int argc, char* argv[])
         return 2;
     }
     if (parser.isSet(sceneAaLiveOption)) {
-        qputenv("FREECAD_SCENE_AA_LIVE", "1");
+        qputenv(
+            "FREECAD_SCENE_AA_LIVE",
+            parser.isSet(sceneAaLiveForceOption) ? QByteArrayLiteral("force") : QByteArrayLiteral("1")
+        );
     }
     else {
         qunsetenv("FREECAD_SCENE_AA_LIVE");
@@ -534,24 +734,49 @@ int main(int argc, char* argv[])
     }
 #endif
 
+    if (parser.isSet(brepDocumentFixtureOption)) {
+        auto viewParameters = App::GetApplication().GetParameterGroupByPath(
+            "User parameter:BaseApp/Preferences/View"
+        );
+        viewParameters->SetUnsigned("SelectionColor", 0xFF00FFFF);
+        viewParameters->SetUnsigned("HighlightColor", 0x0AC8FFFF);
+    }
+
     int result = 0;
     {
-        Gui::Application guiApplication(false);
+        Gui::Application guiApplication(parser.isSet(brepDocumentFixtureOption));
+        bool fixtureInstallFailed = false;
         // The production viewer always creates a navigation cube. Avoid adding its
         // product commands because their active-state checks require MainWindow.
         NaviCube::setNaviCubeCommands({"GpuDiagnosticsHarness_NoCommand"});
 
-        Gui::View3DInventorViewer view(nullptr);
+        std::unique_ptr<Gui::View3DInventorViewer> viewOwner;
+        if (forceLiveSceneAa && forcedWidgetSamples > 0) {
+            QSurfaceFormat format;
+            format.setSamples(forcedWidgetSamples);
+            viewOwner = std::make_unique<Gui::View3DInventorViewer>(format, nullptr);
+        }
+        else {
+            viewOwner = std::make_unique<Gui::View3DInventorViewer>(nullptr);
+        }
+        auto& view = *viewOwner;
         view.setWindowTitle(QStringLiteral("FreeCAD GPU Diagnostics Harness"));
         view.resize(960, 640);
 #ifdef FREECAD_GPU_DIAGNOSTICS_HAS_PART
         if (parser.isSet(brepFixtureOption)) {
-            installBrepFixture(
-                view,
-                parser.isSet(brepOverlaysOption),
-                parser.isSet(brepDuplicateEdgesOption),
-                parser.isSet(brepDenseFixtureOption)
-            );
+            if (parser.isSet(brepDocumentFixtureOption)) {
+                if (!installDocumentBrepFixture(view)) {
+                    fixtureInstallFailed = true;
+                }
+            }
+            else {
+                installBrepFixture(
+                    view,
+                    parser.isSet(brepOverlaysOption),
+                    parser.isSet(brepDuplicateEdgesOption),
+                    parser.isSet(brepDenseFixtureOption)
+                );
+            }
         }
 #endif
         view.show();
@@ -656,6 +881,14 @@ int main(int argc, char* argv[])
                 else {
                     screenshot = view.grabFramebuffer();
                 }
+#ifdef FREECAD_GPU_DIAGNOSTICS_HAS_PART
+                if (parser.isSet(brepDocumentFixtureOption)
+                    && !validateDocumentBrepFrame(screenshot)) {
+                    QTextStream(stderr) << "Document BRep fixture frame validation failed.\n";
+                    qtApplication.exit(3);
+                    return;
+                }
+#endif
                 const auto screenshotPath = parser.value(screenshotOption);
                 if (screenshot.isNull()
                     || (parser.isSet(screenshotOption) && !screenshot.save(screenshotPath))) {
@@ -705,7 +938,9 @@ int main(int argc, char* argv[])
                 collectReport(true);
             }
         });
-        contextPoll.start();
+        if (!fixtureInstallFailed) {
+            contextPoll.start();
+        }
         QTimer shutdownTimer(&view);
         shutdownTimer.setInterval(autoExitMs);
         QObject::connect(&shutdownTimer, &QTimer::timeout, [&]() {
@@ -716,7 +951,12 @@ int main(int argc, char* argv[])
             closeDiagnosticsDialogs();
             qtApplication.quit();
         });
-        shutdownTimer.start();
+        if (fixtureInstallFailed) {
+            QTimer::singleShot(0, &qtApplication, [&qtApplication]() { qtApplication.exit(3); });
+        }
+        else {
+            shutdownTimer.start();
+        }
 
         result = qtApplication.exec();
         view.close();

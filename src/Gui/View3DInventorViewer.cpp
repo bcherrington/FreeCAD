@@ -25,6 +25,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdint>
 #include <cstdio>
 
 #include <Inventor/SoFCPlacementIndicatorKit.h>
@@ -204,11 +205,42 @@ public:
     int actualSampleBuffers = 0;
     int actualSamples = 0;
     unsigned long long allocations = 0;
+    bool forceOwnedFramebuffer = false;
 };
 
 namespace
 {
 constexpr qint64 DimensionPaneUpdateIntervalMs = 100;
+
+enum class LiveSceneAaActivation : std::uint8_t
+{
+    Disabled,
+    Automatic,
+    Forced
+};
+
+LiveSceneAaActivation liveSceneAaActivation()
+{
+    const QString mode = qEnvironmentVariable("FREECAD_SCENE_AA_LIVE").trimmed();
+    if (mode.compare(QStringLiteral("force"), Qt::CaseInsensitive) == 0) {
+        return LiveSceneAaActivation::Forced;
+    }
+
+    bool enabledOk = false;
+    const int enabled = mode.toInt(&enabledOk);
+    return enabledOk && enabled > 0 ? LiveSceneAaActivation::Automatic
+                                    : LiveSceneAaActivation::Disabled;
+}
+
+QSurfaceFormat liveSceneAaWidgetFormat(QSurfaceFormat format)
+{
+    if (liveSceneAaActivation() == LiveSceneAaActivation::Forced) {
+        // Exercise the same owned-MSAA resolve used when Qt supplies no native
+        // samples, even if the requested widget format would normally have MSAA.
+        format.setSamples(0);
+    }
+    return format;
+}
 
 struct DimensionPaneState
 {
@@ -1029,7 +1061,7 @@ View3DInventorViewer::View3DInventorViewer(
     QWidget* parent,
     const QOpenGLWidget* sharewidget
 )
-    : Quarter::SoQTQuarterAdaptor(format, parent, sharewidget)
+    : Quarter::SoQTQuarterAdaptor(liveSceneAaWidgetFormat(format), parent, sharewidget)
     , SelectionObserver(false, ResolveMode::NoResolve)
     , editViewProvider(nullptr)
     , objectGroup(nullptr)
@@ -1061,11 +1093,10 @@ void View3DInventorViewer::init()
     fpsEnabled = false;
     vboEnabled = false;
 
-    bool liveSceneAaOk = false;
-    const int liveSceneAaEnabled
-        = qEnvironmentVariableIntValue("FREECAD_SCENE_AA_LIVE", &liveSceneAaOk);
-    if (liveSceneAaOk && liveSceneAaEnabled > 0) {
+    const LiveSceneAaActivation activation = liveSceneAaActivation();
+    if (activation != LiveSceneAaActivation::Disabled) {
         liveSceneAa = std::make_unique<LiveSceneAaState>();
+        liveSceneAa->forceOwnedFramebuffer = activation == LiveSceneAaActivation::Forced;
     }
 
     attachSelection();
@@ -3277,50 +3308,6 @@ void View3DInventorViewer::releaseLiveSceneAaResources()
     liveSceneAa->actualSamples = 0;
 }
 
-void View3DInventorViewer::renderLiveSceneAaDecorations()
-{
-    const SbViewportRegion vp = this->getSoRenderManager()->getViewportRegion();
-    const SbVec2s origin = vp.getViewportOriginPixels();
-    const SbVec2s size = vp.getViewportSizePixels();
-    glViewport(origin[0], origin[1], size[0], size[1]);
-
-    auto* glra = this->getSoRenderManager()->getGLRenderAction();
-    if (glra) {
-        SoState* state = glra->getState();
-        SoDevicePixelRatioElement::set(state, static_cast<float>(devicePixelRatio()));
-        SoGLWidgetElement::set(state, qobject_cast<QOpenGLWidget*>(this->getGLWidget()));
-        SoGLRenderActionElement::set(state, glra);
-        SoGLVBOActivatedElement::set(state, this->vboEnabled);
-        glra->apply(this->decorationroot);
-    }
-    if (this->axiscrossEnabled) {
-        this->drawAxisCross();
-    }
-
-    if (this->isAnimating()) {
-        this->getSoRenderManager()->scheduleRedraw();
-    }
-
-    printDimension();
-    for (auto it : this->graphicsItems) {
-        it->paintGL();
-    }
-    renderRubberbandOverlay();
-
-    // Keep the live QOpenGLWidget output opaque, matching renderScene().
-    GLboolean colorMask[4] = {GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE};
-    glGetBooleanv(GL_COLOR_WRITEMASK, colorMask);
-    GLfloat clearColor[4] = {0.0f, 0.0f, 0.0f, 0.0f};
-    glGetFloatv(GL_COLOR_CLEAR_VALUE, clearColor);
-
-    glColorMask(false, false, false, true);
-    glClearColor(0, 0, 0, 1);
-    glClear(GL_COLOR_BUFFER_BIT);
-
-    glColorMask(colorMask[0], colorMask[1], colorMask[2], colorMask[3]);
-    glClearColor(clearColor[0], clearColor[1], clearColor[2], clearColor[3]);
-}
-
 bool View3DInventorViewer::tryRenderLiveSceneAa()
 {
     if (!liveSceneAa) {
@@ -3402,7 +3389,7 @@ bool View3DInventorViewer::tryRenderLiveSceneAa()
     }
     glGetIntegerv(GL_SAMPLE_BUFFERS, &widgetSampleBuffers);
     glGetIntegerv(GL_SAMPLES, &widgetSamples);
-    if (widgetSampleBuffers > 0 && widgetSamples > 0) {
+    if (!liveSceneAa->forceOwnedFramebuffer && widgetSampleBuffers > 0 && widgetSamples > 0) {
         releaseLiveSceneAaResources();
         report("native", "widget-multisampled");
         return false;
@@ -3442,6 +3429,12 @@ bool View3DInventorViewer::tryRenderLiveSceneAa()
             if (liveSceneAa->actualSampleBuffers <= 0 || liveSceneAa->actualSamples <= 0) {
                 liveSceneAa->failureReason = QStringLiteral("multisample-unavailable");
             }
+            else if (
+                liveSceneAa->forceOwnedFramebuffer && widgetSampleBuffers > 0 && widgetSamples > 0
+                && liveSceneAa->actualSamples != widgetSamples
+            ) {
+                liveSceneAa->failureReason = QStringLiteral("forced-sample-mismatch");
+            }
         }
     }
 
@@ -3457,15 +3450,20 @@ bool View3DInventorViewer::tryRenderLiveSceneAa()
     if (reportStats) {
         stageTimer.start();
     }
-    {
-        ScopedRenderIntent captureIntent(*this, RenderIntent::RasterCapture);
-        if (!renderToFramebuffer(liveSceneAa->framebuffer.get())) {
-            liveSceneAa->failureReason = QStringLiteral("render-failed");
-            functions->glBindFramebuffer(GL_FRAMEBUFFER, defaultFramebuffer);
-            report("fallback", "render-failed");
-            return false;
-        }
+    if (!liveSceneAa->framebuffer->bind()) {
+        liveSceneAa->failureReason = QStringLiteral("render-bind-failed");
+        functions->glBindFramebuffer(GL_FRAMEBUFFER, defaultFramebuffer);
+        report("fallback", "render-bind-failed");
+        return false;
     }
+    {
+        auto releaseFramebuffer = qScopeGuard([this]() { liveSceneAa->framebuffer->release(); });
+        // Use the production interactive traversal while the owned FBO is bound. The
+        // raster-capture traversal uses a separate Coin render action and does not preserve
+        // live selection/preselection state for complex document scene graphs.
+        renderScene();
+    }
+    functions->glBindFramebuffer(GL_FRAMEBUFFER, defaultFramebuffer);
     if (reportStats) {
         glFinish();
         renderMicroseconds = stageTimer.nsecsElapsed() / 1000;
@@ -3483,18 +3481,7 @@ bool View3DInventorViewer::tryRenderLiveSceneAa()
         report("fallback", "resolve-framebuffer-incomplete");
         return false;
     }
-    functions->glBlitFramebuffer(
-        0,
-        0,
-        width,
-        height,
-        0,
-        0,
-        width,
-        height,
-        GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT,
-        GL_NEAREST
-    );
+    functions->glBlitFramebuffer(0, 0, width, height, 0, 0, width, height, GL_COLOR_BUFFER_BIT, GL_NEAREST);
     functions->glBindFramebuffer(GL_FRAMEBUFFER, defaultFramebuffer);
     if (reportStats) {
         glFinish();
@@ -3502,12 +3489,7 @@ bool View3DInventorViewer::tryRenderLiveSceneAa()
         stageTimer.restart();
     }
 
-    renderLiveSceneAaDecorations();
-    if (reportStats) {
-        glFinish();
-        decorationsMicroseconds = stageTimer.nsecsElapsed() / 1000;
-    }
-    report("active", "none");
+    report("active", liveSceneAa->forceOwnedFramebuffer ? "forced" : "none");
     return true;
 }
 

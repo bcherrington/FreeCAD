@@ -242,6 +242,47 @@ if(UNIX AND NOT APPLE AND DEFINED ENV{DISPLAY} AND NOT "$ENV{DISPLAY}" STREQUAL 
                 "FREECAD_SCENE_AA_LIVE_STATS state=fallback reason=requested-samples-zero requested_samples=0.*owned_sample_buffers=0 actual_samples=0.*allocations=[1-9][0-9]*"
         )
 
+        add_test(
+            NAME GpuDiagnosticsHarness_brep_live-owned-fbo-force_x11
+            COMMAND GpuDiagnosticsHarness_run
+                --brep-fixture
+                --brep-overlays
+                --samples 4
+                --scene-aa-live
+                --scene-aa-live-force
+                --scene-aa-live-stats
+                --json
+                --auto-exit-ms 3000
+        )
+        set_tests_properties(
+            GpuDiagnosticsHarness_brep_live-owned-fbo-force_x11 PROPERTIES
+            ENVIRONMENT "QT_QPA_PLATFORM=xcb"
+            TIMEOUT 10
+            PASS_REGULAR_EXPRESSION
+                "FREECAD_SCENE_AA_LIVE_STATS state=active reason=forced requested_samples=4 widget_sample_buffers=(0 widget_samples=0|[1-9][0-9]* widget_samples=4) owned_sample_buffers=[1-9][0-9]* actual_samples=[1-9][0-9]*"
+        )
+
+        add_test(
+            NAME GpuDiagnosticsHarness_brep_live-owned-fbo-force-document_x11
+            COMMAND GpuDiagnosticsHarness_run
+                --brep-fixture
+                --brep-document-fixture
+                --samples 4
+                --scene-aa-live
+                --scene-aa-live-force
+                --scene-aa-live-stats
+                --screenshot
+                    ${CMAKE_CURRENT_BINARY_DIR}/GpuDiagnosticsHarness_brep_live-owned-fbo-force-document_x11.png
+                --auto-exit-ms 3000
+        )
+        set_tests_properties(
+            GpuDiagnosticsHarness_brep_live-owned-fbo-force-document_x11 PROPERTIES
+            ENVIRONMENT "QT_QPA_PLATFORM=xcb"
+            TIMEOUT 10
+            PASS_REGULAR_EXPRESSION
+                "FREECAD_SCENE_AA_LIVE_STATS state=active reason=forced requested_samples=4 widget_sample_buffers=(0 widget_samples=0|[1-9][0-9]* widget_samples=4) owned_sample_buffers=[1-9][0-9]* actual_samples=[1-9][0-9]*"
+        )
+
         foreach(edge_aa_mode
             hide
             line-smooth

@@ -643,7 +643,6 @@ private:
     void renderGLActionScene(const QColor& backgroundColor, SoGLRenderAction* glra);
     bool renderToFramebuffer(QOpenGLFramebufferObject*, bool includeViewerLighting = true);
     bool tryRenderLiveSceneAa();
-    void renderLiveSceneAaDecorations();
     void releaseLiveSceneAaResources();
     void setCursorRepresentation(int mode);
     void aboutToDestroyGLContext();
