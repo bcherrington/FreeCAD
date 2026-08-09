@@ -267,10 +267,12 @@ if(UNIX AND NOT APPLE AND DEFINED ENV{DISPLAY} AND NOT "$ENV{DISPLAY}" STREQUAL 
             COMMAND GpuDiagnosticsHarness_run
                 --brep-fixture
                 --brep-document-fixture
+                --brep-overlays
                 --samples 4
                 --scene-aa-live
                 --scene-aa-live-force
                 --scene-aa-live-stats
+                --frame-stats
                 --screenshot
                     ${CMAKE_CURRENT_BINARY_DIR}/GpuDiagnosticsHarness_brep_live-owned-fbo-force-document_x11.png
                 --auto-exit-ms 3000
@@ -281,6 +283,27 @@ if(UNIX AND NOT APPLE AND DEFINED ENV{DISPLAY} AND NOT "$ENV{DISPLAY}" STREQUAL 
             TIMEOUT 10
             PASS_REGULAR_EXPRESSION
                 "FREECAD_SCENE_AA_LIVE_STATS state=active reason=forced requested_samples=4 widget_sample_buffers=(0 widget_samples=0|[1-9][0-9]* widget_samples=4) owned_sample_buffers=[1-9][0-9]* actual_samples=[1-9][0-9]*"
+        )
+
+        add_test(
+            NAME GpuDiagnosticsHarness_brep_document-native_x11
+            COMMAND GpuDiagnosticsHarness_run
+                --brep-fixture
+                --brep-document-fixture
+                --brep-overlays
+                --samples 4
+                --frame-stats
+                --json
+                --screenshot
+                    ${CMAKE_CURRENT_BINARY_DIR}/GpuDiagnosticsHarness_brep_document-native_x11.png
+                --auto-exit-ms 3000
+        )
+        set_tests_properties(
+            GpuDiagnosticsHarness_brep_document-native_x11 PROPERTIES
+            ENVIRONMENT "QT_QPA_PLATFORM=xcb"
+            TIMEOUT 10
+            PASS_REGULAR_EXPRESSION
+                "FREECAD_BREP_DOCUMENT_FIXTURE revision=009-document-v1 composition=RoundedHousing,RoundedBoss,RoundedTransparentCanopy,HiddenRoundedSolid selected=RoundedBoss preselected=RoundedHousing hidden=HiddenRoundedSolid transparent=RoundedTransparentCanopy.*FREECAD_BREP_DOCUMENT_FRAME visible_center_pixels=[0-9]+ hidden_red_pixels=[0-9]+ navigation_cube_pixels=[0-9]+ selection_pixels=[0-9]+ preselection_pixels=[0-9]+ canopy_overlap_pixels=[0-9]+"
         )
 
         foreach(edge_aa_mode

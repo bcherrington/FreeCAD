@@ -214,6 +214,13 @@ void installBrepFixture(
 bool installDocumentBrepFixture(Gui::View3DInventorViewer& view)
 {
     constexpr auto documentName = "GpuDiagnosticsBrepDocument";
+    constexpr auto fixtureRevision = "009-document-v1";
+    const char* const fixtureComposition[]
+        = {"RoundedHousing", "RoundedBoss", "RoundedTransparentCanopy", "HiddenRoundedSolid"};
+    const char* const fixtureSelected = "RoundedBoss";
+    const char* const fixturePreselected = "RoundedHousing";
+    const char* const fixtureHidden = "HiddenRoundedSolid";
+    const char* const fixtureTransparent = "RoundedTransparentCanopy";
     App::Document* appDocument = nullptr;
     try {
         Base::Interpreter().runString("import PartGui");
@@ -245,6 +252,14 @@ boss_feature.Label = "Rounded top boss"
 boss_feature.Shape = boss
 boss_feature.ViewObject.ShapeColor = (0.62, 0.80, 0.65)
 
+canopy = Part.makeBox(20, 16, 10, App.Vector(18, -8, 4))
+canopy = canopy.makeFillet(2.0, canopy.Edges)
+canopy_feature = doc.addObject("Part::Feature", "RoundedTransparentCanopy")
+canopy_feature.Label = "Rounded transparent canopy"
+canopy_feature.Shape = canopy
+canopy_feature.ViewObject.ShapeColor = (0.82, 1.00, 0.18)
+canopy_feature.ViewObject.Transparency = 50
+
 hidden_shape = Part.makeBox(24, 18, 10, App.Vector(-12, -9, -5))
 hidden_shape = hidden_shape.makeFillet(3, hidden_shape.Edges)
 hidden_feature = doc.addObject("Part::Feature", "HiddenRoundedSolid")
@@ -270,11 +285,8 @@ doc.recompute()
     }
 
     view.setDocument(guiDocument);
-    constexpr std::array<const char*, 3> objectNames {
-        "RoundedHousing",
-        "RoundedBoss",
-        "HiddenRoundedSolid",
-    };
+    const char* const objectNames[]
+        = {"RoundedHousing", "RoundedBoss", "RoundedTransparentCanopy", "HiddenRoundedSolid"};
     for (const char* objectName : objectNames) {
         App::DocumentObject* object = appDocument->getObject(objectName);
         Gui::ViewProvider* provider = object ? Gui::Application::Instance->getViewProvider(object)
@@ -296,6 +308,20 @@ doc.recompute()
         Gui::Selection().addSelection(documentName, "RoundedBoss", "", 0, 0, 0, nullptr, false);
         Gui::Selection().setPreselect(documentName, "RoundedHousing", "");
     }
+    std::fprintf(
+        stderr,
+        "FREECAD_BREP_DOCUMENT_FIXTURE revision=%s composition=%s,%s,%s,%s selected=%s "
+        "preselected=%s hidden=%s transparent=%s\n",
+        fixtureRevision,
+        fixtureComposition[0],
+        fixtureComposition[1],
+        fixtureComposition[2],
+        fixtureComposition[3],
+        fixtureSelected,
+        fixturePreselected,
+        fixtureHidden,
+        fixtureTransparent
+    );
     return true;
 }
 
@@ -311,6 +337,7 @@ bool validateDocumentBrepFrame(const QImage& frame)
     int navigationCubePixels = 0;
     int selectionPixels = 0;
     int preselectionPixels = 0;
+    int canopyOverlapPixels = 0;
 
     for (int y = 0; y < image.height(); ++y) {
         const auto* pixels = reinterpret_cast<const QRgb*>(image.constScanLine(y));
@@ -331,6 +358,9 @@ bool validateDocumentBrepFrame(const QImage& frame)
             if (red < 80 && green > 150 && blue > 220) {
                 ++preselectionPixels;
             }
+            if (green > 170 && green > red + 30 && green > blue + 30) {
+                ++canopyOverlapPixels;
+            }
             if (x >= image.width() - 180 && y < 160
                 && std::max({red, green, blue}) - std::min({red, green, blue}) < 20
                 && std::max({red, green, blue}) > 80 && std::max({red, green, blue}) < 240) {
@@ -342,15 +372,18 @@ bool validateDocumentBrepFrame(const QImage& frame)
     std::fprintf(
         stderr,
         "FREECAD_BREP_DOCUMENT_FRAME visible_center_pixels=%d hidden_red_pixels=%d "
-        "navigation_cube_pixels=%d selection_pixels=%d preselection_pixels=%d\n",
+        "navigation_cube_pixels=%d selection_pixels=%d preselection_pixels=%d "
+        "canopy_overlap_pixels=%d\n",
         visibleCenterPixels,
         hiddenRedPixels,
         navigationCubePixels,
         selectionPixels,
-        preselectionPixels
+        preselectionPixels,
+        canopyOverlapPixels
     );
     return visibleCenterPixels >= 5000 && hiddenRedPixels <= image.width() * image.height() / 200
-        && navigationCubePixels >= 25 && selectionPixels >= 1000 && preselectionPixels >= 1000;
+        && navigationCubePixels >= 25 && selectionPixels >= 1000 && preselectionPixels >= 1000
+        && canopyOverlapPixels >= 500;
 }
 #endif
 
