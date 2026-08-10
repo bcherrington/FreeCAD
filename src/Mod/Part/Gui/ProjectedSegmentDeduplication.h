@@ -25,6 +25,7 @@ struct ProjectedSegment
     double secondY {0.0};
     double secondZ {0.0};
     bool valid {false};
+    std::uint64_t topologyId {0ULL};
 };
 
 struct ProjectedViewport
@@ -49,15 +50,28 @@ struct ProjectedSegmentDeduplicationResult
     ProjectedSegmentDeduplicationStats stats;
 };
 
+struct ProjectedSegmentKey
+{
+    std::array<std::int64_t, 4> coordinates;
+    std::uint64_t topologyId {0ULL};
+
+    bool operator==(const ProjectedSegmentKey& other) const noexcept
+    {
+        return coordinates == other.coordinates && topologyId == other.topologyId;
+    }
+};
+
 struct ProjectedSegmentKeyHash
 {
-    std::size_t operator()(const std::array<std::int64_t, 4>& key) const noexcept
+    std::size_t operator()(const ProjectedSegmentKey& key) const noexcept
     {
         std::size_t result = 0;
-        for (const auto value : key) {
+        for (const auto value : key.coordinates) {
             const auto valueHash = std::hash<std::int64_t> {}(value);
             result ^= valueHash + 0x9e3779b9U + (result << 6U) + (result >> 2U);
         }
+        const auto identityHash = std::hash<std::uint64_t> {}(key.topologyId);
+        result ^= identityHash + 0x9e3779b9U + (result << 6U) + (result >> 2U);
         return result;
     }
 };
@@ -76,10 +90,11 @@ inline bool isProjectedSegmentRenderable(const ProjectedSegment& segment, const 
     return segment.valid && finite && !fullyOffscreen && std::hypot(dx, dy) > 1.0e-6;
 }
 
-inline ProjectedSegmentDeduplicationResult deduplicateProjectedSegments(
+inline ProjectedSegmentDeduplicationResult deduplicateProjectedSegmentsImpl(
     const std::vector<ProjectedSegment>& input,
     const ProjectedViewport& viewport,
-    double tolerance
+    double tolerance,
+    bool preserveTopologyIdentity
 )
 {
     ProjectedSegmentDeduplicationResult result;
@@ -89,8 +104,7 @@ inline ProjectedSegmentDeduplicationResult deduplicateProjectedSegments(
         return result;
     }
 
-    using SegmentKey = std::array<std::int64_t, 4>;
-    std::unordered_map<SegmentKey, std::size_t, ProjectedSegmentKeyHash> outputIndexByKey;
+    std::unordered_map<ProjectedSegmentKey, std::size_t, ProjectedSegmentKeyHash> outputIndexByKey;
     outputIndexByKey.reserve(input.size());
 
     const auto quantize = [tolerance](double value) {
@@ -127,7 +141,10 @@ inline ProjectedSegmentDeduplicationResult deduplicateProjectedSegments(
             std::swap(segment.firstZ, segment.secondZ);
         }
 
-        const SegmentKey key {first[0], first[1], second[0], second[1]};
+        const ProjectedSegmentKey key {
+            {first[0], first[1], second[0], second[1]},
+            preserveTopologyIdentity ? segment.topologyId : 0ULL,
+        };
         const auto [existing, inserted] = outputIndexByKey.emplace(key, result.segments.size());
         if (inserted) {
             result.segments.push_back(segment);
@@ -145,6 +162,24 @@ inline ProjectedSegmentDeduplicationResult deduplicateProjectedSegments(
 
     result.stats.outputSegments = result.segments.size();
     return result;
+}
+
+inline ProjectedSegmentDeduplicationResult deduplicateProjectedSegments(
+    const std::vector<ProjectedSegment>& input,
+    const ProjectedViewport& viewport,
+    double tolerance
+)
+{
+    return deduplicateProjectedSegmentsImpl(input, viewport, tolerance, false);
+}
+
+inline ProjectedSegmentDeduplicationResult deduplicateProjectedSegmentsWithTopologyId(
+    const std::vector<ProjectedSegment>& input,
+    const ProjectedViewport& viewport,
+    double tolerance
+)
+{
+    return deduplicateProjectedSegmentsImpl(input, viewport, tolerance, true);
 }
 
 }  // namespace PartGui::Detail

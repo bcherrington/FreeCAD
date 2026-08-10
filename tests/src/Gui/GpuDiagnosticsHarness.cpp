@@ -2,9 +2,12 @@
 
 #include <algorithm>
 #include <array>
+#include <cstdint>
 #include <cmath>
 #include <cstdio>
+#include <limits>
 #include <memory>
+#include <unordered_map>
 #include <tuple>
 #include <string_view>
 #include <vector>
@@ -34,7 +37,10 @@
 #include <QDir>
 #include <QCryptographicHash>
 #include <QElapsedTimer>
+#include <QEvent>
 #include <QImage>
+#include <QObject>
+#include <QOpenGLContext>
 #include <QOpenGLFunctions>
 #include <QOpenGLExtraFunctions>
 #include <QOpenGLWidget>
@@ -42,6 +48,7 @@
 #include <QTemporaryDir>
 #include <QTextStream>
 #include <QTimer>
+#include <QWidget>
 
 #include <App/Application.h>
 #include <App/Document.h>
@@ -63,15 +70,23 @@
 # include <Inventor/SbVec3f.h>
 # include <Inventor/SoType.h>
 # include <Inventor/nodes/SoCoordinate3.h>
+# include <Mod/Part/Gui/ProjectedSegmentDeduplication.h>
+# include <Inventor/actions/SoAction.h>
+# include <Inventor/actions/SoGLRenderAction.h>
+# include <Inventor/nodes/SoCamera.h>
 # include <Inventor/nodes/SoCube.h>
+# include <Inventor/nodes/SoDepthBuffer.h>
+# include <Inventor/nodes/SoCallback.h>
 # include <Inventor/nodes/SoDrawStyle.h>
 # include <Inventor/nodes/SoGroup.h>
 # include <Inventor/nodes/SoLightModel.h>
 # include <Inventor/nodes/SoMaterial.h>
+# include <Inventor/nodes/SoIndexedLineSet.h>
 # include <Inventor/nodes/SoPolygonOffset.h>
 # include <Inventor/nodes/SoSeparator.h>
 # include <Inventor/nodes/SoTranslation.h>
 # include <Inventor/nodes/SoDirectionalLight.h>
+# include <Inventor/nodes/SoTransform.h>
 
 # include <Mod/Part/Gui/SoBrepEdgeSet.h>
 # include <Gui/ViewProviderGeometryObject.h>
@@ -99,6 +114,26 @@ constexpr std::string_view fixtureSelected = "RoundedBoss";
 constexpr std::string_view fixturePreselected = "RoundedHousing";
 constexpr std::string_view fixtureHidden = "HiddenRoundedSolid";
 constexpr std::string_view fixtureTransparent = "RoundedTransparentCanopy";
+constexpr std::size_t depthQuantizationBins = 24;
+constexpr std::uint32_t depthQuantizationMax = (1ULL << depthQuantizationBins) - 1;
+constexpr PartGui::Detail::ProjectedViewport topologyIdentityProbeViewport {0.0, 0.0, 100.0, 100.0};
+
+class PassiveHarnessWindowFilter final: public QObject
+{
+protected:
+    bool eventFilter(QObject* watched, QEvent* event) override
+    {
+        if (event->type() == QEvent::Polish) {
+            auto* widget = qobject_cast<QWidget*>(watched);
+            if (widget && widget->isWindow()) {
+                widget->setAttribute(Qt::WA_ShowWithoutActivating, true);
+                widget->setWindowFlag(Qt::WindowDoesNotAcceptFocus, true);
+            }
+        }
+
+        return QObject::eventFilter(watched, event);
+    }
+};
 
 void closeDiagnosticsDialogs()
 {
@@ -405,6 +440,50 @@ struct DocumentBrepFrameStats
     long long renderUs = 0LL;
 };
 
+DocumentViewerPoseState captureDocumentViewerPoseState(const Gui::View3DInventorViewer& view);
+bool posesClose(
+    const DocumentViewerPoseState& lhs,
+    const DocumentViewerPoseState& rhs,
+    float epsilon = 1e-6F
+);
+bool fixtureVisibilityInvariant(
+    const DocumentFixtureMaterialSet& expected,
+    const DocumentFixtureMaterialSet& actual
+);
+bool fixtureMaterialsInvariant(
+    const DocumentFixtureMaterialSet& expected,
+    const DocumentFixtureMaterialSet& actual
+);
+QImage renderDocumentFrameForLightingMatrix(Gui::View3DInventorViewer& view, long long& renderUs);
+
+struct DocumentViewerCameraState
+{
+    double nearDistance = 0.0;
+    double farDistance = 0.0;
+};
+
+DocumentViewerCameraState captureDocumentViewerCameraState(const Gui::View3DInventorViewer& view)
+{
+    auto* camera = view.getSoRenderManager() ? view.getSoRenderManager()->getCamera() : nullptr;
+    if (!camera) {
+        return {};
+    }
+    return {
+        static_cast<double>(camera->nearDistance.getValue()),
+        static_cast<double>(camera->farDistance.getValue()),
+    };
+}
+
+bool cameraStatesClose(
+    const DocumentViewerCameraState& lhs,
+    const DocumentViewerCameraState& rhs,
+    double epsilon = 1e-6
+)
+{
+    return std::fabs(lhs.nearDistance - rhs.nearDistance) < epsilon
+        && std::fabs(lhs.farDistance - rhs.farDistance) < epsilon;
+}
+
 bool fixtureMaterialStateFromDocument(
     const std::array<std::string_view, 4>& names,
     DocumentFixtureMaterialSet& snapshot
@@ -587,6 +666,87 @@ void restoreDocumentMaterials(const DocumentFixtureMaterialSet& snapshot)
     }
 }
 
+struct DocumentSelectionState
+{
+    std::vector<std::pair<std::string, std::string>> selections;
+    bool preselectionPresent = false;
+    std::string preselectionDoc;
+    std::string preselectionObject;
+    std::string preselectionSubName;
+    float preselectionX = 0.0F;
+    float preselectionY = 0.0F;
+    float preselectionZ = 0.0F;
+};
+
+DocumentSelectionState captureDocumentSelectionState()
+{
+    DocumentSelectionState state;
+    const auto selected = Gui::Selection().getSelection(documentName);
+    for (const auto& entry : selected) {
+        if (!entry.DocName || !entry.FeatName) {
+            continue;
+        }
+        state.selections.emplace_back(entry.DocName, entry.FeatName);
+    }
+
+    const auto& preselect = Gui::Selection().getPreselection();
+    if (preselect.pDocName && preselect.pObjectName) {
+        state.preselectionPresent = true;
+        state.preselectionDoc = preselect.pDocName;
+        state.preselectionObject = preselect.pObjectName;
+        state.preselectionSubName = preselect.pSubName ? preselect.pSubName : "";
+        state.preselectionX = preselect.x;
+        state.preselectionY = preselect.y;
+        state.preselectionZ = preselect.z;
+    }
+    return state;
+}
+
+bool documentSelectionsEqual(const DocumentSelectionState& lhs, const DocumentSelectionState& rhs)
+{
+    if (lhs.selections.size() != rhs.selections.size()) {
+        return false;
+    }
+    for (std::size_t index = 0; index < lhs.selections.size(); ++index) {
+        if (lhs.selections[index].first != rhs.selections[index].first
+            || lhs.selections[index].second != rhs.selections[index].second) {
+            return false;
+        }
+    }
+    return lhs.preselectionPresent == rhs.preselectionPresent
+        && lhs.preselectionDoc == rhs.preselectionDoc
+        && lhs.preselectionObject == rhs.preselectionObject
+        && lhs.preselectionSubName == rhs.preselectionSubName
+        && lhs.preselectionX == rhs.preselectionX && lhs.preselectionY == rhs.preselectionY
+        && lhs.preselectionZ == rhs.preselectionZ;
+}
+
+void applyDocumentFixtureVisibility(const DocumentFixtureMaterialSet& materials, bool visible)
+{
+    auto* appDocument = App::GetApplication().getDocument(documentName);
+    if (!appDocument) {
+        return;
+    }
+    for (const auto& entry : materials) {
+        App::DocumentObject* object = appDocument->getObject(entry.name.c_str());
+        if (!object) {
+            continue;
+        }
+        auto* provider = dynamic_cast<Gui::ViewProviderGeometryObject*>(
+            Gui::Application::Instance->getViewProvider(object)
+        );
+        if (!provider) {
+            continue;
+        }
+        if (visible && entry.visible) {
+            provider->show();
+        }
+        else {
+            provider->hide();
+        }
+    }
+}
+
 QByteArray computeDocumentImageHash(const QImage& frame)
 {
     const QImage image = frame.convertToFormat(QImage::Format_RGB32);
@@ -621,6 +781,23 @@ int diffDocumentImagePixels(const QImage& lhs, const QImage& rhs)
         }
     }
     return differing;
+}
+
+int diffDocumentImagePixelsAt(const QImage& lhs, const QImage& rhs, const QPoint& point)
+{
+    if (lhs.isNull() || rhs.isNull()) {
+        return -1;
+    }
+    if (lhs.size() != rhs.size()) {
+        return -1;
+    }
+    if (!lhs.rect().contains(point) || !rhs.rect().contains(point)) {
+        return -1;
+    }
+    const QRgb lhsPixel = lhs.pixel(point);
+    const QRgb rhsPixel = rhs.pixel(point);
+    return std::abs(qRed(lhsPixel) - qRed(rhsPixel)) + std::abs(qGreen(lhsPixel) - qGreen(rhsPixel))
+        + std::abs(qBlue(lhsPixel) - qBlue(rhsPixel));
 }
 
 DocumentBrepFrameStats gatherDocumentBrepFrameStats(const QImage& frame)
@@ -689,6 +866,1523 @@ bool validateDocumentBrepFrame(const QImage& frame)
         && stats.preselectionPixels >= 1000 && stats.canopyOverlapPixels >= 500;
 }
 
+struct DocumentTransparencyProfileResult
+{
+    const char* name = "";
+    SoGLRenderAction::TransparencyType transparencyType
+        = SoGLRenderAction::SORTED_OBJECT_SORTED_TRIANGLE_BLEND;
+    bool redFirst = true;
+    long long renderUs = 0LL;
+    int diffPixels = 0;
+    int sampleDiff = 0;
+    QByteArray hash;
+    DocumentBrepFrameStats stats;
+};
+
+using TransparencyColor = std::array<double, 4>;
+
+TransparencyColor compositeTransparencyOver(
+    const TransparencyColor& foreground,
+    const TransparencyColor& background
+)
+{
+    const double alpha = foreground[3] + background[3] * (1.0 - foreground[3]);
+    if (alpha <= 0.0) {
+        return {0.0, 0.0, 0.0, 0.0};
+    }
+    return {
+        (foreground[0] * foreground[3] + background[0] * background[3] * (1.0 - foreground[3]))
+            / alpha,
+        (foreground[1] * foreground[3] + background[1] * background[3] * (1.0 - foreground[3]))
+            / alpha,
+        (foreground[2] * foreground[3] + background[2] * background[3] * (1.0 - foreground[3]))
+            / alpha,
+        alpha,
+    };
+}
+
+TransparencyColor compositeWeightedTransparency(const std::array<TransparencyColor, 2>& fragments)
+{
+    std::array<double, 3> accumulatedColor {0.0, 0.0, 0.0};
+    double accumulatedWeight = 0.0;
+    double revealage = 1.0;
+    for (const auto& fragment : fragments) {
+        const double weight = std::clamp(fragment[3], 0.0, 1.0);
+        for (std::size_t channel = 0; channel < accumulatedColor.size(); ++channel) {
+            accumulatedColor[channel] += fragment[channel] * weight;
+        }
+        accumulatedWeight += weight;
+        revealage *= 1.0 - weight;
+    }
+    const double divisor = std::max(accumulatedWeight, 1.0e-12);
+    return {
+        accumulatedColor[0] / divisor,
+        accumulatedColor[1] / divisor,
+        accumulatedColor[2] / divisor,
+        1.0 - revealage,
+    };
+}
+
+double maximumTransparencyChannelDelta(const TransparencyColor& lhs, const TransparencyColor& rhs)
+{
+    double delta = 0.0;
+    for (std::size_t channel = 0; channel < lhs.size(); ++channel) {
+        delta = std::max(delta, std::fabs(lhs[channel] - rhs[channel]));
+    }
+    return delta;
+}
+
+void printDocumentTransparencyProfile(const DocumentTransparencyProfileResult& result, int diffVsBase)
+{
+    std::fprintf(
+        stderr,
+        "FREECAD_BREP_DOCUMENT_TRANSPARENCY_PROFILE name=%s type=%d order=%s render_us=%lld "
+        "visible_center_pixels=%d hidden_red_pixels=%d navigation_cube_pixels=%d "
+        "selection_pixels=%d preselection_pixels=%d canopy_overlap_pixels=%d "
+        "diff_pixels=%d sample_pixel_diff=%d hash=%s\n",
+        result.name,
+        static_cast<int>(result.transparencyType),
+        result.redFirst ? "red-first" : "red-second",
+        result.renderUs,
+        result.stats.visibleCenterPixels,
+        result.stats.hiddenRedPixels,
+        result.stats.navigationCubePixels,
+        result.stats.selectionPixels,
+        result.stats.preselectionPixels,
+        result.stats.canopyOverlapPixels,
+        diffVsBase,
+        result.sampleDiff,
+        result.hash.constData()
+    );
+}
+
+void addTransparencyOrderingProbeChildren(SoSeparator& root, bool redFirst)
+{
+    auto* redRoot = new SoSeparator;
+    auto* redTransform = new SoTransform;
+    redTransform->translation.setValue(0.0F, 0.0F, 8.0F);
+    redRoot->addChild(redTransform);
+    auto* redMaterial = new SoMaterial;
+    redMaterial->diffuseColor.setValue(0.95F, 0.20F, 0.20F);
+    redMaterial->transparency.setValue(0.45F);
+    redRoot->addChild(redMaterial);
+    auto* redCube = new SoCube;
+    redCube->width = 14.0F;
+    redCube->height = 14.0F;
+    redCube->depth = 14.0F;
+    redRoot->addChild(redCube);
+
+    auto* blueRoot = new SoSeparator;
+    auto* blueTransform = new SoTransform;
+    blueTransform->translation.setValue(0.0F, 0.0F, 8.0F);
+    blueRoot->addChild(blueTransform);
+    auto* blueMaterial = new SoMaterial;
+    blueMaterial->diffuseColor.setValue(0.25F, 0.30F, 0.95F);
+    blueMaterial->transparency.setValue(0.45F);
+    blueRoot->addChild(blueMaterial);
+    auto* blueCube = new SoCube;
+    blueCube->width = 14.0F;
+    blueCube->height = 14.0F;
+    blueCube->depth = 14.0F;
+    blueRoot->addChild(blueCube);
+
+    if (redFirst) {
+        root.addChild(redRoot);
+        root.addChild(blueRoot);
+    }
+    else {
+        root.addChild(blueRoot);
+        root.addChild(redRoot);
+    }
+}
+
+bool runDocumentTransparencyOrderingProbe(Gui::View3DInventorViewer& view)
+{
+    DocumentFixtureMaterialSet baselineMaterialState {};
+    DocumentFixtureMaterialSet currentMaterialState {};
+    if (!fixtureMaterialStateFromDocument(fixtureComposition, baselineMaterialState)
+        || !fixtureMaterialStateFromDocument(fixtureComposition, currentMaterialState)) {
+        return false;
+    }
+    if (!fixtureVisibilityInvariant(baselineMaterialState, currentMaterialState)) {
+        return false;
+    }
+
+    constexpr QPoint fixedSamplePoint {480, 320};
+    const auto baselinePose = captureDocumentViewerPoseState(view);
+    const auto baselineCameraState = captureDocumentViewerCameraState(view);
+
+    auto* soAction = view.getSoRenderManager() ? view.getSoRenderManager()->getGLRenderAction()
+                                               : nullptr;
+    if (!soAction) {
+        return false;
+    }
+    const auto previousType = soAction->getTransparencyType();
+
+    auto* objectGroup = findObjectGroup(view);
+    if (!objectGroup) {
+        return false;
+    }
+
+    auto* probeRoot = new SoSeparator;
+    objectGroup->addChild(probeRoot);
+    std::array<DocumentTransparencyProfileResult, 2> profiles {};
+    std::array<QImage, 2> renderedProfiles {};
+
+    auto renderProfile = [&](std::size_t index,
+                             const char* name,
+                             SoGLRenderAction::TransparencyType transparencyType,
+                             bool redFirst) -> bool {
+        auto& profile = profiles[index];
+        profile.name = name;
+        profile.transparencyType = transparencyType;
+        profile.redFirst = redFirst;
+        if (!probeRoot || !objectGroup || objectGroup->findChild(probeRoot) < 0) {
+            return false;
+        }
+        while (probeRoot->getNumChildren() > 0) {
+            probeRoot->removeChild(0);
+        }
+        addTransparencyOrderingProbeChildren(*probeRoot, redFirst);
+
+        soAction->setTransparencyType(transparencyType);
+        QCoreApplication::processEvents();
+        renderedProfiles[index] = renderDocumentFrameForLightingMatrix(view, profile.renderUs);
+        const QImage& frame = renderedProfiles[index];
+        if (frame.isNull()) {
+            return false;
+        }
+        profile.stats = gatherDocumentBrepFrameStats(frame);
+        profile.hash = computeDocumentImageHash(frame);
+        if (index > 0) {
+            profile.diffPixels = diffDocumentImagePixels(frame, renderedProfiles[0]);
+            profile.sampleDiff
+                = diffDocumentImagePixelsAt(frame, renderedProfiles[0], fixedSamplePoint);
+            printDocumentTransparencyProfile(profile, profile.diffPixels);
+            return true;
+        }
+        if (frame.rect().contains(fixedSamplePoint)) {
+            profile.sampleDiff = diffDocumentImagePixelsAt(frame, frame, fixedSamplePoint);
+        }
+        printDocumentTransparencyProfile(profile, profile.diffPixels);
+        return true;
+    };
+
+    if (!renderProfile(0, "conventional_red_first", SoGLRenderAction::BLEND, true)) {
+        return false;
+    }
+    if (!renderProfile(1, "conventional_blue_first", SoGLRenderAction::BLEND, false)) {
+        return false;
+    }
+    const auto& conventionalProfile = profiles[0];
+    const auto& conventionalReversed = profiles[1];
+    const bool conventionalDependent = conventionalReversed.diffPixels > 0;
+    constexpr TransparencyColor red {0.95, 0.20, 0.20, 0.55};
+    constexpr TransparencyColor blue {0.25, 0.30, 0.95, 0.55};
+    constexpr TransparencyColor clear {0.0, 0.0, 0.0, 0.0};
+    const auto conventionalRedFirst
+        = compositeTransparencyOver(blue, compositeTransparencyOver(red, clear));
+    const auto conventionalBlueFirst
+        = compositeTransparencyOver(red, compositeTransparencyOver(blue, clear));
+    const auto weightedRedFirst = compositeWeightedTransparency({red, blue});
+    const auto weightedBlueFirst = compositeWeightedTransparency({blue, red});
+    const double conventionalDelta
+        = maximumTransparencyChannelDelta(conventionalRedFirst, conventionalBlueFirst);
+    const double weightedDelta = maximumTransparencyChannelDelta(weightedRedFirst, weightedBlueFirst);
+    const bool analyticConventionalDependent = conventionalDelta > 1.0e-6;
+    const bool weightedInvariant = weightedDelta <= 1.0e-12;
+    const bool profileRendered = !conventionalProfile.hash.isEmpty()
+        && !conventionalReversed.hash.isEmpty();
+
+    soAction->setTransparencyType(previousType);
+    while (probeRoot->getNumChildren() > 0) {
+        probeRoot->removeChild(0);
+    }
+    objectGroup->removeChild(probeRoot);
+
+    long long restoredRenderUs = 0LL;
+    const auto restoredBeforeMaterials = renderDocumentFrameForLightingMatrix(view, restoredRenderUs);
+    restoreDocumentMaterials(baselineMaterialState);
+    const auto restoredAfterMaterials = renderDocumentFrameForLightingMatrix(view, restoredRenderUs);
+    const QByteArray restoredHash = computeDocumentImageHash(restoredAfterMaterials);
+    const QByteArray restoredBeforeHash = computeDocumentImageHash(restoredBeforeMaterials);
+    const int restoreDiffPixels
+        = diffDocumentImagePixels(restoredAfterMaterials, restoredBeforeMaterials);
+    const bool restoreMatch = restoreDiffPixels == 0 && !restoredHash.isEmpty()
+        && !restoredBeforeMaterials.isNull() && restoredHash == restoredBeforeHash;
+
+    const bool cameraStable = posesClose(captureDocumentViewerPoseState(view), baselinePose)
+        && cameraStatesClose(captureDocumentViewerCameraState(view), baselineCameraState);
+    const bool finalMaterialState
+        = fixtureMaterialStateFromDocument(fixtureComposition, currentMaterialState);
+    const bool visibilityStable = finalMaterialState
+        && fixtureVisibilityInvariant(baselineMaterialState, currentMaterialState);
+    const bool relationOk = profileRendered && conventionalDependent && analyticConventionalDependent
+        && weightedInvariant && cameraStable && visibilityStable && restoreMatch;
+
+    std::fprintf(
+        stderr,
+        "FREECAD_BREP_DOCUMENT_TRANSPARENCY_RELATION outcome=%s witness=%s selected=%s "
+        "preselected=%s "
+        "hidden=%s transparent=%s fallback=native production_enabled=0 visible_center=%d "
+        "hidden_red=%d "
+        "navigation_cube=%d selection=%d preselection=%d canopy_overlap=%d restored_pixel_diff=%d "
+        "conventional_diff=%d conventional_max_delta=%0.9f weighted_max_delta=%0.9f "
+        "conventional_order_dependent=%d weighted_order_invariant=%d "
+        "restore_match=%d profile_rendered=%d camera_stable=%d visibility_stable=%d\n",
+        relationOk ? "pass" : "fail",
+        fixtureRevision,
+        fixtureSelected.data(),
+        fixturePreselected.data(),
+        fixtureHidden.data(),
+        fixtureTransparent.data(),
+        profiles[0].stats.visibleCenterPixels,
+        profiles[0].stats.hiddenRedPixels,
+        profiles[0].stats.navigationCubePixels,
+        profiles[0].stats.selectionPixels,
+        profiles[0].stats.preselectionPixels,
+        profiles[0].stats.canopyOverlapPixels,
+        restoreDiffPixels,
+        conventionalReversed.diffPixels,
+        conventionalDelta,
+        weightedDelta,
+        static_cast<int>(conventionalDependent),
+        static_cast<int>(weightedInvariant),
+        static_cast<int>(restoreMatch),
+        static_cast<int>(profileRendered),
+        static_cast<int>(cameraStable),
+        static_cast<int>(visibilityStable)
+    );
+
+    return relationOk;
+}
+
+struct DocumentDepthQuantizationSample
+{
+    std::size_t index = 0;
+    double eyeDepth = 0.0;
+    std::uint32_t baselineCode = 0;
+    std::uint32_t tightenedCode = 0;
+};
+
+GLfloat eyeDepthToWindowDepth(double eyeDepth, double nearDistance, double farDistance)
+{
+    if (!std::isfinite(eyeDepth) || !std::isfinite(nearDistance) || !std::isfinite(farDistance)
+        || eyeDepth <= 0.0 || farDistance <= nearDistance) {
+        return 1.0F;
+    }
+    const double depthNdc = (farDistance + nearDistance) / (farDistance - nearDistance)
+        + (2.0 * farDistance * nearDistance) / ((farDistance - nearDistance) * (-eyeDepth));
+    return static_cast<GLfloat>(std::clamp((depthNdc * 0.5) + 0.5, 0.0, 1.0));
+}
+
+std::uint32_t quantizeDepth24Bits(double windowDepth)
+{
+    if (!std::isfinite(windowDepth)) {
+        return 0;
+    }
+    const double clamped = std::clamp(windowDepth, 0.0, 1.0);
+    return static_cast<std::uint32_t>(
+        std::llround(clamped * static_cast<double>(depthQuantizationMax))
+    );
+}
+
+int countDepthQuantizationCollisionPairs(
+    const std::vector<DocumentDepthQuantizationSample>& samples,
+    bool tightened
+)
+{
+    std::unordered_map<std::uint32_t, int> depthCounts;
+    for (const auto& sample : samples) {
+        const auto code = tightened ? sample.tightenedCode : sample.baselineCode;
+        ++depthCounts[code];
+    }
+    int pairs = 0;
+    for (const auto& entry : depthCounts) {
+        if (entry.second > 1) {
+            pairs += entry.second * (entry.second - 1) / 2;
+        }
+    }
+    return pairs;
+}
+
+struct DocumentDepthStyleProbeProfile
+{
+    const char* mode = "";
+    SoDepthBuffer::DepthWriteFunction depthTest = SoDepthBuffer::NEVER;
+    bool depthWrite = false;
+    bool dashed = false;
+    int diffPixels = 0;
+    int colorWitness = 0;
+    int witnessPixels = 0;
+    int colorIntensity = 0;
+    int prepassCallbacks = 0;
+    long long renderUs = 0LL;
+    QByteArray hash;
+};
+
+struct DepthStyleColorCategory
+{
+    enum Value
+    {
+        Red,
+        Cyan,
+        Yellow,
+        Dark
+    };
+};
+
+struct DepthStyleColorMaskState
+{
+    GLboolean red = GL_FALSE;
+    GLboolean green = GL_FALSE;
+    GLboolean blue = GL_FALSE;
+    GLboolean alpha = GL_FALSE;
+    int* callbackInvocations = nullptr;
+};
+
+SoSeparator* gDepthStylePreviewRoot = nullptr;
+DepthStyleColorMaskState gDepthStylePreviewColorMaskOff {GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE, nullptr};
+DepthStyleColorMaskState gDepthStylePreviewColorMaskOn {GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE, nullptr};
+
+void setDepthStyleColorMask(void* userData, SoAction* action)
+{
+    Q_UNUSED(action)
+    const auto* mask = static_cast<const DepthStyleColorMaskState*>(userData);
+    if (!mask) {
+        return;
+    }
+    auto* context = QOpenGLContext::currentContext();
+    if (!context || !context->isValid()) {
+        return;
+    }
+    auto* functions = context->functions();
+    if (!functions) {
+        return;
+    }
+    if (mask->callbackInvocations) {
+        ++(*mask->callbackInvocations);
+    }
+    functions->glColorMask(mask->red, mask->green, mask->blue, mask->alpha);
+}
+
+struct DepthStyleLineProbeProfileConfig
+{
+    const SbVec3f& from;
+    const SbVec3f& to;
+    const SbColor& color;
+    DepthStyleColorCategory::Value colorCategory = DepthStyleColorCategory::Red;
+    bool dashed = true;
+    SoDepthBuffer::DepthWriteFunction depthTest = SoDepthBuffer::NEVER;
+    bool depthWrite = false;
+    bool usePrepass = true;
+    bool drawPrepassOccluder = true;
+    bool drawTransparentSurface = false;
+    const char* mode = "line";
+};
+
+struct DepthStyleGlState
+{
+    GLboolean colorMaskRed = GL_TRUE;
+    GLboolean colorMaskGreen = GL_TRUE;
+    GLboolean colorMaskBlue = GL_TRUE;
+    GLboolean colorMaskAlpha = GL_TRUE;
+    GLboolean depthWriteMask = GL_TRUE;
+    GLboolean depthTestEnabled = GL_TRUE;
+    GLint depthFunc = GL_LEQUAL;
+    GLboolean lineStippleEnabled = GL_FALSE;
+    GLfloat lineWidth = 1.0F;
+};
+
+void addDepthStyleOccluderProbeChildren(
+    SoSeparator& root,
+    float transparency,
+    const SbVec3f& center,
+    float scale = 1.0F,
+    const SbVec3f& dimensions = SbVec3f(14.0F, 6.0F, 6.0F)
+)
+{
+    auto* occluderRoot = new SoSeparator;
+    occluderRoot->renderCaching = SoSeparator::OFF;
+    root.addChild(occluderRoot);
+
+    auto* depth = new SoDepthBuffer;
+    depth->test = true;
+    depth->write = true;
+    depth->function = SoDepthBuffer::LEQUAL;
+    occluderRoot->addChild(depth);
+
+    auto* material = new SoMaterial;
+    material->transparency = transparency;
+    occluderRoot->addChild(material);
+
+    auto* transform = new SoTransform;
+    transform->translation = center;
+    if (scale != 1.0F) {
+        transform->scaleFactor = SbVec3f(scale, scale, scale);
+    }
+    occluderRoot->addChild(transform);
+
+    auto* occluder = new SoCube;
+    occluder->width = dimensions[0];
+    occluder->height = dimensions[1];
+    occluder->depth = dimensions[2];
+    occluderRoot->addChild(occluder);
+}
+
+void addDepthStyleLineProbeChildren(SoSeparator& root, const DepthStyleLineProbeProfileConfig& config)
+{
+    auto* depth = new SoDepthBuffer;
+    depth->test = true;
+    depth->write = config.depthWrite;
+    depth->function = config.depthTest;
+    root.addChild(depth);
+
+    auto* material = new SoMaterial;
+    material->diffuseColor = config.color;
+    material->transparency = 0.0F;
+    root.addChild(material);
+
+    auto* drawStyle = new SoDrawStyle;
+    drawStyle->lineWidth = 3.0F;
+    if (config.dashed) {
+        drawStyle->linePattern = 0x00FF;
+        drawStyle->linePatternScaleFactor = 2;
+    }
+    else {
+        drawStyle->linePattern = 0xFFFF;
+    }
+    root.addChild(drawStyle);
+
+    std::vector<SbVec3f> points;
+    if (!config.dashed) {
+        points.push_back(config.from);
+        points.push_back(config.to);
+    }
+    else {
+        constexpr int dashSegments = 4;
+        constexpr float dashLength = 0.10F;
+        for (int dashIndex = 0; dashIndex < dashSegments; ++dashIndex) {
+            const float t0 = static_cast<float>(dashIndex * 2 + 1)
+                / static_cast<float>(dashSegments * 2 + 2);
+            const float t1 = t0 + dashLength;
+            if (t1 > 1.0F) {
+                break;
+            }
+            points.push_back(SbVec3f(
+                config.from[0] + (config.to[0] - config.from[0]) * t0,
+                config.from[1] + (config.to[1] - config.from[1]) * t0,
+                config.from[2] + (config.to[2] - config.from[2]) * t0
+            ));
+            points.push_back(SbVec3f(
+                config.from[0] + (config.to[0] - config.from[0]) * t1,
+                config.from[1] + (config.to[1] - config.from[1]) * t1,
+                config.from[2] + (config.to[2] - config.from[2]) * t1
+            ));
+        }
+    }
+    if (points.empty()) {
+        points.push_back(config.from);
+        points.push_back(config.to);
+    }
+
+    auto* coordinates = new SoCoordinate3;
+    coordinates->point.setValues(0, static_cast<int>(points.size()), points.data());
+    root.addChild(coordinates);
+
+    auto* lines = new SoIndexedLineSet;
+    std::vector<int32_t> lineIndices;
+    for (std::size_t index = 0; index + 1 < points.size(); index += 2) {
+        lineIndices.push_back(static_cast<int32_t>(index));
+        lineIndices.push_back(static_cast<int32_t>(index + 1));
+        lineIndices.push_back(-1);
+    }
+    if (lineIndices.empty()) {
+        lineIndices = {0, 1, -1};
+    }
+    lines->coordIndex.setValues(0, static_cast<int>(lineIndices.size()), lineIndices.data());
+    root.addChild(lines);
+}
+
+struct DepthStyleLineWitnessResult
+{
+    int colorWitness = 0;
+    int colorIntensity = 0;
+    int diffPixels = 0;
+};
+
+bool lineWitnessMatchesColor(int red, int green, int blue, DepthStyleColorCategory::Value category)
+{
+    if (category == DepthStyleColorCategory::Red) {
+        return red > 140 && red >= green + 45 && red >= blue + 45;
+    }
+    if (category == DepthStyleColorCategory::Yellow) {
+        return red > 130 && green > 120 && (red >= green - 80) && green >= red - 80;
+    }
+    if (category == DepthStyleColorCategory::Dark) {
+        return red < 110 && green < 110 && blue < 130 && blue > red - 20 && green > red - 20;
+    }
+    return blue > 120 && green > 120 && blue >= red + 20 && green >= red + 20;
+}
+
+DepthStyleLineWitnessResult collectDepthStyleLineWitness(
+    const QImage& lhs,
+    const QImage& rhs,
+    DepthStyleColorCategory::Value category
+)
+{
+    DepthStyleLineWitnessResult result;
+    if (lhs.size() != rhs.size()) {
+        return result;
+    }
+    const QImage lhsImage = lhs.convertToFormat(QImage::Format_RGB32);
+    const QImage rhsImage = rhs.convertToFormat(QImage::Format_RGB32);
+    if (lhsImage.isNull() || rhsImage.isNull()) {
+        return result;
+    }
+    for (int y = 0; y < lhsImage.height(); ++y) {
+        const auto* lhsPixels = reinterpret_cast<const QRgb*>(lhsImage.constScanLine(y));
+        const auto* rhsPixels = reinterpret_cast<const QRgb*>(rhsImage.constScanLine(y));
+        for (int x = 0; x < lhsImage.width(); ++x) {
+            const int lRed = qRed(lhsPixels[x]);
+            const int lGreen = qGreen(lhsPixels[x]);
+            const int lBlue = qBlue(lhsPixels[x]);
+            if (lhsPixels[x] == rhsPixels[x]) {
+                continue;
+            }
+            ++result.diffPixels;
+            if (lineWitnessMatchesColor(lRed, lGreen, lBlue, category)) {
+                ++result.colorWitness;
+                result.colorIntensity += lRed + lGreen + lBlue;
+            }
+        }
+    }
+    return result;
+}
+
+void clearDocumentDepthStylePreviewRoot(SoGroup* objectGroup)
+{
+    if (gDepthStylePreviewRoot) {
+        if (objectGroup) {
+            objectGroup->removeChild(gDepthStylePreviewRoot);
+        }
+        gDepthStylePreviewRoot->unref();
+        gDepthStylePreviewRoot = nullptr;
+    }
+}
+
+struct DepthStyleCubeEdgeProbeProfileConfig
+{
+    const SbVec3f& center;
+    const SbVec3f& dimensions;
+    const SbColor& color;
+    float scale = 1.0F;
+    float lineWidth = 3.0F;
+    bool dashed = false;
+    SoDepthBuffer::DepthWriteFunction depthTest = SoDepthBuffer::LEQUAL;
+    bool depthWrite = true;
+};
+
+void addDepthStyleCubeEdgeChildren(SoSeparator& root, const DepthStyleCubeEdgeProbeProfileConfig& config)
+{
+    if (config.scale <= 0.0F || config.lineWidth <= 0.0F) {
+        return;
+    }
+
+    auto* edgeRoot = new SoSeparator;
+    edgeRoot->renderCaching = SoSeparator::OFF;
+    root.addChild(edgeRoot);
+
+    auto* depth = new SoDepthBuffer;
+    depth->test = true;
+    depth->write = config.depthWrite;
+    depth->function = config.depthTest;
+    edgeRoot->addChild(depth);
+
+    auto* lightModel = new SoLightModel;
+    lightModel->model = SoLightModel::BASE_COLOR;
+    edgeRoot->addChild(lightModel);
+
+    auto* material = new SoMaterial;
+    material->diffuseColor = config.color;
+    material->transparency = 0.0F;
+    edgeRoot->addChild(material);
+
+    auto* drawStyle = new SoDrawStyle;
+    drawStyle->style = SoDrawStyle::LINES;
+    drawStyle->lineWidth = config.lineWidth;
+    if (config.dashed) {
+        drawStyle->linePattern = 0x00FF;
+        drawStyle->linePatternScaleFactor = 2;
+    }
+    else {
+        drawStyle->linePattern = 0xFFFF;
+    }
+    edgeRoot->addChild(drawStyle);
+
+    auto* transform = new SoTransform;
+    transform->translation = config.center;
+    if (config.scale != 1.0F) {
+        transform->scaleFactor = SbVec3f(config.scale, config.scale, config.scale);
+    }
+    edgeRoot->addChild(transform);
+
+    auto* cube = new SoCube;
+    cube->width = config.dimensions[0];
+    cube->height = config.dimensions[1];
+    cube->depth = config.dimensions[2];
+    edgeRoot->addChild(cube);
+}
+
+bool runDocumentDepthStyleProbe(
+    Gui::View3DInventorViewer& view,
+    bool wireframeMode,
+    bool previewMode = false
+)
+{
+    struct DocumentFixtureDisplayModeState
+    {
+        std::string name;
+        std::string displayMode;
+    };
+    DocumentFixtureMaterialSet baselineMaterialState {};
+    DocumentFixtureMaterialSet currentMaterialState {};
+    if (!fixtureMaterialStateFromDocument(fixtureComposition, baselineMaterialState)
+        || !fixtureVisibilityInvariant(baselineMaterialState, baselineMaterialState)) {
+        return false;
+    }
+    if (!fixtureMaterialStateFromDocument(fixtureComposition, currentMaterialState)) {
+        return false;
+    }
+    if (!fixtureVisibilityInvariant(baselineMaterialState, currentMaterialState)) {
+        return false;
+    }
+
+    const auto selectionBaseline = captureDocumentSelectionState();
+    const auto baselinePose = captureDocumentViewerPoseState(view);
+    const auto baselineCameraState = captureDocumentViewerCameraState(view);
+    if (!std::isfinite(baselineCameraState.nearDistance)
+        || !std::isfinite(baselineCameraState.farDistance)
+        || baselineCameraState.farDistance <= baselineCameraState.nearDistance) {
+        return false;
+    }
+
+    auto* appDocument = App::GetApplication().getDocument(documentName);
+    auto* objectGroup = findObjectGroup(view);
+    auto* glWidget = view.findChild<QOpenGLWidget*>();
+    auto* context = glWidget ? glWidget->context() : nullptr;
+    auto* functions = context ? context->functions() : nullptr;
+    if (!objectGroup || !glWidget || !context || !context->isValid() || !functions) {
+        return false;
+    }
+    functions->initializeOpenGLFunctions();
+    if (!appDocument) {
+        return false;
+    }
+
+    std::array<DocumentFixtureDisplayModeState, fixtureComposition.size()> baselineDisplayModes {};
+    for (std::size_t index = 0; index < fixtureComposition.size(); ++index) {
+        App::DocumentObject* object = appDocument->getObject(fixtureComposition[index].data());
+        auto* provider = object ? dynamic_cast<Gui::ViewProviderGeometryObject*>(
+                                      Gui::Application::Instance->getViewProvider(object)
+                                  )
+                                : nullptr;
+        if (!provider) {
+            return false;
+        }
+        baselineDisplayModes[index].name = fixtureComposition[index];
+        baselineDisplayModes[index].displayMode = provider->getActiveDisplayMode();
+    }
+
+    std::array<bool, fixtureComposition.size()> displayModeModified {};
+    auto restoreDisplayModes = [&]() {
+        for (std::size_t index = 0; index < fixtureComposition.size(); ++index) {
+            if (!displayModeModified[index]) {
+                continue;
+            }
+            App::DocumentObject* object = appDocument->getObject(fixtureComposition[index].data());
+            auto* provider = object ? dynamic_cast<Gui::ViewProviderGeometryObject*>(
+                                          Gui::Application::Instance->getViewProvider(object)
+                                      )
+                                    : nullptr;
+            if (provider && index < baselineDisplayModes.size()
+                && !baselineDisplayModes[index].displayMode.empty()) {
+                provider->setDisplayMode(baselineDisplayModes[index].displayMode.c_str());
+            }
+        }
+    };
+
+    const auto captureDepthStyleGlState = [&]() -> DepthStyleGlState {
+        DepthStyleGlState state;
+        std::array<GLboolean, 4> colorMask {
+            GL_TRUE,
+            GL_TRUE,
+            GL_TRUE,
+            GL_TRUE,
+        };
+        functions->glGetBooleanv(GL_COLOR_WRITEMASK, colorMask.data());
+        state.colorMaskRed = colorMask[0];
+        state.colorMaskGreen = colorMask[1];
+        state.colorMaskBlue = colorMask[2];
+        state.colorMaskAlpha = colorMask[3];
+        functions->glGetBooleanv(GL_DEPTH_WRITEMASK, &state.depthWriteMask);
+        state.depthTestEnabled = functions->glIsEnabled(GL_DEPTH_TEST);
+        GLint depthFunc = GL_LEQUAL;
+        functions->glGetIntegerv(GL_DEPTH_FUNC, &depthFunc);
+        state.depthFunc = depthFunc;
+        state.lineStippleEnabled = functions->glIsEnabled(GL_LINE_STIPPLE);
+        functions->glGetFloatv(GL_LINE_WIDTH, &state.lineWidth);
+        return state;
+    };
+
+    const auto restoreDepthStyleGlState = [&](const DepthStyleGlState& state) {
+        glWidget->makeCurrent();
+        functions->glColorMask(
+            state.colorMaskRed,
+            state.colorMaskGreen,
+            state.colorMaskBlue,
+            state.colorMaskAlpha
+        );
+        functions->glDepthMask(state.depthWriteMask);
+        functions->glDepthFunc(state.depthFunc);
+        if (state.depthTestEnabled) {
+            functions->glEnable(GL_DEPTH_TEST);
+        }
+        else {
+            functions->glDisable(GL_DEPTH_TEST);
+        }
+        if (state.lineStippleEnabled) {
+            functions->glEnable(GL_LINE_STIPPLE);
+        }
+        else {
+            functions->glDisable(GL_LINE_STIPPLE);
+        }
+        functions->glLineWidth(state.lineWidth);
+    };
+    const DepthStyleGlState baselineGlState = captureDepthStyleGlState();
+
+    auto* probeRoot = new SoSeparator;
+    probeRoot->ref();
+    probeRoot->renderCaching = SoSeparator::OFF;
+    objectGroup->addChild(probeRoot);
+
+    const auto restoreProbeState = [&]() {
+        if (probeRoot) {
+            while (probeRoot->getNumChildren() > 0) {
+                probeRoot->removeChild(0);
+            }
+            objectGroup->removeChild(probeRoot);
+        }
+        applyDocumentFixtureVisibility(baselineMaterialState, true);
+        restoreDocumentMaterials(baselineMaterialState);
+        restoreDisplayModes();
+        QCoreApplication::processEvents();
+        probeRoot->unref();
+        if (objectGroup) {
+            probeRoot = nullptr;
+        }
+        restoreDepthStyleGlState(baselineGlState);
+    };
+
+    auto chooseWireframeMode = [](const std::vector<std::string>& modes) -> std::string {
+        for (const auto& mode : modes) {
+            if (mode == "Wireframe") {
+                return mode;
+            }
+        }
+        for (const auto& mode : modes) {
+            if (mode == "FlatLines") {
+                return mode;
+            }
+        }
+        for (const auto& mode : modes) {
+            if (mode == "Flat Lines") {
+                return mode;
+            }
+        }
+        for (const auto& mode : modes) {
+            if (mode == "Points") {
+                return mode;
+            }
+        }
+        return {};
+    };
+
+    const auto toDepthFunctionString = [](SoDepthBuffer::DepthWriteFunction depthFunction) {
+        switch (depthFunction) {
+            case SoDepthBuffer::NEVER:
+                return "never";
+            case SoDepthBuffer::GREATER:
+                return "greater";
+            case SoDepthBuffer::NOTEQUAL:
+                return "notequal";
+            case SoDepthBuffer::LEQUAL:
+                return "lequal";
+            case SoDepthBuffer::GEQUAL:
+                return "gequal";
+            case SoDepthBuffer::EQUAL:
+                return "equal";
+            case SoDepthBuffer::ALWAYS:
+                return "always";
+            default:
+                return "unknown";
+        }
+    };
+
+    view.setCameraOrientation(baselinePose.orientation);
+    QCoreApplication::processEvents();
+
+    long long baselineRenderUs = 0LL;
+    QImage baselineFrame = renderDocumentFrameForLightingMatrix(view, baselineRenderUs);
+    QByteArray baselineHash = computeDocumentImageHash(baselineFrame);
+    QImage restoreComparisonFrame = baselineFrame;
+    if (baselineFrame.isNull() || baselineHash.isEmpty()) {
+        restoreProbeState();
+        return false;
+    }
+    const QByteArray restoreComparisonHash = baselineHash;
+
+    if (wireframeMode) {
+        for (std::size_t index = 0; index < fixtureComposition.size(); ++index) {
+            if (fixtureComposition[index] == fixtureHidden) {
+                continue;
+            }
+            App::DocumentObject* object = appDocument->getObject(fixtureComposition[index].data());
+            auto* provider = object ? dynamic_cast<Gui::ViewProviderGeometryObject*>(
+                                          Gui::Application::Instance->getViewProvider(object)
+                                      )
+                                    : nullptr;
+            if (!provider) {
+                restoreProbeState();
+                return false;
+            }
+            const auto wireMode = chooseWireframeMode(provider->getDisplayModes());
+            if (!wireMode.empty()) {
+                provider->setDisplayMode(wireMode.c_str());
+                displayModeModified[index] = true;
+                QCoreApplication::processEvents();
+            }
+            else {
+                restoreProbeState();
+                return false;
+            }
+        }
+        baselineRenderUs = 0LL;
+        baselineFrame = renderDocumentFrameForLightingMatrix(view, baselineRenderUs);
+        baselineHash = computeDocumentImageHash(baselineFrame);
+        if (baselineFrame.isNull() || baselineHash.isEmpty()) {
+            restoreProbeState();
+            return false;
+        }
+    }
+
+    auto runLineProfile = [&](const DepthStyleLineProbeProfileConfig& config,
+                              const QImage& baseline,
+                              DocumentDepthStyleProbeProfile& result) -> bool {
+        result.mode = config.mode;
+        result.depthTest = config.depthTest;
+        result.depthWrite = config.depthWrite;
+        result.dashed = config.dashed;
+        result.prepassCallbacks = 0;
+        while (probeRoot->getNumChildren() > 0) {
+            probeRoot->removeChild(0);
+        }
+
+        const DepthStyleColorMaskState prepassColorMask {
+            GL_FALSE,
+            GL_FALSE,
+            GL_FALSE,
+            GL_FALSE,
+            &result.prepassCallbacks,
+        };
+        const DepthStyleColorMaskState drawColorMask {
+            GL_TRUE,
+            GL_TRUE,
+            GL_TRUE,
+            GL_TRUE,
+        };
+
+        if (config.usePrepass && config.drawPrepassOccluder) {
+            auto* prepassOn = new SoCallback;
+            prepassOn->setCallback(setDepthStyleColorMask, (void*)&prepassColorMask);
+            probeRoot->addChild(prepassOn);
+
+            addDepthStyleOccluderProbeChildren(*probeRoot, 0.0F, SbVec3f(27.0F, 2.0F, 2.0F));
+
+            auto* prepassOff = new SoCallback;
+            prepassOff->setCallback(setDepthStyleColorMask, (void*)&drawColorMask);
+            probeRoot->addChild(prepassOff);
+        }
+
+        if (config.drawTransparentSurface) {
+            addDepthStyleOccluderProbeChildren(*probeRoot, 0.40F, SbVec3f(27.0F, 2.0F, 2.0F));
+        }
+
+        addDepthStyleLineProbeChildren(*probeRoot, config);
+
+        auto* restoreColor = new SoCallback;
+        restoreColor->setCallback(setDepthStyleColorMask, (void*)&drawColorMask);
+        probeRoot->addChild(restoreColor);
+
+        auto frame = renderDocumentFrameForLightingMatrix(view, result.renderUs);
+        if (frame.isNull()) {
+            restoreDepthStyleGlState(baselineGlState);
+            return false;
+        }
+
+        result.hash = computeDocumentImageHash(frame);
+        if (result.hash.isEmpty()) {
+            restoreDepthStyleGlState(baselineGlState);
+            return false;
+        }
+
+        const auto witnessResult = collectDepthStyleLineWitness(frame, baseline, config.colorCategory);
+        result.diffPixels = diffDocumentImagePixels(frame, baseline);
+        result.colorWitness = witnessResult.colorWitness;
+        result.witnessPixels = witnessResult.colorWitness;
+        result.colorIntensity = witnessResult.colorIntensity;
+        restoreDepthStyleGlState(baselineGlState);
+        return true;
+    };
+
+    std::array<DocumentDepthStyleProbeProfile, 4> profiles {};
+    const SbVec3f visibleLineStart {-20.0F, -6.0F, 10.0F};
+    const SbVec3f visibleLineEnd {20.0F, -6.0F, 10.0F};
+    const SbVec3f occluderCenter {27.0F, 2.0F, 2.0F};
+    SbVec3f lineAxis = baselinePose.viewDirection.cross(baselinePose.upDirection);
+    if (lineAxis.normalize() == 0.0F) {
+        restoreProbeState();
+        return false;
+    }
+    const SbVec3f hiddenLineCenter = occluderCenter + baselinePose.viewDirection * 6.0F;
+    const SbVec3f hiddenLineStart = hiddenLineCenter - lineAxis * 4.0F;
+    const SbVec3f hiddenLineEnd = hiddenLineCenter + lineAxis * 4.0F;
+    const bool transparentSurfaceVisible = !wireframeMode;
+
+    if (!runLineProfile(
+            {
+                visibleLineStart,
+                visibleLineEnd,
+                SbColor(1.0F, 0.0F, 0.0F),
+                DepthStyleColorCategory::Red,
+                false,
+                SoDepthBuffer::LEQUAL,
+                true,
+                true,
+                true,
+                transparentSurfaceVisible,
+                "visible",
+            },
+            baselineFrame,
+            profiles[0]
+        )) {
+        restoreProbeState();
+        return false;
+    }
+    if (!runLineProfile(
+            {
+                hiddenLineStart,
+                hiddenLineEnd,
+                SbColor(1.0F, 0.96F, 0.22F),
+                DepthStyleColorCategory::Yellow,
+                true,
+                SoDepthBuffer::GREATER,
+                false,
+                true,
+                true,
+                transparentSurfaceVisible,
+                "hidden_dashed",
+            },
+            baselineFrame,
+            profiles[1]
+        )) {
+        restoreProbeState();
+        return false;
+    }
+    if (!runLineProfile(
+            {
+                hiddenLineStart,
+                hiddenLineEnd,
+                SbColor(1.0F, 0.96F, 0.22F),
+                DepthStyleColorCategory::Yellow,
+                false,
+                SoDepthBuffer::GREATER,
+                false,
+                true,
+                true,
+                transparentSurfaceVisible,
+                "hidden_solid",
+            },
+            baselineFrame,
+            profiles[2]
+        )) {
+        restoreProbeState();
+        return false;
+    }
+    if (!runLineProfile(
+            {
+                hiddenLineStart,
+                hiddenLineEnd,
+                SbColor(1.0F, 0.96F, 0.22F),
+                DepthStyleColorCategory::Yellow,
+                true,
+                SoDepthBuffer::GREATER,
+                false,
+                false,
+                false,
+                false,
+                "hidden_no_prepass",
+            },
+            baselineFrame,
+            profiles[3]
+        )) {
+        restoreProbeState();
+        return false;
+    }
+
+    restoreProbeState();
+
+    long long restoredRenderUs = 0LL;
+    const auto restoredFrame = renderDocumentFrameForLightingMatrix(view, restoredRenderUs);
+    const QByteArray restoredHash = computeDocumentImageHash(restoredFrame);
+    const int restoredDiffPixels = diffDocumentImagePixels(restoredFrame, restoreComparisonFrame);
+    const bool restoreMatch = !restoreComparisonHash.isEmpty() && !restoredHash.isEmpty()
+        && restoreComparisonHash == restoredHash && restoredDiffPixels == 0;
+
+    restoreDepthStyleGlState(baselineGlState);
+    view.setCameraOrientation(baselinePose.orientation);
+    QCoreApplication::processEvents();
+
+    bool displayModeStable = true;
+    for (std::size_t index = 0; index < fixtureComposition.size(); ++index) {
+        App::DocumentObject* object = appDocument->getObject(fixtureComposition[index].data());
+        auto* provider = object ? dynamic_cast<Gui::ViewProviderGeometryObject*>(
+                                      Gui::Application::Instance->getViewProvider(object)
+                                  )
+                                : nullptr;
+        if (!provider || provider->getActiveDisplayMode() != baselineDisplayModes[index].displayMode) {
+            displayModeStable = false;
+            break;
+        }
+    }
+
+    const bool finalMaterialState
+        = fixtureMaterialStateFromDocument(fixtureComposition, currentMaterialState);
+    const bool materialRestore = finalMaterialState
+        && fixtureMaterialsInvariant(baselineMaterialState, currentMaterialState);
+    const auto finalPose = captureDocumentViewerPoseState(view);
+    const auto finalCameraState = captureDocumentViewerCameraState(view);
+    const bool cameraStable = posesClose(finalPose, baselinePose)
+        && cameraStatesClose(finalCameraState, baselineCameraState);
+    const bool visibilityStable = finalMaterialState
+        && fixtureVisibilityInvariant(baselineMaterialState, currentMaterialState);
+    const bool selectionStable
+        = documentSelectionsEqual(captureDocumentSelectionState(), selectionBaseline);
+
+    const auto& visibleProfile = profiles[0];
+    const auto& hiddenDashProfile = profiles[1];
+    const auto& hiddenSolidProfile = profiles[2];
+    const auto& hiddenNoPrepassProfile = profiles[3];
+    const bool prepassCompleted = hiddenDashProfile.prepassCallbacks > 0;
+    const int hiddenPrepassDelta = hiddenDashProfile.witnessPixels
+        - hiddenNoPrepassProfile.witnessPixels;
+    const bool prepassEvidence = prepassCompleted && hiddenNoPrepassProfile.prepassCallbacks == 0
+        && hiddenPrepassDelta > 0;
+    const bool transparentSurfaceField = transparentSurfaceVisible;
+    const bool transparentDepthPrepassField = transparentSurfaceVisible;
+    const bool transparentPolicy = transparentSurfaceField == transparentDepthPrepassField;
+    const bool styleWitnessRelation = hiddenSolidProfile.witnessPixels > hiddenDashProfile.witnessPixels
+        && hiddenSolidProfile.colorIntensity > hiddenDashProfile.colorIntensity;
+    const bool strictRelationOk = prepassEvidence && transparentPolicy && restoreMatch && cameraStable
+        && visibilityStable && displayModeStable && selectionStable && visibleProfile.mode
+        && hiddenDashProfile.mode && hiddenSolidProfile.mode && hiddenNoPrepassProfile.mode
+        && visibleProfile.witnessPixels > 0 && hiddenDashProfile.witnessPixels > 0
+        && hiddenSolidProfile.witnessPixels > hiddenDashProfile.witnessPixels
+        && hiddenDashProfile.colorWitness > 0 && hiddenSolidProfile.colorWitness > 0
+        && hiddenNoPrepassProfile.witnessPixels < hiddenDashProfile.witnessPixels
+        && visibleProfile.depthTest == SoDepthBuffer::LEQUAL && visibleProfile.depthWrite == true
+        && hiddenDashProfile.depthTest == SoDepthBuffer::GREATER
+        && hiddenDashProfile.depthWrite == false && !visibleProfile.dashed
+        && hiddenDashProfile.dashed && !hiddenSolidProfile.dashed && styleWitnessRelation;
+
+    bool previewRelationOk = false;
+    if (previewMode && strictRelationOk) {
+        clearDocumentDepthStylePreviewRoot(objectGroup);
+
+        const SbVec3f previewOccluderCenter {28.0F, 0.0F, 9.0F};
+        const SbVec3f previewOccluderDimensions {20.0F, 16.0F, 10.0F};
+        const float previewScale = 1.0F;
+
+        auto* previewRoot = new SoSeparator;
+        previewRoot->ref();
+        previewRoot->renderCaching = SoSeparator::OFF;
+        gDepthStylePreviewRoot = previewRoot;
+        objectGroup->addChild(previewRoot);
+
+        auto* previewPrepassOn = new SoCallback;
+        previewPrepassOn->setCallback(setDepthStyleColorMask, (void*)&gDepthStylePreviewColorMaskOff);
+        previewRoot->addChild(previewPrepassOn);
+
+        addDepthStyleOccluderProbeChildren(
+            *previewRoot,
+            0.0F,
+            previewOccluderCenter,
+            previewScale,
+            previewOccluderDimensions
+        );
+
+        auto* previewPrepassOff = new SoCallback;
+        previewPrepassOff->setCallback(setDepthStyleColorMask, (void*)&gDepthStylePreviewColorMaskOn);
+        previewRoot->addChild(previewPrepassOff);
+
+        long long previewSurfaceRenderUs = 0LL;
+        auto previewSurfaceFrame = renderDocumentFrameForLightingMatrix(view, previewSurfaceRenderUs);
+        if (previewSurfaceFrame.isNull()) {
+            clearDocumentDepthStylePreviewRoot(objectGroup);
+        }
+        else {
+            addDepthStyleCubeEdgeChildren(
+                *previewRoot,
+                {
+                    previewOccluderCenter,
+                    previewOccluderDimensions,
+                    SbColor(0.95F, 0.14F, 0.14F),
+                    previewScale,
+                    3.0F,
+                    false,
+                    SoDepthBuffer::LEQUAL,
+                    true,
+                }
+            );
+            addDepthStyleCubeEdgeChildren(
+                *previewRoot,
+                {
+                    previewOccluderCenter,
+                    previewOccluderDimensions,
+                    SbColor(0.08F, 0.08F, 0.10F),
+                    previewScale,
+                    7.0F,
+                    true,
+                    SoDepthBuffer::GREATER,
+                    false,
+                }
+            );
+            addDepthStyleCubeEdgeChildren(
+                *previewRoot,
+                {
+                    previewOccluderCenter,
+                    previewOccluderDimensions,
+                    SbColor(1.0F, 0.96F, 0.22F),
+                    previewScale,
+                    4.0F,
+                    true,
+                    SoDepthBuffer::GREATER,
+                    false,
+                }
+            );
+
+            auto* previewRestore = new SoCallback;
+            previewRestore->setCallback(setDepthStyleColorMask, (void*)&gDepthStylePreviewColorMaskOn);
+            previewRoot->addChild(previewRestore);
+
+            long long previewRenderUs = 0LL;
+            auto previewFrame = renderDocumentFrameForLightingMatrix(view, previewRenderUs);
+            if (previewFrame.isNull()) {
+                clearDocumentDepthStylePreviewRoot(objectGroup);
+                restoreDepthStyleGlState(baselineGlState);
+                return false;
+            }
+            const auto previewVisibleWitnessResult = collectDepthStyleLineWitness(
+                previewFrame,
+                previewSurfaceFrame,
+                DepthStyleColorCategory::Red
+            );
+            const auto previewHiddenWitnessResult = collectDepthStyleLineWitness(
+                previewFrame,
+                previewSurfaceFrame,
+                DepthStyleColorCategory::Yellow
+            );
+            previewRelationOk = previewVisibleWitnessResult.colorWitness > 0
+                && previewHiddenWitnessResult.colorWitness > 0;
+            const char* previewProfile = wireframeMode ? "wireframe" : "transparent";
+            const int transparentSurfaceState = wireframeMode ? 0 : 1;
+            std::fprintf(
+                stderr,
+                "FREECAD_BREP_DOCUMENT_HIDDEN_LINES_PREVIEW outcome=%s profile=%s persistent=1 "
+                "fixture=009-document-v1 baseline=%s prepass_completed=%d prepass_callbacks=%d "
+                "fallback=native production_enabled=0 visible_witness=%d hidden_witness=%d "
+                "visible_style=cube-front-edges-solid-red "
+                "hidden_style=cube-back-edges-outlined-dash "
+                "visible_depth_func=%s visible_depth_write=%d hidden_depth_func=%s "
+                "hidden_depth_write=%d transparent_surface=%d transparent_depth_prepass=%d "
+                "implicit_dialog=0 preview_surface_render_us=%lld preview_render_us=%lld\n",
+                previewRelationOk ? "active" : "inactive",
+                previewProfile,
+                fixtureRevision,
+                static_cast<int>(hiddenDashProfile.prepassCallbacks > 0),
+                hiddenDashProfile.prepassCallbacks,
+                previewVisibleWitnessResult.colorWitness,
+                previewHiddenWitnessResult.colorWitness,
+                toDepthFunctionString(visibleProfile.depthTest),
+                static_cast<int>(visibleProfile.depthWrite),
+                toDepthFunctionString(hiddenDashProfile.depthTest),
+                static_cast<int>(hiddenDashProfile.depthWrite),
+                transparentSurfaceState,
+                transparentSurfaceState,
+                previewSurfaceRenderUs,
+                previewRenderUs
+            );
+            std::fprintf(
+                stderr,
+                "FREECAD_BREP_DOCUMENT_HIDDEN_LINES_PREVIEW_DETAILS outcome=%s "
+                "visible_color_pixels=%d visible_color_intensity=%d hidden_color_pixels=%d "
+                "hidden_color_intensity=%d diff_pixels=%d\n",
+                previewRelationOk ? "pass" : "fail",
+                previewVisibleWitnessResult.colorWitness,
+                previewVisibleWitnessResult.colorIntensity,
+                previewHiddenWitnessResult.colorWitness,
+                previewHiddenWitnessResult.colorIntensity,
+                diffDocumentImagePixels(previewFrame, previewSurfaceFrame)
+            );
+        }
+        if (!previewRelationOk) {
+            clearDocumentDepthStylePreviewRoot(objectGroup);
+        }
+        restoreDepthStyleGlState(baselineGlState);
+    }
+
+    std::fprintf(
+        stderr,
+        "FREECAD_BREP_DOCUMENT_DEPTH_STYLE_RELATION outcome=%s witness=%s selected=%s "
+        "preselected=%s "
+        "hidden=%s transparent=%s fallback=native production_enabled=0 wireframe=%d "
+        "prepass_completed=%d prepass_callbacks=%d prepass_delta=%d hidden_prepass_witness=%d "
+        "transparent_surface=%d transparent_depth_prepass=%d "
+        "visible_mode=%s visible_depth_func=%s visible_depth_write=%d visible_style=solid-dark "
+        "visible_witness=%d visible_color_pixels=%d visible_color_intensity=%d "
+        "hidden_mode=%s hidden_depth_func=%s hidden_depth_write=%d hidden_style=dashed-light "
+        "hidden_witness=%d hidden_color_pixels=%d hidden_solid_mode=%s "
+        "hidden_solid_style=solid-bright hidden_solid_witness=%d hidden_solid_color_pixels=%d "
+        "hidden_control_mode=%s hidden_control_witness=%d "
+        "display_mode_stable=%d visibility_stable=%d selection_stable=%d camera_stable=%d "
+        "material_restore=%d restore_match=%d restore_pixel_diff=%d restored_render_us=%lld\n",
+        strictRelationOk ? "pass" : "fail",
+        fixtureRevision,
+        fixtureSelected.data(),
+        fixturePreselected.data(),
+        fixtureHidden.data(),
+        fixtureTransparent.data(),
+        static_cast<int>(wireframeMode),
+        static_cast<int>(prepassCompleted),
+        hiddenDashProfile.prepassCallbacks,
+        hiddenPrepassDelta,
+        hiddenNoPrepassProfile.witnessPixels,
+        static_cast<int>(transparentSurfaceField),
+        static_cast<int>(transparentDepthPrepassField),
+        visibleProfile.mode,
+        toDepthFunctionString(visibleProfile.depthTest),
+        static_cast<int>(visibleProfile.depthWrite),
+        visibleProfile.witnessPixels,
+        visibleProfile.colorWitness,
+        visibleProfile.colorIntensity,
+        hiddenDashProfile.mode,
+        toDepthFunctionString(hiddenDashProfile.depthTest),
+        static_cast<int>(hiddenDashProfile.depthWrite),
+        hiddenDashProfile.witnessPixels,
+        hiddenDashProfile.colorWitness,
+        hiddenSolidProfile.mode,
+        hiddenSolidProfile.witnessPixels,
+        hiddenSolidProfile.colorWitness,
+        hiddenNoPrepassProfile.mode,
+        hiddenNoPrepassProfile.witnessPixels,
+        static_cast<int>(displayModeStable),
+        static_cast<int>(visibilityStable),
+        static_cast<int>(selectionStable),
+        static_cast<int>(cameraStable),
+        static_cast<int>(materialRestore),
+        static_cast<int>(restoreMatch),
+        restoredDiffPixels,
+        restoredRenderUs
+    );
+
+    return strictRelationOk && (!previewMode || previewRelationOk);
+}
+bool runDocumentDepthQuantizationProbe(Gui::View3DInventorViewer& view)
+{
+    DocumentFixtureMaterialSet baselineMaterialState {};
+    DocumentFixtureMaterialSet currentMaterialState {};
+    if (!fixtureMaterialStateFromDocument(fixtureComposition, baselineMaterialState)
+        || !fixtureMaterialStateFromDocument(fixtureComposition, currentMaterialState)) {
+        return false;
+    }
+    if (!fixtureVisibilityInvariant(baselineMaterialState, currentMaterialState)) {
+        return false;
+    }
+
+    const auto baselinePose = captureDocumentViewerPoseState(view);
+    const auto baselineCameraState = captureDocumentViewerCameraState(view);
+    if (!std::isfinite(baselineCameraState.nearDistance)
+        || !std::isfinite(baselineCameraState.farDistance)
+        || baselineCameraState.farDistance <= baselineCameraState.nearDistance) {
+        return false;
+    }
+
+    constexpr double nearDistance = 1.0e-3;
+    constexpr double farDistance = 1.0e9;
+    constexpr double tightenedNearDistance = 10.0;
+    constexpr std::array<double, 8> extremeEyeDepths {
+        1.0e3,
+        1.00001e3,
+        1.0e4,
+        1.00001e4,
+        1.0e5,
+        1.0001e5,
+        1.0e6,
+        1.001e6,
+    };
+
+    const int width = view.width();
+    const int height = view.height();
+    if (width <= 0 || height <= 0) {
+        return false;
+    }
+
+    long long baselineRenderUs = 0LL;
+    const auto baselineFrame = renderDocumentFrameForLightingMatrix(view, baselineRenderUs);
+    const QByteArray baselineHash = computeDocumentImageHash(baselineFrame);
+    if (baselineFrame.isNull() || baselineHash.isEmpty()) {
+        return false;
+    }
+
+    std::vector<DocumentDepthQuantizationSample> samples(extremeEyeDepths.size());
+    for (std::size_t index = 0; index < extremeEyeDepths.size(); ++index) {
+        auto& sample = samples[index];
+        sample.index = index;
+        sample.eyeDepth = extremeEyeDepths[index];
+        sample.baselineCode = quantizeDepth24Bits(
+            eyeDepthToWindowDepth(sample.eyeDepth, nearDistance, farDistance)
+        );
+        sample.tightenedCode = quantizeDepth24Bits(
+            eyeDepthToWindowDepth(sample.eyeDepth, tightenedNearDistance, farDistance)
+        );
+    }
+
+    const int baselineCollisionPairs = countDepthQuantizationCollisionPairs(samples, false);
+    const int tightenedCollisionPairs = countDepthQuantizationCollisionPairs(samples, true);
+    const int separation = baselineCollisionPairs - tightenedCollisionPairs;
+    const bool precisionRisk = baselineCollisionPairs > 0;
+    const bool precisionImprovement = tightenedCollisionPairs < baselineCollisionPairs;
+    long long correctnessRenderUs = 0LL;
+    const auto correctnessFrame = renderDocumentFrameForLightingMatrix(view, correctnessRenderUs);
+    const bool correctness = !computeDocumentImageHash(correctnessFrame).isEmpty()
+        && baselineHash == computeDocumentImageHash(correctnessFrame);
+
+    restoreDocumentMaterials(baselineMaterialState);
+    const bool finalState = fixtureMaterialStateFromDocument(fixtureComposition, currentMaterialState);
+    const bool visibilityStable = finalState
+        && fixtureVisibilityInvariant(baselineMaterialState, currentMaterialState);
+    const bool cameraStable = posesClose(captureDocumentViewerPoseState(view), baselinePose)
+        && cameraStatesClose(captureDocumentViewerCameraState(view), baselineCameraState);
+
+    for (const auto& sample : samples) {
+        std::fprintf(
+            stderr,
+            "FREECAD_BREP_DOCUMENT_DEPTH_QUANTIZATION_SAMPLE index=%zu eye_depth=%0.6f "
+            "baseline_code=%u tightened_code=%u\n",
+            sample.index,
+            sample.eyeDepth,
+            static_cast<unsigned>(sample.baselineCode),
+            static_cast<unsigned>(sample.tightenedCode)
+        );
+    }
+
+    const bool relationOk = cameraStable && visibilityStable && correctness && precisionRisk
+        && precisionImprovement;
+    std::fprintf(
+        stderr,
+        "FREECAD_BREP_DOCUMENT_DEPTH_QUANTIZATION_RELATION outcome=%s fallback=native "
+        "production_enabled=0 "
+        "witness=%s selected=%s preselected=%s hidden=%s transparent=%s width=%d height=%d "
+        "near=%0.6f far=%0.6f ratio=%0.0f tightened_near=%0.6f "
+        "live_near=%0.6f live_far=%0.6f baseline_collision_pairs=%d "
+        "tightened_collision_pairs=%d separation=%d precision_risk=%d precision_improvement=%d "
+        "correctness=%d camera_stable=%d visibility_stable=%d\n",
+        relationOk ? "pass" : "fail",
+        fixtureRevision,
+        fixtureSelected.data(),
+        fixturePreselected.data(),
+        fixtureHidden.data(),
+        fixtureTransparent.data(),
+        width,
+        height,
+        nearDistance,
+        farDistance,
+        farDistance / nearDistance,
+        tightenedNearDistance,
+        baselineCameraState.nearDistance,
+        baselineCameraState.farDistance,
+        baselineCollisionPairs,
+        tightenedCollisionPairs,
+        separation,
+        static_cast<int>(precisionRisk),
+        static_cast<int>(precisionImprovement),
+        static_cast<int>(correctness),
+        static_cast<int>(cameraStable),
+        static_cast<int>(visibilityStable)
+    );
+
+    return relationOk;
+}
+
+struct TopologyIdentityProbeResult
+{
+    int inputSegments = 0;
+    int outputSegments = 0;
+    int duplicateSegments = 0;
+    bool distinctPreserved = false;
+    bool nearestWins = false;
+    bool relationOk = false;
+};
+
+TopologyIdentityProbeResult runTopologyIdentityProbe()
+{
+    const std::vector<PartGui::Detail::ProjectedSegment> segments {
+        {10.0, 20.0, 0.8, 30.0, 40.0, 1.0, true, 77ULL},
+        {30.0, 40.0, 0.2, 10.0, 20.0, 0.4, true, 77ULL},
+        {10.0, 20.0, 1.6, 30.0, 40.0, 1.2, true, 78ULL},
+    };
+    const auto deduplicated = PartGui::Detail::deduplicateProjectedSegmentsWithTopologyId(
+        segments,
+        topologyIdentityProbeViewport,
+        0.5
+    );
+
+    TopologyIdentityProbeResult result;
+    result.inputSegments = static_cast<int>(segments.size());
+    result.outputSegments = static_cast<int>(deduplicated.segments.size());
+    result.duplicateSegments = static_cast<int>(deduplicated.stats.duplicateSegments);
+    result.distinctPreserved = result.duplicateSegments == 1 && result.outputSegments == 2;
+    result.nearestWins = deduplicated.segments.size() == 2
+        && deduplicated.segments.front().topologyId == 77ULL
+        && deduplicated.segments.front().firstZ == 0.4
+        && deduplicated.segments.front().secondZ == 0.2;
+    result.relationOk = result.distinctPreserved && result.nearestWins;
+
+    std::fprintf(
+        stderr,
+        "FREECAD_SEGMENT_TOPOLOGY_IDENTITY_PROBE outcome=%s input=%d output=%d duplicate=%d "
+        "distinct_preserved=%d nearest_wins=%d\n",
+        result.relationOk ? "pass" : "fail",
+        result.inputSegments,
+        result.outputSegments,
+        result.duplicateSegments,
+        static_cast<int>(result.distinctPreserved),
+        static_cast<int>(result.nearestWins)
+    );
+
+    return result;
+}
+
 DocumentViewerPoseState captureDocumentViewerPoseState(const Gui::View3DInventorViewer& view)
 {
     return {
@@ -704,11 +2398,7 @@ bool vectorsClose(const SbVec3f& lhs, const SbVec3f& rhs, float epsilon = 1e-6F)
         && std::fabs(lhs[2] - rhs[2]) < epsilon;
 }
 
-bool posesClose(
-    const DocumentViewerPoseState& lhs,
-    const DocumentViewerPoseState& rhs,
-    float epsilon = 1e-6F
-)
+bool posesClose(const DocumentViewerPoseState& lhs, const DocumentViewerPoseState& rhs, float epsilon)
 {
     float lhsAngle = 0.0F;
     float rhsAngle = 0.0F;
@@ -1687,6 +3377,11 @@ int main(int argc, char* argv[])
     QApplication qtApplication(argc, argv);
     QCoreApplication::setApplicationName(QStringLiteral("GpuDiagnosticsHarness"));
 
+    PassiveHarnessWindowFilter passiveWindowFilter;
+    if (qEnvironmentVariableIntValue("FREECAD_GPU_DIAGNOSTICS_PASSIVE_WINDOWS") != 0) {
+        qtApplication.installEventFilter(&passiveWindowFilter);
+    }
+
     QCommandLineParser parser;
     parser.setApplicationDescription(
         QStringLiteral("Focused FreeCAD production-viewport GPU diagnostics harness")
@@ -1732,6 +3427,33 @@ int main(int argc, char* argv[])
     const QCommandLineOption brepDocumentLightingMaterialOption(
         QStringLiteral("brep-document-lighting-material"),
         QStringLiteral("Run deterministic lighting/material matrix checks on the document fixture.")
+    );
+    const QCommandLineOption topologyIdentityOption(
+        QStringLiteral("topology-identity"),
+        QStringLiteral("Run synthetic projected-segment topology-identity de-duplication probe.")
+    );
+    const QCommandLineOption brepDocumentTransparencyOrderingOption(
+        QStringLiteral("brep-document-transparency-order"),
+        QStringLiteral("Run deterministic transparent-overlap ordering checks on the document fixture.")
+    );
+    const QCommandLineOption brepDocumentDepthQuantizationOption(
+        QStringLiteral("brep-document-depth-quantization"),
+        QStringLiteral("Run deterministic 24-bit depth-quantization probe on the document fixture.")
+    );
+    const QCommandLineOption brepDocumentHiddenLinesTransparentOption(
+        QStringLiteral("brep-document-hidden-lines-transparent"),
+        QStringLiteral("Run deterministic document fixture hidden-line depth-style probe with default face fills.")
+    );
+    const QCommandLineOption brepDocumentWireframeOption(
+        QStringLiteral("brep-document-hidden-lines-wireframe"),
+        QStringLiteral("Run document hidden-lines depth-style probe in fixture wireframe mode.")
+    );
+    const QCommandLineOption brepDocumentHiddenLinesPreviewOption(
+        QStringLiteral("brep-document-hidden-lines-preview"),
+        QStringLiteral(
+            "Keep the main-window hidden-line preview open until close/auto-exit without an "
+            "implicit GPU dialog (strict pass required)."
+        )
     );
     const QCommandLineOption brepDocumentTessellationOption(
         QStringLiteral("brep-document-tessellation"),
@@ -1827,6 +3549,12 @@ int main(int argc, char* argv[])
         brepFixtureOption,
         brepDocumentFixtureOption,
         brepDocumentLightingMaterialOption,
+        topologyIdentityOption,
+        brepDocumentTransparencyOrderingOption,
+        brepDocumentDepthQuantizationOption,
+        brepDocumentHiddenLinesTransparentOption,
+        brepDocumentWireframeOption,
+        brepDocumentHiddenLinesPreviewOption,
         screenshotOption,
         brepOverlaysOption,
         brepDuplicateEdgesOption,
@@ -2026,6 +3754,46 @@ int main(int argc, char* argv[])
         App::Application::destruct();
         return 2;
     }
+    if (parser.isSet(brepDocumentTransparencyOrderingOption)
+        && !parser.isSet(brepDocumentFixtureOption)) {
+        QTextStream(
+            stderr
+        ) << "--brep-document-transparency-order requires --brep-document-fixture.\n";
+        App::Application::destruct();
+        return 2;
+    }
+    if (parser.isSet(brepDocumentHiddenLinesTransparentOption)
+        && !parser.isSet(brepDocumentFixtureOption)) {
+        QTextStream(stderr) << "--brep-document-hidden-lines-transparent requires "
+                               "--brep-document-fixture.\n";
+        App::Application::destruct();
+        return 2;
+    }
+    if (parser.isSet(brepDocumentWireframeOption) && !parser.isSet(brepDocumentFixtureOption)) {
+        QTextStream(
+            stderr
+        ) << "--brep-document-hidden-lines-wireframe requires --brep-document-fixture.\n";
+        App::Application::destruct();
+        return 2;
+    }
+    if (parser.isSet(brepDocumentHiddenLinesPreviewOption)
+        && ((parser.isSet(brepDocumentHiddenLinesTransparentOption)
+             && parser.isSet(brepDocumentWireframeOption))
+            || (!parser.isSet(brepDocumentHiddenLinesTransparentOption)
+                && !parser.isSet(brepDocumentWireframeOption)))) {
+        QTextStream(stderr) << "--brep-document-hidden-lines-preview requires exactly one of "
+                               "--brep-document-hidden-lines-transparent or "
+                               "--brep-document-hidden-lines-wireframe.\n";
+        App::Application::destruct();
+        return 2;
+    }
+    if (parser.isSet(brepDocumentDepthQuantizationOption)
+        && !parser.isSet(brepDocumentFixtureOption)) {
+        QTextStream(stderr) << "--brep-document-depth-quantization requires "
+                               "--brep-document-fixture.\n";
+        App::Application::destruct();
+        return 2;
+    }
     if (parser.isSet(brepDocumentPostprocessDepthOption) && !parser.isSet(brepDocumentFixtureOption)) {
         QTextStream(
             stderr
@@ -2074,6 +3842,12 @@ int main(int argc, char* argv[])
         return 2;
     }
     if (parser.isSet(brepDocumentFixtureOption) || parser.isSet(brepDocumentLightingMaterialOption)
+        || parser.isSet(topologyIdentityOption)
+        || parser.isSet(brepDocumentTransparencyOrderingOption)
+        || parser.isSet(brepDocumentHiddenLinesTransparentOption)
+        || parser.isSet(brepDocumentWireframeOption)
+        || parser.isSet(brepDocumentHiddenLinesPreviewOption)
+        || parser.isSet(brepDocumentDepthQuantizationOption)
         || parser.isSet(brepDocumentTessellationOption)
         || parser.isSet(brepDocumentPostprocessDepthOption)
         || parser.isSet(brepDocumentPostprocessDepthForceNativeOption)) {
@@ -2155,6 +3929,16 @@ int main(int argc, char* argv[])
         bool reportCollected = false;
         QTimer contextPoll(&view);
         contextPoll.setInterval(25);
+        QTimer previewWindowPoll(&view);
+        if (parser.isSet(brepDocumentHiddenLinesPreviewOption)) {
+            previewWindowPoll.setInterval(50);
+            QObject::connect(&previewWindowPoll, &QTimer::timeout, [&]() {
+                if (view.isHidden()) {
+                    qtApplication.quit();
+                }
+            });
+            previewWindowPoll.start();
+        }
         auto collectReport = [&](bool allowDialog) {
             if (reportCollected) {
                 return;
@@ -2210,6 +3994,44 @@ int main(int argc, char* argv[])
             if (parser.isSet(brepDocumentLightingMaterialOption)
                 && !runDocumentLightingMaterialProbe(view)) {
                 QTextStream(stderr) << "Document BRep lighting/material matrix failed.\n";
+                qtApplication.exit(3);
+                return;
+            }
+            if (parser.isSet(brepDocumentTransparencyOrderingOption)
+                && !runDocumentTransparencyOrderingProbe(view)) {
+                QTextStream(stderr) << "Document BRep transparency-order probe failed.\n";
+                qtApplication.exit(3);
+                return;
+            }
+            if (parser.isSet(brepDocumentHiddenLinesTransparentOption)
+                && !runDocumentDepthStyleProbe(
+                    view,
+                    false,
+                    parser.isSet(brepDocumentHiddenLinesPreviewOption)
+                )) {
+                QTextStream(stderr)
+                    << "Document BRep hidden-lines-transparent depth-style probe failed.\n";
+                qtApplication.exit(3);
+                return;
+            }
+            if (parser.isSet(brepDocumentWireframeOption)
+                && !runDocumentDepthStyleProbe(
+                    view,
+                    true,
+                    parser.isSet(brepDocumentHiddenLinesPreviewOption)
+                )) {
+                QTextStream(stderr) << "Document BRep wireframe depth-style probe failed.\n";
+                qtApplication.exit(3);
+                return;
+            }
+            if (parser.isSet(brepDocumentDepthQuantizationOption)
+                && !runDocumentDepthQuantizationProbe(view)) {
+                QTextStream(stderr) << "Document BRep depth-quantization probe failed.\n";
+                qtApplication.exit(3);
+                return;
+            }
+            if (parser.isSet(topologyIdentityOption) && !runTopologyIdentityProbe().relationOk) {
+                QTextStream(stderr) << "Topology identity probe failed.\n";
                 qtApplication.exit(3);
                 return;
             }
@@ -2296,13 +4118,16 @@ int main(int argc, char* argv[])
             }
             output.flush();
 
+            const bool previewMode = parser.isSet(brepDocumentHiddenLinesPreviewOption);
             const bool showDialog = allowDialog
                 && (parser.isSet(dialogOption)
-                    || (!parser.isSet(jsonOption) && !parser.isSet(textOption)));
+                    || (!previewMode && !parser.isSet(jsonOption) && !parser.isSet(textOption)));
             if (showDialog) {
                 Gui::GpuDiagnosticsDialog::showDialog(&view);
             }
-            qtApplication.quit();
+            if (!previewMode) {
+                qtApplication.quit();
+            }
         };
         QObject::connect(&contextPoll, &QTimer::timeout, [&]() {
             auto* glWidget = view.findChild<QOpenGLWidget*>();
@@ -2334,6 +4159,9 @@ int main(int argc, char* argv[])
         }
 
         result = qtApplication.exec();
+#ifdef FREECAD_GPU_DIAGNOSTICS_HAS_PART
+        clearDocumentDepthStylePreviewRoot(findObjectGroup(view));
+#endif
         view.close();
     }
 

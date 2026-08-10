@@ -342,6 +342,125 @@ if(UNIX AND NOT APPLE AND DEFINED ENV{DISPLAY} AND NOT "$ENV{DISPLAY}" STREQUAL 
         )
 
         add_test(
+            NAME GpuDiagnosticsHarness_brep_document-transparency-order_x11
+            COMMAND GpuDiagnosticsHarness_run
+                --brep-fixture
+                --brep-document-fixture
+                --brep-document-transparency-order
+                --samples 4
+                --auto-exit-ms 5000
+        )
+        set_tests_properties(
+            GpuDiagnosticsHarness_brep_document-transparency-order_x11 PROPERTIES
+            ENVIRONMENT "QT_QPA_PLATFORM=xcb"
+            TIMEOUT 12
+            PASS_REGULAR_EXPRESSION
+                "FREECAD_BREP_DOCUMENT_TRANSPARENCY_RELATION outcome=pass witness=009-document-v1 selected=RoundedBoss preselected=RoundedHousing hidden=HiddenRoundedSolid transparent=RoundedTransparentCanopy fallback=native production_enabled=0"
+        )
+
+        add_test(
+            NAME GpuDiagnosticsHarness_brep_document-hidden-lines-transparent_x11
+            COMMAND GpuDiagnosticsHarness_run
+                --brep-fixture
+                --brep-document-fixture
+                --brep-document-hidden-lines-transparent
+                --samples 4
+                --auto-exit-ms 5000
+        )
+        set_tests_properties(
+            GpuDiagnosticsHarness_brep_document-hidden-lines-transparent_x11 PROPERTIES
+            ENVIRONMENT "QT_QPA_PLATFORM=xcb"
+            TIMEOUT 12
+            PASS_REGULAR_EXPRESSION
+                "FREECAD_BREP_DOCUMENT_DEPTH_STYLE_RELATION outcome=pass witness=009-document-v1 selected=RoundedBoss preselected=RoundedHousing hidden=HiddenRoundedSolid transparent=RoundedTransparentCanopy fallback=native production_enabled=0 wireframe=0 prepass_completed=1 prepass_callbacks=[1-9][0-9]* prepass_delta=[1-9][0-9]* hidden_prepass_witness=[0-9]+ transparent_surface=1 transparent_depth_prepass=1 visible_mode=visible visible_depth_func=lequal visible_depth_write=1 visible_style=solid-dark visible_witness=[1-9][0-9]* visible_color_pixels=[1-9][0-9]* visible_color_intensity=[1-9][0-9]* hidden_mode=hidden_dashed hidden_depth_func=greater hidden_depth_write=0 hidden_style=dashed-light hidden_witness=[1-9][0-9]* hidden_color_pixels=[1-9][0-9]* hidden_solid_mode=hidden_solid hidden_solid_style=solid-bright hidden_solid_witness=[1-9][0-9]* hidden_solid_color_pixels=[1-9][0-9]* hidden_control_mode=hidden_no_prepass hidden_control_witness=[0-9]+ display_mode_stable=1 visibility_stable=1 selection_stable=1 camera_stable=1 material_restore=1 restore_match=1 restore_pixel_diff=0 restored_render_us=[1-9][0-9]*"
+        )
+
+        add_test(
+            NAME GpuDiagnosticsHarness_brep_document-hidden-lines-transparent-preview_x11
+            COMMAND GpuDiagnosticsHarness_run
+                --brep-fixture
+                --brep-document-fixture
+                --brep-document-hidden-lines-transparent
+                --brep-document-hidden-lines-preview
+                --samples 4
+                --auto-exit-ms 3000
+        )
+        set_tests_properties(
+            GpuDiagnosticsHarness_brep_document-hidden-lines-transparent-preview_x11 PROPERTIES
+            ENVIRONMENT "QT_QPA_PLATFORM=xcb"
+            TIMEOUT 10
+            PASS_REGULAR_EXPRESSION
+                "FREECAD_BREP_DOCUMENT_HIDDEN_LINES_PREVIEW .*outcome=active .*profile=transparent .*fixture=009-document-v1 .*baseline=009-document-v1 .*visible_witness=[1-9][0-9]* .*hidden_witness=[1-9][0-9]* .*visible_style=cube-front-edges-solid-red .*hidden_style=cube-back-edges-outlined-dash .*transparent_surface=1 .*transparent_depth_prepass=1 .*implicit_dialog=0"
+        )
+
+        add_test(
+            NAME GpuDiagnosticsHarness_brep_document-hidden-lines-wireframe_x11
+            COMMAND GpuDiagnosticsHarness_run
+                --brep-fixture
+                --brep-document-fixture
+                --brep-document-hidden-lines-wireframe
+                --samples 4
+                --auto-exit-ms 5000
+        )
+        set_tests_properties(
+            GpuDiagnosticsHarness_brep_document-hidden-lines-wireframe_x11 PROPERTIES
+            ENVIRONMENT "QT_QPA_PLATFORM=xcb"
+            TIMEOUT 12
+            PASS_REGULAR_EXPRESSION
+                "FREECAD_BREP_DOCUMENT_DEPTH_STYLE_RELATION outcome=pass witness=009-document-v1 selected=RoundedBoss preselected=RoundedHousing hidden=HiddenRoundedSolid transparent=RoundedTransparentCanopy fallback=native production_enabled=0 wireframe=1 prepass_completed=1 prepass_callbacks=[1-9][0-9]* prepass_delta=[1-9][0-9]* hidden_prepass_witness=[0-9]+ transparent_surface=0 transparent_depth_prepass=0 visible_mode=visible visible_depth_func=lequal visible_depth_write=1 visible_style=solid-dark visible_witness=[1-9][0-9]* visible_color_pixels=[1-9][0-9]* visible_color_intensity=[1-9][0-9]* hidden_mode=hidden_dashed hidden_depth_func=greater hidden_depth_write=0 hidden_style=dashed-light hidden_witness=[1-9][0-9]* hidden_color_pixels=[1-9][0-9]* hidden_solid_mode=hidden_solid hidden_solid_style=solid-bright hidden_solid_witness=[1-9][0-9]* hidden_solid_color_pixels=[1-9][0-9]* hidden_control_mode=hidden_no_prepass hidden_control_witness=[0-9]+ display_mode_stable=1 visibility_stable=1 selection_stable=1 camera_stable=1 material_restore=1 restore_match=1 restore_pixel_diff=0 restored_render_us=[1-9][0-9]*"
+        )
+
+        add_test(
+            NAME GpuDiagnosticsHarness_brep_document-hidden-lines-wireframe-preview_x11
+            COMMAND GpuDiagnosticsHarness_run
+                --brep-fixture
+                --brep-document-fixture
+                --brep-document-hidden-lines-wireframe
+                --brep-document-hidden-lines-preview
+                --samples 4
+                --auto-exit-ms 3000
+        )
+        set_tests_properties(
+            GpuDiagnosticsHarness_brep_document-hidden-lines-wireframe-preview_x11 PROPERTIES
+            ENVIRONMENT "QT_QPA_PLATFORM=xcb"
+            TIMEOUT 10
+            PASS_REGULAR_EXPRESSION
+                "FREECAD_BREP_DOCUMENT_HIDDEN_LINES_PREVIEW .*outcome=active .*profile=wireframe .*fixture=009-document-v1 .*baseline=009-document-v1 .*visible_witness=[1-9][0-9]* .*hidden_witness=[1-9][0-9]* .*visible_style=cube-front-edges-solid-red .*hidden_style=cube-back-edges-outlined-dash .*transparent_surface=0 .*transparent_depth_prepass=0 .*implicit_dialog=0"
+        )
+
+        add_test(
+            NAME GpuDiagnosticsHarness_brep_document-depth-quantization_x11
+            COMMAND GpuDiagnosticsHarness_run
+                --brep-fixture
+                --brep-document-fixture
+                --brep-document-depth-quantization
+                --samples 4
+                --auto-exit-ms 5000
+        )
+        set_tests_properties(
+            GpuDiagnosticsHarness_brep_document-depth-quantization_x11 PROPERTIES
+            ENVIRONMENT "QT_QPA_PLATFORM=xcb"
+            TIMEOUT 12
+            PASS_REGULAR_EXPRESSION
+                "FREECAD_BREP_DOCUMENT_DEPTH_QUANTIZATION_RELATION outcome=pass fallback=native production_enabled=0"
+        )
+
+        add_test(
+            NAME GpuDiagnosticsHarness_topology-identity_x11
+            COMMAND GpuDiagnosticsHarness_run
+                --topology-identity
+                --samples 4
+                --auto-exit-ms 5000
+        )
+        set_tests_properties(
+            GpuDiagnosticsHarness_topology-identity_x11 PROPERTIES
+            ENVIRONMENT "QT_QPA_PLATFORM=xcb"
+            TIMEOUT 12
+            PASS_REGULAR_EXPRESSION
+                "FREECAD_SEGMENT_TOPOLOGY_IDENTITY_PROBE outcome=pass"
+        )
+
+        add_test(
             NAME GpuDiagnosticsHarness_brep_document-postprocess-depth_x11
             COMMAND GpuDiagnosticsHarness_run
                 --brep-fixture
@@ -454,3 +573,15 @@ if(UNIX AND NOT APPLE AND DEFINED ENV{DISPLAY} AND NOT "$ENV{DISPLAY}" STREQUAL 
         endforeach()
     endif()
 endif()
+
+# Keep automated harness windows visible for real X11/OpenGL coverage without
+# allowing either the viewport or an explicitly requested dialog to take focus.
+# Manual harness launches remain normally interactive.
+get_property(gui_registered_tests DIRECTORY PROPERTY TESTS)
+foreach(gui_test_name IN LISTS gui_registered_tests)
+    if(gui_test_name MATCHES "^GpuDiagnosticsHarness_")
+        set_property(TEST ${gui_test_name} APPEND PROPERTY ENVIRONMENT
+            "FREECAD_GPU_DIAGNOSTICS_PASSIVE_WINDOWS=1"
+        )
+    endif()
+endforeach()
