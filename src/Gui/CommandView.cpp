@@ -79,6 +79,7 @@
 #include "Navigation/NavigationStyle.h"
 #include "OverlayParams.h"
 #include "OverlayManager.h"
+#include "RenderingExperiments.h"
 #include "SceneInspector.h"
 #include "Selection.h"
 #include "Selection/BoxSelection.h"
@@ -733,6 +734,64 @@ bool StdCmdToggleClipPlane::hasClipping(App::Document* doc) const
                &std::pair<App::Document*, QPointer<Gui::Dialog::Clipping>>::first
            )
         != clippings.end();
+}
+
+//===========================================================================
+// Std_RenderingExperiments
+//===========================================================================
+class StdCmdRenderingExperiments: public Gui::Command
+{
+public:
+    StdCmdRenderingExperiments();
+    ~StdCmdRenderingExperiments() override = default;
+    const char* className() const override
+    {
+        return "StdCmdRenderingExperiments";
+    }
+
+protected:
+    void activated(int iMsg) override;
+    bool isActive() override;
+
+private:
+    QPointer<Gui::Dialog::RenderingExperiments> panel;
+};
+
+StdCmdRenderingExperiments::StdCmdRenderingExperiments()
+    : Command("Std_RenderingExperiments")
+{
+    sGroup = "Standard-View";
+    sMenuText = QT_TR_NOOP("Rendering &Experiments");
+    sToolTipText = QT_TR_NOOP("Opens reversible rendering experiments for the active view");
+    sWhatsThis = "Std_RenderingExperiments";
+    sStatusTip = sToolTipText;
+    eType = Alter3DView;
+}
+
+void StdCmdRenderingExperiments::activated(int iMsg)
+{
+    Q_UNUSED(iMsg);
+    App::Document* doc = getActiveDocument();
+    auto* view = qobject_cast<View3DInventor*>(getMainWindow()->activeWindow());
+    if (!doc || !view) {
+        return;
+    }
+
+    if (panel) {
+        panel->bindTo(view, doc);
+        if (auto* dock = qobject_cast<QDockWidget*>(panel->parentWidget())) {
+            dock->show();
+            dock->raise();
+        }
+        return;
+    }
+
+    panel = Gui::Dialog::RenderingExperiments::makeDockWidget(view, doc);
+}
+
+bool StdCmdRenderingExperiments::isActive()
+{
+    return qobject_cast<View3DInventor*>(getMainWindow()->activeWindow()) != nullptr;
 }
 
 //===========================================================================
@@ -4304,6 +4363,7 @@ void CreateViewStdCommands()
     rcCmdMgr.addCommand(new StdOrthographicCamera());
     rcCmdMgr.addCommand(new StdPerspectiveCamera());
     rcCmdMgr.addCommand(new StdCmdToggleClipPlane());
+    rcCmdMgr.addCommand(new StdCmdRenderingExperiments());
     rcCmdMgr.addCommand(new StdCmdDrawStyle());
     rcCmdMgr.addCommand(new StdCmdViewSaveCamera());
     rcCmdMgr.addCommand(new StdCmdViewRestoreCamera());
