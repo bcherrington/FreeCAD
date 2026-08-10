@@ -48,6 +48,7 @@
 #include <Inventor/elements/SoCacheElement.h>
 #include <Inventor/elements/SoDepthBufferElement.h>
 #include <Inventor/elements/SoLazyElement.h>
+#include <Inventor/elements/SoLineWidthElement.h>
 #include <Inventor/elements/SoMaterialBindingElement.h>
 #include <Inventor/elements/SoOverrideElement.h>
 #include <Inventor/elements/SoShapeStyleElement.h>
@@ -286,6 +287,7 @@ enum class EdgeAaDiagnosticMode
     ScreenSpaceOnly,
     ScreenSpaceOverlay,
     SuppressOverlays,
+    TopologyAware,
 };
 
 static EdgeAaDiagnosticMode edgeAaDiagnosticMode()
@@ -356,8 +358,8 @@ static bool isShaderScreenSpaceOnlyMode(EdgeAaDiagnosticMode mode)
 
 static bool isShaderScreenSpaceMode(EdgeAaDiagnosticMode mode)
 {
-    return isShaderScreenSpaceOnlyMode(mode)
-        || mode == EdgeAaDiagnosticMode::ShaderScreenSpaceOverlay;
+    return isShaderScreenSpaceOnlyMode(mode) || mode == EdgeAaDiagnosticMode::ShaderScreenSpaceOverlay
+        || mode == EdgeAaDiagnosticMode::TopologyAware;
 }
 
 static double edgeAaDeduplicationTolerance()
@@ -742,7 +744,12 @@ void main()
     return program;
 }
 
-static bool renderShaderScreenSpaceBatch(const Detail::ScreenSpaceEdgeBatch& batch, const GLint* viewport)
+static bool renderShaderScreenSpaceBatch(
+    const Detail::ScreenSpaceEdgeBatch& batch,
+    const GLint* viewport,
+    const SbColor& color,
+    float opacity
+)
 {
     if (batch.vertices.empty() || viewport[2] <= 0 || viewport[3] <= 0) {
         return false;
@@ -796,7 +803,10 @@ static bool renderShaderScreenSpaceBatch(const Detail::ScreenSpaceEdgeBatch& bat
     );
     program->setUniformValue("halfWidth", static_cast<float>(batch.halfWidthPhysical));
     program->setUniformValue("feather", static_cast<float>(batch.featherPhysical));
-    program->setUniformValue("edgeColor", QVector4D(0.0F, 0.0F, 0.0F, 0.82F));
+    program->setUniformValue(
+        "edgeColor",
+        QVector4D(color[0], color[1], color[2], std::clamp(opacity, 0.0F, 1.0F))
+    );
 
     functions->glDrawArrays(GL_TRIANGLES, 0, static_cast<GLsizei>(batch.vertices.size()));
 
@@ -970,6 +980,14 @@ static ShaderScreenSpaceRenderResult renderShaderScreenSpaceEdgeAa(
         return result;
     }
 
+    const bool topologyAware = mode == EdgeAaDiagnosticMode::TopologyAware;
+    if (topologyAware
+        && SoMaterialBindingElement::get(action->getState()) != SoMaterialBindingElement::OVERALL) {
+        // A single screen-space batch cannot yet reproduce indexed/per-edge colours. Preserve
+        // appearance by declining the experiment and letting GLRender use the native path.
+        return result;
+    }
+
     SoCacheElement::invalidate(action->getState());
     GLdouble modelView[16];
     GLdouble projection[16];
@@ -980,10 +998,14 @@ static ShaderScreenSpaceRenderResult renderShaderScreenSpaceEdgeAa(
 
     std::vector<Detail::ProjectedSegment> projectedSegments;
     int32_t previous = -1;
+    // Each -1-delimited coordIndex section is the retained EdgeN identity used by
+    // ViewProviderPartExt and SoLineDetail. Only segments from that same edge may merge.
+    std::uint64_t topologyId = 1ULL;
     for (int index = 0; index < numIndices; ++index) {
         const int32_t current = indices[index];
         if (current < 0) {
             previous = -1;
+            ++topologyId;
             continue;
         }
         if (previous >= 0) {
@@ -1001,6 +1023,7 @@ static ShaderScreenSpaceRenderResult renderShaderScreenSpaceEdgeAa(
                     second.y,
                     second.z,
                     first.valid && second.valid,
+                    topologyId,
                 };
             }
             projectedSegments.push_back(segment);
@@ -1018,11 +1041,16 @@ static ShaderScreenSpaceRenderResult renderShaderScreenSpaceEdgeAa(
     const bool deduplicate = mode != EdgeAaDiagnosticMode::ShaderScreenSpace;
     std::vector<Detail::ProjectedSegment> selectedSegments;
     if (deduplicate) {
-        const auto deduplicated = Detail::deduplicateProjectedSegments(
-            projectedSegments,
-            projectedViewport,
-            edgeAaDeduplicationTolerance()
-        );
+        const auto deduplicated = topologyAware ? Detail::deduplicateProjectedSegmentsWithTopologyId(
+                                                      projectedSegments,
+                                                      projectedViewport,
+                                                      edgeAaDeduplicationTolerance()
+                                                  )
+                                                : Detail::deduplicateProjectedSegments(
+                                                      projectedSegments,
+                                                      projectedViewport,
+                                                      edgeAaDeduplicationTolerance()
+                                                  );
         selectedSegments = deduplicated.segments;
         result.rejectedSegments = deduplicated.stats.rejectedSegments;
         result.duplicateSegments = deduplicated.stats.duplicateSegments;
@@ -1041,7 +1069,9 @@ static ShaderScreenSpaceRenderResult renderShaderScreenSpaceEdgeAa(
     result.outputSegments = selectedSegments.size();
 
     result.devicePixelRatio = currentDevicePixelRatio();
-    result.logicalWidth = edgeAaShaderLogicalWidth();
+    result.logicalWidth = topologyAware
+        ? std::max(1.0, static_cast<double>(SoLineWidthElement::get(action->getState())))
+        : edgeAaShaderLogicalWidth();
     auto batch = Detail::buildScreenSpaceEdgeBatch(
         selectedSegments,
         result.logicalWidth,
@@ -1054,7 +1084,12 @@ static ShaderScreenSpaceRenderResult renderShaderScreenSpaceEdgeAa(
     const auto start = std::chrono::steady_clock::now();
     {
         ScopedScreenSpaceEdgeAaState state(viewport);
-        result.shaderReady = renderShaderScreenSpaceBatch(batch, viewport);
+        const SbColor color = topologyAware ? SoLazyElement::getDiffuse(action->getState(), 0)
+                                            : SbColor(0.0F, 0.0F, 0.0F);
+        const float opacity = topologyAware
+            ? 1.0F - SoLazyElement::getTransparency(action->getState(), 0)
+            : 0.82F;
+        result.shaderReady = renderShaderScreenSpaceBatch(batch, viewport, color, opacity);
     }
     result.elapsedMicroseconds = std::chrono::duration_cast<std::chrono::microseconds>(
                                      std::chrono::steady_clock::now() - start
@@ -1098,6 +1133,7 @@ SoBrepEdgeSet::SoBrepEdgeSet()
     SO_NODE_ADD_FIELD(selectionCoordIndex, (0));
     SO_NODE_ADD_FIELD(highlightColor, (SbColor(1.0f, 0.0f, 0.0f)));
     SO_NODE_ADD_FIELD(selectionColor, (SbColor(0.0f, 0.6f, 0.0f)));
+    SO_NODE_ADD_FIELD(topologyAwareEdgeEvaluation, (FALSE));
 
     highlightCoordIndex.setNum(0);
     selectionCoordIndex.setNum(0);
@@ -1120,6 +1156,17 @@ void SoBrepEdgeSet::GLRender(SoGLRenderAction* action)
 
     const auto diagnosticMode = edgeAaDiagnosticMode();
     const auto renderBaseEdges = [&] {
+        if (topologyAwareEdgeEvaluation.getValue()) {
+            const auto shaderResult = renderShaderScreenSpaceEdgeAa(
+                action,
+                this->coordIndex.getValues(0),
+                this->coordIndex.getNum(),
+                EdgeAaDiagnosticMode::TopologyAware
+            );
+            if (shaderResult.shaderReady) {
+                return;
+            }
+        }
         if (isLineSmoothComparisonMode(diagnosticMode)) {
             ScopedLineSmoothingState lineSmoothing(diagnosticMode == EdgeAaDiagnosticMode::LineSmooth);
             inherited::GLRender(action);

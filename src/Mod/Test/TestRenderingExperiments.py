@@ -24,6 +24,18 @@ except ImportError:
     from PySide import QtGui as QtWidgets  # type: ignore
 
 
+def _find_coin_descendant(root, type_name):
+    type_id = coin.SoType.fromName(type_name)
+    if type_id.isBad():
+        return None
+    search = coin.SoSearchAction()
+    search.setType(type_id)
+    search.setSearchingAll(True)
+    search.apply(root)
+    path = search.getPath()
+    return None if path is None else path.getTail()
+
+
 class TestRenderingExperiments(unittest.TestCase):
     def setUp(self):
         FreeCADGui.activateWorkbench("PartDesignWorkbench")
@@ -320,6 +332,97 @@ class TestRenderingExperiments(unittest.TestCase):
         self._flush_gui()
         self.assertIn("active-single-sample-depth24-linear", status.text())
         self._checkbox("RenderingExperimentsDepthPostprocessEnabled").setChecked(False)
+
+    def test_topology_edges_preserve_selection_pick_identity_and_restore_native(self):
+        edge_set = _find_coin_descendant(self.view_provider.RootNode, "SoBrepEdgeSet")
+        self.assertIsNotNone(edge_set)
+        self.assertFalse(edge_set.topologyAwareEdgeEvaluation.getValue())
+        self.assertFalse(self._checkbox("RenderingExperimentsTopologyEdgesEnabled").isChecked())
+
+        FreeCADGui.Selection.clearSelection()
+        FreeCADGui.Selection.addSelection(self.feature, "Edge1")
+        self._flush_gui()
+        selected_before = FreeCADGui.Selection.getSelectionEx()[0].SubElementNames
+
+        self._checkbox("RenderingExperimentsEnabled").setChecked(True)
+        self._checkbox("RenderingExperimentsTopologyEdgesEnabled").setChecked(True)
+        self._flush_gui()
+
+        self.assertTrue(edge_set.topologyAwareEdgeEvaluation.getValue())
+        self.assertEqual(
+            FreeCADGui.Selection.getSelectionEx()[0].SubElementNames,
+            selected_before,
+        )
+        status = self.dock.findChild(QtWidgets.QLabel, "RenderingExperimentsStatus")
+        self.assertIn("topology-preserving edges requested: 1 targets", status.text())
+
+        # Exercise the normal (unselected) render path, then prove the same retained edge
+        # identity can be selected again while the experimental renderer remains enabled.
+        FreeCADGui.Selection.clearSelection()
+        self._flush_gui()
+        FreeCADGui.Selection.addSelection(self.feature, "Edge1")
+        self._flush_gui()
+        self.assertEqual(
+            FreeCADGui.Selection.getSelectionEx()[0].SubElementNames,
+            selected_before,
+        )
+
+        # Ray picking remains on the original indexed-line geometry. Two coincident topology
+        # sections must therefore still report two distinct SoLineDetail identities while the
+        # experimental render field is active.
+        root = coin.SoSeparator()
+        coordinates = coin.SoCoordinate3()
+        coordinates.point.setValues(
+            0,
+            4,
+            [
+                coin.SbVec3f(-1.0, 0.0, 0.0),
+                coin.SbVec3f(1.0, 0.0, 0.0),
+                coin.SbVec3f(-1.0, 0.0, 0.0),
+                coin.SbVec3f(1.0, 0.0, 0.0),
+            ],
+        )
+        pick_edges = coin.SoType.fromName("SoBrepEdgeSet").createInstance()
+        pick_edges.coordIndex.setValues(0, 6, [0, 1, -1, 2, 3, -1])
+        pick_edges.topologyAwareEdgeEvaluation.setValue(True)
+        root.addChild(coordinates)
+        root.addChild(pick_edges)
+
+        pick = coin.SoRayPickAction(coin.SbViewportRegion(256, 256))
+        pick.setPickAll(True)
+        pick.setRadius(2.0)
+        pick.setRay(
+            coin.SbVec3f(0.0, 0.0, 2.0),
+            coin.SbVec3f(0.0, 0.0, -1.0),
+            0.0,
+            4.0,
+        )
+        pick.apply(root)
+        picked = pick.getPickedPointList()
+        self.assertEqual(picked.getLength(), 2)
+        self.assertEqual(
+            [
+                picked[index].getDetail().getTypeId().getName()
+                for index in range(picked.getLength())
+            ],
+            ["SoLineDetail", "SoLineDetail"],
+        )
+
+        native_button = self._button("RenderingExperimentsShowNative")
+        native_button.pressed.emit()
+        self._flush_gui()
+        self.assertFalse(edge_set.topologyAwareEdgeEvaluation.getValue())
+        native_button.released.emit()
+        self._flush_gui()
+        self.assertTrue(edge_set.topologyAwareEdgeEvaluation.getValue())
+
+        self._button("RenderingExperimentsReset").click()
+        self._flush_gui()
+        self.assertFalse(edge_set.topologyAwareEdgeEvaluation.getValue())
+        self.assertEqual(
+            FreeCADGui.Selection.getSelectionEx()[0].SubElementNames,
+            selected_before,
+        )
 
     def _checkbox(self, name):
         widget = self.dock.findChild(QtWidgets.QCheckBox, name)

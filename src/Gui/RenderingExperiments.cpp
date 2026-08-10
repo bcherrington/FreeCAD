@@ -32,7 +32,10 @@
 
 #include <Inventor/SbColor.h>
 #include <Inventor/SbVec3f.h>
+#include <Inventor/SoType.h>
 #include <Inventor/actions/SoGetPrimitiveCountAction.h>
+#include <Inventor/actions/SoSearchAction.h>
+#include <Inventor/fields/SoSFBool.h>
 #include <Inventor/nodes/SoSeparator.h>
 #include <Inventor/nodes/SoDirectionalLight.h>
 #include <Inventor/nodes/SoEnvironment.h>
@@ -103,7 +106,8 @@ enum UpdateFlag : unsigned int
     UpdateLighting = 1U << 0,
     UpdateMaterials = 1U << 1,
     UpdateTessellation = 1U << 2,
-    UpdatePostprocess = 1U << 3
+    UpdatePostprocess = 1U << 3,
+    UpdateTopologyEdges = 1U << 4
 };
 
 float clamp01(float value)
@@ -216,6 +220,42 @@ struct TessellationResult
     int appliedTriangles {0};
     qint64 elapsedMilliseconds {0};
 };
+
+struct TopologyEdgeSnapshot
+{
+    std::string objectName;
+    std::vector<bool> enabled;
+};
+
+std::vector<SoSFBool*> topologyEdgeFields(Gui::ViewProvider* viewProvider)
+{
+    std::vector<SoSFBool*> fields;
+    if (!viewProvider || !viewProvider->getRoot()) {
+        return fields;
+    }
+
+    const SoType edgeSetType = SoType::fromName("SoBrepEdgeSet");
+    if (edgeSetType.isBad()) {
+        return fields;
+    }
+
+    SoSearchAction search;
+    search.setInterest(SoSearchAction::ALL);
+    search.setSearchingAll(true);
+    search.setType(edgeSetType);
+    search.apply(viewProvider->getRoot());
+    const SoPathList& paths = search.getPaths();
+    fields.reserve(paths.getLength());
+    for (int index = 0; index < paths.getLength(); ++index) {
+        auto* node = paths[index]->getTail();
+        auto* field = node ? dynamic_cast<SoSFBool*>(node->getField("topologyAwareEdgeEvaluation"))
+                           : nullptr;
+        if (field) {
+            fields.push_back(field);
+        }
+    }
+    return fields;
+}
 
 LightState captureLightState(const SoDirectionalLight* light)
 {
@@ -352,6 +392,7 @@ public:
     QComboBox* tessellationScope {nullptr};
     QDoubleSpinBox* deviation {nullptr};
     QDoubleSpinBox* angularDeflection {nullptr};
+    QCheckBox* topologyEdgesEnabled {nullptr};
     QCheckBox* depthPostprocessEnabled {nullptr};
     QSlider* depthPostprocessStrength {nullptr};
     QLabel* depthPostprocessStrengthValue {nullptr};
@@ -360,6 +401,7 @@ public:
     std::optional<ViewerState> capturedViewerState;
     std::map<std::string, MaterialSnapshot> capturedMaterials;
     std::map<std::string, TessellationSnapshot> capturedTessellation;
+    std::map<std::string, TopologyEdgeSnapshot> capturedTopologyEdges;
     std::optional<std::pair<bool, float>> capturedDepthPostprocess;
 
     bool experimentsApplied {false};
@@ -371,6 +413,7 @@ public:
     bool nativeHoldDuringSave {false};
     bool materialsCaptured {false};
     bool tessellationCaptured {false};
+    bool topologyEdgesCaptured {false};
     unsigned int pendingUpdates {0U};
     std::optional<TessellationResult> tessellationResult;
 
@@ -505,6 +548,20 @@ public:
             ->addWidget(new QLabel(QObject::tr("Angular deflection"), tessellationBox), 4, 0);
         tessellationLayout->addWidget(angularDeflection, 4, 1);
         outerLayout->addWidget(tessellationBox);
+
+        auto* edgeBox = new QGroupBox(QObject::tr("Edge rendering"), self);
+        auto* edgeLayout = new QGridLayout(edgeBox);
+        topologyEdgesEnabled
+            = new QCheckBox(QObject::tr("Evaluate topology-preserving screen-space edges"), edgeBox);
+        topologyEdgesEnabled->setObjectName(QStringLiteral("RenderingExperimentsTopologyEdgesEnabled"));
+        topologyEdgesEnabled->setToolTip(
+            QObject::tr(
+                "Uses topology identity when consolidating coincident edge segments. Selection, "
+                "preselection, and picking continue to use the native B-rep edge identities."
+            )
+        );
+        edgeLayout->addWidget(topologyEdgesEnabled, 0, 0);
+        outerLayout->addWidget(edgeBox);
 
         auto* postprocessBox = new QGroupBox(QObject::tr("Scene-depth compositor"), self);
         auto* postprocessLayout = new QGridLayout(postprocessBox);
@@ -652,6 +709,9 @@ public:
             self,
             [this] { scheduleUpdates(UpdateTessellation); }
         );
+        QObject::connect(topologyEdgesEnabled, &QCheckBox::toggled, self, [this] {
+            applyUpdates(UpdateTopologyEdges);
+        });
         QObject::connect(depthPostprocessEnabled, &QCheckBox::toggled, self, [this] {
             updateControlStates();
             applyUpdates(UpdatePostprocess);
@@ -701,6 +761,8 @@ public:
                 == TessellationProfile::Custom;
         deviation->setEnabled(customProfile);
         angularDeflection->setEnabled(customProfile);
+
+        topologyEdgesEnabled->setEnabled(masterOn);
 
         depthPostprocessEnabled->setEnabled(masterOn);
         depthPostprocessStrength->setEnabled(masterOn && depthPostprocessEnabled->isChecked());
@@ -888,6 +950,35 @@ public:
         }
     }
 
+    void ensureTopologyEdgesCaptured()
+    {
+        if (topologyEdgesCaptured) {
+            return;
+        }
+
+        capturedTopologyEdges.clear();
+        topologyEdgesCaptured = true;
+        if (!document) {
+            return;
+        }
+
+        for (auto* object : document->getObjects()) {
+            auto* viewProvider = Gui::Application::Instance->getViewProvider(object);
+            const auto fields = topologyEdgeFields(viewProvider);
+            if (fields.empty()) {
+                continue;
+            }
+
+            TopologyEdgeSnapshot snapshot;
+            snapshot.objectName = object->getNameInDocument();
+            snapshot.enabled.reserve(fields.size());
+            for (const auto* field : fields) {
+                snapshot.enabled.push_back(field->getValue());
+            }
+            capturedTopologyEdges.emplace(snapshot.objectName, std::move(snapshot));
+        }
+    }
+
     void captureMaterials()
     {
         capturedMaterials.clear();
@@ -946,10 +1037,12 @@ public:
         capturedViewerState.reset();
         capturedMaterials.clear();
         capturedTessellation.clear();
+        capturedTopologyEdges.clear();
         capturedDepthPostprocess.reset();
         tessellationResult.reset();
         materialsCaptured = false;
         tessellationCaptured = false;
+        topologyEdgesCaptured = false;
         experimentsApplied = false;
         nativeHoldActive = false;
     }
@@ -1075,6 +1168,46 @@ public:
         tessellationResult.reset();
     }
 
+    void setTopologyEdges(bool enabled)
+    {
+        if (!document) {
+            return;
+        }
+
+        for (const auto& [name, snapshot] : capturedTopologyEdges) {
+            auto* object = document->getObject(name.c_str());
+            auto* viewProvider = object ? Gui::Application::Instance->getViewProvider(object)
+                                        : nullptr;
+            for (auto* field : topologyEdgeFields(viewProvider)) {
+                field->setValue(enabled);
+            }
+        }
+        if (auto* viewer = currentViewer()) {
+            viewer->redraw();
+        }
+    }
+
+    void restoreTopologyEdges()
+    {
+        if (!document) {
+            return;
+        }
+
+        for (const auto& [name, snapshot] : capturedTopologyEdges) {
+            auto* object = document->getObject(name.c_str());
+            auto* viewProvider = object ? Gui::Application::Instance->getViewProvider(object)
+                                        : nullptr;
+            const auto fields = topologyEdgeFields(viewProvider);
+            const std::size_t count = std::min(fields.size(), snapshot.enabled.size());
+            for (std::size_t index = 0; index < count; ++index) {
+                fields[index]->setValue(snapshot.enabled[index]);
+            }
+        }
+        if (auto* viewer = currentViewer()) {
+            viewer->redraw();
+        }
+    }
+
     void restoreToCapturedState(bool keepCaptured)
     {
         if (isRestoring) {
@@ -1089,6 +1222,7 @@ public:
         }
         restoreMaterials();
         restoreTessellation();
+        restoreTopologyEdges();
         restoreDepthPostprocess();
 
         experimentsApplied = false;
@@ -1252,6 +1386,16 @@ public:
             applyDepthPostprocessOverride();
         }
 
+        if ((updates & UpdateTopologyEdges) != 0U) {
+            ensureTopologyEdgesCaptured();
+            if (topologyEdgesEnabled->isChecked()) {
+                setTopologyEdges(true);
+            }
+            else {
+                restoreTopologyEdges();
+            }
+        }
+
         experimentsApplied = true;
         updateControlStates();
         updateStatus();
@@ -1270,7 +1414,10 @@ public:
         }
 
         cancelPendingUpdates();
-        applyUpdates(UpdateLighting | UpdateMaterials | UpdateTessellation | UpdatePostprocess);
+        applyUpdates(
+            UpdateLighting | UpdateMaterials | UpdateTessellation | UpdatePostprocess
+            | UpdateTopologyEdges
+        );
     }
 
     Gui::View3DInventorViewer* currentViewer() const
@@ -1294,6 +1441,11 @@ public:
         return static_cast<int>(capturedTessellation.size());
     }
 
+    int supportedTopologyEdgeObjectCount() const
+    {
+        return static_cast<int>(capturedTopologyEdges.size());
+    }
+
     void updateStatus() const
     {
         if (!view || !document) {
@@ -1303,6 +1455,7 @@ public:
 
         const int materialCount = supportedMaterialObjectCount();
         const int tessellationCount = supportedTessellationObjectCount();
+        const int topologyEdgeCount = supportedTopologyEdgeObjectCount();
 
         if (!documentActive) {
             statusLabel->setText(
@@ -1335,7 +1488,8 @@ public:
             return;
         }
 
-        if (materialCount == 0 && tessellationCount == 0 && !depthPostprocessEnabled->isChecked()) {
+        if (materialCount == 0 && tessellationCount == 0 && topologyEdgeCount == 0
+            && !depthPostprocessEnabled->isChecked()) {
             statusLabel->setText(
                 QObject::tr("Status: experiments applied, but no active supported objects were found.")
             );
@@ -1378,6 +1532,11 @@ public:
                         )
                 );
             }
+        }
+        if (topologyEdgesEnabled->isChecked()) {
+            sections.append(
+                QObject::tr("topology-preserving edges requested: %1 targets").arg(topologyEdgeCount)
+            );
         }
 
         statusLabel->setText(

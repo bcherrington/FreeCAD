@@ -25,6 +25,7 @@
 
 #include <boost/algorithm/string/predicate.hpp>
 #include <Inventor/fields/SoMFInt32.h>
+#include <Inventor/fields/SoSFBool.h>
 #include <Inventor/fields/SoSFColor.h>
 #include <Inventor/nodes/SoIndexedLineSet.h>
 #include <memory>
@@ -59,6 +60,8 @@ public:
     SoMFInt32 selectionCoordIndex;
     SoSFColor highlightColor;
     SoSFColor selectionColor;
+    /// Experimental renderer switch. False preserves the native Coin render path exactly.
+    SoSFBool topologyAwareEdgeEvaluation;
 
 protected:
     ~SoBrepEdgeSet() override;
