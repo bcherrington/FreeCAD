@@ -394,6 +394,25 @@ if(UNIX AND NOT APPLE AND DEFINED ENV{DISPLAY} AND NOT "$ENV{DISPLAY}" STREQUAL 
         )
 
         add_test(
+            NAME GpuDiagnosticsHarness_brep_document-hidden-lines-gallery_x11
+            COMMAND GpuDiagnosticsHarness_run
+                --brep-fixture
+                --brep-document-fixture
+                --brep-document-hidden-lines-transparent
+                --brep-document-hidden-lines-gallery
+                    ${CMAKE_CURRENT_BINARY_DIR}/GpuDiagnosticsHarness_hidden-lines-gallery
+                --samples 4
+                --auto-exit-ms 5000
+        )
+        set_tests_properties(
+            GpuDiagnosticsHarness_brep_document-hidden-lines-gallery_x11 PROPERTIES
+                ENVIRONMENT "QT_QPA_PLATFORM=xcb"
+                TIMEOUT 15
+                PASS_REGULAR_EXPRESSION
+                    "FREECAD_BREP_DOCUMENT_HIDDEN_LINES_GALLERY outcome=pass profile=transparent .*views=4 images=8 index=index.html fallback=native production_enabled=0"
+        )
+
+        add_test(
             NAME GpuDiagnosticsHarness_brep_document-hidden-lines-wireframe_x11
             COMMAND GpuDiagnosticsHarness_run
                 --brep-fixture

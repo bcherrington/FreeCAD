@@ -38,6 +38,7 @@
 #include <QCryptographicHash>
 #include <QElapsedTimer>
 #include <QEvent>
+#include <QFile>
 #include <QImage>
 #include <QObject>
 #include <QOpenGLContext>
@@ -1537,7 +1538,8 @@ void addDepthStyleCubeEdgeChildren(SoSeparator& root, const DepthStyleCubeEdgePr
 bool runDocumentDepthStyleProbe(
     Gui::View3DInventorViewer& view,
     bool wireframeMode,
-    bool previewMode = false
+    bool previewMode = false,
+    bool galleryMode = false
 )
 {
     struct DocumentFixtureDisplayModeState
@@ -2006,7 +2008,8 @@ bool runDocumentDepthStyleProbe(
         && hiddenDashProfile.dashed && !hiddenSolidProfile.dashed && styleWitnessRelation;
 
     bool previewRelationOk = false;
-    if (previewMode && strictRelationOk) {
+    const bool visualOutputMode = previewMode || galleryMode;
+    if (visualOutputMode && strictRelationOk) {
         clearDocumentDepthStylePreviewRoot(objectGroup);
 
         const SbVec3f previewOccluderCenter {28.0F, 0.0F, 9.0F};
@@ -2108,7 +2111,7 @@ bool runDocumentDepthStyleProbe(
             const int transparentSurfaceState = wireframeMode ? 0 : 1;
             std::fprintf(
                 stderr,
-                "FREECAD_BREP_DOCUMENT_HIDDEN_LINES_PREVIEW outcome=%s profile=%s persistent=1 "
+                "FREECAD_BREP_DOCUMENT_HIDDEN_LINES_PREVIEW outcome=%s profile=%s persistent=%d "
                 "fixture=009-document-v1 baseline=%s prepass_completed=%d prepass_callbacks=%d "
                 "fallback=native production_enabled=0 visible_witness=%d hidden_witness=%d "
                 "visible_style=cube-front-edges-solid-red "
@@ -2118,6 +2121,7 @@ bool runDocumentDepthStyleProbe(
                 "implicit_dialog=0 preview_surface_render_us=%lld preview_render_us=%lld\n",
                 previewRelationOk ? "active" : "inactive",
                 previewProfile,
+                static_cast<int>(previewMode),
                 fixtureRevision,
                 static_cast<int>(hiddenDashProfile.prepassCallbacks > 0),
                 hiddenDashProfile.prepassCallbacks,
@@ -2205,7 +2209,114 @@ bool runDocumentDepthStyleProbe(
         restoredRenderUs
     );
 
-    return strictRelationOk && (!previewMode || previewRelationOk);
+    return strictRelationOk && (!visualOutputMode || previewRelationOk);
+}
+
+bool writeDocumentHiddenLinesGallery(
+    Gui::View3DInventorViewer& view,
+    const QString& outputDirectory,
+    bool wireframeMode
+)
+{
+    auto* objectGroup = findObjectGroup(view);
+    if (!objectGroup || !gDepthStylePreviewRoot || outputDirectory.isEmpty()) {
+        return false;
+    }
+
+    QDir galleryDirectory(outputDirectory);
+    if (!galleryDirectory.exists() && !QDir().mkpath(outputDirectory)) {
+        return false;
+    }
+
+    struct GalleryView
+    {
+        const char* name;
+        Gui::Camera::Orientation orientation;
+    };
+    constexpr std::array<GalleryView, 4> galleryViews {{
+        {"isometric", Gui::Camera::Isometric},
+        {"front", Gui::Camera::Front},
+        {"right", Gui::Camera::Right},
+        {"top", Gui::Camera::Top},
+    }};
+
+    const auto originalOrientation = view.getCameraOrientation();
+    bool galleryOk = true;
+    for (const auto& galleryView : galleryViews) {
+        view.setCameraOrientation(Gui::Camera::rotation(galleryView.orientation));
+        view.viewAll();
+        QCoreApplication::processEvents();
+
+        if (objectGroup->findChild(gDepthStylePreviewRoot) >= 0) {
+            objectGroup->removeChild(gDepthStylePreviewRoot);
+        }
+        long long nativeRenderUs = 0LL;
+        const auto nativeFrame = renderDocumentFrameForLightingMatrix(view, nativeRenderUs);
+
+        objectGroup->addChild(gDepthStylePreviewRoot);
+        long long experimentalRenderUs = 0LL;
+        const auto experimentalFrame = renderDocumentFrameForLightingMatrix(view, experimentalRenderUs);
+
+        const QString nativeName
+            = QStringLiteral("%1-native.png").arg(QString::fromLatin1(galleryView.name));
+        const QString experimentalName
+            = QStringLiteral("%1-hidden-lines.png").arg(QString::fromLatin1(galleryView.name));
+        const bool pairOk = !nativeFrame.isNull() && !experimentalFrame.isNull()
+            && nativeFrame.save(galleryDirectory.filePath(nativeName))
+            && experimentalFrame.save(galleryDirectory.filePath(experimentalName));
+        galleryOk = galleryOk && pairOk;
+        std::fprintf(
+            stderr,
+            "FREECAD_BREP_DOCUMENT_HIDDEN_LINES_GALLERY_VIEW outcome=%s view=%s "
+            "native=%s experimental=%s diff_pixels=%d native_render_us=%lld "
+            "experimental_render_us=%lld\n",
+            pairOk ? "pass" : "fail",
+            galleryView.name,
+            nativeName.toUtf8().constData(),
+            experimentalName.toUtf8().constData(),
+            diffDocumentImagePixels(nativeFrame, experimentalFrame),
+            nativeRenderUs,
+            experimentalRenderUs
+        );
+    }
+
+    view.setCameraOrientation(originalOrientation);
+    QFile indexFile(galleryDirectory.filePath(QStringLiteral("index.html")));
+    if (!indexFile.open(QIODevice::WriteOnly | QIODevice::Text)) {
+        galleryOk = false;
+    }
+    else {
+        QTextStream html(&indexFile);
+        html << "<!doctype html><html><head><meta charset=\"utf-8\">"
+                "<title>FreeCAD hidden-line comparison gallery</title>"
+                "<style>body{font-family:sans-serif;background:#202124;color:#eee;margin:24px}"
+                "table{border-collapse:collapse;width:100%}th,td{padding:8px;text-align:left}"
+                "img{width:100%;height:auto;border:1px solid #555}td{width:50%}</style>"
+                "</head><body><h1>Hidden-line comparison gallery</h1><p>Profile: "
+             << (wireframeMode ? "wireframe" : "transparent shaded")
+             << ". Left is the native fixture; right adds the harness-only hidden-line "
+                "diagnostic. Production rendering remains unchanged.</p><table>"
+                "<tr><th>Native</th><th>Hidden-line experiment</th></tr>";
+        for (const auto& galleryView : galleryViews) {
+            const QString viewName = QString::fromLatin1(galleryView.name);
+            html << "<tr><td><h2>" << viewName << "</h2><img src=\"" << viewName
+                 << "-native.png\"></td><td><h2>" << viewName << "</h2><img src=\"" << viewName
+                 << "-hidden-lines.png\"></td></tr>";
+        }
+        html << "</table></body></html>";
+    }
+
+    std::fprintf(
+        stderr,
+        "FREECAD_BREP_DOCUMENT_HIDDEN_LINES_GALLERY outcome=%s profile=%s directory=%s "
+        "views=%zu images=%zu index=index.html fallback=native production_enabled=0\n",
+        galleryOk ? "pass" : "fail",
+        wireframeMode ? "wireframe" : "transparent",
+        galleryDirectory.absolutePath().toUtf8().constData(),
+        galleryViews.size(),
+        galleryViews.size() * 2
+    );
+    return galleryOk;
 }
 bool runDocumentDepthQuantizationProbe(Gui::View3DInventorViewer& view)
 {
@@ -3455,6 +3566,11 @@ int main(int argc, char* argv[])
             "implicit GPU dialog (strict pass required)."
         )
     );
+    const QCommandLineOption brepDocumentHiddenLinesGalleryOption(
+        QStringLiteral("brep-document-hidden-lines-gallery"),
+        QStringLiteral("Write fixed-view native/hidden-line PNG pairs and an HTML comparison gallery."),
+        QStringLiteral("directory")
+    );
     const QCommandLineOption brepDocumentTessellationOption(
         QStringLiteral("brep-document-tessellation"),
         QStringLiteral("Run adaptive tessellation probes on the document BRep fixture.")
@@ -3555,6 +3671,7 @@ int main(int argc, char* argv[])
         brepDocumentHiddenLinesTransparentOption,
         brepDocumentWireframeOption,
         brepDocumentHiddenLinesPreviewOption,
+        brepDocumentHiddenLinesGalleryOption,
         screenshotOption,
         brepOverlaysOption,
         brepDuplicateEdgesOption,
@@ -3787,6 +3904,29 @@ int main(int argc, char* argv[])
         App::Application::destruct();
         return 2;
     }
+    if (parser.isSet(brepDocumentHiddenLinesGalleryOption)
+        && ((parser.isSet(brepDocumentHiddenLinesTransparentOption)
+             && parser.isSet(brepDocumentWireframeOption))
+            || (!parser.isSet(brepDocumentHiddenLinesTransparentOption)
+                && !parser.isSet(brepDocumentWireframeOption)))) {
+        QTextStream(stderr) << "--brep-document-hidden-lines-gallery requires exactly one of "
+                               "--brep-document-hidden-lines-transparent or "
+                               "--brep-document-hidden-lines-wireframe.\n";
+        App::Application::destruct();
+        return 2;
+    }
+    if (parser.isSet(brepDocumentHiddenLinesGalleryOption)
+        && parser.value(brepDocumentHiddenLinesGalleryOption).isEmpty()) {
+        QTextStream(stderr) << "--brep-document-hidden-lines-gallery requires a directory.\n";
+        App::Application::destruct();
+        return 2;
+    }
+    if (parser.isSet(brepDocumentHiddenLinesGalleryOption)
+        && parser.isSet(brepDocumentHiddenLinesPreviewOption)) {
+        QTextStream(stderr) << "Gallery and interactive preview modes cannot be combined.\n";
+        App::Application::destruct();
+        return 2;
+    }
     if (parser.isSet(brepDocumentDepthQuantizationOption)
         && !parser.isSet(brepDocumentFixtureOption)) {
         QTextStream(stderr) << "--brep-document-depth-quantization requires "
@@ -3887,6 +4027,12 @@ int main(int argc, char* argv[])
         auto& view = *viewOwner;
         view.setWindowTitle(QStringLiteral("FreeCAD GPU Diagnostics Harness"));
         view.resize(960, 640);
+        const bool hiddenLinesGalleryRequested = parser.isSet(brepDocumentHiddenLinesGalleryOption);
+        if (hiddenLinesGalleryRequested) {
+            view.setAttribute(Qt::WA_ShowWithoutActivating, true);
+            view.setWindowFlag(Qt::WindowDoesNotAcceptFocus, true);
+            view.setEnabled(false);
+        }
 #ifdef FREECAD_GPU_DIAGNOSTICS_HAS_PART
         if (parser.isSet(brepFixtureOption)) {
             if (parser.isSet(brepDocumentFixtureOption)) {
@@ -4007,7 +4153,8 @@ int main(int argc, char* argv[])
                 && !runDocumentDepthStyleProbe(
                     view,
                     false,
-                    parser.isSet(brepDocumentHiddenLinesPreviewOption)
+                    parser.isSet(brepDocumentHiddenLinesPreviewOption),
+                    hiddenLinesGalleryRequested
                 )) {
                 QTextStream(stderr)
                     << "Document BRep hidden-lines-transparent depth-style probe failed.\n";
@@ -4018,9 +4165,20 @@ int main(int argc, char* argv[])
                 && !runDocumentDepthStyleProbe(
                     view,
                     true,
-                    parser.isSet(brepDocumentHiddenLinesPreviewOption)
+                    parser.isSet(brepDocumentHiddenLinesPreviewOption),
+                    hiddenLinesGalleryRequested
                 )) {
                 QTextStream(stderr) << "Document BRep wireframe depth-style probe failed.\n";
+                qtApplication.exit(3);
+                return;
+            }
+            if (hiddenLinesGalleryRequested
+                && !writeDocumentHiddenLinesGallery(
+                    view,
+                    parser.value(brepDocumentHiddenLinesGalleryOption),
+                    parser.isSet(brepDocumentWireframeOption)
+                )) {
+                QTextStream(stderr) << "Could not write hidden-line comparison gallery.\n";
                 qtApplication.exit(3);
                 return;
             }
@@ -4119,9 +4277,10 @@ int main(int argc, char* argv[])
             output.flush();
 
             const bool previewMode = parser.isSet(brepDocumentHiddenLinesPreviewOption);
+            const bool visualOutputMode = previewMode || hiddenLinesGalleryRequested;
             const bool showDialog = allowDialog
                 && (parser.isSet(dialogOption)
-                    || (!previewMode && !parser.isSet(jsonOption) && !parser.isSet(textOption)));
+                    || (!visualOutputMode && !parser.isSet(jsonOption) && !parser.isSet(textOption)));
             if (showDialog) {
                 Gui::GpuDiagnosticsDialog::showDialog(&view);
             }
