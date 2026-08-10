@@ -49,6 +49,7 @@
 #include <QSlider>
 #include <QString>
 #include <QStringList>
+#include <QTimer>
 #include <QVBoxLayout>
 
 #include <App/Application.h>
@@ -88,6 +89,14 @@ constexpr int SpecularMinimumPercent = 0;
 constexpr int SpecularMaximumPercent = 100;
 constexpr int DefaultSpecularPercent = 70;
 constexpr int DefaultShininessPercent = 90;
+constexpr int ApplyDebounceMilliseconds = 75;
+
+enum UpdateFlag : unsigned int
+{
+    UpdateLighting = 1U << 0,
+    UpdateMaterials = 1U << 1,
+    UpdateTessellation = 1U << 2
+};
 
 float clamp01(float value)
 {
@@ -306,6 +315,7 @@ public:
     QComboBox* tessellationProfile {nullptr};
     QDoubleSpinBox* deviation {nullptr};
     QDoubleSpinBox* angularDeflection {nullptr};
+    QTimer* applyTimer {nullptr};
 
     std::optional<ViewerState> capturedViewerState;
     std::map<std::string, MaterialSnapshot> capturedMaterials;
@@ -318,6 +328,9 @@ public:
     bool discardOnHide {false};
     bool saveSuspended {false};
     bool nativeHoldDuringSave {false};
+    bool materialsCaptured {false};
+    bool tessellationCaptured {false};
+    unsigned int pendingUpdates {0U};
 
     fastsignals::scoped_connection activeDocConnection;
     fastsignals::scoped_connection deleteDocConnection;
@@ -373,6 +386,7 @@ public:
         lightingLayout->addWidget(lightingPreset, 0, 1, 1, 2);
 
         lightingIntensity = new QSlider(Qt::Horizontal, lightingBox);
+        lightingIntensity->setObjectName(QStringLiteral("RenderingExperimentsLightingIntensity"));
         lightingIntensity->setRange(IntensityMinimumPercent, IntensityMaximumPercent);
         lightingIntensity->setValue(IntensityDefaultPercent);
         lightingIntensityValue = new QLabel(lightingBox);
@@ -388,6 +402,7 @@ public:
         materialLayout->addWidget(materialEnabled, 0, 0, 1, 3);
 
         specularStrength = new QSlider(Qt::Horizontal, materialBox);
+        specularStrength->setObjectName(QStringLiteral("RenderingExperimentsSpecularStrength"));
         specularStrength->setRange(SpecularMinimumPercent, SpecularMaximumPercent);
         specularStrength->setValue(DefaultSpecularPercent);
         specularStrengthValue = new QLabel(materialBox);
@@ -396,6 +411,7 @@ public:
         materialLayout->addWidget(specularStrengthValue, 1, 2);
 
         shininess = new QSlider(Qt::Horizontal, materialBox);
+        shininess->setObjectName(QStringLiteral("RenderingExperimentsShininess"));
         shininess->setRange(ShininessMinimumPercent, ShininessMaximumPercent);
         shininess->setValue(DefaultShininessPercent);
         shininessValue = new QLabel(materialBox);
@@ -444,6 +460,11 @@ public:
         outerLayout->addWidget(statusLabel);
         outerLayout->addStretch(1);
 
+        applyTimer = new QTimer(self);
+        applyTimer->setObjectName(QStringLiteral("RenderingExperimentsApplyTimer"));
+        applyTimer->setInterval(ApplyDebounceMilliseconds);
+        applyTimer->setSingleShot(true);
+
         updateValueLabels();
         updateControlStates();
         updateStatus();
@@ -469,6 +490,7 @@ public:
                 applyExperiments();
             }
             else {
+                cancelPendingUpdates();
                 restoreToCapturedState(false);
             }
             updateControlStates();
@@ -480,6 +502,7 @@ public:
                 return;
             }
 
+            cancelPendingUpdates();
             restoreToCapturedState(true);
             nativeHoldActive = true;
             updateStatus();
@@ -502,43 +525,47 @@ public:
         });
 
         QObject::connect(lightingPreset, qOverload<int>(&QComboBox::currentIndexChanged), self, [this] {
-            applyExperiments();
+            applyUpdates(UpdateLighting);
         });
         QObject::connect(lightingIntensity, &QSlider::valueChanged, self, [this] {
             updateValueLabels();
-            applyExperiments();
+            scheduleUpdates(UpdateLighting);
         });
 
         QObject::connect(materialEnabled, &QCheckBox::toggled, self, [this] {
             updateControlStates();
-            applyExperiments();
+            applyUpdates(UpdateMaterials);
         });
         QObject::connect(specularStrength, &QSlider::valueChanged, self, [this] {
             updateValueLabels();
-            applyExperiments();
+            scheduleUpdates(UpdateMaterials);
         });
         QObject::connect(shininess, &QSlider::valueChanged, self, [this] {
             updateValueLabels();
-            applyExperiments();
+            scheduleUpdates(UpdateMaterials);
         });
 
         QObject::connect(tessellationEnabled, &QCheckBox::toggled, self, [this] {
             updateControlStates();
-            applyExperiments();
+            applyUpdates(UpdateTessellation);
         });
         QObject::connect(tessellationProfile, qOverload<int>(&QComboBox::currentIndexChanged), self, [this] {
             updateControlStates();
-            applyExperiments();
+            applyUpdates(UpdateTessellation);
         });
         QObject::connect(deviation, qOverload<double>(&QDoubleSpinBox::valueChanged), self, [this] {
-            applyExperiments();
+            scheduleUpdates(UpdateTessellation);
         });
         QObject::connect(
             angularDeflection,
             qOverload<double>(&QDoubleSpinBox::valueChanged),
             self,
-            [this] { applyExperiments(); }
+            [this] { scheduleUpdates(UpdateTessellation); }
         );
+        QObject::connect(applyTimer, &QTimer::timeout, self, [this] {
+            const unsigned int updates = std::exchange(pendingUpdates, 0U);
+            applyUpdates(updates);
+        });
     }
 
     void updateValueLabels() const
@@ -691,17 +718,23 @@ public:
         return {deviation->value(), angularDeflection->value()};
     }
 
-    void ensureCapturedState()
+    void ensureViewerStateCaptured()
     {
         if (!capturedViewerState.has_value()) {
             capturedViewerState = captureViewerState(currentViewer());
         }
+    }
 
-        if (capturedMaterials.empty()) {
+    void ensureMaterialsCaptured()
+    {
+        if (!materialsCaptured) {
             captureMaterials();
         }
+    }
 
-        if (capturedTessellation.empty()) {
+    void ensureTessellationCaptured()
+    {
+        if (!tessellationCaptured) {
             captureTessellation();
         }
     }
@@ -709,6 +742,7 @@ public:
     void captureMaterials()
     {
         capturedMaterials.clear();
+        materialsCaptured = true;
         if (!document) {
             return;
         }
@@ -730,6 +764,7 @@ public:
     void captureTessellation()
     {
         capturedTessellation.clear();
+        tessellationCaptured = true;
         if (!document) {
             return;
         }
@@ -760,8 +795,26 @@ public:
         capturedViewerState.reset();
         capturedMaterials.clear();
         capturedTessellation.clear();
+        materialsCaptured = false;
+        tessellationCaptured = false;
         experimentsApplied = false;
         nativeHoldActive = false;
+    }
+
+    void cancelPendingUpdates()
+    {
+        pendingUpdates = 0U;
+        if (applyTimer) {
+            applyTimer->stop();
+        }
+    }
+
+    void clearPendingUpdates(unsigned int updates)
+    {
+        pendingUpdates &= ~updates;
+        if (pendingUpdates == 0U && applyTimer) {
+            applyTimer->stop();
+        }
     }
 
     void restoreMaterials()
@@ -818,6 +871,7 @@ public:
             return;
         }
 
+        cancelPendingUpdates();
         isRestoring = true;
 
         if (capturedViewerState.has_value()) {
@@ -911,6 +965,59 @@ public:
         }
     }
 
+    void scheduleUpdates(unsigned int updates)
+    {
+        if (!masterEnabled->isChecked() || !documentActive || nativeHoldActive) {
+            return;
+        }
+
+        pendingUpdates |= updates;
+        applyTimer->start();
+    }
+
+    void applyUpdates(unsigned int updates)
+    {
+        clearPendingUpdates(updates);
+        if (updates == 0U || isRestoring || !documentActive || nativeHoldActive
+            || !masterEnabled->isChecked()) {
+            updateStatus();
+            return;
+        }
+
+        if ((updates & UpdateLighting) != 0U) {
+            ensureViewerStateCaptured();
+            applyLightingOverrides();
+        }
+
+        if ((updates & UpdateMaterials) != 0U) {
+            if (materialEnabled->isChecked()) {
+                ensureMaterialsCaptured();
+                applyMaterialOverrides();
+            }
+            else if (materialsCaptured) {
+                restoreMaterials();
+            }
+        }
+
+        if ((updates & UpdateTessellation) != 0U) {
+            const bool nativeProfile = static_cast<TessellationProfile>(
+                                           tessellationProfile->currentIndex()
+                                       )
+                == TessellationProfile::Native;
+            if (tessellationEnabled->isChecked() && !nativeProfile) {
+                ensureTessellationCaptured();
+                applyTessellationOverrides();
+            }
+            else if (tessellationCaptured) {
+                restoreTessellation();
+            }
+        }
+
+        experimentsApplied = true;
+        updateControlStates();
+        updateStatus();
+    }
+
     void applyExperiments()
     {
         if (isRestoring || !documentActive || nativeHoldActive) {
@@ -923,14 +1030,8 @@ public:
             return;
         }
 
-        ensureCapturedState();
-        restoreToCapturedState(true);
-        applyLightingOverrides();
-        applyMaterialOverrides();
-        applyTessellationOverrides();
-        experimentsApplied = true;
-        updateControlStates();
-        updateStatus();
+        cancelPendingUpdates();
+        applyUpdates(UpdateLighting | UpdateMaterials | UpdateTessellation);
     }
 
     Gui::View3DInventorViewer* currentViewer() const

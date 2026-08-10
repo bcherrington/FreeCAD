@@ -12,8 +12,10 @@ import FreeCAD
 import FreeCADGui
 
 try:
-    from PySide6 import QtWidgets
+    from PySide6 import QtCore, QtTest, QtWidgets
 except ImportError:
+    from PySide import QtCore  # type: ignore
+    from PySide import QtTest  # type: ignore
     from PySide import QtGui as QtWidgets  # type: ignore
 
 
@@ -72,7 +74,9 @@ class TestRenderingExperiments(unittest.TestCase):
             saved_document = FreeCAD.openDocument(path)
             self._doc_names.append(saved_document.Name)
             saved_feature = saved_document.getObject("RenderedFeature")
-            self.assertEqual(self._material_state(saved_feature.ViewObject), self.native_materials)
+            self._assert_material_states_almost_equal(
+                self._material_state(saved_feature.ViewObject), self.native_materials
+            )
             FreeCADGui.setActiveDocument(self.doc.Name)
             self._flush_gui()
             self._doc_names.remove(saved_document.Name)
@@ -156,6 +160,43 @@ class TestRenderingExperiments(unittest.TestCase):
         self.assertEqual(self.view_provider.Deviation, self.native_deviation)
         self.assertAlmostEqual(second_view_provider.Deviation, 0.5)
 
+    def test_continuous_controls_are_debounced_and_domain_isolated(self):
+        self._checkbox("RenderingExperimentsEnabled").setChecked(True)
+        self._checkbox("RenderingExperimentsMaterialEnabled").setChecked(True)
+        self._flush_gui()
+
+        timer = self.dock.findChild(QtCore.QTimer, "RenderingExperimentsApplyTimer")
+        self.assertIsNotNone(timer)
+        specular = self._slider("RenderingExperimentsSpecularStrength")
+        material_before_drag = self._material_state()
+
+        for value in (20, 35, 50, 65):
+            specular.setValue(value)
+
+        self.assertTrue(timer.isActive())
+        self.assertEqual(self._material_state(), material_before_drag)
+        QtTest.QTest.qWait(100)
+        self._flush_gui()
+        self.assertFalse(timer.isActive())
+        material_after_drag = self._material_state()
+        self.assertNotEqual(material_after_drag, material_before_drag)
+
+        lighting = self._slider("RenderingExperimentsLightingIntensity")
+        for value in (70, 85, 100, 115):
+            lighting.setValue(value)
+
+        self.assertTrue(timer.isActive())
+        QtTest.QTest.qWait(100)
+        self._flush_gui()
+        self.assertFalse(timer.isActive())
+        self.assertEqual(self._material_state(), material_after_drag)
+
+        specular.setValue(80)
+        self.assertTrue(timer.isActive())
+        self._checkbox("RenderingExperimentsMaterialEnabled").setChecked(False)
+        self.assertFalse(timer.isActive())
+        self.assertEqual(self._material_state(), self.native_materials)
+
     def _checkbox(self, name):
         widget = self.dock.findChild(QtWidgets.QCheckBox, name)
         self.assertIsNotNone(widget)
@@ -171,6 +212,11 @@ class TestRenderingExperiments(unittest.TestCase):
         self.assertIsNotNone(widget)
         return widget
 
+    def _slider(self, name):
+        widget = self.dock.findChild(QtWidgets.QSlider, name)
+        self.assertIsNotNone(widget)
+        return widget
+
     def _material_state(self, view_provider=None):
         view_provider = view_provider or self.view_provider
         return [
@@ -182,6 +228,16 @@ class TestRenderingExperiments(unittest.TestCase):
             )
             for material in view_provider.ShapeAppearance
         ]
+
+    def _assert_material_states_almost_equal(self, actual, expected):
+        self.assertEqual(len(actual), len(expected))
+        for actual_material, expected_material in zip(actual, expected):
+            for actual_color, expected_color in zip(actual_material[0], expected_material[0]):
+                self.assertAlmostEqual(actual_color, expected_color, places=5)
+            self.assertAlmostEqual(actual_material[1], expected_material[1], places=5)
+            for actual_color, expected_color in zip(actual_material[2], expected_material[2]):
+                self.assertAlmostEqual(actual_color, expected_color, places=5)
+            self.assertAlmostEqual(actual_material[3], expected_material[3], places=5)
 
     @staticmethod
     def _saved_deviation(path):
