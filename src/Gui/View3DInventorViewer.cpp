@@ -105,9 +105,11 @@
 #include <QOpenGLContext>
 #include <QOpenGLExtraFunctions>
 #include <QOpenGLFramebufferObject>
+#include <QOpenGLShaderProgram>
 #include <QOpenGLWidget>
 #include <QScopeGuard>
 #include <QSurfaceFormat>
+#include <QVector2D>
 #include <QTimer>
 #include <QVariantAnimation>
 #include <QWheelEvent>
@@ -208,9 +210,71 @@ public:
     bool forceOwnedFramebuffer = false;
 };
 
+class View3DInventorViewer::SceneDepthPostprocessState
+{
+public:
+    QOpenGLContext* context = nullptr;
+    QSize size;
+    std::unique_ptr<QOpenGLShaderProgram> program;
+    GLuint framebuffer = 0;
+    GLuint colorTexture = 0;
+    GLuint depthTexture = 0;
+    GLuint vertexBuffer = 0;
+    GLuint vertexArray = 0;
+    QString status = QStringLiteral("disabled");
+    float strength = 0.35F;
+    bool requested = false;
+    bool active = false;
+    bool allocationAttempted = false;
+};
+
 namespace
 {
 constexpr qint64 DimensionPaneUpdateIntervalMs = 100;
+
+constexpr const char* sceneDepthVertexShader = R"(
+#version 150
+in vec2 position;
+in vec2 textureCoordinate;
+out vec2 uv;
+void main()
+{
+    uv = textureCoordinate;
+    gl_Position = vec4(position, 0.0, 1.0);
+}
+)";
+
+constexpr const char* sceneDepthFragmentShader = R"(
+#version 150
+uniform sampler2D colorTexture;
+uniform sampler2D depthTexture;
+uniform vec2 texelSize;
+uniform float strength;
+in vec2 uv;
+out vec4 fragmentColor;
+void main()
+{
+    vec4 color = texture(colorTexture, uv);
+    float centerDepth = texture(depthTexture, uv).r;
+    if (centerDepth >= 0.999999) {
+        fragmentColor = color;
+        return;
+    }
+
+    float leftDepth = texture(depthTexture, uv - vec2(texelSize.x, 0.0)).r;
+    float rightDepth = texture(depthTexture, uv + vec2(texelSize.x, 0.0)).r;
+    float downDepth = texture(depthTexture, uv - vec2(0.0, texelSize.y)).r;
+    float upDepth = texture(depthTexture, uv + vec2(0.0, texelSize.y)).r;
+    float depthDelta = max(
+        max(abs(centerDepth - leftDepth), abs(centerDepth - rightDepth)),
+        max(abs(centerDepth - downDepth), abs(centerDepth - upDepth))
+    );
+    float edgeShade = smoothstep(0.00015, 0.0035, depthDelta);
+    float depthCue = sqrt(max(0.0, 1.0 - centerDepth));
+    float shade = clamp(strength * (0.18 * depthCue + 0.42 * edgeShade), 0.0, 0.45);
+    fragmentColor = vec4(color.rgb * (1.0 - shade), color.a);
+}
+)";
 
 enum class LiveSceneAaActivation : std::uint8_t
 {
@@ -1092,6 +1156,7 @@ void View3DInventorViewer::init()
     shading = true;
     fpsEnabled = false;
     vboEnabled = false;
+    sceneDepthPostprocess = std::make_unique<SceneDepthPostprocessState>();
 
     const LiveSceneAaActivation activation = liveSceneAaActivation();
     if (activation != LiveSceneAaActivation::Disabled) {
@@ -1485,6 +1550,7 @@ void View3DInventorViewer::aboutToDestroyGLContext()
     if (auto gl = qobject_cast<QOpenGLWidget*>(this->viewport())) {
         gl->makeCurrent();
     }
+    releaseSceneDepthPostprocessResources();
     releaseLiveSceneAaResources();
 
     if (naviCube) {
@@ -2458,6 +2524,58 @@ SoEnvironment* View3DInventorViewer::getEnvironment() const
     return this->environment;
 }
 
+void View3DInventorViewer::setSceneDepthPostprocessEnabled(bool enabled)
+{
+    if (!sceneDepthPostprocess || sceneDepthPostprocess->requested == enabled) {
+        return;
+    }
+
+    sceneDepthPostprocess->requested = enabled;
+    sceneDepthPostprocess->active = false;
+    sceneDepthPostprocess->status = enabled ? QStringLiteral("requested")
+                                            : QStringLiteral("disabled");
+    if (!enabled) {
+        if (auto* gl = qobject_cast<QOpenGLWidget*>(viewport())) {
+            gl->makeCurrent();
+        }
+        releaseSceneDepthPostprocessResources();
+        sceneDepthPostprocess->requested = false;
+        sceneDepthPostprocess->status = QStringLiteral("disabled");
+    }
+    redraw();
+}
+
+bool View3DInventorViewer::isSceneDepthPostprocessEnabled() const
+{
+    return sceneDepthPostprocess && sceneDepthPostprocess->requested;
+}
+
+bool View3DInventorViewer::isSceneDepthPostprocessActive() const
+{
+    return sceneDepthPostprocess && sceneDepthPostprocess->active;
+}
+
+void View3DInventorViewer::setSceneDepthPostprocessStrength(float strength)
+{
+    if (!sceneDepthPostprocess) {
+        return;
+    }
+    sceneDepthPostprocess->strength = std::clamp(strength, 0.0F, 1.0F);
+    if (sceneDepthPostprocess->requested) {
+        redraw();
+    }
+}
+
+float View3DInventorViewer::sceneDepthPostprocessStrength() const
+{
+    return sceneDepthPostprocess ? sceneDepthPostprocess->strength : 0.0F;
+}
+
+QString View3DInventorViewer::sceneDepthPostprocessStatus() const
+{
+    return sceneDepthPostprocess ? sceneDepthPostprocess->status : QStringLiteral("unavailable");
+}
+
 void View3DInventorViewer::setSceneGraph(SoNode* root)
 {
     inherited::setSceneGraph(root);
@@ -3293,6 +3411,333 @@ bool View3DInventorViewer::renderToFramebuffer(QOpenGLFramebufferObject* fbo, bo
     return true;
 }
 
+void View3DInventorViewer::releaseSceneDepthPostprocessResources()
+{
+    if (!sceneDepthPostprocess) {
+        return;
+    }
+
+    QOpenGLContext* context = QOpenGLContext::currentContext();
+    QOpenGLExtraFunctions* functions = context ? context->extraFunctions() : nullptr;
+    if (functions && sceneDepthPostprocess->context == context) {
+        if (sceneDepthPostprocess->vertexArray != 0) {
+            functions->glDeleteVertexArrays(1, &sceneDepthPostprocess->vertexArray);
+        }
+        if (sceneDepthPostprocess->vertexBuffer != 0) {
+            functions->glDeleteBuffers(1, &sceneDepthPostprocess->vertexBuffer);
+        }
+        if (sceneDepthPostprocess->framebuffer != 0) {
+            functions->glDeleteFramebuffers(1, &sceneDepthPostprocess->framebuffer);
+        }
+        if (sceneDepthPostprocess->colorTexture != 0) {
+            functions->glDeleteTextures(1, &sceneDepthPostprocess->colorTexture);
+        }
+        if (sceneDepthPostprocess->depthTexture != 0) {
+            functions->glDeleteTextures(1, &sceneDepthPostprocess->depthTexture);
+        }
+    }
+
+    sceneDepthPostprocess->program.reset();
+    sceneDepthPostprocess->context = nullptr;
+    sceneDepthPostprocess->size = {};
+    sceneDepthPostprocess->framebuffer = 0;
+    sceneDepthPostprocess->colorTexture = 0;
+    sceneDepthPostprocess->depthTexture = 0;
+    sceneDepthPostprocess->vertexBuffer = 0;
+    sceneDepthPostprocess->vertexArray = 0;
+    sceneDepthPostprocess->active = false;
+    sceneDepthPostprocess->allocationAttempted = false;
+}
+
+bool View3DInventorViewer::tryRenderSceneDepthPostprocess()
+{
+    if (!sceneDepthPostprocess || !sceneDepthPostprocess->requested) {
+        return false;
+    }
+
+    const SbViewportRegion region = getSoRenderManager()->getViewportRegion();
+    const SbVec2s origin = region.getViewportOriginPixels();
+    const SbVec2s viewportSize = region.getViewportSizePixels();
+    const int width = viewportSize[0];
+    const int height = viewportSize[1];
+    if (width <= 0 || height <= 0) {
+        sceneDepthPostprocess->active = false;
+        sceneDepthPostprocess->status = QStringLiteral("fallback-empty-viewport");
+        return false;
+    }
+
+    auto* gl = qobject_cast<QOpenGLWidget*>(viewport());
+    if (!gl || !gl->isValid()) {
+        sceneDepthPostprocess->active = false;
+        sceneDepthPostprocess->status = QStringLiteral("fallback-invalid-widget");
+        return false;
+    }
+    gl->makeCurrent();
+    QOpenGLContext* context = gl->context();
+    QOpenGLExtraFunctions* functions = context ? context->extraFunctions() : nullptr;
+    if (!context || !functions) {
+        sceneDepthPostprocess->active = false;
+        sceneDepthPostprocess->status = QStringLiteral("fallback-invalid-context");
+        return false;
+    }
+    functions->initializeOpenGLFunctions();
+
+    const QSurfaceFormat format = context->format();
+    if (format.majorVersion() < 3 || (format.majorVersion() == 3 && format.minorVersion() < 2)) {
+        sceneDepthPostprocess->active = false;
+        sceneDepthPostprocess->status = QStringLiteral("fallback-opengl-3.2-required");
+        return false;
+    }
+
+    GLint previousDrawFramebuffer = 0;
+    GLint previousReadFramebuffer = 0;
+    GLint previousViewport[4] = {0, 0, 0, 0};
+    GLint previousProgram = 0;
+    GLint previousVertexArray = 0;
+    GLint previousArrayBuffer = 0;
+    GLint previousActiveTexture = GL_TEXTURE0;
+    GLint previousTexture0 = 0;
+    GLint previousTexture1 = 0;
+    GLboolean previousDepthMask = GL_TRUE;
+    GLboolean previousColorMask[4] = {GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE};
+    const bool previousDepthTest = functions->glIsEnabled(GL_DEPTH_TEST);
+    const bool previousBlend = functions->glIsEnabled(GL_BLEND);
+    const bool previousCullFace = functions->glIsEnabled(GL_CULL_FACE);
+    const bool previousScissorTest = functions->glIsEnabled(GL_SCISSOR_TEST);
+    const bool previousFramebufferSrgb = functions->glIsEnabled(GL_FRAMEBUFFER_SRGB);
+    functions->glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &previousDrawFramebuffer);
+    functions->glGetIntegerv(GL_READ_FRAMEBUFFER_BINDING, &previousReadFramebuffer);
+    functions->glGetIntegerv(GL_VIEWPORT, previousViewport);
+    functions->glGetIntegerv(GL_CURRENT_PROGRAM, &previousProgram);
+    functions->glGetIntegerv(GL_VERTEX_ARRAY_BINDING, &previousVertexArray);
+    functions->glGetIntegerv(GL_ARRAY_BUFFER_BINDING, &previousArrayBuffer);
+    functions->glGetIntegerv(GL_ACTIVE_TEXTURE, &previousActiveTexture);
+    functions->glGetBooleanv(GL_DEPTH_WRITEMASK, &previousDepthMask);
+    functions->glGetBooleanv(GL_COLOR_WRITEMASK, previousColorMask);
+    functions->glActiveTexture(GL_TEXTURE0);
+    functions->glGetIntegerv(GL_TEXTURE_BINDING_2D, &previousTexture0);
+    functions->glActiveTexture(GL_TEXTURE1);
+    functions->glGetIntegerv(GL_TEXTURE_BINDING_2D, &previousTexture1);
+    functions->glActiveTexture(previousActiveTexture);
+
+    auto restoreState = qScopeGuard([&] {
+        functions->glBindFramebuffer(GL_DRAW_FRAMEBUFFER, previousDrawFramebuffer);
+        functions->glBindFramebuffer(GL_READ_FRAMEBUFFER, previousReadFramebuffer);
+        functions->glViewport(
+            previousViewport[0],
+            previousViewport[1],
+            previousViewport[2],
+            previousViewport[3]
+        );
+        functions->glUseProgram(previousProgram);
+        functions->glBindVertexArray(previousVertexArray);
+        functions->glBindBuffer(GL_ARRAY_BUFFER, previousArrayBuffer);
+        functions->glActiveTexture(GL_TEXTURE0);
+        functions->glBindTexture(GL_TEXTURE_2D, previousTexture0);
+        functions->glActiveTexture(GL_TEXTURE1);
+        functions->glBindTexture(GL_TEXTURE_2D, previousTexture1);
+        functions->glActiveTexture(previousActiveTexture);
+        functions->glDepthMask(previousDepthMask);
+        functions->glColorMask(
+            previousColorMask[0],
+            previousColorMask[1],
+            previousColorMask[2],
+            previousColorMask[3]
+        );
+        previousDepthTest ? functions->glEnable(GL_DEPTH_TEST) : functions->glDisable(GL_DEPTH_TEST);
+        previousBlend ? functions->glEnable(GL_BLEND) : functions->glDisable(GL_BLEND);
+        previousCullFace ? functions->glEnable(GL_CULL_FACE) : functions->glDisable(GL_CULL_FACE);
+        previousScissorTest ? functions->glEnable(GL_SCISSOR_TEST)
+                            : functions->glDisable(GL_SCISSOR_TEST);
+        previousFramebufferSrgb ? functions->glEnable(GL_FRAMEBUFFER_SRGB)
+                                : functions->glDisable(GL_FRAMEBUFFER_SRGB);
+    });
+
+    const QSize size(width, height);
+    if (sceneDepthPostprocess->context != context || sceneDepthPostprocess->size != size) {
+        releaseSceneDepthPostprocessResources();
+        sceneDepthPostprocess->context = context;
+        sceneDepthPostprocess->size = size;
+    }
+
+    if (!sceneDepthPostprocess->allocationAttempted) {
+        sceneDepthPostprocess->allocationAttempted = true;
+
+        functions->glGenTextures(1, &sceneDepthPostprocess->colorTexture);
+        functions->glBindTexture(GL_TEXTURE_2D, sceneDepthPostprocess->colorTexture);
+        functions->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        functions->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        functions->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        functions->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        functions
+            ->glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+
+        functions->glGenTextures(1, &sceneDepthPostprocess->depthTexture);
+        functions->glBindTexture(GL_TEXTURE_2D, sceneDepthPostprocess->depthTexture);
+        functions->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        functions->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        functions->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        functions->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        functions->glTexImage2D(
+            GL_TEXTURE_2D,
+            0,
+            GL_DEPTH_COMPONENT24,
+            width,
+            height,
+            0,
+            GL_DEPTH_COMPONENT,
+            GL_UNSIGNED_INT,
+            nullptr
+        );
+
+        functions->glGenFramebuffers(1, &sceneDepthPostprocess->framebuffer);
+        functions->glBindFramebuffer(GL_FRAMEBUFFER, sceneDepthPostprocess->framebuffer);
+        functions->glFramebufferTexture2D(
+            GL_FRAMEBUFFER,
+            GL_COLOR_ATTACHMENT0,
+            GL_TEXTURE_2D,
+            sceneDepthPostprocess->colorTexture,
+            0
+        );
+        functions->glFramebufferTexture2D(
+            GL_FRAMEBUFFER,
+            GL_DEPTH_ATTACHMENT,
+            GL_TEXTURE_2D,
+            sceneDepthPostprocess->depthTexture,
+            0
+        );
+
+        if (functions->glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+            releaseSceneDepthPostprocessResources();
+            sceneDepthPostprocess->context = context;
+            sceneDepthPostprocess->size = size;
+            sceneDepthPostprocess->allocationAttempted = true;
+            sceneDepthPostprocess->status = QStringLiteral("fallback-framebuffer-incomplete");
+            return false;
+        }
+
+        sceneDepthPostprocess->program = std::make_unique<QOpenGLShaderProgram>();
+        sceneDepthPostprocess->program->bindAttributeLocation("position", 0);
+        sceneDepthPostprocess->program->bindAttributeLocation("textureCoordinate", 1);
+        if (!sceneDepthPostprocess->program
+                 ->addShaderFromSourceCode(QOpenGLShader::Vertex, sceneDepthVertexShader)
+            || !sceneDepthPostprocess->program
+                    ->addShaderFromSourceCode(QOpenGLShader::Fragment, sceneDepthFragmentShader)
+            || !sceneDepthPostprocess->program->link()) {
+            releaseSceneDepthPostprocessResources();
+            sceneDepthPostprocess->context = context;
+            sceneDepthPostprocess->size = size;
+            sceneDepthPostprocess->allocationAttempted = true;
+            sceneDepthPostprocess->status = QStringLiteral("fallback-shader-unavailable");
+            return false;
+        }
+
+        constexpr std::array<float, 16> quadVertices
+            = {-1.0F, -1.0F, 0.0F, 0.0F, 1.0F, -1.0F, 1.0F, 0.0F, -1.0F, 1.0F, 0.0F, 1.0F, 1.0F, 1.0F, 1.0F, 1.0F};
+        functions->glGenVertexArrays(1, &sceneDepthPostprocess->vertexArray);
+        functions->glBindVertexArray(sceneDepthPostprocess->vertexArray);
+        functions->glGenBuffers(1, &sceneDepthPostprocess->vertexBuffer);
+        functions->glBindBuffer(GL_ARRAY_BUFFER, sceneDepthPostprocess->vertexBuffer);
+        functions->glBufferData(
+            GL_ARRAY_BUFFER,
+            static_cast<GLsizeiptr>(quadVertices.size() * sizeof(float)),
+            quadVertices.data(),
+            GL_STATIC_DRAW
+        );
+        functions->glEnableVertexAttribArray(0);
+        functions->glVertexAttribPointer(
+            0,
+            2,
+            GL_FLOAT,
+            GL_FALSE,
+            4 * static_cast<GLsizei>(sizeof(float)),
+            nullptr
+        );
+        functions->glEnableVertexAttribArray(1);
+        functions->glVertexAttribPointer(
+            1,
+            2,
+            GL_FLOAT,
+            GL_FALSE,
+            4 * static_cast<GLsizei>(sizeof(float)),
+            reinterpret_cast<const void*>(2 * sizeof(float))
+        );
+    }
+
+    if (sceneDepthPostprocess->framebuffer == 0 || !sceneDepthPostprocess->program
+        || sceneDepthPostprocess->vertexArray == 0) {
+        sceneDepthPostprocess->active = false;
+        if (!sceneDepthPostprocess->status.startsWith(QStringLiteral("fallback-"))) {
+            sceneDepthPostprocess->status = QStringLiteral("fallback-resources-unavailable");
+        }
+        return false;
+    }
+
+    // Resource setup changes the active program, VAO, buffers and textures. Coin must begin its
+    // normal interactive traversal with the exact state that existed before compositor setup.
+    functions->glUseProgram(previousProgram);
+    functions->glBindVertexArray(previousVertexArray);
+    functions->glBindBuffer(GL_ARRAY_BUFFER, previousArrayBuffer);
+    functions->glActiveTexture(GL_TEXTURE0);
+    functions->glBindTexture(GL_TEXTURE_2D, previousTexture0);
+    functions->glActiveTexture(GL_TEXTURE1);
+    functions->glBindTexture(GL_TEXTURE_2D, previousTexture1);
+    functions->glActiveTexture(previousActiveTexture);
+    functions->glDepthMask(previousDepthMask);
+    functions->glColorMask(
+        previousColorMask[0],
+        previousColorMask[1],
+        previousColorMask[2],
+        previousColorMask[3]
+    );
+    previousDepthTest ? functions->glEnable(GL_DEPTH_TEST) : functions->glDisable(GL_DEPTH_TEST);
+    previousBlend ? functions->glEnable(GL_BLEND) : functions->glDisable(GL_BLEND);
+    previousCullFace ? functions->glEnable(GL_CULL_FACE) : functions->glDisable(GL_CULL_FACE);
+    previousScissorTest ? functions->glEnable(GL_SCISSOR_TEST)
+                        : functions->glDisable(GL_SCISSOR_TEST);
+    functions->glDisable(GL_FRAMEBUFFER_SRGB);
+
+    functions->glBindFramebuffer(GL_FRAMEBUFFER, sceneDepthPostprocess->framebuffer);
+    functions->glViewport(0, 0, width, height);
+    renderScene();
+
+    functions->glBindFramebuffer(GL_FRAMEBUFFER, gl->defaultFramebufferObject());
+    functions->glViewport(origin[0], origin[1], width, height);
+    functions->glDisable(GL_DEPTH_TEST);
+    functions->glDepthMask(GL_FALSE);
+    functions->glDisable(GL_BLEND);
+    functions->glDisable(GL_CULL_FACE);
+    functions->glDisable(GL_SCISSOR_TEST);
+    functions->glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+
+    if (!sceneDepthPostprocess->program->bind()) {
+        releaseSceneDepthPostprocessResources();
+        sceneDepthPostprocess->context = context;
+        sceneDepthPostprocess->size = size;
+        sceneDepthPostprocess->allocationAttempted = true;
+        sceneDepthPostprocess->status = QStringLiteral("fallback-shader-bind-failed");
+        return false;
+    }
+    sceneDepthPostprocess->program->setUniformValue("colorTexture", 0);
+    sceneDepthPostprocess->program->setUniformValue("depthTexture", 1);
+    sceneDepthPostprocess->program->setUniformValue(
+        "texelSize",
+        QVector2D(1.0F / static_cast<float>(width), 1.0F / static_cast<float>(height))
+    );
+    sceneDepthPostprocess->program->setUniformValue("strength", sceneDepthPostprocess->strength);
+    functions->glActiveTexture(GL_TEXTURE0);
+    functions->glBindTexture(GL_TEXTURE_2D, sceneDepthPostprocess->colorTexture);
+    functions->glActiveTexture(GL_TEXTURE1);
+    functions->glBindTexture(GL_TEXTURE_2D, sceneDepthPostprocess->depthTexture);
+    functions->glBindVertexArray(sceneDepthPostprocess->vertexArray);
+    functions->glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+    sceneDepthPostprocess->program->release();
+
+    sceneDepthPostprocess->active = true;
+    sceneDepthPostprocess->status = QStringLiteral("active-single-sample-depth24-linear");
+    return true;
+}
+
 void View3DInventorViewer::releaseLiveSceneAaResources()
 {
     if (!liveSceneAa) {
@@ -3497,7 +3942,7 @@ void View3DInventorViewer::actualRedraw()
 {
     switch (renderType) {
         case Native:
-            if (!tryRenderLiveSceneAa()) {
+            if (!tryRenderSceneDepthPostprocess() && !tryRenderLiveSceneAa()) {
                 renderScene();
             }
             break;

@@ -201,6 +201,13 @@ public:
 
     SoEnvironment* getEnvironment() const;
 
+    void setSceneDepthPostprocessEnabled(bool enabled);
+    bool isSceneDepthPostprocessEnabled() const;
+    bool isSceneDepthPostprocessActive() const;
+    void setSceneDepthPostprocessStrength(float strength);
+    float sceneDepthPostprocessStrength() const;
+    QString sceneDepthPostprocessStatus() const;
+
     void setSceneGraph(SoNode* root) override;
     bool searchNode(SoNode*) const;
 
@@ -624,6 +631,7 @@ private:
 private:
     class ScopedRenderIntent;
     class LiveSceneAaState;
+    class SceneDepthPostprocessState;
     static void selectCB(void* viewer, SoPath* path);
     // A small intent stack lets nested export/capture code paths temporarily
     // override the default live-view traversal behavior.
@@ -642,6 +650,8 @@ private:
     void renderDelayedAnnotations(SoGLRenderAction* glra);
     void renderGLActionScene(const QColor& backgroundColor, SoGLRenderAction* glra);
     bool renderToFramebuffer(QOpenGLFramebufferObject*, bool includeViewerLighting = true);
+    bool tryRenderSceneDepthPostprocess();
+    void releaseSceneDepthPostprocessResources();
     bool tryRenderLiveSceneAa();
     void releaseLiveSceneAaResources();
     void setCursorRepresentation(int mode);
@@ -691,6 +701,7 @@ private:
     RenderType renderType;
     QOpenGLFramebufferObject* framebuffer;
     std::unique_ptr<LiveSceneAaState> liveSceneAa;
+    std::unique_ptr<SceneDepthPostprocessState> sceneDepthPostprocess;
     QImage glImage;
     bool shading;
     SoSwitch* dimensionRoot;

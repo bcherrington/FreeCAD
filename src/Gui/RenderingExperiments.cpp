@@ -89,13 +89,15 @@ constexpr int SpecularMinimumPercent = 0;
 constexpr int SpecularMaximumPercent = 100;
 constexpr int DefaultSpecularPercent = 70;
 constexpr int DefaultShininessPercent = 90;
+constexpr int DefaultDepthPostprocessPercent = 35;
 constexpr int ApplyDebounceMilliseconds = 75;
 
 enum UpdateFlag : unsigned int
 {
     UpdateLighting = 1U << 0,
     UpdateMaterials = 1U << 1,
-    UpdateTessellation = 1U << 2
+    UpdateTessellation = 1U << 2,
+    UpdatePostprocess = 1U << 3
 };
 
 float clamp01(float value)
@@ -315,11 +317,15 @@ public:
     QComboBox* tessellationProfile {nullptr};
     QDoubleSpinBox* deviation {nullptr};
     QDoubleSpinBox* angularDeflection {nullptr};
+    QCheckBox* depthPostprocessEnabled {nullptr};
+    QSlider* depthPostprocessStrength {nullptr};
+    QLabel* depthPostprocessStrengthValue {nullptr};
     QTimer* applyTimer {nullptr};
 
     std::optional<ViewerState> capturedViewerState;
     std::map<std::string, MaterialSnapshot> capturedMaterials;
     std::map<std::string, TessellationSnapshot> capturedTessellation;
+    std::optional<std::pair<bool, float>> capturedDepthPostprocess;
 
     bool experimentsApplied {false};
     bool nativeHoldActive {false};
@@ -455,7 +461,37 @@ public:
         tessellationLayout->addWidget(angularDeflection, 3, 1);
         outerLayout->addWidget(tessellationBox);
 
+        auto* postprocessBox = new QGroupBox(QObject::tr("Scene-depth compositor"), self);
+        auto* postprocessLayout = new QGridLayout(postprocessBox);
+        depthPostprocessEnabled = new QCheckBox(
+            QObject::tr("Evaluate depth-aware contrast (single-sample)"),
+            postprocessBox
+        );
+        depthPostprocessEnabled->setObjectName(
+            QStringLiteral("RenderingExperimentsDepthPostprocessEnabled")
+        );
+        depthPostprocessEnabled->setToolTip(
+            QObject::tr(
+                "Renders the complete interactive view into a depth-textured framebuffer, then "
+                "samples that real scene depth. Disabled by default."
+            )
+        );
+        postprocessLayout->addWidget(depthPostprocessEnabled, 0, 0, 1, 3);
+
+        depthPostprocessStrength = new QSlider(Qt::Horizontal, postprocessBox);
+        depthPostprocessStrength->setObjectName(
+            QStringLiteral("RenderingExperimentsDepthPostprocessStrength")
+        );
+        depthPostprocessStrength->setRange(0, 100);
+        depthPostprocessStrength->setValue(DefaultDepthPostprocessPercent);
+        depthPostprocessStrengthValue = new QLabel(postprocessBox);
+        postprocessLayout->addWidget(new QLabel(QObject::tr("Strength"), postprocessBox), 1, 0);
+        postprocessLayout->addWidget(depthPostprocessStrength, 1, 1);
+        postprocessLayout->addWidget(depthPostprocessStrengthValue, 1, 2);
+        outerLayout->addWidget(postprocessBox);
+
         statusLabel = new QLabel(self);
+        statusLabel->setObjectName(QStringLiteral("RenderingExperimentsStatus"));
         statusLabel->setWordWrap(true);
         outerLayout->addWidget(statusLabel);
         outerLayout->addStretch(1);
@@ -562,6 +598,14 @@ public:
             self,
             [this] { scheduleUpdates(UpdateTessellation); }
         );
+        QObject::connect(depthPostprocessEnabled, &QCheckBox::toggled, self, [this] {
+            updateControlStates();
+            applyUpdates(UpdatePostprocess);
+        });
+        QObject::connect(depthPostprocessStrength, &QSlider::valueChanged, self, [this] {
+            updateValueLabels();
+            scheduleUpdates(UpdatePostprocess);
+        });
         QObject::connect(applyTimer, &QTimer::timeout, self, [this] {
             const unsigned int updates = std::exchange(pendingUpdates, 0U);
             applyUpdates(updates);
@@ -573,6 +617,9 @@ public:
         lightingIntensityValue->setText(QStringLiteral("%1%").arg(lightingIntensity->value()));
         specularStrengthValue->setText(QStringLiteral("%1%").arg(specularStrength->value()));
         shininessValue->setText(QStringLiteral("%1%").arg(shininess->value()));
+        depthPostprocessStrengthValue->setText(
+            QStringLiteral("%1%").arg(depthPostprocessStrength->value())
+        );
     }
 
     void updateControlStates() const
@@ -599,6 +646,9 @@ public:
                 == TessellationProfile::Custom;
         deviation->setEnabled(customProfile);
         angularDeflection->setEnabled(customProfile);
+
+        depthPostprocessEnabled->setEnabled(masterOn);
+        depthPostprocessStrength->setEnabled(masterOn && depthPostprocessEnabled->isChecked());
     }
 
     LightingPresetState currentLightingPreset() const
@@ -795,10 +845,34 @@ public:
         capturedViewerState.reset();
         capturedMaterials.clear();
         capturedTessellation.clear();
+        capturedDepthPostprocess.reset();
         materialsCaptured = false;
         tessellationCaptured = false;
         experimentsApplied = false;
         nativeHoldActive = false;
+    }
+
+    void ensureDepthPostprocessCaptured()
+    {
+        if (capturedDepthPostprocess.has_value()) {
+            return;
+        }
+        if (auto* viewer = currentViewer()) {
+            capturedDepthPostprocess = std::pair(
+                viewer->isSceneDepthPostprocessEnabled(),
+                viewer->sceneDepthPostprocessStrength()
+            );
+        }
+    }
+
+    void restoreDepthPostprocess()
+    {
+        auto* viewer = currentViewer();
+        if (!viewer || !capturedDepthPostprocess.has_value()) {
+            return;
+        }
+        viewer->setSceneDepthPostprocessStrength(capturedDepthPostprocess->second);
+        viewer->setSceneDepthPostprocessEnabled(capturedDepthPostprocess->first);
     }
 
     void cancelPendingUpdates()
@@ -879,6 +953,7 @@ public:
         }
         restoreMaterials();
         restoreTessellation();
+        restoreDepthPostprocess();
 
         experimentsApplied = false;
         nativeHoldActive = false;
@@ -965,6 +1040,25 @@ public:
         }
     }
 
+    void applyDepthPostprocessOverride()
+    {
+        auto* viewer = currentViewer();
+        if (!viewer) {
+            return;
+        }
+
+        ensureDepthPostprocessCaptured();
+        if (depthPostprocessEnabled->isChecked()) {
+            viewer->setSceneDepthPostprocessStrength(fromPercent(depthPostprocessStrength->value()));
+            viewer->setSceneDepthPostprocessEnabled(true);
+        }
+        else {
+            restoreDepthPostprocess();
+        }
+
+        QTimer::singleShot(50, self, [this] { updateStatus(); });
+    }
+
     void scheduleUpdates(unsigned int updates)
     {
         if (!masterEnabled->isChecked() || !documentActive || nativeHoldActive) {
@@ -1013,6 +1107,10 @@ public:
             }
         }
 
+        if ((updates & UpdatePostprocess) != 0U) {
+            applyDepthPostprocessOverride();
+        }
+
         experimentsApplied = true;
         updateControlStates();
         updateStatus();
@@ -1031,7 +1129,7 @@ public:
         }
 
         cancelPendingUpdates();
-        applyUpdates(UpdateLighting | UpdateMaterials | UpdateTessellation);
+        applyUpdates(UpdateLighting | UpdateMaterials | UpdateTessellation | UpdatePostprocess);
     }
 
     Gui::View3DInventorViewer* currentViewer() const
@@ -1096,7 +1194,7 @@ public:
             return;
         }
 
-        if (materialCount == 0 && tessellationCount == 0) {
+        if (materialCount == 0 && tessellationCount == 0 && !depthPostprocessEnabled->isChecked()) {
             statusLabel->setText(
                 QObject::tr("Status: experiments applied, but no active supported objects were found.")
             );
@@ -1110,6 +1208,21 @@ public:
         }
         if (tessellationEnabled->isChecked()) {
             sections.append(QObject::tr("manual tessellation"));
+        }
+        if (depthPostprocessEnabled->isChecked()) {
+            auto* viewer = currentViewer();
+            if (viewer && viewer->isSceneDepthPostprocessActive()) {
+                sections.append(QObject::tr("scene-depth compositor active"));
+            }
+            else {
+                sections.append(
+                    QObject::tr("scene-depth compositor requested (%1)")
+                        .arg(
+                            viewer ? viewer->sceneDepthPostprocessStatus()
+                                   : QObject::tr("viewer unavailable")
+                        )
+                );
+            }
         }
 
         statusLabel->setText(

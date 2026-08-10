@@ -12,10 +12,13 @@ import FreeCAD
 import FreeCADGui
 
 try:
-    from PySide6 import QtCore, QtTest, QtWidgets
+    import shiboken6
+    from PySide6 import QtCore, QtGui, QtOpenGLWidgets, QtTest, QtWidgets
 except ImportError:
+    shiboken6 = None
     from PySide import QtCore  # type: ignore
     from PySide import QtTest  # type: ignore
+    from PySide import QtGui  # type: ignore
     from PySide import QtGui as QtWidgets  # type: ignore
 
 
@@ -42,11 +45,15 @@ class TestRenderingExperiments(unittest.TestCase):
     def tearDown(self):
         with suppress(Exception):
             self._button("RenderingExperimentsReset").click()
-            self.dock.deleteLater()
+            self.dock.close()
             self._flush_gui()
+        QtCore.QCoreApplication.sendPostedEvents(None, QtCore.QEvent.DeferredDelete)
+        self._flush_gui()
         for doc_name in reversed(self._doc_names):
             if FreeCAD.getDocument(doc_name):
                 FreeCAD.closeDocument(doc_name)
+        QtCore.QCoreApplication.sendPostedEvents(None, QtCore.QEvent.DeferredDelete)
+        self._flush_gui()
 
     def test_manual_tessellation_reset_and_hide_restore_native_values(self):
         self._checkbox("RenderingExperimentsEnabled").setChecked(True)
@@ -197,6 +204,65 @@ class TestRenderingExperiments(unittest.TestCase):
         self.assertFalse(timer.isActive())
         self.assertEqual(self._material_state(), self.native_materials)
 
+    def test_scene_depth_compositor_uses_live_view_and_restores_native(self):
+        gl_widgets = [
+            widget
+            for widget in FreeCADGui.getMainWindow().findChildren(QtWidgets.QWidget)
+            if widget.inherits("QOpenGLWidget") and widget.isVisible()
+        ]
+        gl_widget = max(
+            gl_widgets, key=lambda widget: widget.width() * widget.height(), default=None
+        )
+        self.assertIsNotNone(gl_widget)
+        if shiboken6 is not None:
+            gl_widget = shiboken6.wrapInstance(
+                shiboken6.getCppPointer(gl_widget)[0], QtOpenGLWidgets.QOpenGLWidget
+            )
+
+        FreeCADGui.Selection.clearSelection()
+        FreeCADGui.Selection.addSelection(self.feature)
+        self._flush_gui()
+        native = self._framebuffer_bytes(gl_widget)
+        QtTest.QTest.qWait(50)
+        self._flush_gui()
+        native_second = self._framebuffer_bytes(gl_widget)
+        selected_before = [item.ObjectName for item in FreeCADGui.Selection.getSelectionEx()]
+
+        self._checkbox("RenderingExperimentsEnabled").setChecked(True)
+        self._checkbox("RenderingExperimentsDepthPostprocessEnabled").setChecked(True)
+        self._flush_gui()
+        QtTest.QTest.qWait(100)
+        self._flush_gui()
+        experimental = self._framebuffer_bytes(gl_widget)
+        self._flush_gui()
+
+        status = self.dock.findChild(QtWidgets.QLabel, "RenderingExperimentsStatus")
+        self.assertIsNotNone(status)
+        self.assertIn("scene-depth compositor active", status.text())
+        experimental_delta = min(
+            self._pixel_difference_count(experimental, native),
+            self._pixel_difference_count(experimental, native_second),
+        )
+        self.assertGreater(experimental_delta, 0)
+        self.assertEqual(
+            [item.ObjectName for item in FreeCADGui.Selection.getSelectionEx()], selected_before
+        )
+
+        self._checkbox("RenderingExperimentsDepthPostprocessEnabled").setChecked(False)
+        self._flush_gui()
+        QtTest.QTest.qWait(50)
+        self._flush_gui()
+        restored = self._framebuffer_bytes(gl_widget)
+        restored_delta = min(
+            self._pixel_difference_count(restored, native),
+            self._pixel_difference_count(restored, native_second),
+        )
+        self.assertLess(restored_delta, experimental_delta)
+        self.assertNotIn("scene-depth compositor active", status.text())
+        self.assertEqual(
+            [item.ObjectName for item in FreeCADGui.Selection.getSelectionEx()], selected_before
+        )
+
     def _checkbox(self, name):
         widget = self.dock.findChild(QtWidgets.QCheckBox, name)
         self.assertIsNotNone(widget)
@@ -228,6 +294,16 @@ class TestRenderingExperiments(unittest.TestCase):
             )
             for material in view_provider.ShapeAppearance
         ]
+
+    @staticmethod
+    def _framebuffer_bytes(gl_widget):
+        image = gl_widget.grabFramebuffer().convertToFormat(QtGui.QImage.Format_RGBA8888)
+        bits = image.constBits()
+        return bytes(bits[: image.sizeInBytes()])
+
+    @staticmethod
+    def _pixel_difference_count(left, right):
+        return sum(left_value != right_value for left_value, right_value in zip(left, right))
 
     def _assert_material_states_almost_equal(self, actual, expected):
         self.assertEqual(len(actual), len(expected))
