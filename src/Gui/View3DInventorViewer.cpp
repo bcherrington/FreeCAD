@@ -216,16 +216,22 @@ public:
     QOpenGLContext* context = nullptr;
     QSize size;
     std::unique_ptr<QOpenGLShaderProgram> program;
-    GLuint framebuffer = 0;
+    GLuint resolveFramebuffer = 0;
+    GLuint multisampleFramebuffer = 0;
+    GLuint multisampleColorRenderbuffer = 0;
+    GLuint multisampleDepthRenderbuffer = 0;
     GLuint colorTexture = 0;
     GLuint depthTexture = 0;
     GLuint vertexBuffer = 0;
     GLuint vertexArray = 0;
     QString status = QStringLiteral("disabled");
-    float strength = 0.35F;
+    float strength = 0.15F;
+    int requestedSamples = 0;
+    int actualSamples = 0;
     bool requested = false;
     bool active = false;
     bool allocationAttempted = false;
+    bool composingScene = false;
 };
 
 namespace
@@ -3426,8 +3432,17 @@ void View3DInventorViewer::releaseSceneDepthPostprocessResources()
         if (sceneDepthPostprocess->vertexBuffer != 0) {
             functions->glDeleteBuffers(1, &sceneDepthPostprocess->vertexBuffer);
         }
-        if (sceneDepthPostprocess->framebuffer != 0) {
-            functions->glDeleteFramebuffers(1, &sceneDepthPostprocess->framebuffer);
+        if (sceneDepthPostprocess->resolveFramebuffer != 0) {
+            functions->glDeleteFramebuffers(1, &sceneDepthPostprocess->resolveFramebuffer);
+        }
+        if (sceneDepthPostprocess->multisampleFramebuffer != 0) {
+            functions->glDeleteFramebuffers(1, &sceneDepthPostprocess->multisampleFramebuffer);
+        }
+        if (sceneDepthPostprocess->multisampleColorRenderbuffer != 0) {
+            functions->glDeleteRenderbuffers(1, &sceneDepthPostprocess->multisampleColorRenderbuffer);
+        }
+        if (sceneDepthPostprocess->multisampleDepthRenderbuffer != 0) {
+            functions->glDeleteRenderbuffers(1, &sceneDepthPostprocess->multisampleDepthRenderbuffer);
         }
         if (sceneDepthPostprocess->colorTexture != 0) {
             functions->glDeleteTextures(1, &sceneDepthPostprocess->colorTexture);
@@ -3440,11 +3455,16 @@ void View3DInventorViewer::releaseSceneDepthPostprocessResources()
     sceneDepthPostprocess->program.reset();
     sceneDepthPostprocess->context = nullptr;
     sceneDepthPostprocess->size = {};
-    sceneDepthPostprocess->framebuffer = 0;
+    sceneDepthPostprocess->resolveFramebuffer = 0;
+    sceneDepthPostprocess->multisampleFramebuffer = 0;
+    sceneDepthPostprocess->multisampleColorRenderbuffer = 0;
+    sceneDepthPostprocess->multisampleDepthRenderbuffer = 0;
     sceneDepthPostprocess->colorTexture = 0;
     sceneDepthPostprocess->depthTexture = 0;
     sceneDepthPostprocess->vertexBuffer = 0;
     sceneDepthPostprocess->vertexArray = 0;
+    sceneDepthPostprocess->requestedSamples = 0;
+    sceneDepthPostprocess->actualSamples = 0;
     sceneDepthPostprocess->active = false;
     sceneDepthPostprocess->allocationAttempted = false;
 }
@@ -3495,6 +3515,7 @@ bool View3DInventorViewer::tryRenderSceneDepthPostprocess()
     GLint previousProgram = 0;
     GLint previousVertexArray = 0;
     GLint previousArrayBuffer = 0;
+    GLint previousRenderbuffer = 0;
     GLint previousActiveTexture = GL_TEXTURE0;
     GLint previousTexture0 = 0;
     GLint previousTexture1 = 0;
@@ -3511,6 +3532,7 @@ bool View3DInventorViewer::tryRenderSceneDepthPostprocess()
     functions->glGetIntegerv(GL_CURRENT_PROGRAM, &previousProgram);
     functions->glGetIntegerv(GL_VERTEX_ARRAY_BINDING, &previousVertexArray);
     functions->glGetIntegerv(GL_ARRAY_BUFFER_BINDING, &previousArrayBuffer);
+    functions->glGetIntegerv(GL_RENDERBUFFER_BINDING, &previousRenderbuffer);
     functions->glGetIntegerv(GL_ACTIVE_TEXTURE, &previousActiveTexture);
     functions->glGetBooleanv(GL_DEPTH_WRITEMASK, &previousDepthMask);
     functions->glGetBooleanv(GL_COLOR_WRITEMASK, previousColorMask);
@@ -3520,7 +3542,7 @@ bool View3DInventorViewer::tryRenderSceneDepthPostprocess()
     functions->glGetIntegerv(GL_TEXTURE_BINDING_2D, &previousTexture1);
     functions->glActiveTexture(previousActiveTexture);
 
-    auto restoreState = qScopeGuard([&] {
+    auto restoreGlState = [&] {
         functions->glBindFramebuffer(GL_DRAW_FRAMEBUFFER, previousDrawFramebuffer);
         functions->glBindFramebuffer(GL_READ_FRAMEBUFFER, previousReadFramebuffer);
         functions->glViewport(
@@ -3532,6 +3554,7 @@ bool View3DInventorViewer::tryRenderSceneDepthPostprocess()
         functions->glUseProgram(previousProgram);
         functions->glBindVertexArray(previousVertexArray);
         functions->glBindBuffer(GL_ARRAY_BUFFER, previousArrayBuffer);
+        functions->glBindRenderbuffer(GL_RENDERBUFFER, previousRenderbuffer);
         functions->glActiveTexture(GL_TEXTURE0);
         functions->glBindTexture(GL_TEXTURE_2D, previousTexture0);
         functions->glActiveTexture(GL_TEXTURE1);
@@ -3551,13 +3574,17 @@ bool View3DInventorViewer::tryRenderSceneDepthPostprocess()
                             : functions->glDisable(GL_SCISSOR_TEST);
         previousFramebufferSrgb ? functions->glEnable(GL_FRAMEBUFFER_SRGB)
                                 : functions->glDisable(GL_FRAMEBUFFER_SRGB);
-    });
+    };
+    auto restoreState = qScopeGuard(restoreGlState);
 
     const QSize size(width, height);
-    if (sceneDepthPostprocess->context != context || sceneDepthPostprocess->size != size) {
+    const int requestedSamples = std::max(1, getNumSamples());
+    if (sceneDepthPostprocess->context != context || sceneDepthPostprocess->size != size
+        || sceneDepthPostprocess->requestedSamples != requestedSamples) {
         releaseSceneDepthPostprocessResources();
         sceneDepthPostprocess->context = context;
         sceneDepthPostprocess->size = size;
+        sceneDepthPostprocess->requestedSamples = requestedSamples;
     }
 
     if (!sceneDepthPostprocess->allocationAttempted) {
@@ -3590,8 +3617,8 @@ bool View3DInventorViewer::tryRenderSceneDepthPostprocess()
             nullptr
         );
 
-        functions->glGenFramebuffers(1, &sceneDepthPostprocess->framebuffer);
-        functions->glBindFramebuffer(GL_FRAMEBUFFER, sceneDepthPostprocess->framebuffer);
+        functions->glGenFramebuffers(1, &sceneDepthPostprocess->resolveFramebuffer);
+        functions->glBindFramebuffer(GL_FRAMEBUFFER, sceneDepthPostprocess->resolveFramebuffer);
         functions->glFramebufferTexture2D(
             GL_FRAMEBUFFER,
             GL_COLOR_ATTACHMENT0,
@@ -3611,9 +3638,99 @@ bool View3DInventorViewer::tryRenderSceneDepthPostprocess()
             releaseSceneDepthPostprocessResources();
             sceneDepthPostprocess->context = context;
             sceneDepthPostprocess->size = size;
+            sceneDepthPostprocess->requestedSamples = requestedSamples;
             sceneDepthPostprocess->allocationAttempted = true;
             sceneDepthPostprocess->status = QStringLiteral("fallback-framebuffer-incomplete");
             return false;
+        }
+
+        sceneDepthPostprocess->actualSamples = 1;
+        if (requestedSamples > 1) {
+            GLint maximumSamples = 1;
+            functions->glGetIntegerv(GL_MAX_SAMPLES, &maximumSamples);
+            const int cappedSamples = std::min(requestedSamples, maximumSamples);
+            constexpr std::array<int, 4> fallbackSamples = {8, 6, 4, 2};
+
+            functions->glGenFramebuffers(1, &sceneDepthPostprocess->multisampleFramebuffer);
+            for (const int candidate : fallbackSamples) {
+                if (candidate > cappedSamples || candidate <= sceneDepthPostprocess->actualSamples) {
+                    continue;
+                }
+
+                while (functions->glGetError() != GL_NO_ERROR) {
+                }
+                functions->glGenRenderbuffers(1, &sceneDepthPostprocess->multisampleColorRenderbuffer);
+                functions->glBindRenderbuffer(
+                    GL_RENDERBUFFER,
+                    sceneDepthPostprocess->multisampleColorRenderbuffer
+                );
+                functions->glRenderbufferStorageMultisample(
+                    GL_RENDERBUFFER,
+                    candidate,
+                    GL_RGBA8,
+                    width,
+                    height
+                );
+
+                functions->glGenRenderbuffers(1, &sceneDepthPostprocess->multisampleDepthRenderbuffer);
+                functions->glBindRenderbuffer(
+                    GL_RENDERBUFFER,
+                    sceneDepthPostprocess->multisampleDepthRenderbuffer
+                );
+                functions->glRenderbufferStorageMultisample(
+                    GL_RENDERBUFFER,
+                    candidate,
+                    GL_DEPTH_COMPONENT24,
+                    width,
+                    height
+                );
+
+                functions->glBindFramebuffer(
+                    GL_FRAMEBUFFER,
+                    sceneDepthPostprocess->multisampleFramebuffer
+                );
+                functions->glFramebufferRenderbuffer(
+                    GL_FRAMEBUFFER,
+                    GL_COLOR_ATTACHMENT0,
+                    GL_RENDERBUFFER,
+                    sceneDepthPostprocess->multisampleColorRenderbuffer
+                );
+                functions->glFramebufferRenderbuffer(
+                    GL_FRAMEBUFFER,
+                    GL_DEPTH_ATTACHMENT,
+                    GL_RENDERBUFFER,
+                    sceneDepthPostprocess->multisampleDepthRenderbuffer
+                );
+
+                if (functions->glGetError() == GL_NO_ERROR
+                    && functions->glCheckFramebufferStatus(GL_FRAMEBUFFER)
+                        == GL_FRAMEBUFFER_COMPLETE) {
+                    GLint actualSamples = 0;
+                    functions->glBindRenderbuffer(
+                        GL_RENDERBUFFER,
+                        sceneDepthPostprocess->multisampleColorRenderbuffer
+                    );
+                    functions->glGetRenderbufferParameteriv(
+                        GL_RENDERBUFFER,
+                        GL_RENDERBUFFER_SAMPLES,
+                        &actualSamples
+                    );
+                    sceneDepthPostprocess->actualSamples = actualSamples;
+                    if (actualSamples > 1) {
+                        break;
+                    }
+                }
+
+                functions->glDeleteRenderbuffers(1, &sceneDepthPostprocess->multisampleColorRenderbuffer);
+                functions->glDeleteRenderbuffers(1, &sceneDepthPostprocess->multisampleDepthRenderbuffer);
+                sceneDepthPostprocess->multisampleColorRenderbuffer = 0;
+                sceneDepthPostprocess->multisampleDepthRenderbuffer = 0;
+            }
+
+            if (sceneDepthPostprocess->actualSamples == 1) {
+                functions->glDeleteFramebuffers(1, &sceneDepthPostprocess->multisampleFramebuffer);
+                sceneDepthPostprocess->multisampleFramebuffer = 0;
+            }
         }
 
         sceneDepthPostprocess->program = std::make_unique<QOpenGLShaderProgram>();
@@ -3627,6 +3744,7 @@ bool View3DInventorViewer::tryRenderSceneDepthPostprocess()
             releaseSceneDepthPostprocessResources();
             sceneDepthPostprocess->context = context;
             sceneDepthPostprocess->size = size;
+            sceneDepthPostprocess->requestedSamples = requestedSamples;
             sceneDepthPostprocess->allocationAttempted = true;
             sceneDepthPostprocess->status = QStringLiteral("fallback-shader-unavailable");
             return false;
@@ -3664,7 +3782,7 @@ bool View3DInventorViewer::tryRenderSceneDepthPostprocess()
         );
     }
 
-    if (sceneDepthPostprocess->framebuffer == 0 || !sceneDepthPostprocess->program
+    if (sceneDepthPostprocess->resolveFramebuffer == 0 || !sceneDepthPostprocess->program
         || sceneDepthPostprocess->vertexArray == 0) {
         sceneDepthPostprocess->active = false;
         if (!sceneDepthPostprocess->status.startsWith(QStringLiteral("fallback-"))) {
@@ -3678,6 +3796,7 @@ bool View3DInventorViewer::tryRenderSceneDepthPostprocess()
     functions->glUseProgram(previousProgram);
     functions->glBindVertexArray(previousVertexArray);
     functions->glBindBuffer(GL_ARRAY_BUFFER, previousArrayBuffer);
+    functions->glBindRenderbuffer(GL_RENDERBUFFER, previousRenderbuffer);
     functions->glActiveTexture(GL_TEXTURE0);
     functions->glBindTexture(GL_TEXTURE_2D, previousTexture0);
     functions->glActiveTexture(GL_TEXTURE1);
@@ -3697,9 +3816,45 @@ bool View3DInventorViewer::tryRenderSceneDepthPostprocess()
                         : functions->glDisable(GL_SCISSOR_TEST);
     functions->glDisable(GL_FRAMEBUFFER_SRGB);
 
-    functions->glBindFramebuffer(GL_FRAMEBUFFER, sceneDepthPostprocess->framebuffer);
+    const bool multisampled = sceneDepthPostprocess->actualSamples > 1;
+    const GLuint renderFramebuffer = multisampled ? sceneDepthPostprocess->multisampleFramebuffer
+                                                  : sceneDepthPostprocess->resolveFramebuffer;
+    functions->glBindFramebuffer(GL_FRAMEBUFFER, renderFramebuffer);
     functions->glViewport(0, 0, width, height);
+    sceneDepthPostprocess->composingScene = true;
+    auto restoreComposingScene = qScopeGuard([this]() {
+        sceneDepthPostprocess->composingScene = false;
+    });
     renderScene();
+    sceneDepthPostprocess->composingScene = false;
+
+    if (multisampled) {
+        functions->glBindFramebuffer(GL_READ_FRAMEBUFFER, renderFramebuffer);
+        functions->glBindFramebuffer(GL_DRAW_FRAMEBUFFER, sceneDepthPostprocess->resolveFramebuffer);
+        while (functions->glGetError() != GL_NO_ERROR) {
+        }
+        functions->glBlitFramebuffer(
+            0,
+            0,
+            width,
+            height,
+            0,
+            0,
+            width,
+            height,
+            GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT,
+            GL_NEAREST
+        );
+        if (functions->glGetError() != GL_NO_ERROR) {
+            releaseSceneDepthPostprocessResources();
+            sceneDepthPostprocess->context = context;
+            sceneDepthPostprocess->size = size;
+            sceneDepthPostprocess->requestedSamples = requestedSamples;
+            sceneDepthPostprocess->allocationAttempted = true;
+            sceneDepthPostprocess->status = QStringLiteral("fallback-multisample-resolve-failed");
+            return false;
+        }
+    }
 
     functions->glBindFramebuffer(GL_FRAMEBUFFER, gl->defaultFramebufferObject());
     functions->glViewport(origin[0], origin[1], width, height);
@@ -3714,6 +3869,7 @@ bool View3DInventorViewer::tryRenderSceneDepthPostprocess()
         releaseSceneDepthPostprocessResources();
         sceneDepthPostprocess->context = context;
         sceneDepthPostprocess->size = size;
+        sceneDepthPostprocess->requestedSamples = requestedSamples;
         sceneDepthPostprocess->allocationAttempted = true;
         sceneDepthPostprocess->status = QStringLiteral("fallback-shader-bind-failed");
         return false;
@@ -3733,8 +3889,25 @@ bool View3DInventorViewer::tryRenderSceneDepthPostprocess()
     functions->glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
     sceneDepthPostprocess->program->release();
 
+    // Viewer decorations are screen-space UI, not model geometry. Render them
+    // after the depth-aware scene composite so their native colors and AA are
+    // unaffected by the experimental depth contrast.
+    restoreGlState();
+    if (shouldRenderDecorations(currentRenderIntent())) {
+        SoBoxSelectionRenderAction decorationAction(SbViewportRegion(width, height));
+        decorationAction.setCacheContext(getSoRenderManager()->getGLRenderAction()->getCacheContext());
+        SoState* state = decorationAction.getState();
+        SoDevicePixelRatioElement::set(state, devicePixelRatio());
+        SoGLWidgetElement::set(state, qobject_cast<QOpenGLWidget*>(getGLWidget()));
+        SoGLRenderActionElement::set(state, &decorationAction);
+        SoGLVBOActivatedElement::set(state, vboEnabled);
+        decorationAction.apply(this->decorationroot);
+    }
+
     sceneDepthPostprocess->active = true;
-    sceneDepthPostprocess->status = QStringLiteral("active-single-sample-depth24-linear");
+    sceneDepthPostprocess->status = sceneDepthPostprocess->actualSamples > 1
+        ? QStringLiteral("active-msaa-%1x-depth24-linear").arg(sceneDepthPostprocess->actualSamples)
+        : QStringLiteral("active-single-sample-depth24-linear");
     return true;
 }
 
@@ -4111,7 +4284,8 @@ void View3DInventorViewer::renderGLActionScene(const QColor& backgroundColor, So
     {
         ZoneScopedN("Foreground");
         glra->apply(this->foregroundroot);
-        if (shouldRenderDecorations(currentRenderIntent())) {
+        if (shouldRenderDecorations(currentRenderIntent())
+            && !(sceneDepthPostprocess && sceneDepthPostprocess->composingScene)) {
             glra->apply(this->decorationroot);
         }
     }

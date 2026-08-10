@@ -312,7 +312,10 @@ void ViewProviderPartExt::onChanged(const App::Property* prop)
     // https://forum.freecad.org/viewtopic.php?f=3&t=24912&p=195613
     if (prop == &Deviation) {
         lastRenderedShape = {};
-        if (isUpdateForced() || Visibility.getValue()) {
+        if (!isUpdatesEnabled()) {
+            VisualTouched = true;
+        }
+        else if (isUpdateForced() || Visibility.getValue()) {
             updateVisual();
         }
         else {
@@ -321,7 +324,10 @@ void ViewProviderPartExt::onChanged(const App::Property* prop)
     }
     if (prop == &AngularDeflection) {
         lastRenderedShape = {};
-        if (isUpdateForced() || Visibility.getValue()) {
+        if (!isUpdatesEnabled()) {
+            VisualTouched = true;
+        }
+        else if (isUpdateForced() || Visibility.getValue()) {
             updateVisual();
         }
         else {

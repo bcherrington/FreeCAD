@@ -32,6 +32,8 @@
 
 #include <Inventor/SbColor.h>
 #include <Inventor/SbVec3f.h>
+#include <Inventor/actions/SoGetPrimitiveCountAction.h>
+#include <Inventor/nodes/SoSeparator.h>
 #include <Inventor/nodes/SoDirectionalLight.h>
 #include <Inventor/nodes/SoEnvironment.h>
 #include <QCheckBox>
@@ -39,6 +41,7 @@
 #include <QComboBox>
 #include <QDockWidget>
 #include <QDoubleSpinBox>
+#include <QElapsedTimer>
 #include <QGridLayout>
 #include <QGroupBox>
 #include <QHideEvent>
@@ -65,6 +68,7 @@
 #include "DockWindowManager.h"
 #include "Document.h"
 #include "RenderingExperiments.h"
+#include "Selection/Selection.h"
 #include "View3DInventor.h"
 #include "View3DInventorViewer.h"
 #include "ViewProvider.h"
@@ -79,6 +83,8 @@ constexpr float MinimumDeviation = 0.001F;
 constexpr float MaximumDeviation = 5.0F;
 constexpr float DefaultCustomDeviation = 0.2F;
 constexpr float DefaultCustomAngularDegrees = 15.0F;
+constexpr double MinimumAngularDegrees = 1.0;
+constexpr double MaximumAngularDegrees = 90.0;
 
 constexpr int IntensityMinimumPercent = 10;
 constexpr int IntensityMaximumPercent = 200;
@@ -89,7 +95,7 @@ constexpr int SpecularMinimumPercent = 0;
 constexpr int SpecularMaximumPercent = 100;
 constexpr int DefaultSpecularPercent = 70;
 constexpr int DefaultShininessPercent = 90;
-constexpr int DefaultDepthPostprocessPercent = 35;
+constexpr int DefaultDepthPostprocessPercent = 15;
 constexpr int ApplyDebounceMilliseconds = 75;
 
 enum UpdateFlag : unsigned int
@@ -146,9 +152,17 @@ enum class LightingPreset : std::uint8_t
 enum class TessellationProfile : std::uint8_t
 {
     Native = 0,
-    Coarse = 1,
-    Fine = 2,
-    Custom = 3
+    Performance = 1,
+    Quality = 2,
+    HighQuality = 3,
+    Custom = 4
+};
+
+enum class TessellationScope : std::uint8_t
+{
+    Visible = 0,
+    Selected = 1,
+    All = 2
 };
 
 struct LightState
@@ -186,12 +200,21 @@ struct TessellationSnapshot
     double deviation {0.0};
     bool hasAngularDeflection {false};
     double angularDeflection {0.0};
+    int triangleCount {0};
 };
 
 struct TessellationTargets
 {
     App::PropertyFloat* deviation {nullptr};
     App::PropertyFloat* angularDeflection {nullptr};
+};
+
+struct TessellationResult
+{
+    int changedTargets {0};
+    int nativeTriangles {0};
+    int appliedTriangles {0};
+    qint64 elapsedMilliseconds {0};
 };
 
 LightState captureLightState(const SoDirectionalLight* light)
@@ -264,6 +287,17 @@ void requestProviderUpdate(Gui::ViewProvider* viewProvider)
     }
 }
 
+void requestTessellationUpdate(Gui::ViewProvider* viewProvider, App::DocumentObject* object)
+{
+    if (viewProvider && object) {
+        if (auto* shape = object->getPropertyByName("Shape")) {
+            viewProvider->update(shape);
+            return;
+        }
+    }
+    requestProviderUpdate(viewProvider);
+}
+
 template<typename Callback>
 void changeWithoutDocumentModification(App::Property* property, Callback&& callback)
 {
@@ -315,6 +349,7 @@ public:
 
     QCheckBox* tessellationEnabled {nullptr};
     QComboBox* tessellationProfile {nullptr};
+    QComboBox* tessellationScope {nullptr};
     QDoubleSpinBox* deviation {nullptr};
     QDoubleSpinBox* angularDeflection {nullptr};
     QCheckBox* depthPostprocessEnabled {nullptr};
@@ -337,6 +372,7 @@ public:
     bool materialsCaptured {false};
     bool tessellationCaptured {false};
     unsigned int pendingUpdates {0U};
+    std::optional<TessellationResult> tessellationResult;
 
     fastsignals::scoped_connection activeDocConnection;
     fastsignals::scoped_connection deleteDocConnection;
@@ -436,35 +472,44 @@ public:
         tessellationProfile = new QComboBox(tessellationBox);
         tessellationProfile->setObjectName(QStringLiteral("RenderingExperimentsTessellationProfile"));
         tessellationProfile->addItem(QObject::tr("Native"));
-        tessellationProfile->addItem(QObject::tr("Coarse"));
-        tessellationProfile->addItem(QObject::tr("Fine"));
+        tessellationProfile->addItem(QObject::tr("Performance (2x coarser)"));
+        tessellationProfile->addItem(QObject::tr("Quality (2x finer)"));
+        tessellationProfile->addItem(QObject::tr("High quality (5x finer)"));
         tessellationProfile->addItem(QObject::tr("Custom"));
         tessellationLayout->addWidget(new QLabel(QObject::tr("Profile"), tessellationBox), 1, 0);
         tessellationLayout->addWidget(tessellationProfile, 1, 1);
+
+        tessellationScope = new QComboBox(tessellationBox);
+        tessellationScope->setObjectName(QStringLiteral("RenderingExperimentsTessellationScope"));
+        tessellationScope->addItem(QObject::tr("Visible objects"));
+        tessellationScope->addItem(QObject::tr("Selected objects"));
+        tessellationScope->addItem(QObject::tr("All supported objects"));
+        tessellationLayout->addWidget(new QLabel(QObject::tr("Scope"), tessellationBox), 2, 0);
+        tessellationLayout->addWidget(tessellationScope, 2, 1);
 
         deviation = new QDoubleSpinBox(tessellationBox);
         deviation->setDecimals(4);
         deviation->setRange(MinimumDeviation, MaximumDeviation);
         deviation->setSingleStep(0.01);
         deviation->setValue(DefaultCustomDeviation);
-        tessellationLayout->addWidget(new QLabel(QObject::tr("Deviation"), tessellationBox), 2, 0);
-        tessellationLayout->addWidget(deviation, 2, 1);
+        tessellationLayout->addWidget(new QLabel(QObject::tr("Deviation"), tessellationBox), 3, 0);
+        tessellationLayout->addWidget(deviation, 3, 1);
 
         angularDeflection = new QDoubleSpinBox(tessellationBox);
         angularDeflection->setDecimals(2);
-        angularDeflection->setRange(1.0, 90.0);
+        angularDeflection->setRange(MinimumAngularDegrees, MaximumAngularDegrees);
         angularDeflection->setSingleStep(1.0);
         angularDeflection->setSuffix(QObject::tr(" deg"));
         angularDeflection->setValue(DefaultCustomAngularDegrees);
         tessellationLayout
-            ->addWidget(new QLabel(QObject::tr("Angular deflection"), tessellationBox), 3, 0);
-        tessellationLayout->addWidget(angularDeflection, 3, 1);
+            ->addWidget(new QLabel(QObject::tr("Angular deflection"), tessellationBox), 4, 0);
+        tessellationLayout->addWidget(angularDeflection, 4, 1);
         outerLayout->addWidget(tessellationBox);
 
         auto* postprocessBox = new QGroupBox(QObject::tr("Scene-depth compositor"), self);
         auto* postprocessLayout = new QGridLayout(postprocessBox);
         depthPostprocessEnabled = new QCheckBox(
-            QObject::tr("Evaluate depth-aware contrast (single-sample)"),
+            QObject::tr("Evaluate depth-aware contrast (uses configured AA)"),
             postprocessBox
         );
         depthPostprocessEnabled->setObjectName(
@@ -589,6 +634,15 @@ public:
             updateControlStates();
             applyUpdates(UpdateTessellation);
         });
+        QObject::connect(tessellationScope, qOverload<int>(&QComboBox::currentIndexChanged), self, [this] {
+            if (tessellationCaptured) {
+                restoreTessellation();
+                capturedTessellation.clear();
+                tessellationCaptured = false;
+                tessellationResult.reset();
+            }
+            applyUpdates(UpdateTessellation);
+        });
         QObject::connect(deviation, qOverload<double>(&QDoubleSpinBox::valueChanged), self, [this] {
             scheduleUpdates(UpdateTessellation);
         });
@@ -641,6 +695,7 @@ public:
         tessellationEnabled->setEnabled(masterOn);
         const bool tessellationOn = masterOn && tessellationEnabled->isChecked();
         tessellationProfile->setEnabled(tessellationOn);
+        tessellationScope->setEnabled(tessellationOn);
         const bool customProfile = tessellationOn
             && static_cast<TessellationProfile>(tessellationProfile->currentIndex())
                 == TessellationProfile::Custom;
@@ -752,15 +807,59 @@ public:
         return targets;
     }
 
-    std::pair<double, double> currentTessellationValues() const
+    bool isTessellationTarget(App::DocumentObject* object, Gui::ViewProvider* viewProvider) const
     {
+        if (!object || !viewProvider) {
+            return false;
+        }
+
+        switch (static_cast<TessellationScope>(tessellationScope->currentIndex())) {
+            case TessellationScope::Visible:
+                return viewProvider->isShow();
+            case TessellationScope::Selected:
+                return Gui::Selection().isSelected(object, nullptr, Gui::ResolveMode::NoResolve);
+            case TessellationScope::All:
+                return true;
+        }
+        return false;
+    }
+
+    static int triangleCount(Gui::ViewProvider* viewProvider)
+    {
+        if (!viewProvider || !viewProvider->getRoot()) {
+            return 0;
+        }
+        SoGetPrimitiveCountAction action;
+        action.apply(viewProvider->getRoot());
+        return action.getTriangleCount();
+    }
+
+    std::pair<double, double> currentTessellationValues(const TessellationSnapshot& snapshot) const
+    {
+        const auto clampDeviation = [](double value) {
+            return std::clamp(value, double(MinimumDeviation), double(MaximumDeviation));
+        };
+        const auto clampAngular = [](double value) {
+            return std::clamp(value, MinimumAngularDegrees, MaximumAngularDegrees);
+        };
         switch (static_cast<TessellationProfile>(tessellationProfile->currentIndex())) {
             case TessellationProfile::Native:
-                return {0.0, 0.0};
-            case TessellationProfile::Coarse:
-                return {0.5, 28.0};
-            case TessellationProfile::Fine:
-                return {0.08, 6.0};
+                return {snapshot.deviation, snapshot.angularDeflection};
+            case TessellationProfile::Performance:
+                return {
+                    clampDeviation(snapshot.deviation * 2.0),
+                    clampAngular(snapshot.angularDeflection * 2.0)
+                };
+            case TessellationProfile::Quality:
+                return {
+                    clampDeviation(snapshot.deviation / 2.0),
+                    clampAngular(snapshot.angularDeflection / 2.0)
+                };
+            case TessellationProfile::HighQuality:
+                return {
+                    clampDeviation(snapshot.deviation / 5.0),
+                    clampAngular(snapshot.angularDeflection / 5.0)
+                };
             case TessellationProfile::Custom:
                 return {deviation->value(), angularDeflection->value()};
         }
@@ -822,7 +921,8 @@ public:
         for (auto* object : document->getObjects()) {
             auto* viewProvider = Gui::Application::Instance->getViewProvider(object);
             const TessellationTargets targets = getTessellationTargets(viewProvider);
-            if (!targets.deviation && !targets.angularDeflection) {
+            if ((!targets.deviation && !targets.angularDeflection)
+                || !isTessellationTarget(object, viewProvider)) {
                 continue;
             }
 
@@ -836,6 +936,7 @@ public:
                 snapshot.hasAngularDeflection = true;
                 snapshot.angularDeflection = targets.angularDeflection->getValue();
             }
+            snapshot.triangleCount = triangleCount(viewProvider);
             capturedTessellation.emplace(snapshot.objectName, std::move(snapshot));
         }
     }
@@ -846,6 +947,7 @@ public:
         capturedMaterials.clear();
         capturedTessellation.clear();
         capturedDepthPostprocess.reset();
+        tessellationResult.reset();
         materialsCaptured = false;
         tessellationCaptured = false;
         experimentsApplied = false;
@@ -913,6 +1015,42 @@ public:
         }
     }
 
+    bool setTessellationValues(
+        App::DocumentObject* object,
+        Gui::ViewProvider* viewProvider,
+        const TessellationTargets& targets,
+        const TessellationSnapshot& snapshot,
+        double deviationValue,
+        double angularValue
+    )
+    {
+        const bool changeDeviation = snapshot.hasDeviation && targets.deviation
+            && std::abs(targets.deviation->getValue() - deviationValue) > 1.0e-9;
+        const bool changeAngular = snapshot.hasAngularDeflection && targets.angularDeflection
+            && std::abs(targets.angularDeflection->getValue() - angularValue) > 1.0e-9;
+        if (!changeDeviation && !changeAngular) {
+            return false;
+        }
+
+        const bool updatesEnabled = viewProvider->isUpdatesEnabled();
+        viewProvider->setUpdatesEnabled(false);
+        if (changeDeviation) {
+            changeWithoutDocumentModification(targets.deviation, [&] {
+                targets.deviation->setValue(deviationValue);
+            });
+        }
+        if (changeAngular) {
+            changeWithoutDocumentModification(targets.angularDeflection, [&] {
+                targets.angularDeflection->setValue(angularValue);
+            });
+        }
+        viewProvider->setUpdatesEnabled(updatesEnabled);
+        if (updatesEnabled) {
+            requestTessellationUpdate(viewProvider, object);
+        }
+        return true;
+    }
+
     void restoreTessellation()
     {
         if (!document) {
@@ -925,18 +1063,16 @@ public:
                                         : nullptr;
             const TessellationTargets targets = getTessellationTargets(viewProvider);
 
-            if (snapshot.hasDeviation && targets.deviation) {
-                changeWithoutDocumentModification(targets.deviation, [&] {
-                    targets.deviation->setValue(snapshot.deviation);
-                });
-            }
-            if (snapshot.hasAngularDeflection && targets.angularDeflection) {
-                changeWithoutDocumentModification(targets.angularDeflection, [&] {
-                    targets.angularDeflection->setValue(snapshot.angularDeflection);
-                });
-            }
-            requestProviderUpdate(viewProvider);
+            setTessellationValues(
+                object,
+                viewProvider,
+                targets,
+                snapshot,
+                snapshot.deviation,
+                snapshot.angularDeflection
+            );
         }
+        tessellationResult.reset();
     }
 
     void restoreToCapturedState(bool keepCaptured)
@@ -1018,26 +1154,31 @@ public:
             return;
         }
 
-        const auto [deviationValue, angularValue] = currentTessellationValues();
+        TessellationResult result;
+        QElapsedTimer timer;
+        timer.start();
 
         for (const auto& [name, snapshot] : capturedTessellation) {
             auto* object = document->getObject(name.c_str());
             auto* viewProvider = object ? Gui::Application::Instance->getViewProvider(object)
                                         : nullptr;
             const TessellationTargets targets = getTessellationTargets(viewProvider);
-
-            if (snapshot.hasDeviation && targets.deviation) {
-                changeWithoutDocumentModification(targets.deviation, [&] {
-                    targets.deviation->setValue(deviationValue);
-                });
+            const auto [deviationValue, angularValue] = currentTessellationValues(snapshot);
+            if (
+                setTessellationValues(object, viewProvider, targets, snapshot, deviationValue, angularValue)
+            ) {
+                ++result.changedTargets;
             }
-            if (snapshot.hasAngularDeflection && targets.angularDeflection) {
-                changeWithoutDocumentModification(targets.angularDeflection, [&] {
-                    targets.angularDeflection->setValue(angularValue);
-                });
-            }
-            requestProviderUpdate(viewProvider);
+            result.nativeTriangles += snapshot.triangleCount;
         }
+        result.elapsedMilliseconds = timer.elapsed();
+        for (const auto& [name, snapshot] : capturedTessellation) {
+            auto* object = document->getObject(name.c_str());
+            auto* viewProvider = object ? Gui::Application::Instance->getViewProvider(object)
+                                        : nullptr;
+            result.appliedTriangles += triangleCount(viewProvider);
+        }
+        tessellationResult = result;
     }
 
     void applyDepthPostprocessOverride()
@@ -1207,12 +1348,26 @@ public:
             sections.append(QObject::tr("materials"));
         }
         if (tessellationEnabled->isChecked()) {
-            sections.append(QObject::tr("manual tessellation"));
+            if (tessellationResult.has_value()) {
+                sections.append(
+                    QObject::tr("tessellation: %1 changed in %2 ms, %3 to %4 triangles")
+                        .arg(tessellationResult->changedTargets)
+                        .arg(tessellationResult->elapsedMilliseconds)
+                        .arg(tessellationResult->nativeTriangles)
+                        .arg(tessellationResult->appliedTriangles)
+                );
+            }
+            else {
+                sections.append(QObject::tr("manual tessellation"));
+            }
         }
         if (depthPostprocessEnabled->isChecked()) {
             auto* viewer = currentViewer();
             if (viewer && viewer->isSceneDepthPostprocessActive()) {
-                sections.append(QObject::tr("scene-depth compositor active"));
+                sections.append(
+                    QObject::tr("scene-depth compositor active (%1)")
+                        .arg(viewer->sceneDepthPostprocessStatus())
+                );
             }
             else {
                 sections.append(

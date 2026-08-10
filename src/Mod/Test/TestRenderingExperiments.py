@@ -10,6 +10,8 @@ import zipfile
 
 import FreeCAD
 import FreeCADGui
+import Part
+from pivy import coin
 
 try:
     import shiboken6
@@ -62,8 +64,10 @@ class TestRenderingExperiments(unittest.TestCase):
         self._combo("RenderingExperimentsTessellationProfile").setCurrentIndex(2)
         self._flush_gui()
 
-        self.assertAlmostEqual(self.view_provider.Deviation, 0.08)
-        self.assertAlmostEqual(self.view_provider.AngularDeflection, 6.0)
+        quality_deviation = max(0.001, self.native_deviation / 2.0)
+        quality_angular = max(1.0, self.native_angular_deflection / 2.0)
+        self.assertAlmostEqual(self.view_provider.Deviation, quality_deviation)
+        self.assertAlmostEqual(self.view_provider.AngularDeflection, quality_angular)
         experimental_materials = self._material_state()
         self.assertEqual(
             [item[:2] for item in experimental_materials],
@@ -75,7 +79,7 @@ class TestRenderingExperiments(unittest.TestCase):
             path = f"{directory}/native-state.FCStd"
             self.doc.saveCopy(path)
             self._flush_gui()
-            self.assertAlmostEqual(self.view_provider.Deviation, 0.08)
+            self.assertAlmostEqual(self.view_provider.Deviation, quality_deviation)
             self.assertAlmostEqual(self._saved_deviation(path), self.native_deviation)
 
             saved_document = FreeCAD.openDocument(path)
@@ -88,7 +92,7 @@ class TestRenderingExperiments(unittest.TestCase):
             self._flush_gui()
             self._doc_names.remove(saved_document.Name)
             FreeCAD.closeDocument(saved_document.Name)
-            self.assertAlmostEqual(self.view_provider.Deviation, 0.08)
+            self.assertAlmostEqual(self.view_provider.Deviation, quality_deviation)
 
         native_button = self._button("RenderingExperimentsShowNative")
         native_button.pressed.emit()
@@ -96,7 +100,7 @@ class TestRenderingExperiments(unittest.TestCase):
         self.assertEqual(self.view_provider.Deviation, self.native_deviation)
         native_button.released.emit()
         self._flush_gui()
-        self.assertAlmostEqual(self.view_provider.Deviation, 0.08)
+        self.assertAlmostEqual(self.view_provider.Deviation, quality_deviation)
 
         other_document = FreeCAD.newDocument("RenderingExperimentsOtherDocument")
         FreeCADGui.setActiveDocument(other_document.Name)
@@ -104,7 +108,7 @@ class TestRenderingExperiments(unittest.TestCase):
         self.assertEqual(self.view_provider.Deviation, self.native_deviation)
         FreeCADGui.setActiveDocument(self.doc.Name)
         self._flush_gui()
-        self.assertAlmostEqual(self.view_provider.Deviation, 0.08)
+        self.assertAlmostEqual(self.view_provider.Deviation, quality_deviation)
         FreeCAD.closeDocument(other_document.Name)
 
         self._button("RenderingExperimentsReset").click()
@@ -128,7 +132,7 @@ class TestRenderingExperiments(unittest.TestCase):
         self._checkbox("RenderingExperimentsTessellationEnabled").setChecked(True)
         self._combo("RenderingExperimentsTessellationProfile").setCurrentIndex(1)
         self._flush_gui()
-        self.assertAlmostEqual(self.view_provider.Deviation, 0.5)
+        self.assertAlmostEqual(self.view_provider.Deviation, min(5.0, self.native_deviation * 2.0))
 
         self.dock.close()
         self._flush_gui()
@@ -142,7 +146,9 @@ class TestRenderingExperiments(unittest.TestCase):
         self._combo("RenderingExperimentsTessellationProfile").setCurrentIndex(2)
         self._flush_gui()
 
-        self.assertAlmostEqual(self.view_provider.Deviation, 0.08)
+        self.assertAlmostEqual(
+            self.view_provider.Deviation, max(0.001, self.native_deviation / 2.0)
+        )
 
         second_doc, second_gui_doc, _, second_view_provider = self._create_render_doc(
             "TestRenderingExperimentsSecond"
@@ -165,7 +171,43 @@ class TestRenderingExperiments(unittest.TestCase):
         self._flush_gui()
 
         self.assertEqual(self.view_provider.Deviation, self.native_deviation)
-        self.assertAlmostEqual(second_view_provider.Deviation, 0.5)
+        self.assertAlmostEqual(
+            second_view_provider.Deviation, min(5.0, second_native_deviation * 2.0)
+        )
+
+    def test_relative_tessellation_scope_changes_rounded_render_mesh_and_restores(self):
+        rounded = self.doc.addObject("Part::Feature", "RoundedTessellationWitness")
+        rounded.Shape = Part.makeSphere(10)
+        self.doc.recompute()
+        rounded_view = rounded.ViewObject
+        native_deviation = rounded_view.Deviation
+        native_angular = rounded_view.AngularDeflection
+        native_triangles = self._triangle_count(rounded_view)
+
+        FreeCADGui.Selection.clearSelection()
+        FreeCADGui.Selection.addSelection(rounded)
+        self._combo("RenderingExperimentsTessellationScope").setCurrentIndex(1)
+        self._checkbox("RenderingExperimentsEnabled").setChecked(True)
+        self._checkbox("RenderingExperimentsTessellationEnabled").setChecked(True)
+        self._combo("RenderingExperimentsTessellationProfile").setCurrentIndex(3)
+        self._flush_gui()
+
+        high_quality_triangles = self._triangle_count(rounded_view)
+        self.assertAlmostEqual(rounded_view.Deviation, max(0.001, native_deviation / 5.0))
+        self.assertAlmostEqual(rounded_view.AngularDeflection, max(1.0, native_angular / 5.0))
+        self.assertGreater(high_quality_triangles, native_triangles)
+        self.assertEqual(self.view_provider.Deviation, self.native_deviation)
+
+        status = self.dock.findChild(QtWidgets.QLabel, "RenderingExperimentsStatus")
+        self.assertIsNotNone(status)
+        self.assertRegex(status.text(), r"tessellation: 1 changed in \d+ ms")
+        self.assertIn(f"{native_triangles} to {high_quality_triangles} triangles", status.text())
+
+        self._button("RenderingExperimentsReset").click()
+        self._flush_gui()
+        self.assertEqual(rounded_view.Deviation, native_deviation)
+        self.assertEqual(rounded_view.AngularDeflection, native_angular)
+        self.assertEqual(self._triangle_count(rounded_view), native_triangles)
 
     def test_continuous_controls_are_debounced_and_domain_isolated(self):
         self._checkbox("RenderingExperimentsEnabled").setChecked(True)
@@ -205,6 +247,11 @@ class TestRenderingExperiments(unittest.TestCase):
         self.assertEqual(self._material_state(), self.native_materials)
 
     def test_scene_depth_compositor_uses_live_view_and_restores_native(self):
+        view_preferences = FreeCAD.ParamGet("User parameter:BaseApp/Preferences/View")
+        native_anti_aliasing = view_preferences.GetInt("AntiAliasing", 0)
+        self.addCleanup(view_preferences.SetInt, "AntiAliasing", native_anti_aliasing)
+        view_preferences.SetInt("AntiAliasing", 4)  # Gui::AntiAliasing::MSAA8x
+
         gl_widgets = [
             widget
             for widget in FreeCADGui.getMainWindow().findChildren(QtWidgets.QWidget)
@@ -229,6 +276,7 @@ class TestRenderingExperiments(unittest.TestCase):
         selected_before = [item.ObjectName for item in FreeCADGui.Selection.getSelectionEx()]
 
         self._checkbox("RenderingExperimentsEnabled").setChecked(True)
+        self.assertEqual(self._slider("RenderingExperimentsDepthPostprocessStrength").value(), 15)
         self._checkbox("RenderingExperimentsDepthPostprocessEnabled").setChecked(True)
         self._flush_gui()
         QtTest.QTest.qWait(100)
@@ -239,6 +287,7 @@ class TestRenderingExperiments(unittest.TestCase):
         status = self.dock.findChild(QtWidgets.QLabel, "RenderingExperimentsStatus")
         self.assertIsNotNone(status)
         self.assertIn("scene-depth compositor active", status.text())
+        self.assertRegex(status.text(), r"active-msaa-(8|6|4|2)x-depth24-linear")
         experimental_delta = min(
             self._pixel_difference_count(experimental, native),
             self._pixel_difference_count(experimental, native_second),
@@ -262,6 +311,15 @@ class TestRenderingExperiments(unittest.TestCase):
         self.assertEqual(
             [item.ObjectName for item in FreeCADGui.Selection.getSelectionEx()], selected_before
         )
+
+        view_preferences.SetInt("AntiAliasing", 0)
+        self._checkbox("RenderingExperimentsDepthPostprocessEnabled").setChecked(True)
+        self._flush_gui()
+        QtTest.QTest.qWait(100)
+        self._framebuffer_bytes(gl_widget)
+        self._flush_gui()
+        self.assertIn("active-single-sample-depth24-linear", status.text())
+        self._checkbox("RenderingExperimentsDepthPostprocessEnabled").setChecked(False)
 
     def _checkbox(self, name):
         widget = self.dock.findChild(QtWidgets.QCheckBox, name)
@@ -304,6 +362,12 @@ class TestRenderingExperiments(unittest.TestCase):
     @staticmethod
     def _pixel_difference_count(left, right):
         return sum(left_value != right_value for left_value, right_value in zip(left, right))
+
+    @staticmethod
+    def _triangle_count(view_provider):
+        action = coin.SoGetPrimitiveCountAction()
+        action.apply(view_provider.RootNode)
+        return action.getTriangleCount()
 
     def _assert_material_states_almost_equal(self, actual, expected):
         self.assertEqual(len(actual), len(expected))
