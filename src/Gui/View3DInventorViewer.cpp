@@ -213,6 +213,7 @@ public:
     int requestedSamples = 0;
     int actualSamples = 0;
     quint64 allocations = 0;
+    quint64 renderAttempts = 0;
     bool requested = false;
     bool active = false;
     bool allocationAttempted = false;
@@ -2508,6 +2509,10 @@ void View3DInventorViewer::configureDepthAwareContrast(bool enabled, int strengt
 
     setProperty("depthAwareContrastStatus", depthAwareContrast->status);
     setProperty("depthAwareContrastStrength", strengthPercent);
+    if (!enabled) {
+        setProperty("depthAwareContrastRequestedSamples", 0);
+        setProperty("depthAwareContrastActualSamples", 0);
+    }
     redraw();
 }
 
@@ -3380,6 +3385,12 @@ bool View3DInventorViewer::tryRenderDepthAwareContrast()
         return false;
     }
 
+    ++depthAwareContrast->renderAttempts;
+    setProperty(
+        "depthAwareContrastRenderAttempts",
+        QVariant::fromValue(depthAwareContrast->renderAttempts)
+    );
+
     const SbViewportRegion region = getSoRenderManager()->getViewportRegion();
     const SbVec2s origin = region.getViewportOriginPixels();
     const SbVec2s viewportSize = region.getViewportSizePixels();
@@ -3389,6 +3400,15 @@ bool View3DInventorViewer::tryRenderDepthAwareContrast()
         depthAwareContrast->active = false;
         depthAwareContrast->status = std::move(status);
         setProperty("depthAwareContrastStatus", depthAwareContrast->status);
+        setProperty(
+            "depthAwareContrastRequestedSamples",
+            Multisample::toSamples(Multisample::readMSAAFromSettings())
+        );
+        setProperty("depthAwareContrastActualSamples", 0);
+        setProperty(
+            "depthAwareContrastAllocations",
+            QVariant::fromValue(depthAwareContrast->allocations)
+        );
         return false;
     };
     if (width <= 0 || height <= 0) {
@@ -3493,6 +3513,10 @@ bool View3DInventorViewer::tryRenderDepthAwareContrast()
     if (!depthAwareContrast->allocationAttempted) {
         depthAwareContrast->allocationAttempted = true;
         ++depthAwareContrast->allocations;
+        setProperty(
+            "depthAwareContrastAllocations",
+            QVariant::fromValue(depthAwareContrast->allocations)
+        );
 
         functions->glGenTextures(1, &depthAwareContrast->colorTexture);
         functions->glBindTexture(GL_TEXTURE_2D, depthAwareContrast->colorTexture);
