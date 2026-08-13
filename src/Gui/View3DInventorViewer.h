@@ -201,6 +201,17 @@ public:
 
     SoEnvironment* getEnvironment() const;
 
+    enum class DepthPrecisionEvaluationMode
+    {
+        Native,
+        Conservative,
+        Aggressive
+    };
+
+    void setDepthPrecisionEvaluationMode(DepthPrecisionEvaluationMode mode);
+    DepthPrecisionEvaluationMode depthPrecisionEvaluationMode() const;
+    QString depthPrecisionEvaluationStatus() const;
+
     void setSceneDepthPostprocessEnabled(bool enabled);
     bool isSceneDepthPostprocessEnabled() const;
     bool isSceneDepthPostprocessActive() const;
@@ -632,6 +643,7 @@ private:
     class ScopedRenderIntent;
     class LiveSceneAaState;
     class SceneDepthPostprocessState;
+    class DepthPrecisionEvaluationState;
     static void selectCB(void* viewer, SoPath* path);
     // A small intent stack lets nested export/capture code paths temporarily
     // override the default live-view traversal behavior.
@@ -652,6 +664,8 @@ private:
     bool renderToFramebuffer(QOpenGLFramebufferObject*, bool includeViewerLighting = true);
     bool tryRenderSceneDepthPostprocess();
     void releaseSceneDepthPostprocessResources();
+    void updateDepthPrecisionEvaluation();
+    void restoreDepthPrecisionNativePolicy();
     bool tryRenderLiveSceneAa();
     void releaseLiveSceneAaResources();
     void setCursorRepresentation(int mode);
@@ -702,6 +716,7 @@ private:
     QOpenGLFramebufferObject* framebuffer;
     std::unique_ptr<LiveSceneAaState> liveSceneAa;
     std::unique_ptr<SceneDepthPostprocessState> sceneDepthPostprocess;
+    std::unique_ptr<DepthPrecisionEvaluationState> depthPrecisionEvaluation;
     QImage glImage;
     bool shading;
     SoSwitch* dimensionRoot;

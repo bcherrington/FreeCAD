@@ -27,6 +27,7 @@
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
+#include <limits>
 
 #include <Inventor/SoFCPlacementIndicatorKit.h>
 
@@ -92,6 +93,7 @@
 #include <Inventor/nodes/SoTexture2.h>
 #include <Inventor/nodes/SoTextureCoordinate2.h>
 #include <Inventor/nodes/SoVertexProperty.h>
+#include <Inventor/sensors/SoNodeSensor.h>
 #include <QBitmap>
 #include <QElapsedTimer>
 #include <QEventLoop>
@@ -234,9 +236,51 @@ public:
     bool composingScene = false;
 };
 
+class View3DInventorViewer::DepthPrecisionEvaluationState
+{
+public:
+    static void invalidateBounds(void* data, SoSensor*)
+    {
+        static_cast<DepthPrecisionEvaluationState*>(data)->boundsDirty = true;
+    }
+
+    void attachBoundsSource(SoNode* node)
+    {
+        boundsSensor = std::make_unique<SoNodeSensor>(invalidateBounds, this);
+        boundsSensor->attach(node);
+        boundsDirty = true;
+    }
+
+    DepthPrecisionEvaluationMode mode = DepthPrecisionEvaluationMode::Native;
+    SoRenderManager::AutoClippingStrategy nativeStrategy = SoRenderManager::VARIABLE_NEAR_PLANE;
+    float nativeNearPlaneValue = 0.0F;
+    float nativeNearDistance = 0.0F;
+    float nativeFarDistance = 0.0F;
+    std::unique_ptr<SoNodeSensor> boundsSensor;
+    SbBox3f bounds;
+    bool boundsDirty = true;
+    bool captured = false;
+    QString status = QStringLiteral(
+        "mode=native policy=variable-near-plane clipping-risk=native-managed"
+    );
+};
+
 namespace
 {
 constexpr qint64 DimensionPaneUpdateIntervalMs = 100;
+
+QString autoClippingPolicyName(SoRenderManager::AutoClippingStrategy strategy)
+{
+    switch (strategy) {
+        case SoRenderManager::NO_AUTO_CLIPPING:
+            return QStringLiteral("none");
+        case SoRenderManager::FIXED_NEAR_PLANE:
+            return QStringLiteral("fixed-near-plane");
+        case SoRenderManager::VARIABLE_NEAR_PLANE:
+            return QStringLiteral("variable-near-plane");
+    }
+    return QStringLiteral("unknown");
+}
 
 constexpr const char* sceneDepthVertexShader = R"(
 #version 150
@@ -1163,6 +1207,7 @@ void View3DInventorViewer::init()
     fpsEnabled = false;
     vboEnabled = false;
     sceneDepthPostprocess = std::make_unique<SceneDepthPostprocessState>();
+    depthPrecisionEvaluation = std::make_unique<DepthPrecisionEvaluationState>();
 
     const LiveSceneAaActivation activation = liveSceneAaActivation();
     if (activation != LiveSceneAaActivation::Disabled) {
@@ -1362,6 +1407,7 @@ void View3DInventorViewer::init()
     objectGroup->ref();
     objectGroup->setName("ObjectGroup");
     pcViewProviderRoot->addChild(objectGroup);
+    depthPrecisionEvaluation->attachBoundsSource(objectGroup);
 
     // Set our own render action which show a bounding box if
     // the SoFCSelection::BOX style is set
@@ -1450,6 +1496,8 @@ void View3DInventorViewer::init()
 
 View3DInventorViewer::~View3DInventorViewer()
 {
+    restoreDepthPrecisionNativePolicy();
+    depthPrecisionEvaluation.reset();
     rubberbandOverlayRenderer.reset();
 
     // to prevent following OpenGL error message: "Texture is not valid in the current context.
@@ -2580,6 +2628,175 @@ float View3DInventorViewer::sceneDepthPostprocessStrength() const
 QString View3DInventorViewer::sceneDepthPostprocessStatus() const
 {
     return sceneDepthPostprocess ? sceneDepthPostprocess->status : QStringLiteral("unavailable");
+}
+
+void View3DInventorViewer::setDepthPrecisionEvaluationMode(DepthPrecisionEvaluationMode mode)
+{
+    if (!depthPrecisionEvaluation || depthPrecisionEvaluation->mode == mode) {
+        return;
+    }
+
+    auto* manager = getSoRenderManager();
+    SoCamera* camera = manager ? manager->getCamera() : nullptr;
+    if (mode != DepthPrecisionEvaluationMode::Native && !depthPrecisionEvaluation->captured
+        && manager && camera) {
+        depthPrecisionEvaluation->nativeStrategy = manager->getAutoClipping();
+        depthPrecisionEvaluation->nativeNearPlaneValue = manager->getNearPlaneValue();
+        depthPrecisionEvaluation->nativeNearDistance = camera->nearDistance.getValue();
+        depthPrecisionEvaluation->nativeFarDistance = camera->farDistance.getValue();
+        depthPrecisionEvaluation->captured = true;
+        depthPrecisionEvaluation->boundsDirty = true;
+    }
+
+    depthPrecisionEvaluation->mode = mode;
+    if (mode == DepthPrecisionEvaluationMode::Native) {
+        restoreDepthPrecisionNativePolicy();
+    }
+    redraw();
+}
+
+View3DInventorViewer::DepthPrecisionEvaluationMode View3DInventorViewer::depthPrecisionEvaluationMode() const
+{
+    return depthPrecisionEvaluation ? depthPrecisionEvaluation->mode
+                                    : DepthPrecisionEvaluationMode::Native;
+}
+
+QString View3DInventorViewer::depthPrecisionEvaluationStatus() const
+{
+    if (!depthPrecisionEvaluation) {
+        return QStringLiteral("mode=native policy=unavailable clipping-risk=unknown");
+    }
+    return depthPrecisionEvaluation->status;
+}
+
+void View3DInventorViewer::restoreDepthPrecisionNativePolicy()
+{
+    if (!depthPrecisionEvaluation) {
+        return;
+    }
+
+    auto* manager = getSoRenderManager();
+    SoCamera* camera = manager ? manager->getCamera() : nullptr;
+    if (depthPrecisionEvaluation->captured && manager && camera) {
+        manager->setAutoClipping(depthPrecisionEvaluation->nativeStrategy);
+        manager->setNearPlaneValue(depthPrecisionEvaluation->nativeNearPlaneValue);
+        camera->nearDistance = depthPrecisionEvaluation->nativeNearDistance;
+        camera->farDistance = depthPrecisionEvaluation->nativeFarDistance;
+    }
+
+    const auto strategy = manager ? manager->getAutoClipping() : SoRenderManager::VARIABLE_NEAR_PLANE;
+    const float nearDistance = camera ? camera->nearDistance.getValue() : 0.0F;
+    const float farDistance = camera ? camera->farDistance.getValue() : 0.0F;
+    depthPrecisionEvaluation->mode = DepthPrecisionEvaluationMode::Native;
+    depthPrecisionEvaluation->captured = false;
+    depthPrecisionEvaluation->status
+        = QStringLiteral("mode=native policy=%1 near=%2 far=%3 clipping-risk=native-managed")
+              .arg(autoClippingPolicyName(strategy))
+              .arg(nearDistance, 0, 'g', 7)
+              .arg(farDistance, 0, 'g', 7);
+}
+
+void View3DInventorViewer::updateDepthPrecisionEvaluation()
+{
+    if (!depthPrecisionEvaluation) {
+        return;
+    }
+
+    auto* manager = getSoRenderManager();
+    SoCamera* camera = manager ? manager->getCamera() : nullptr;
+    if (!manager || !camera) {
+        depthPrecisionEvaluation->status = QStringLiteral(
+            "mode=native policy=unavailable clipping-risk=unknown"
+        );
+        return;
+    }
+
+    if (depthPrecisionEvaluation->mode == DepthPrecisionEvaluationMode::Native) {
+        depthPrecisionEvaluation->status
+            = QStringLiteral("mode=native policy=%1 near=%2 far=%3 clipping-risk=native-managed")
+                  .arg(autoClippingPolicyName(manager->getAutoClipping()))
+                  .arg(camera->nearDistance.getValue(), 0, 'g', 7)
+                  .arg(camera->farDistance.getValue(), 0, 'g', 7);
+        return;
+    }
+
+    if (depthPrecisionEvaluation->boundsDirty) {
+        SoGetBoundingBoxAction boundsAction(manager->getViewportRegion());
+        boundsAction.apply(objectGroup);
+        depthPrecisionEvaluation->bounds = boundsAction.getBoundingBox();
+        depthPrecisionEvaluation->boundsDirty = false;
+    }
+    const SbBox3f& bounds = depthPrecisionEvaluation->bounds;
+    if (bounds.isEmpty()) {
+        manager->setAutoClipping(depthPrecisionEvaluation->nativeStrategy);
+        manager->setNearPlaneValue(depthPrecisionEvaluation->nativeNearPlaneValue);
+        camera->nearDistance = depthPrecisionEvaluation->nativeNearDistance;
+        camera->farDistance = depthPrecisionEvaluation->nativeFarDistance;
+        depthPrecisionEvaluation->status
+            = QStringLiteral("mode=%1 policy=fallback-native clipping-risk=empty-scene")
+                  .arg(
+                      depthPrecisionEvaluation->mode == DepthPrecisionEvaluationMode::Conservative
+                          ? QStringLiteral("conservative")
+                          : QStringLiteral("aggressive")
+                  );
+        return;
+    }
+
+    SbVec3f minimum;
+    SbVec3f maximum;
+    bounds.getBounds(minimum, maximum);
+    SbVec3f direction;
+    camera->orientation.getValue().multVec(SbVec3f(0.0F, 0.0F, -1.0F), direction);
+    const SbVec3f position = camera->position.getValue();
+
+    float sceneNear = std::numeric_limits<float>::max();
+    float sceneFar = std::numeric_limits<float>::lowest();
+    for (int x = 0; x < 2; ++x) {
+        for (int y = 0; y < 2; ++y) {
+            for (int z = 0; z < 2; ++z) {
+                const SbVec3f corner(
+                    x == 0 ? minimum[0] : maximum[0],
+                    y == 0 ? minimum[1] : maximum[1],
+                    z == 0 ? minimum[2] : maximum[2]
+                );
+                const float depth = (corner - position).dot(direction);
+                sceneNear = std::min(sceneNear, depth);
+                sceneFar = std::max(sceneFar, depth);
+            }
+        }
+    }
+
+    const float modelScale = std::max((maximum - minimum).length(), 1.0e-4F);
+    const bool aggressive = depthPrecisionEvaluation->mode
+        == DepthPrecisionEvaluationMode::Aggressive;
+    const float margin = modelScale * (aggressive ? 0.01F : 0.10F);
+    const bool perspective = camera->isOfType(SoPerspectiveCamera::getClassTypeId());
+    const float minimumPerspectiveNear = std::max(modelScale * 1.0e-6F, 1.0e-6F);
+    const float nearDistance = perspective ? std::max(sceneNear - margin, minimumPerspectiveNear)
+                                           : sceneNear - margin;
+    const float farDistance = std::max(sceneFar + margin, nearDistance + modelScale * 1.0e-6F);
+    const bool crossesCamera = perspective && sceneNear <= minimumPerspectiveNear;
+
+    manager->setAutoClipping(SoRenderManager::NO_AUTO_CLIPPING);
+    camera->nearDistance = nearDistance;
+    camera->farDistance = farDistance;
+
+    depthPrecisionEvaluation->status
+        = QStringLiteral(
+              "mode=%1 policy=fixed near=%2 far=%3 scene-near=%4 scene-far=%5 margin=%6 "
+              "clipping-risk=%7"
+        )
+              .arg(aggressive ? QStringLiteral("aggressive") : QStringLiteral("conservative"))
+              .arg(nearDistance, 0, 'g', 7)
+              .arg(farDistance, 0, 'g', 7)
+              .arg(sceneNear, 0, 'g', 7)
+              .arg(sceneFar, 0, 'g', 7)
+              .arg(margin, 0, 'g', 7)
+              .arg(
+                  crossesCamera    ? QStringLiteral("high-scene-crosses-camera")
+                      : aggressive ? QStringLiteral("elevated")
+                                   : QStringLiteral("low")
+              );
 }
 
 void View3DInventorViewer::setSceneGraph(SoNode* root)
@@ -4113,6 +4330,7 @@ bool View3DInventorViewer::tryRenderLiveSceneAa()
 
 void View3DInventorViewer::actualRedraw()
 {
+    updateDepthPrecisionEvaluation();
     switch (renderType) {
         case Native:
             if (!tryRenderSceneDepthPostprocess() && !tryRenderLiveSceneAa()) {

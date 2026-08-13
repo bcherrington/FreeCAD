@@ -107,7 +107,8 @@ enum UpdateFlag : unsigned int
     UpdateMaterials = 1U << 1,
     UpdateTessellation = 1U << 2,
     UpdatePostprocess = 1U << 3,
-    UpdateTopologyEdges = 1U << 4
+    UpdateTopologyEdges = 1U << 4,
+    UpdateDepthPrecision = 1U << 5
 };
 
 float clamp01(float value)
@@ -396,6 +397,8 @@ public:
     QCheckBox* depthPostprocessEnabled {nullptr};
     QSlider* depthPostprocessStrength {nullptr};
     QLabel* depthPostprocessStrengthValue {nullptr};
+    QComboBox* depthPrecisionMode {nullptr};
+    QLabel* depthPrecisionStatus {nullptr};
     QTimer* applyTimer {nullptr};
 
     std::optional<ViewerState> capturedViewerState;
@@ -592,6 +595,29 @@ public:
         postprocessLayout->addWidget(depthPostprocessStrengthValue, 1, 2);
         outerLayout->addWidget(postprocessBox);
 
+        auto* depthPrecisionBox = new QGroupBox(QObject::tr("Depth precision"), self);
+        auto* depthPrecisionLayout = new QGridLayout(depthPrecisionBox);
+        depthPrecisionMode = new QComboBox(depthPrecisionBox);
+        depthPrecisionMode->setObjectName(QStringLiteral("RenderingExperimentsDepthPrecisionMode"));
+        depthPrecisionMode->addItem(QObject::tr("Native"));
+        depthPrecisionMode->addItem(QObject::tr("Conservative"));
+        depthPrecisionMode->addItem(QObject::tr("Aggressive"));
+        depthPrecisionMode->setToolTip(
+            QObject::tr(
+                "Recomputes near/far clipping planes from live model bounds. Conservative uses "
+                "a wider safety margin; Aggressive prioritizes depth precision and reports the "
+                "higher clipping risk. Native restores FreeCAD's exact camera policy."
+            )
+        );
+        depthPrecisionLayout
+            ->addWidget(new QLabel(QObject::tr("Clipping policy"), depthPrecisionBox), 0, 0);
+        depthPrecisionLayout->addWidget(depthPrecisionMode, 0, 1);
+        depthPrecisionStatus = new QLabel(depthPrecisionBox);
+        depthPrecisionStatus->setObjectName(QStringLiteral("RenderingExperimentsDepthPrecisionStatus"));
+        depthPrecisionStatus->setWordWrap(true);
+        depthPrecisionLayout->addWidget(depthPrecisionStatus, 1, 0, 1, 2);
+        outerLayout->addWidget(depthPrecisionBox);
+
         statusLabel = new QLabel(self);
         statusLabel->setObjectName(QStringLiteral("RenderingExperimentsStatus"));
         statusLabel->setWordWrap(true);
@@ -720,6 +746,12 @@ public:
             updateValueLabels();
             scheduleUpdates(UpdatePostprocess);
         });
+        QObject::connect(
+            depthPrecisionMode,
+            qOverload<int>(&QComboBox::currentIndexChanged),
+            self,
+            [this] { applyUpdates(UpdateDepthPrecision); }
+        );
         QObject::connect(applyTimer, &QTimer::timeout, self, [this] {
             const unsigned int updates = std::exchange(pendingUpdates, 0U);
             applyUpdates(updates);
@@ -766,6 +798,7 @@ public:
 
         depthPostprocessEnabled->setEnabled(masterOn);
         depthPostprocessStrength->setEnabled(masterOn && depthPostprocessEnabled->isChecked());
+        depthPrecisionMode->setEnabled(masterOn);
     }
 
     LightingPresetState currentLightingPreset() const
@@ -1224,6 +1257,7 @@ public:
         restoreTessellation();
         restoreTopologyEdges();
         restoreDepthPostprocess();
+        restoreDepthPrecision();
 
         experimentsApplied = false;
         nativeHoldActive = false;
@@ -1334,6 +1368,34 @@ public:
         QTimer::singleShot(50, self, [this] { updateStatus(); });
     }
 
+    void restoreDepthPrecision()
+    {
+        if (auto* viewer = currentViewer()) {
+            viewer->setDepthPrecisionEvaluationMode(
+                Gui::View3DInventorViewer::DepthPrecisionEvaluationMode::Native
+            );
+        }
+    }
+
+    void applyDepthPrecisionOverride()
+    {
+        auto* viewer = currentViewer();
+        if (!viewer) {
+            return;
+        }
+
+        using Mode = Gui::View3DInventorViewer::DepthPrecisionEvaluationMode;
+        Mode mode = Mode::Native;
+        if (depthPrecisionMode->currentIndex() == 1) {
+            mode = Mode::Conservative;
+        }
+        else if (depthPrecisionMode->currentIndex() == 2) {
+            mode = Mode::Aggressive;
+        }
+        viewer->setDepthPrecisionEvaluationMode(mode);
+        QTimer::singleShot(50, self, [this] { updateStatus(); });
+    }
+
     void scheduleUpdates(unsigned int updates)
     {
         if (!masterEnabled->isChecked() || !documentActive || nativeHoldActive) {
@@ -1386,6 +1448,10 @@ public:
             applyDepthPostprocessOverride();
         }
 
+        if ((updates & UpdateDepthPrecision) != 0U) {
+            applyDepthPrecisionOverride();
+        }
+
         if ((updates & UpdateTopologyEdges) != 0U) {
             ensureTopologyEdgesCaptured();
             if (topologyEdgesEnabled->isChecked()) {
@@ -1416,7 +1482,7 @@ public:
         cancelPendingUpdates();
         applyUpdates(
             UpdateLighting | UpdateMaterials | UpdateTessellation | UpdatePostprocess
-            | UpdateTopologyEdges
+            | UpdateTopologyEdges | UpdateDepthPrecision
         );
     }
 
@@ -1448,6 +1514,13 @@ public:
 
     void updateStatus() const
     {
+        if (depthPrecisionStatus) {
+            auto* viewer = currentViewer();
+            depthPrecisionStatus->setText(
+                viewer ? QObject::tr("Clipping: %1").arg(viewer->depthPrecisionEvaluationStatus())
+                       : QObject::tr("Clipping: viewer unavailable")
+            );
+        }
         if (!view || !document) {
             statusLabel->setText(QObject::tr("Status: view or document is no longer available."));
             return;
@@ -1489,7 +1562,7 @@ public:
         }
 
         if (materialCount == 0 && tessellationCount == 0 && topologyEdgeCount == 0
-            && !depthPostprocessEnabled->isChecked()) {
+            && !depthPostprocessEnabled->isChecked() && depthPrecisionMode->currentIndex() == 0) {
             statusLabel->setText(
                 QObject::tr("Status: experiments applied, but no active supported objects were found.")
             );
@@ -1537,6 +1610,13 @@ public:
             sections.append(
                 QObject::tr("topology-preserving edges requested: %1 targets").arg(topologyEdgeCount)
             );
+        }
+        if (depthPrecisionMode->currentIndex() != 0) {
+            if (auto* viewer = currentViewer()) {
+                sections.append(
+                    QObject::tr("depth precision: %1").arg(viewer->depthPrecisionEvaluationStatus())
+                );
+            }
         }
 
         statusLabel->setText(

@@ -3,6 +3,7 @@
 """Focused contracts for the session-only rendering experiments panel."""
 
 from contextlib import suppress
+import re
 import tempfile
 import unittest
 import xml.etree.ElementTree as ElementTree
@@ -264,14 +265,7 @@ class TestRenderingExperiments(unittest.TestCase):
         self.addCleanup(view_preferences.SetInt, "AntiAliasing", native_anti_aliasing)
         view_preferences.SetInt("AntiAliasing", 4)  # Gui::AntiAliasing::MSAA8x
 
-        gl_widgets = [
-            widget
-            for widget in FreeCADGui.getMainWindow().findChildren(QtWidgets.QWidget)
-            if widget.inherits("QOpenGLWidget") and widget.isVisible()
-        ]
-        gl_widget = max(
-            gl_widgets, key=lambda widget: widget.width() * widget.height(), default=None
-        )
+        gl_widget = self._visible_gl_widget()
         self.assertIsNotNone(gl_widget)
         if shiboken6 is not None:
             gl_widget = shiboken6.wrapInstance(
@@ -332,6 +326,142 @@ class TestRenderingExperiments(unittest.TestCase):
         self._flush_gui()
         self.assertIn("active-single-sample-depth24-linear", status.text())
         self._checkbox("RenderingExperimentsDepthPostprocessEnabled").setChecked(False)
+
+    def test_rejected_hidden_line_evaluator_is_not_exposed(self):
+        edge_set = _find_coin_descendant(self.view_provider.RootNode, "SoBrepEdgeSet")
+        self.assertIsNotNone(edge_set)
+        self.assertIsNone(edge_set.getField("hiddenLineFaceDepthEvaluation"))
+        self.assertIsNone(
+            self.dock.findChild(QtWidgets.QCheckBox, "RenderingExperimentsHiddenLineEdgesEnabled")
+        )
+
+    def test_depth_precision_modes_report_bounds_preserve_view_and_restore_native(self):
+        mode = self._combo("RenderingExperimentsDepthPrecisionMode")
+        clipping_status = self.dock.findChild(
+            QtWidgets.QLabel, "RenderingExperimentsDepthPrecisionStatus"
+        )
+        self.assertIsNotNone(clipping_status)
+        self.assertEqual(mode.currentText(), "Native")
+        self.assertFalse(mode.isEnabled())
+        self.assertIn("mode=native", clipping_status.text())
+        native_camera_type = self.view.getCameraType()
+
+        camera = self.view.getCameraNode()
+        native_near_far = (
+            camera.nearDistance.getValue(),
+            camera.farDistance.getValue(),
+        )
+        native_pose = self._camera_pose_and_projection(camera)
+        FreeCADGui.Selection.clearSelection()
+        FreeCADGui.Selection.addSelection(self.feature, "Face1")
+        self._flush_gui()
+        selected_face = FreeCADGui.Selection.getSelectionEx()[0].SubElementNames
+        self.assertEqual(selected_face, ("Face1",))
+
+        self._checkbox("RenderingExperimentsEnabled").setChecked(True)
+        mode.setCurrentText("Conservative")
+        QtTest.QTest.qWait(75)
+        self._flush_gui()
+        conservative = self._depth_precision_status(clipping_status.text(), "conservative")
+        conservative_near_far = (
+            camera.nearDistance.getValue(),
+            camera.farDistance.getValue(),
+        )
+        self.assertAlmostEqual(conservative["near"], conservative_near_far[0], places=5)
+        self.assertAlmostEqual(conservative["far"], conservative_near_far[1], places=5)
+        self.assertLess(conservative["near"], 0.0)
+        self.assertLess(conservative["near"], conservative["scene_near"])
+        self.assertGreater(conservative["far"], conservative["scene_far"])
+        self.assertEqual(conservative["risk"], "low")
+        self.assertEqual(self._camera_pose_and_projection(camera), native_pose)
+        self.assertEqual(
+            FreeCADGui.Selection.getSelectionEx()[0].SubElementNames,
+            selected_face,
+        )
+
+        mode.setCurrentText("Aggressive")
+        QtTest.QTest.qWait(75)
+        self._flush_gui()
+        aggressive = self._depth_precision_status(clipping_status.text(), "aggressive")
+        self.assertEqual(aggressive["risk"], "elevated")
+        self.assertLess(aggressive["near"], aggressive["scene_near"])
+        self.assertGreater(aggressive["far"], aggressive["scene_far"])
+        self.assertGreater(aggressive["near"], conservative["near"])
+        self.assertLess(aggressive["far"], conservative["far"])
+        self.assertEqual(self._camera_pose_and_projection(camera), native_pose)
+        self.assertEqual(
+            FreeCADGui.Selection.getSelectionEx()[0].SubElementNames,
+            selected_face,
+        )
+
+        self._button("RenderingExperimentsReset").click()
+        QtTest.QTest.qWait(75)
+        self._flush_gui()
+        self.assertEqual(
+            (camera.nearDistance.getValue(), camera.farDistance.getValue()),
+            native_near_far,
+        )
+        self.assertIn("mode=native", clipping_status.text())
+        self.assertIn("policy=variable-near-plane", clipping_status.text())
+        self.assertEqual(self._camera_pose_and_projection(camera), native_pose)
+        self.assertEqual(
+            FreeCADGui.Selection.getSelectionEx()[0].SubElementNames,
+            selected_face,
+        )
+
+        self._checkbox("RenderingExperimentsEnabled").setChecked(True)
+        mode.setCurrentText("Aggressive")
+        QtTest.QTest.qWait(75)
+        self._flush_gui()
+        self._checkbox("RenderingExperimentsEnabled").setChecked(False)
+        QtTest.QTest.qWait(75)
+        self._flush_gui()
+        self.assertEqual(
+            (camera.nearDistance.getValue(), camera.farDistance.getValue()),
+            native_near_far,
+        )
+        self.assertIn("mode=native", clipping_status.text())
+
+        self.view.setCameraType("Perspective")
+        self.view.fitAll()
+        self._flush_gui()
+        perspective_camera = self.view.getCameraNode()
+        perspective_native_near_far = (
+            perspective_camera.nearDistance.getValue(),
+            perspective_camera.farDistance.getValue(),
+        )
+        self._checkbox("RenderingExperimentsEnabled").setChecked(True)
+        mode.setCurrentText("Conservative")
+        QtTest.QTest.qWait(75)
+        self._flush_gui()
+        perspective = self._depth_precision_status(clipping_status.text(), "conservative")
+        self.assertGreater(perspective["near"], 0.0)
+        self._button("RenderingExperimentsReset").click()
+        QtTest.QTest.qWait(75)
+        self._flush_gui()
+        self.assertEqual(
+            (
+                perspective_camera.nearDistance.getValue(),
+                perspective_camera.farDistance.getValue(),
+            ),
+            perspective_native_near_far,
+        )
+
+        self.feature.Visibility = False
+        self._flush_gui()
+        self._checkbox("RenderingExperimentsEnabled").setChecked(True)
+        mode.setCurrentText("Conservative")
+        QtTest.QTest.qWait(75)
+        self._flush_gui()
+        self.assertIn("mode=conservative", clipping_status.text())
+        self.assertIn("policy=fallback-native", clipping_status.text())
+        self.assertIn("clipping-risk=empty-scene", clipping_status.text())
+        self._button("RenderingExperimentsReset").click()
+        self.feature.Visibility = True
+        self.view.setCameraType(native_camera_type)
+        self.view.fitAll()
+        self._flush_gui()
+        self.assertIn("mode=native", clipping_status.text())
 
     def test_topology_edges_preserve_selection_pick_identity_and_restore_native(self):
         edge_set = _find_coin_descendant(self.view_provider.RootNode, "SoBrepEdgeSet")
@@ -434,6 +564,15 @@ class TestRenderingExperiments(unittest.TestCase):
         self.assertIsNotNone(widget)
         return widget
 
+    @staticmethod
+    def _visible_gl_widget():
+        gl_widgets = [
+            widget
+            for widget in FreeCADGui.getMainWindow().findChildren(QtWidgets.QWidget)
+            if widget.inherits("QOpenGLWidget") and widget.isVisible()
+        ]
+        return max(gl_widgets, key=lambda widget: widget.width() * widget.height(), default=None)
+
     def _combo(self, name):
         widget = self.dock.findChild(QtWidgets.QComboBox, name)
         self.assertIsNotNone(widget)
@@ -443,6 +582,40 @@ class TestRenderingExperiments(unittest.TestCase):
         widget = self.dock.findChild(QtWidgets.QSlider, name)
         self.assertIsNotNone(widget)
         return widget
+
+    @staticmethod
+    def _camera_pose_and_projection(camera):
+        projection = (
+            camera.height.getValue() if hasattr(camera, "height") else camera.heightAngle.getValue()
+        )
+        return (
+            camera.position.getValue().getValue(),
+            camera.orientation.getValue().getValue(),
+            camera.focalDistance.getValue(),
+            camera.aspectRatio.getValue(),
+            projection,
+        )
+
+    def _depth_precision_status(self, text, expected_mode):
+        match = re.search(
+            r"mode=(\w+) policy=fixed near=([^ ]+) far=([^ ]+) "
+            r"scene-near=([^ ]+) scene-far=([^ ]+) margin=([^ ]+) "
+            r"clipping-risk=([^ ]+)",
+            text,
+        )
+        self.assertIsNotNone(match, text)
+        self.assertEqual(match.group(1), expected_mode)
+        near = float(match.group(2))
+        far = float(match.group(3))
+        self.assertGreater(far, near)
+        return {
+            "near": near,
+            "far": far,
+            "scene_near": float(match.group(4)),
+            "scene_far": float(match.group(5)),
+            "margin": float(match.group(6)),
+            "risk": match.group(7),
+        }
 
     def _material_state(self, view_provider=None):
         view_provider = view_provider or self.view_provider
