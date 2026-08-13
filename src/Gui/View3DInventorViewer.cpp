@@ -101,11 +101,15 @@
 #include <QMessageBox>
 #include <QMimeData>
 #include <QOpenGLFramebufferObject>
+#include <QOpenGLContext>
+#include <QOpenGLExtraFunctions>
+#include <QOpenGLShaderProgram>
 #include <QOpenGLWidget>
 #include <QScopeGuard>
 #include <QSurfaceFormat>
 #include <QTimer>
 #include <QVariantAnimation>
+#include <QVector2D>
 #include <QWheelEvent>
 
 #include <App/Document.h>
@@ -190,9 +194,77 @@ private:
     View3DInventorViewer& viewer;
 };
 
+class View3DInventorViewer::DepthAwareContrastState
+{
+public:
+    QOpenGLContext* context = nullptr;
+    QSize size;
+    std::unique_ptr<QOpenGLShaderProgram> program;
+    GLuint resolveFramebuffer = 0;
+    GLuint multisampleFramebuffer = 0;
+    GLuint multisampleColorRenderbuffer = 0;
+    GLuint multisampleDepthRenderbuffer = 0;
+    GLuint colorTexture = 0;
+    GLuint depthTexture = 0;
+    GLuint vertexBuffer = 0;
+    GLuint vertexArray = 0;
+    QString status = QStringLiteral("disabled");
+    float strength = 0.15F;
+    int requestedSamples = 0;
+    int actualSamples = 0;
+    quint64 allocations = 0;
+    bool requested = false;
+    bool active = false;
+    bool allocationAttempted = false;
+};
+
 namespace
 {
 constexpr qint64 DimensionPaneUpdateIntervalMs = 100;
+
+constexpr const char* depthAwareContrastVertexShader = R"(
+#version 150
+in vec2 position;
+in vec2 textureCoordinate;
+out vec2 uv;
+void main()
+{
+    uv = textureCoordinate;
+    gl_Position = vec4(position, 0.0, 1.0);
+}
+)";
+
+constexpr const char* depthAwareContrastFragmentShader = R"(
+#version 150
+uniform sampler2D colorTexture;
+uniform sampler2D depthTexture;
+uniform vec2 texelSize;
+uniform float strength;
+in vec2 uv;
+out vec4 fragmentColor;
+void main()
+{
+    vec4 color = texture(colorTexture, uv);
+    float centerDepth = texture(depthTexture, uv).r;
+    if (centerDepth >= 0.999999 || strength <= 0.0) {
+        fragmentColor = color;
+        return;
+    }
+
+    float leftDepth = texture(depthTexture, uv - vec2(texelSize.x, 0.0)).r;
+    float rightDepth = texture(depthTexture, uv + vec2(texelSize.x, 0.0)).r;
+    float downDepth = texture(depthTexture, uv - vec2(0.0, texelSize.y)).r;
+    float upDepth = texture(depthTexture, uv + vec2(0.0, texelSize.y)).r;
+    float depthDelta = max(
+        max(abs(centerDepth - leftDepth), abs(centerDepth - rightDepth)),
+        max(abs(centerDepth - downDepth), abs(centerDepth - upDepth))
+    );
+    float edgeShade = smoothstep(0.00015, 0.0035, depthDelta);
+    float depthCue = sqrt(max(0.0, 1.0 - centerDepth));
+    float shade = clamp(strength * (0.18 * depthCue + 0.42 * edgeShade), 0.0, 0.45);
+    fragmentColor = vec4(color.rgb * (1.0 - shade), color.a);
+}
+)";
 
 struct DimensionPaneState
 {
@@ -1032,6 +1104,8 @@ View3DInventorViewer::View3DInventorViewer(
 
 void View3DInventorViewer::init()
 {
+    depthAwareContrast = std::make_unique<DepthAwareContrastState>();
+
     static bool _cacheModeInited;
     if (!_cacheModeInited) {
         _cacheModeInited = true;
@@ -1426,6 +1500,11 @@ void View3DInventorViewer::createStandardCursors()
 
 void View3DInventorViewer::aboutToDestroyGLContext()
 {
+    if (auto gl = qobject_cast<QOpenGLWidget*>(this->viewport())) {
+        gl->makeCurrent();
+    }
+    releaseDepthAwareContrastResources();
+
     if (naviCube) {
         if (auto gl = qobject_cast<QOpenGLWidget*>(this->viewport())) {
             gl->makeCurrent();
@@ -2400,6 +2479,38 @@ SoEnvironment* View3DInventorViewer::getEnvironment() const
     return this->environment;
 }
 
+void View3DInventorViewer::configureDepthAwareContrast(bool enabled, int strengthPercent)
+{
+    if (!depthAwareContrast) {
+        return;
+    }
+
+    const float strength = static_cast<float>(std::clamp(strengthPercent, 0, 100)) / 100.0F;
+    const bool changed = depthAwareContrast->requested != enabled
+        || depthAwareContrast->strength != strength;
+    if (!changed) {
+        return;
+    }
+
+    depthAwareContrast->requested = enabled;
+    depthAwareContrast->strength = strength;
+    depthAwareContrast->active = false;
+    depthAwareContrast->status = enabled ? QStringLiteral("requested") : QStringLiteral("disabled");
+    if (!enabled) {
+        if (auto* gl = qobject_cast<QOpenGLWidget*>(viewport())) {
+            gl->makeCurrent();
+        }
+        releaseDepthAwareContrastResources();
+        depthAwareContrast->requested = false;
+        depthAwareContrast->strength = strength;
+        depthAwareContrast->status = QStringLiteral("disabled");
+    }
+
+    setProperty("depthAwareContrastStatus", depthAwareContrast->status);
+    setProperty("depthAwareContrastStrength", strengthPercent);
+    redraw();
+}
+
 void View3DInventorViewer::setSceneGraph(SoNode* root)
 {
     inherited::setSceneGraph(root);
@@ -3197,7 +3308,9 @@ void View3DInventorViewer::actualRedraw()
 {
     switch (renderType) {
         case Native:
-            renderScene();
+            if (!tryRenderDepthAwareContrast()) {
+                renderScene();
+            }
             break;
         case Framebuffer:
             renderFramebuffer();
@@ -3206,6 +3319,430 @@ void View3DInventorViewer::actualRedraw()
             renderGLImage();
             break;
     }
+}
+
+void View3DInventorViewer::releaseDepthAwareContrastResources()
+{
+    if (!depthAwareContrast) {
+        return;
+    }
+
+    QOpenGLContext* context = QOpenGLContext::currentContext();
+    QOpenGLExtraFunctions* functions = context ? context->extraFunctions() : nullptr;
+    if (functions && depthAwareContrast->context == context) {
+        if (depthAwareContrast->vertexArray != 0) {
+            functions->glDeleteVertexArrays(1, &depthAwareContrast->vertexArray);
+        }
+        if (depthAwareContrast->vertexBuffer != 0) {
+            functions->glDeleteBuffers(1, &depthAwareContrast->vertexBuffer);
+        }
+        if (depthAwareContrast->resolveFramebuffer != 0) {
+            functions->glDeleteFramebuffers(1, &depthAwareContrast->resolveFramebuffer);
+        }
+        if (depthAwareContrast->multisampleFramebuffer != 0) {
+            functions->glDeleteFramebuffers(1, &depthAwareContrast->multisampleFramebuffer);
+        }
+        if (depthAwareContrast->multisampleColorRenderbuffer != 0) {
+            functions->glDeleteRenderbuffers(1, &depthAwareContrast->multisampleColorRenderbuffer);
+        }
+        if (depthAwareContrast->multisampleDepthRenderbuffer != 0) {
+            functions->glDeleteRenderbuffers(1, &depthAwareContrast->multisampleDepthRenderbuffer);
+        }
+        if (depthAwareContrast->colorTexture != 0) {
+            functions->glDeleteTextures(1, &depthAwareContrast->colorTexture);
+        }
+        if (depthAwareContrast->depthTexture != 0) {
+            functions->glDeleteTextures(1, &depthAwareContrast->depthTexture);
+        }
+    }
+
+    depthAwareContrast->program.reset();
+    depthAwareContrast->context = nullptr;
+    depthAwareContrast->size = {};
+    depthAwareContrast->resolveFramebuffer = 0;
+    depthAwareContrast->multisampleFramebuffer = 0;
+    depthAwareContrast->multisampleColorRenderbuffer = 0;
+    depthAwareContrast->multisampleDepthRenderbuffer = 0;
+    depthAwareContrast->colorTexture = 0;
+    depthAwareContrast->depthTexture = 0;
+    depthAwareContrast->vertexBuffer = 0;
+    depthAwareContrast->vertexArray = 0;
+    depthAwareContrast->requestedSamples = 0;
+    depthAwareContrast->actualSamples = 0;
+    depthAwareContrast->active = false;
+    depthAwareContrast->allocationAttempted = false;
+}
+
+bool View3DInventorViewer::tryRenderDepthAwareContrast()
+{
+    if (!depthAwareContrast || !depthAwareContrast->requested
+        || depthAwareContrast->strength <= 0.0F) {
+        return false;
+    }
+
+    const SbViewportRegion region = getSoRenderManager()->getViewportRegion();
+    const SbVec2s origin = region.getViewportOriginPixels();
+    const SbVec2s viewportSize = region.getViewportSizePixels();
+    const int width = viewportSize[0];
+    const int height = viewportSize[1];
+    auto fail = [this](QString status) {
+        depthAwareContrast->active = false;
+        depthAwareContrast->status = std::move(status);
+        setProperty("depthAwareContrastStatus", depthAwareContrast->status);
+        return false;
+    };
+    if (width <= 0 || height <= 0) {
+        return fail(QStringLiteral("fallback-empty-viewport"));
+    }
+
+    auto* widget = qobject_cast<QOpenGLWidget*>(viewport());
+    if (!widget || !widget->isValid()) {
+        return fail(QStringLiteral("fallback-invalid-widget"));
+    }
+    widget->makeCurrent();
+    QOpenGLContext* context = widget->context();
+    QOpenGLExtraFunctions* functions = context ? context->extraFunctions() : nullptr;
+    if (!context || !functions) {
+        return fail(QStringLiteral("fallback-invalid-context"));
+    }
+    functions->initializeOpenGLFunctions();
+    const QSurfaceFormat format = context->format();
+    if (format.majorVersion() < 3 || (format.majorVersion() == 3 && format.minorVersion() < 2)) {
+        return fail(QStringLiteral("fallback-opengl-3.2-required"));
+    }
+
+    GLint previousDrawFramebuffer = 0;
+    GLint previousReadFramebuffer = 0;
+    GLint previousViewport[4] = {0, 0, 0, 0};
+    GLint previousProgram = 0;
+    GLint previousVertexArray = 0;
+    GLint previousArrayBuffer = 0;
+    GLint previousRenderbuffer = 0;
+    GLint previousActiveTexture = GL_TEXTURE0;
+    GLint previousTexture0 = 0;
+    GLint previousTexture1 = 0;
+    GLboolean previousDepthMask = GL_TRUE;
+    GLboolean previousColorMask[4] = {GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE};
+    const bool previousDepthTest = functions->glIsEnabled(GL_DEPTH_TEST);
+    const bool previousBlend = functions->glIsEnabled(GL_BLEND);
+    const bool previousCullFace = functions->glIsEnabled(GL_CULL_FACE);
+    const bool previousScissorTest = functions->glIsEnabled(GL_SCISSOR_TEST);
+    const bool previousFramebufferSrgb = functions->glIsEnabled(GL_FRAMEBUFFER_SRGB);
+    functions->glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &previousDrawFramebuffer);
+    functions->glGetIntegerv(GL_READ_FRAMEBUFFER_BINDING, &previousReadFramebuffer);
+    functions->glGetIntegerv(GL_VIEWPORT, previousViewport);
+    functions->glGetIntegerv(GL_CURRENT_PROGRAM, &previousProgram);
+    functions->glGetIntegerv(GL_VERTEX_ARRAY_BINDING, &previousVertexArray);
+    functions->glGetIntegerv(GL_ARRAY_BUFFER_BINDING, &previousArrayBuffer);
+    functions->glGetIntegerv(GL_RENDERBUFFER_BINDING, &previousRenderbuffer);
+    functions->glGetIntegerv(GL_ACTIVE_TEXTURE, &previousActiveTexture);
+    functions->glGetBooleanv(GL_DEPTH_WRITEMASK, &previousDepthMask);
+    functions->glGetBooleanv(GL_COLOR_WRITEMASK, previousColorMask);
+    functions->glActiveTexture(GL_TEXTURE0);
+    functions->glGetIntegerv(GL_TEXTURE_BINDING_2D, &previousTexture0);
+    functions->glActiveTexture(GL_TEXTURE1);
+    functions->glGetIntegerv(GL_TEXTURE_BINDING_2D, &previousTexture1);
+    functions->glActiveTexture(previousActiveTexture);
+
+    auto restoreGlState = [&] {
+        functions->glBindFramebuffer(GL_DRAW_FRAMEBUFFER, previousDrawFramebuffer);
+        functions->glBindFramebuffer(GL_READ_FRAMEBUFFER, previousReadFramebuffer);
+        functions->glViewport(
+            previousViewport[0],
+            previousViewport[1],
+            previousViewport[2],
+            previousViewport[3]
+        );
+        functions->glUseProgram(previousProgram);
+        functions->glBindVertexArray(previousVertexArray);
+        functions->glBindBuffer(GL_ARRAY_BUFFER, previousArrayBuffer);
+        functions->glBindRenderbuffer(GL_RENDERBUFFER, previousRenderbuffer);
+        functions->glActiveTexture(GL_TEXTURE0);
+        functions->glBindTexture(GL_TEXTURE_2D, previousTexture0);
+        functions->glActiveTexture(GL_TEXTURE1);
+        functions->glBindTexture(GL_TEXTURE_2D, previousTexture1);
+        functions->glActiveTexture(previousActiveTexture);
+        functions->glDepthMask(previousDepthMask);
+        functions->glColorMask(
+            previousColorMask[0],
+            previousColorMask[1],
+            previousColorMask[2],
+            previousColorMask[3]
+        );
+        previousDepthTest ? functions->glEnable(GL_DEPTH_TEST) : functions->glDisable(GL_DEPTH_TEST);
+        previousBlend ? functions->glEnable(GL_BLEND) : functions->glDisable(GL_BLEND);
+        previousCullFace ? functions->glEnable(GL_CULL_FACE) : functions->glDisable(GL_CULL_FACE);
+        previousScissorTest ? functions->glEnable(GL_SCISSOR_TEST)
+                            : functions->glDisable(GL_SCISSOR_TEST);
+        previousFramebufferSrgb ? functions->glEnable(GL_FRAMEBUFFER_SRGB)
+                                : functions->glDisable(GL_FRAMEBUFFER_SRGB);
+    };
+    auto restoreState = qScopeGuard(restoreGlState);
+
+    const QSize size(width, height);
+    const int configuredSamples = Multisample::toSamples(Multisample::readMSAAFromSettings());
+    const int requestedSamples = std::max(1, configuredSamples);
+    if (depthAwareContrast->context != context || depthAwareContrast->size != size
+        || depthAwareContrast->requestedSamples != requestedSamples) {
+        releaseDepthAwareContrastResources();
+        depthAwareContrast->context = context;
+        depthAwareContrast->size = size;
+        depthAwareContrast->requestedSamples = requestedSamples;
+    }
+
+    if (!depthAwareContrast->allocationAttempted) {
+        depthAwareContrast->allocationAttempted = true;
+        ++depthAwareContrast->allocations;
+
+        functions->glGenTextures(1, &depthAwareContrast->colorTexture);
+        functions->glBindTexture(GL_TEXTURE_2D, depthAwareContrast->colorTexture);
+        functions->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        functions->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        functions->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        functions->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        functions
+            ->glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+
+        functions->glGenTextures(1, &depthAwareContrast->depthTexture);
+        functions->glBindTexture(GL_TEXTURE_2D, depthAwareContrast->depthTexture);
+        functions->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+        functions->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+        functions->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        functions->glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        functions->glTexImage2D(
+            GL_TEXTURE_2D,
+            0,
+            GL_DEPTH_COMPONENT24,
+            width,
+            height,
+            0,
+            GL_DEPTH_COMPONENT,
+            GL_UNSIGNED_INT,
+            nullptr
+        );
+
+        functions->glGenFramebuffers(1, &depthAwareContrast->resolveFramebuffer);
+        functions->glBindFramebuffer(GL_FRAMEBUFFER, depthAwareContrast->resolveFramebuffer);
+        functions->glFramebufferTexture2D(
+            GL_FRAMEBUFFER,
+            GL_COLOR_ATTACHMENT0,
+            GL_TEXTURE_2D,
+            depthAwareContrast->colorTexture,
+            0
+        );
+        functions->glFramebufferTexture2D(
+            GL_FRAMEBUFFER,
+            GL_DEPTH_ATTACHMENT,
+            GL_TEXTURE_2D,
+            depthAwareContrast->depthTexture,
+            0
+        );
+        if (functions->glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+            releaseDepthAwareContrastResources();
+            depthAwareContrast->context = context;
+            depthAwareContrast->size = size;
+            depthAwareContrast->requestedSamples = requestedSamples;
+            depthAwareContrast->allocationAttempted = true;
+            return fail(QStringLiteral("fallback-framebuffer-incomplete"));
+        }
+
+        depthAwareContrast->actualSamples = 1;
+        if (requestedSamples > 1) {
+            GLint maximumSamples = 1;
+            functions->glGetIntegerv(GL_MAX_SAMPLES, &maximumSamples);
+            const int cappedSamples = std::min(requestedSamples, maximumSamples);
+            constexpr std::array<int, 4> fallbackSamples = {8, 6, 4, 2};
+            functions->glGenFramebuffers(1, &depthAwareContrast->multisampleFramebuffer);
+            for (const int candidate : fallbackSamples) {
+                if (candidate > cappedSamples) {
+                    continue;
+                }
+                functions->glGenRenderbuffers(1, &depthAwareContrast->multisampleColorRenderbuffer);
+                functions->glBindRenderbuffer(
+                    GL_RENDERBUFFER,
+                    depthAwareContrast->multisampleColorRenderbuffer
+                );
+                functions->glRenderbufferStorageMultisample(
+                    GL_RENDERBUFFER,
+                    candidate,
+                    GL_RGBA8,
+                    width,
+                    height
+                );
+                functions->glGenRenderbuffers(1, &depthAwareContrast->multisampleDepthRenderbuffer);
+                functions->glBindRenderbuffer(
+                    GL_RENDERBUFFER,
+                    depthAwareContrast->multisampleDepthRenderbuffer
+                );
+                functions->glRenderbufferStorageMultisample(
+                    GL_RENDERBUFFER,
+                    candidate,
+                    GL_DEPTH_COMPONENT24,
+                    width,
+                    height
+                );
+                functions->glBindFramebuffer(GL_FRAMEBUFFER, depthAwareContrast->multisampleFramebuffer);
+                functions->glFramebufferRenderbuffer(
+                    GL_FRAMEBUFFER,
+                    GL_COLOR_ATTACHMENT0,
+                    GL_RENDERBUFFER,
+                    depthAwareContrast->multisampleColorRenderbuffer
+                );
+                functions->glFramebufferRenderbuffer(
+                    GL_FRAMEBUFFER,
+                    GL_DEPTH_ATTACHMENT,
+                    GL_RENDERBUFFER,
+                    depthAwareContrast->multisampleDepthRenderbuffer
+                );
+                if (functions->glCheckFramebufferStatus(GL_FRAMEBUFFER) == GL_FRAMEBUFFER_COMPLETE) {
+                    GLint actualSamples = 0;
+                    functions->glGetRenderbufferParameteriv(
+                        GL_RENDERBUFFER,
+                        GL_RENDERBUFFER_SAMPLES,
+                        &actualSamples
+                    );
+                    if (actualSamples > 1) {
+                        depthAwareContrast->actualSamples = actualSamples;
+                        break;
+                    }
+                }
+                functions->glDeleteRenderbuffers(1, &depthAwareContrast->multisampleColorRenderbuffer);
+                functions->glDeleteRenderbuffers(1, &depthAwareContrast->multisampleDepthRenderbuffer);
+                depthAwareContrast->multisampleColorRenderbuffer = 0;
+                depthAwareContrast->multisampleDepthRenderbuffer = 0;
+            }
+            if (depthAwareContrast->actualSamples == 1) {
+                functions->glDeleteFramebuffers(1, &depthAwareContrast->multisampleFramebuffer);
+                depthAwareContrast->multisampleFramebuffer = 0;
+            }
+        }
+
+        depthAwareContrast->program = std::make_unique<QOpenGLShaderProgram>();
+        depthAwareContrast->program->bindAttributeLocation("position", 0);
+        depthAwareContrast->program->bindAttributeLocation("textureCoordinate", 1);
+        if (!depthAwareContrast->program
+                 ->addShaderFromSourceCode(QOpenGLShader::Vertex, depthAwareContrastVertexShader)
+            || !depthAwareContrast->program->addShaderFromSourceCode(
+                QOpenGLShader::Fragment,
+                depthAwareContrastFragmentShader
+            )
+            || !depthAwareContrast->program->link()) {
+            releaseDepthAwareContrastResources();
+            depthAwareContrast->context = context;
+            depthAwareContrast->size = size;
+            depthAwareContrast->requestedSamples = requestedSamples;
+            depthAwareContrast->allocationAttempted = true;
+            return fail(QStringLiteral("fallback-shader-unavailable"));
+        }
+
+        constexpr std::array<float, 16> quadVertices
+            = {-1.0F, -1.0F, 0.0F, 0.0F, 1.0F, -1.0F, 1.0F, 0.0F, -1.0F, 1.0F, 0.0F, 1.0F, 1.0F, 1.0F, 1.0F, 1.0F};
+        functions->glGenVertexArrays(1, &depthAwareContrast->vertexArray);
+        functions->glBindVertexArray(depthAwareContrast->vertexArray);
+        functions->glGenBuffers(1, &depthAwareContrast->vertexBuffer);
+        functions->glBindBuffer(GL_ARRAY_BUFFER, depthAwareContrast->vertexBuffer);
+        functions->glBufferData(
+            GL_ARRAY_BUFFER,
+            static_cast<GLsizeiptr>(quadVertices.size() * sizeof(float)),
+            quadVertices.data(),
+            GL_STATIC_DRAW
+        );
+        functions->glEnableVertexAttribArray(0);
+        functions->glVertexAttribPointer(
+            0,
+            2,
+            GL_FLOAT,
+            GL_FALSE,
+            4 * static_cast<GLsizei>(sizeof(float)),
+            nullptr
+        );
+        functions->glEnableVertexAttribArray(1);
+        functions->glVertexAttribPointer(
+            1,
+            2,
+            GL_FLOAT,
+            GL_FALSE,
+            4 * static_cast<GLsizei>(sizeof(float)),
+            reinterpret_cast<const void*>(2 * sizeof(float))
+        );
+    }
+
+    if (depthAwareContrast->resolveFramebuffer == 0 || !depthAwareContrast->program
+        || depthAwareContrast->vertexArray == 0) {
+        return fail(QStringLiteral("fallback-resources-unavailable"));
+    }
+
+    restoreGlState();
+    functions->glDisable(GL_FRAMEBUFFER_SRGB);
+    const bool multisampled = depthAwareContrast->actualSamples > 1;
+    const GLuint renderFramebuffer = multisampled ? depthAwareContrast->multisampleFramebuffer
+                                                  : depthAwareContrast->resolveFramebuffer;
+    functions->glBindFramebuffer(GL_FRAMEBUFFER, renderFramebuffer);
+    functions->glViewport(0, 0, width, height);
+    {
+        ScopedRenderIntent documentIntent(*this, RenderIntent::LiveDocument);
+        renderScene();
+    }
+
+    if (multisampled) {
+        functions->glBindFramebuffer(GL_READ_FRAMEBUFFER, renderFramebuffer);
+        functions->glBindFramebuffer(GL_DRAW_FRAMEBUFFER, depthAwareContrast->resolveFramebuffer);
+        while (functions->glGetError() != GL_NO_ERROR) {
+        }
+        functions->glBlitFramebuffer(
+            0,
+            0,
+            width,
+            height,
+            0,
+            0,
+            width,
+            height,
+            GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT,
+            GL_NEAREST
+        );
+        if (functions->glGetError() != GL_NO_ERROR) {
+            return fail(QStringLiteral("fallback-multisample-resolve-failed"));
+        }
+    }
+
+    functions->glBindFramebuffer(GL_FRAMEBUFFER, widget->defaultFramebufferObject());
+    functions->glViewport(origin[0], origin[1], width, height);
+    functions->glDisable(GL_DEPTH_TEST);
+    functions->glDepthMask(GL_FALSE);
+    functions->glDisable(GL_BLEND);
+    functions->glDisable(GL_CULL_FACE);
+    functions->glDisable(GL_SCISSOR_TEST);
+    functions->glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+    if (!depthAwareContrast->program->bind()) {
+        return fail(QStringLiteral("fallback-shader-bind-failed"));
+    }
+    depthAwareContrast->program->setUniformValue("colorTexture", 0);
+    depthAwareContrast->program->setUniformValue("depthTexture", 1);
+    depthAwareContrast->program->setUniformValue(
+        "texelSize",
+        QVector2D(1.0F / static_cast<float>(width), 1.0F / static_cast<float>(height))
+    );
+    depthAwareContrast->program->setUniformValue("strength", depthAwareContrast->strength);
+    functions->glActiveTexture(GL_TEXTURE0);
+    functions->glBindTexture(GL_TEXTURE_2D, depthAwareContrast->colorTexture);
+    functions->glActiveTexture(GL_TEXTURE1);
+    functions->glBindTexture(GL_TEXTURE_2D, depthAwareContrast->depthTexture);
+    functions->glBindVertexArray(depthAwareContrast->vertexArray);
+    functions->glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+    depthAwareContrast->program->release();
+
+    restoreGlState();
+    renderLiveDecorations();
+    finalizeLiveFramebufferAlpha();
+    depthAwareContrast->active = true;
+    depthAwareContrast->status
+        = QStringLiteral("active-msaa-%1x-depth24").arg(depthAwareContrast->actualSamples);
+    setProperty("depthAwareContrastStatus", depthAwareContrast->status);
+    setProperty("depthAwareContrastRequestedSamples", configuredSamples);
+    setProperty("depthAwareContrastActualSamples", depthAwareContrast->actualSamples);
+    setProperty("depthAwareContrastAllocations", QVariant::fromValue(depthAwareContrast->allocations));
+    return true;
 }
 
 void View3DInventorViewer::renderFramebuffer()
@@ -3364,9 +3901,6 @@ void View3DInventorViewer::renderGLActionScene(const QColor& backgroundColor, So
     {
         ZoneScopedN("Foreground");
         glra->apply(this->foregroundroot);
-        if (shouldRenderDecorations(currentRenderIntent())) {
-            glra->apply(this->decorationroot);
-        }
     }
 }
 
@@ -3390,27 +3924,38 @@ void View3DInventorViewer::renderScene()
 
     this->renderGLActionScene(col, this->getSoRenderManager()->getGLRenderAction());
 
-    if (shouldRenderDecorations(currentRenderIntent()) && this->axiscrossEnabled) {
-        this->drawAxisCross();
-    }
-
     // Immediately reschedule to get continuous animation.
     if (this->isAnimating()) {
         this->getSoRenderManager()->scheduleRedraw();
     }
 
     if (shouldRenderDecorations(currentRenderIntent())) {
-        printDimension();
+        renderLiveDecorations();
+        finalizeLiveFramebufferAlpha();
+    }
+}
 
-        {
-            ZoneScopedN("Graphics items");
-            for (auto it : this->graphicsItems) {
-                it->paintGL();
-            }
-        }
+void View3DInventorViewer::renderLiveDecorations()
+{
+    SoGLRenderAction* action = getSoRenderManager()->getGLRenderAction();
+    action->apply(decorationroot);
+
+    if (axiscrossEnabled) {
+        drawAxisCross();
     }
 
+    printDimension();
+    {
+        ZoneScopedN("Graphics items");
+        for (auto it : graphicsItems) {
+            it->paintGL();
+        }
+    }
     renderRubberbandOverlay();
+}
+
+void View3DInventorViewer::finalizeLiveFramebufferAlpha()
+{
     // Workaround for inconsistent QT behavior related to handling custom OpenGL widgets that
     // leave non opaque alpha values in final output.
     // On wayland that can cause window to become transparent or blurry trail effect in the
