@@ -220,10 +220,41 @@ void ToolBar::updateCustomGripVisibility()
     }
 }
 
+void ToolBar::mousePressEvent(QMouseEvent* event)
+{
+    if (event->button() == Qt::LeftButton) {
+        movedByLeftButtonDrag = false;
+    }
+
+    QToolBar::mousePressEvent(event);
+}
+
+void ToolBar::mouseMoveEvent(QMouseEvent* event)
+{
+    if ((event->buttons() & Qt::LeftButton) != 0) {
+        movedByLeftButtonDrag = true;
+    }
+
+    QToolBar::mouseMoveEvent(event);
+}
+
+void ToolBar::mouseReleaseEvent(QMouseEvent* event)
+{
+    const bool moved = event->button() == Qt::LeftButton && movedByLeftButtonDrag;
+    movedByLeftButtonDrag = false;
+
+    QToolBar::mouseReleaseEvent(event);
+
+    if (moved) {
+        Q_EMIT movedByUser();
+    }
+}
+
 void Gui::ToolBar::setupConnections()
 {
     connect(this, &QToolBar::topLevelChanged, this, &ToolBar::updateCustomGripVisibility);
     connect(this, &QToolBar::movableChanged, this, &ToolBar::updateCustomGripVisibility);
+    connect(this, &ToolBar::movedByUser, []() { getMainWindow()->saveWindowSettings(true); });
 }
 
 // -----------------------------------------------------------
@@ -1152,8 +1183,6 @@ void ToolBarManager::onToggleStatusBarWidget(QWidget* widget, bool visible)
 
 bool ToolBarManager::eventFilter(QObject* source, QEvent* ev)
 {
-    static QPointer<QToolBar> movedToolBar;
-
     bool res = false;
     switch (ev->type()) {
         case QEvent::Show:
@@ -1165,13 +1194,6 @@ bool ToolBarManager::eventFilter(QObject* source, QEvent* ev)
                 }
             }
             break;
-        case QEvent::MouseButtonPress: {
-            auto mev = static_cast<QMouseEvent*>(ev);
-            if (mev->button() == Qt::LeftButton) {
-                movedToolBar.clear();
-            }
-            break;
-        }
         case QEvent::MouseButtonRelease: {
             auto mev = static_cast<QMouseEvent*>(ev);
             if (mev->button() == Qt::RightButton) {
@@ -1179,22 +1201,10 @@ bool ToolBarManager::eventFilter(QObject* source, QEvent* ev)
                     return true;
                 }
             }
-            if (mev->button() == Qt::LeftButton) {
-                auto toolbar = qobject_cast<QToolBar*>(source);
-                if (toolbar && movedToolBar == toolbar) {
-                    getMainWindow()->saveWindowSettings(true);
-                }
-                movedToolBar.clear();
-            }
         }
         // fall through
         case QEvent::MouseMove: {
             auto mev = static_cast<QMouseEvent*>(ev);
-            if ((mev->buttons() & Qt::LeftButton) != 0) {
-                if (auto toolbar = qobject_cast<QToolBar*>(source)) {
-                    movedToolBar = toolbar;
-                }
-            }
             res = addToolBarToArea(source, mev);
             break;
         }
