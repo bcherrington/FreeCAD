@@ -21,6 +21,8 @@
  ***************************************************************************/
 
 
+#include <algorithm>
+
 #include <Inventor/fields/SoSFColor.h>
 #include <Inventor/nodes/SoDirectionalLight.h>
 #include <Inventor/nodes/SoOrthographicCamera.h>
@@ -105,6 +107,7 @@ void View3DSettings::applySettings()
     OnChange(*hGrp, "DimensionsDeltaVisible");
     OnChange(*hGrp, "PickRadius");
     OnChange(*hGrp, "TransparentObjectRenderType");
+    OnChange(*hGrp, "DepthAwareContrast");
 
     auto lightSourcesGrp = hGrp->GetGroup("LightSources");
     OnChange(*lightSourcesGrp, "EnableHeadlight");
@@ -511,6 +514,17 @@ void View3DSettings::OnChange(ParameterGrp::SubjectType& rCaller, ParameterGrp::
                     );
                 }
             }
+        }
+    }
+    else if (
+        strcmp(Reason, "DepthAwareContrast") == 0 || strcmp(Reason, "DepthAwareContrastStrength") == 0
+    ) {
+        const bool enabled = rGrp.GetBool("DepthAwareContrast", false);
+        const int strength = static_cast<int>(
+            std::clamp(rGrp.GetInt("DepthAwareContrastStrength", 15L), 0L, 100L)
+        );
+        for (auto _viewer : _viewers) {
+            _viewer->configureDepthAwareContrast(enabled, strength);
         }
     }
     else {

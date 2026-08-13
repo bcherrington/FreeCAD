@@ -49,6 +49,7 @@ DlgSettings3DViewImp::DlgSettings3DViewImp(QWidget* parent)
 {
     ui->setupUi(this);
     addAntiAliasing();
+    ui->depthAwareContrastStrength->setEnabled(ui->checkDepthAwareContrast->isChecked());
 }
 
 DlgSettings3DViewImp::~DlgSettings3DViewImp() = default;
@@ -60,6 +61,8 @@ void DlgSettings3DViewImp::saveSettings()
     saveMarkerSize();
 
     ui->comboTransparentRender->onSave();
+    ui->checkDepthAwareContrast->onSave();
+    ui->depthAwareContrastStrength->onSave();
     ui->CheckBox_CornerCoordSystem->onSave();
     ui->SpinBox_CornerCoordSystemSize->onSave();
     ui->CheckBox_ShowAxisCross->onSave();
@@ -90,6 +93,8 @@ void DlgSettings3DViewImp::loadSettings()
     ui->radioPerspective->onRestore();
     ui->radioOrthographic->onRestore();
     ui->comboTransparentRender->onRestore();
+    ui->checkDepthAwareContrast->onRestore();
+    ui->depthAwareContrastStrength->onRestore();
     ui->xAxisColor->onRestore();
     ui->yAxisColor->onRestore();
     ui->zAxisColor->onRestore();

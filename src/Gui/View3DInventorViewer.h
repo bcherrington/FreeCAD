@@ -150,6 +150,8 @@ public:
     {
         /// Interactive viewport traversal including viewer decorations.
         LiveInteractive,
+        /// Interactive document traversal excluding viewer decorations and final-frame work.
+        LiveDocument,
         /// Fresh raster output excluding screen-only viewer decorations.
         RasterCapture,
         /// Vector output excluding screen-only viewer decorations.
@@ -623,6 +625,7 @@ private:
 
 private:
     class ScopedRenderIntent;
+    class DepthAwareContrastState;
     static void selectCB(void* viewer, SoPath* path);
     // A small intent stack lets nested export/capture code paths temporarily
     // override the default live-view traversal behavior.
@@ -640,6 +643,11 @@ private:
     void recoverFromRenderMemoryException();
     void renderDelayedAnnotations(SoGLRenderAction* glra);
     void renderGLActionScene(const QColor& backgroundColor, SoGLRenderAction* glra);
+    void renderLiveDecorations();
+    void finalizeLiveFramebufferAlpha();
+    void configureDepthAwareContrast(bool enabled, int strengthPercent);
+    bool tryRenderDepthAwareContrast();
+    void releaseDepthAwareContrastResources();
     bool renderToFramebuffer(QOpenGLFramebufferObject*, bool includeViewerLighting = true);
     void setCursorRepresentation(int mode);
     void aboutToDestroyGLContext();
@@ -711,6 +719,7 @@ private:
     // Screen-only viewer decorations such as the navicube are rendered only
     // when the active render intent allows them.
     mutable std::vector<RenderIntent> renderIntentOverrideStack;
+    std::unique_ptr<DepthAwareContrastState> depthAwareContrast;
 
     Base::Color m_xColor;
     Base::Color m_yColor;
@@ -741,6 +750,7 @@ private Q_SLOTS:
 
     // friends
     friend class NavigationStyle;
+    friend class View3DSettings;
     friend class GLPainter;
     friend class ViewerEventFilter;
 };
