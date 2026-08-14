@@ -43,6 +43,33 @@ using namespace App;
 using namespace Base;
 using namespace std;
 
+namespace {
+
+constexpr std::size_t includedFileBufferSize = 64 * 1024;
+
+}
+
+
+namespace
+{
+/**
+ * @brief Check that an embedded file name from a restored document is a plain basename.
+ *
+ * PropertyFileIncluded::Save() always stores basenames (via FileInfo::fileName()), so a
+ * document that carries a name with any directory component, an absolute path, or a
+ * <tt>.</tt>/<tt>..</tt> reference is malicious.
+ *
+ * @param[in] name The file name taken from the document XML.
+ * @return @c true if @p name is a safe basename, @c false if it must be rejected.
+ */
+bool isPlainFileName(const std::string& name)
+{
+    if (name == "." || name == "..") {
+        return false;
+    }
+    return Base::FileInfo(name).fileName() == name;
+}
+}  // namespace
 
 //**************************************************************************
 // PropertyFileIncluded
@@ -402,6 +429,10 @@ void PropertyFileIncluded::Restore(Base::XMLReader& reader)
     if (reader.hasAttribute("file")) {
         string file(reader.getAttribute<const char*>("file"));
         if (!file.empty()) {
+            if (!isPlainFileName(file)) {
+                throw Base::FileException(
+                    "PropertyFileIncluded::Restore(): rejected unsafe embedded file name");
+            }
             // initiate a file read
             reader.addFile(file.c_str(), this);
             // is in the document transient path
@@ -415,6 +446,10 @@ void PropertyFileIncluded::Restore(Base::XMLReader& reader)
     else if (reader.hasAttribute("data")) {
         string file(reader.getAttribute<const char*>("data"));
         if (!file.empty()) {
+            if (!isPlainFileName(file)) {
+                throw Base::FileException(
+                    "PropertyFileIncluded::Restore(): rejected unsafe embedded file name");
+            }
             // is in the document transient path
             aboutToSetValue();
             _cValue = getDocTransientPath() + "/" + file;
@@ -446,10 +481,26 @@ void PropertyFileIncluded::SaveDocFile(Base::Writer& writer) const
     }
 
     // copy plain data
-    unsigned char c;
+    std::array<char, includedFileBufferSize> buffer {};
     std::ostream& to = writer.Stream();
-    while (from.get((char&)c)) {
-        to.put((char)c);
+    while (from) {
+        from.read(buffer.data(), static_cast<std::streamsize>(buffer.size()));
+        const std::streamsize count = from.gcount();
+        if (count > 0) {
+            to.write(buffer.data(), count);
+            if (!to) {
+                std::stringstream str;
+                str << "PropertyFileIncluded::SaveDocFile(): "
+                    << "File '" << _cValue << "' in transient directory cannot be written.";
+                throw Base::FileSystemError(str.str());
+            }
+        }
+    }
+    if (from.bad()) {
+        std::stringstream str;
+        str << "PropertyFileIncluded::SaveDocFile(): "
+            << "File '" << _cValue << "' in transient directory cannot be read.";
+        throw Base::FileSystemError(str.str());
     }
 }
 
@@ -471,7 +522,7 @@ void PropertyFileIncluded::RestoreDocFile(Base::Reader& reader)
 
     // copy plain data
     aboutToSetValue();
-    std::array<char, 64 * 1024> buffer {};
+    std::array<char, includedFileBufferSize> buffer {};
     while (reader) {
         reader.read(buffer.data(), static_cast<std::streamsize>(buffer.size()));
         const std::streamsize count = reader.gcount();
@@ -484,6 +535,12 @@ void PropertyFileIncluded::RestoreDocFile(Base::Reader& reader)
                 throw Base::FileSystemError(str.str());
             }
         }
+    }
+    if (reader.bad()) {
+        std::stringstream str;
+        str << "PropertyFileIncluded::RestoreDocFile(): "
+            << "File '" << _cValue << "' in transient directory cannot be read.";
+        throw Base::FileSystemError(str.str());
     }
     to.close();
     if (!to) {

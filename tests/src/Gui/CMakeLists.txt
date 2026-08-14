@@ -8,6 +8,7 @@ add_executable(Gui_tests_run
         Assistant.cpp
         BitmapFactory.cpp
         Camera.cpp
+        ColorScaleOverlayTest.cpp
         FileDialog.cpp
         StyleParameters/StyleParametersApplicationTest.cpp
         StyleParameters/ParserTest.cpp
@@ -23,9 +24,7 @@ setup_qt_test(QuantitySpinBox)
 setup_qt_test(SelectionView)
 
 target_link_libraries(Gui_tests_run PRIVATE
-    GTest::gtest_main
     GTest::gmock_main
-    ${Google_Tests_LIBS}
     FreeCADApp
     FreeCADGui
 )

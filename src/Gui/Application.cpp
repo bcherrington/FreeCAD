@@ -27,7 +27,9 @@
 #include <Inventor/errors/SoError.h>
 #include <QCheckBox>
 #include <QCloseEvent>
+#include <QCoreApplication>
 #include <QDir>
+#include <QEvent>
 #include <QFileInfo>
 #include <QLocale>
 #include <QMessageBox>
@@ -35,6 +37,7 @@
 #include <QRegularExpression>
 #include <QRegularExpressionMatch>
 #include <QScreen>
+#include <QScopeGuard>
 #include <QStatusBar>
 #include <QStyle>
 #include <QSurfaceFormat>
@@ -91,9 +94,9 @@
 #include "LinkViewPy.h"
 #include "MainWindow.h"
 #include "Macro.h"
+#include "FreeCADGuiModulePy.h"
 #include "PreferencePackManager.h"
 #include "PythonConsolePy.h"
-#include "PythonDebugger.h"
 #include "MainWindowPy.h"
 #include "MDIViewPy.h"
 #include "MDIViewWithCamera.h"
@@ -101,7 +104,9 @@
 #include "SoFCDB.h"
 #include "Selection.h"
 #include "SelectionFilterPy.h"
+#include "SelectionModulePy.h"
 #include "SoQtOffscreenRendererPy.h"
+#include "SpaceMouseParameter.h"
 #include "SplitView3DInventor.h"
 #include "StartupProcess.h"
 #include "TaskView/TaskView.h"
@@ -270,7 +275,7 @@ struct ApplicationP
     std::bitset<32> StatusBits;
 };
 
-static PyObject* FreeCADGui_subgraphFromObject(PyObject* /*self*/, PyObject* args)
+PyObject* ApplicationPy::sSubgraphFromObject(PyObject* /*self*/, PyObject* args)
 {
     PyObject* o;
     if (!PyArg_ParseTuple(args, "O!", &(App::DocumentObjectPy::Type), &o)) {
@@ -334,7 +339,7 @@ static PyObject* FreeCADGui_subgraphFromObject(PyObject* /*self*/, PyObject* arg
     return Py_None;
 }
 
-static PyObject* FreeCADGui_exportSubgraph(PyObject* /*self*/, PyObject* args)
+PyObject* ApplicationPy::sExportSubgraph(PyObject* /*self*/, PyObject* args)
 {
     const char* format = "VRML";
     PyObject* proxy;
@@ -376,34 +381,13 @@ static PyObject* FreeCADGui_exportSubgraph(PyObject* /*self*/, PyObject* args)
     }
 }
 
-static PyObject* FreeCADGui_getSoDBVersion(PyObject* /*self*/, PyObject* args)
+PyObject* ApplicationPy::sGetSoDBVersion(PyObject* /*self*/, PyObject* args)
 {
     if (!PyArg_ParseTuple(args, "")) {
         return nullptr;
     }
     return PyUnicode_FromString(SoDB::getVersion());
 }
-
-struct PyMethodDef FreeCADGui_methods[] = {
-    {"subgraphFromObject",
-     FreeCADGui_subgraphFromObject,
-     METH_VARARGS,
-     "subgraphFromObject(object) -> Node\n\n"
-     "Return the Inventor subgraph to an object"},
-    {"exportSubgraph",
-     FreeCADGui_exportSubgraph,
-     METH_VARARGS,
-     "exportSubgraph(Node, File or Buffer, [Format='VRML']) -> None\n\n"
-     "Exports the sub-graph in the requested format"
-     "The format string can be VRML or IV"},
-    {"getSoDBVersion",
-     FreeCADGui_getSoDBVersion,
-     METH_VARARGS,
-     "getSoDBVersion() -> String\n\n"
-     "Return a text string containing the name\n"
-     "of the Coin library and version information"},
-    {nullptr, nullptr, 0, nullptr} /* sentinel */
-};
 
 class MainThreadInvoker final: public QObject
 {
@@ -583,17 +567,6 @@ Application::Application(bool GUIenabled)
         // setting up Python binding
         Base::PyGILStateLocker lock;
 
-        PyDoc_STRVAR(
-            FreeCADGui_doc,
-            "The functions in the FreeCADGui module allow working with GUI documents,\n"
-            "view providers, views, workbenches and much more.\n\n"
-            "The FreeCADGui instance provides a list of references of GUI documents which\n"
-            "can be addressed by a string. These documents contain the view providers for\n"
-            "objects in the associated App document. An App and GUI document can be\n"
-            "accessed with the same name.\n\n"
-            "The FreeCADGui module also provides a set of functions to work with so called\n"
-            "workbenches.");
-
         // if this returns a valid pointer then the 'FreeCADGui' Python module was loaded,
         // otherwise the executable was launched
         PyObject* modules = PyImport_GetModuleDict();
@@ -601,9 +574,9 @@ Application::Application(bool GUIenabled)
         if (!module) {
             static struct PyModuleDef FreeCADGuiModuleDef = {PyModuleDef_HEAD_INIT,
                                                              "FreeCADGui",
-                                                             FreeCADGui_doc,
+                                                             Gui::FreeCADGuiModulePy::moduleDocumentation(),
                                                              -1,
-                                                             ApplicationPy::Methods,
+                                                             Gui::FreeCADGuiModulePy::Methods,
                                                              nullptr,
                                                              nullptr,
                                                              nullptr,
@@ -612,9 +585,10 @@ Application::Application(bool GUIenabled)
 
             PyDict_SetItemString(modules, "FreeCADGui", module);
         }
-        else {
-            // extend the method list
-            PyModule_AddFunctions(module, ApplicationPy::Methods);
+        else if (Gui::FreeCADGuiModulePy::addModuleMethods(module) != 0) {
+            // FreeCADCmd can import a bootstrap-only FreeCADGui module before the GUI app exists;
+            // upgrade it to the full GUI surface now.
+            throw Py::Exception();
         }
         Py::Module(module).setAttr(std::string("ActiveDocument"), Py::None());
         Py::Module(module).setAttr(std::string("HasQtBug_129596"),
@@ -648,14 +622,15 @@ Application::Application(bool GUIenabled)
         // insert Selection module
         static struct PyModuleDef SelectionModuleDef = {PyModuleDef_HEAD_INIT,
                                                         "Selection",
-                                                        "Selection module",
+                                                        Gui::SelectionModulePy::moduleDocumentation(),
                                                         -1,
-                                                        SelectionSingleton::Methods,
+                                                        nullptr,
                                                         nullptr,
                                                         nullptr,
                                                         nullptr,
                                                         nullptr};
         PyObject* pSelectionModule = PyModule_Create(&SelectionModuleDef);
+        Gui::SelectionModulePy::addModuleMethods(pSelectionModule);
         Py_INCREF(pSelectionModule);
         PyModule_AddObject(module, "Selection", pSelectionModule);
 
@@ -706,19 +681,6 @@ Application::Application(bool GUIenabled)
 
     Base::PyGILStateLocker lock;
     PyObject* module = PyImport_AddModule("FreeCADGui");
-    PyMethodDef* meth = FreeCADGui_methods;
-    PyObject* dict = PyModule_GetDict(module);
-    for (; meth->ml_name; meth++) {
-        PyObject* descr;
-        descr = PyCFunction_NewEx(meth, nullptr, nullptr);
-        if (!descr) {
-            break;
-        }
-        if (PyDict_SetItemString(dict, meth->ml_name, descr) != 0) {
-            break;
-        }
-        Py_DECREF(descr);
-    }
 
     SoQtOffscreenRendererPy::init_type();
     Base::Interpreter().addType(SoQtOffscreenRendererPy::type_object(),
@@ -729,7 +691,6 @@ Application::Application(bool GUIenabled)
 
     // clang-format off
     // Python console binding
-    PythonDebugModule           ::init_module();
     PythonStdout                ::init_type();
     PythonStderr                ::init_type();
     OutputStdout                ::init_type();
@@ -2301,6 +2262,12 @@ void setCategoryFilterRules()
     stream.flush();
     QLoggingCategory::setFilterRules(filter);
 }
+
+bool isSuppressedQtWarning(const QMessageLogContext& context, const QString& msg)
+{
+    return context.category && strcmp(context.category, "qt.text.font.db") == 0
+        && msg.startsWith(QStringLiteral("OpenType support missing for "));
+}
 }  // namespace
 
 using _qt_msg_handler_old = void (*)(QtMsgType, const QMessageLogContext&, const QString&);
@@ -2308,6 +2275,10 @@ _qt_msg_handler_old old_qtmsg_handler = nullptr;
 
 void messageHandler(QtMsgType type, const QMessageLogContext& context, const QString& msg)
 {
+    if (type == QtWarningMsg && isSuppressedQtWarning(context, msg)) {
+        return;
+    }
+
     QByteArray output;
     if (context.category && strcmp(context.category, "default") != 0) {
         output.append('(');
@@ -2703,6 +2674,9 @@ void Application::runApplication()
     MainWindow mw;
     mw.setProperty("QuitOnClosed", true);
 
+    // Destroy deferred views while their GUI and Python owners are still alive.
+    auto shutdownGuard = qScopeGuard([&app]() { app.shutdown(); });
+
     // https://forum.freecad.org/viewtopic.php?f=3&t=15540
     // Needs to be set after app is created to override platform defaults (qt commit a2aa1f81a81)
     QApplication::setAttribute(Qt::AA_DontShowIconsInMenus, false);
@@ -2741,20 +2715,24 @@ void Application::runApplication()
     Base::Console().log("Finish: Event loop left\n");
 }
 
+void Application::shutdown()
+{
+    d->isClosing = true;
+    App::GetApplication().closeAllDocuments();
+    QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+}
+
 void Application::init3DMouse(MainWindow* mainWindow, QApplication* qtApp)
 {
     Instance->pNavlibInterface = nullptr;
 #ifdef USE_3DCONNEXION_NAVLIB
-    ParameterGrp::handle hViewGrp = App::GetApplication().GetParameterGroupByPath(
-        "User parameter:BaseApp/Preferences/View"
-    );
     if (NlErrorCode) {
         Base::Console().log("Init: 3Dconnexion driver not installed\n");
     }
     else {
         Base::Console().log("Init: 3Dconnexion Navigation Framework present\n");
     }
-    if (!hViewGrp->GetBool("LegacySpaceMouseDevices", false)) {
+    if (!SpaceMouseParameter::instance()->getLegacySpaceMouseDevices()) {
         if (!NlErrorCode) {
             // Instantiate the 3Dconnexion controller
             Instance->pNavlibInterface = new NavlibInterface();

@@ -22,9 +22,11 @@
 ***************************************************************************/"""
 
 import os
+import tempfile
 import threading
 import time
 import unittest
+import warnings
 import zipfile
 
 import FreeCAD
@@ -114,6 +116,35 @@ class TestGuiDocument(unittest.TestCase):
         expected_root_objects = [group1, group2, obj1, part1]
         self.assertEqual(set(root_objects), set(expected_root_objects))
 
+    def testIssue30418(self):
+        class ViewProvider:
+            def __init__(self, vobj):
+                vobj.Proxy = self
+
+            def attach(self, vobj):
+                self.ViewObject = vobj
+                self.Object = vobj.Object
+
+            def setEdit(self, vobj, mode):
+                return True
+
+            def unsetEdit(self, vobj, mode):
+                obj = vobj.Object
+                doc = obj.Document
+                doc.removeObject(obj.Name)
+                return True
+
+        gui = FreeCADGui.getDocument(self.doc)
+
+        self.doc.openTransaction("Add object")
+        obj = self.doc.addObject("App::FeaturePython", "Object")
+        ViewProvider(obj.ViewObject)
+        self.doc.commitTransaction()
+        gui.setEdit(obj, 0)
+        self.doc.undo()
+
+        self.assertTrue(True)
+
     def testViewObjectRequiresMainThread(self):
         obj = self.doc.addObject("App::FeaturePython", "ThreadGuard")
 
@@ -162,6 +193,22 @@ class TestGuiDocument(unittest.TestCase):
         self.assertEqual(proxy.executed_thread_id, threading.get_ident())
         self.assertGreaterEqual(elapsed, 0.04)
 
+    def testSaveCommandDoesNotUseDeprecatedAPI(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            self.doc.saveAs(os.path.join(temp_dir, "TestDoc.FCStd"))
+            self.doc.addObject("App::FeaturePython", "ModifiedObject")
+
+            with warnings.catch_warnings(record=True) as caught_warnings:
+                warnings.simplefilter("always", DeprecationWarning)
+                FreeCADGui.runCommand("Std_Save", 0)
+
+            deprecations = [
+                warning
+                for warning in caught_warnings
+                if issubclass(warning.category, DeprecationWarning)
+            ]
+            self.assertEqual(deprecations, [])
+
     def testRecoverySnapshotIncludesGuiDocument(self):
         self.doc.addObject("App::FeaturePython", "RecoveryGuiObject")
 
@@ -192,6 +239,17 @@ class TestGuiDocument(unittest.TestCase):
 
         self.assertTrue(self._processEventsUntil(lambda: os.path.exists(self._recoveryArchive())))
         self._assertRecoveryArchiveContains()
+
+    def testAutoSaverStableSignalDoesNotBypassTimeout(self):
+        obj = self.doc.addObject("App::FeaturePython", "AutoSaveStableObject")
+        self._removeRecoveryArchive()
+
+        self.doc.openTransaction("AutoSaveStable")
+        obj.Label = "AutoSaveStillPending"
+        self.doc.commitTransaction()
+
+        QtWidgets.QApplication.processEvents(QtCore.QEventLoop.ProcessEventsFlag.AllEvents, 50)
+        self.assertFalse(os.path.exists(self._recoveryArchive()))
 
     def testAutoSaverCoalescesBlockedFlushesToLatestCommittedState(self):
         obj = self.doc.addObject("App::FeaturePython", "AutoSaveChurnObject")
