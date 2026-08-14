@@ -29,6 +29,7 @@
 #include <QAction>
 #include <QActionGroup>
 #include <QApplication>
+#include <QContextMenuEvent>
 #include <QDrag>
 #include <QDragEnterEvent>
 #include <QDockWidget>
@@ -38,6 +39,7 @@
 #include <QFont>
 #include <QFrame>
 #include <QHBoxLayout>
+#include <QKeyEvent>
 #include <QLayoutItem>
 #include <QMainWindow>
 #include <QMenu>
@@ -2031,6 +2033,21 @@ void CompactMainWindowChrome::refreshPanelStrips()
             }
             button->setProperty(CompactPanelAssignmentProperty, panelAssignmentId(dock));
             button->setProperty(CompactPanelSlotProperty, panelSlotName(slot));
+            button->setFocusPolicy(Qt::StrongFocus);
+            button->setAutoRaise(true);
+            const bool rightRail = slot == PanelSlot::RightTop || slot == PanelSlot::RightLower
+                || slot == PanelSlot::BottomRight;
+            button->setStyleSheet(
+                QStringLiteral(
+                    "QToolButton { border: 0; border-radius: 2px; }"
+                    "QToolButton:hover { background: palette(midlight); }"
+                    "QToolButton:pressed { background: palette(button); }"
+                    "QToolButton:checked { border-%1: %2px solid palette(highlight); }"
+                    "QToolButton:focus { border: %2px solid palette(highlight); }"
+                )
+                    .arg(rightRail ? QStringLiteral("left") : QStringLiteral("right"))
+                    .arg(CompactTitleBarStyle::panelActiveIndicatorThickness())
+            );
             button->installEventFilter(this);
             CompactTitleBarStyle::applyPanelButtonMetrics(button);
         }
@@ -2254,7 +2271,148 @@ bool CompactMainWindowChrome::eventFilter(QObject* watched, QEvent* event)
 
     if (auto button = qobject_cast<QToolButton*>(watched);
         button && button->property(CompactPanelAssignmentProperty).isValid()) {
-        if (event->type() == QEvent::MouseButtonPress) {
+        if (event->type() == QEvent::KeyPress) {
+            auto keyEvent = static_cast<QKeyEvent*>(event);
+            if (keyEvent->key() == Qt::Key_Up || keyEvent->key() == Qt::Key_Down
+                || keyEvent->key() == Qt::Key_Home || keyEvent->key() == Qt::Key_End) {
+                QWidget* strip = panelDropStripForTarget(button);
+                QList<QToolButton*> buttons;
+                if (strip) {
+                    for (QToolButton* candidate : strip->findChildren<QToolButton*>()) {
+                        if (!candidate->isHidden() && candidate->isEnabled()
+                            && candidate->property(CompactPanelAssignmentProperty).isValid()) {
+                            buttons.append(candidate);
+                        }
+                    }
+                }
+                std::sort(buttons.begin(), buttons.end(), [strip](QToolButton* left, QToolButton* right) {
+                    return left->mapTo(strip, QPoint()).y() < right->mapTo(strip, QPoint()).y();
+                });
+                const int current = buttons.indexOf(button);
+                if (current >= 0 && !buttons.isEmpty()) {
+                    int next = current;
+                    if (keyEvent->key() == Qt::Key_Home) {
+                        next = 0;
+                    }
+                    else if (keyEvent->key() == Qt::Key_End) {
+                        next = buttons.size() - 1;
+                    }
+                    else {
+                        const int direction = keyEvent->key() == Qt::Key_Down ? 1 : -1;
+                        next = (current + direction + buttons.size()) % buttons.size();
+                    }
+                    buttons.at(next)->setFocus(Qt::TabFocusReason);
+                    return true;
+                }
+            }
+        }
+        else if (event->type() == QEvent::ContextMenu) {
+            const QString assignmentId = button->property(CompactPanelAssignmentProperty).toString();
+            QDockWidget* dock = nullptr;
+            for (QDockWidget* candidate : managedDockContainers()) {
+                if (panelAssignmentId(candidate) == assignmentId) {
+                    dock = candidate;
+                    break;
+                }
+            }
+            if (dock) {
+                auto menu = new QMenu(mainWindow);
+                menu->setObjectName(QStringLiteral("_fc_compact_panel_context_menu"));
+                menu->setAttribute(Qt::WA_DeleteOnClose);
+
+                if (usesPanelPlacementManager() && panelPlacementManager->isRegistered(assignmentId)) {
+                    auto moveMenu = menu->addMenu(trText("Move To"));
+                    const auto addPlacement = [this, moveMenu, assignmentId](
+                                                  const QString& label,
+                                                  PanelPlacement::Mode mode,
+                                                  PanelPlacement::Edge edge
+                                              ) {
+                        QAction* action = moveMenu->addAction(label);
+                        connect(action, &QAction::triggered, this, [this, assignmentId, mode, edge]() {
+                            PanelPlacement placement = panelPlacementManager->persistedPlacement(
+                                assignmentId
+                            );
+                            placement.mode = mode;
+                            placement.edge = edge;
+                            placement.normalize();
+                            const auto result
+                                = panelPlacementManager->requestPlacement(assignmentId, placement);
+                            if (result.success) {
+                                schedulePanelStripRefresh();
+                            }
+                        });
+                    };
+                    addPlacement(
+                        trText("Dock Left"),
+                        PanelPlacement::Mode::Docked,
+                        PanelPlacement::Edge::Left
+                    );
+                    addPlacement(
+                        trText("Dock Right"),
+                        PanelPlacement::Mode::Docked,
+                        PanelPlacement::Edge::Right
+                    );
+                    addPlacement(
+                        trText("Dock Bottom"),
+                        PanelPlacement::Mode::Docked,
+                        PanelPlacement::Edge::Bottom
+                    );
+                    moveMenu->addSeparator();
+                    addPlacement(
+                        trText("Overlay Left"),
+                        PanelPlacement::Mode::Overlay,
+                        PanelPlacement::Edge::Left
+                    );
+                    addPlacement(
+                        trText("Overlay Right"),
+                        PanelPlacement::Mode::Overlay,
+                        PanelPlacement::Edge::Right
+                    );
+                    addPlacement(
+                        trText("Overlay Top"),
+                        PanelPlacement::Mode::Overlay,
+                        PanelPlacement::Edge::Top
+                    );
+                    addPlacement(
+                        trText("Overlay Bottom"),
+                        PanelPlacement::Mode::Overlay,
+                        PanelPlacement::Edge::Bottom
+                    );
+                    moveMenu->addSeparator();
+                    addPlacement(
+                        trText("Float"),
+                        PanelPlacement::Mode::Floating,
+                        PanelPlacement::Edge::None
+                    );
+                }
+
+                auto launcherMenu = menu->addMenu(trText("Move Launcher To"));
+                const QList<QPair<QString, PanelSlot>> launcherTargets {
+                    {trText("Left Upper"), PanelSlot::LeftTop},
+                    {trText("Left Lower"), PanelSlot::LeftLower},
+                    {trText("Left Bottom"), PanelSlot::BottomLeft},
+                    {trText("Right Upper"), PanelSlot::RightTop},
+                    {trText("Right Lower"), PanelSlot::RightLower},
+                    {trText("Right Bottom"), PanelSlot::BottomRight},
+                };
+                const QPointer<QDockWidget> dockGuard(dock);
+                for (const auto& [label, slot] : launcherTargets) {
+                    QAction* action = launcherMenu->addAction(label);
+                    connect(action, &QAction::triggered, this, [this, dockGuard, slot]() {
+                        if (!dockGuard) {
+                            return;
+                        }
+                        setPanelSlotForDock(dockGuard, slot);
+                        schedulePanelStripRefresh();
+                    });
+                }
+
+                auto contextEvent = static_cast<QContextMenuEvent*>(event);
+                menu->popup(contextEvent->globalPos());
+                return true;
+            }
+        }
+        else if (event->type() == QEvent::MouseButtonPress) {
             auto mouseEvent = static_cast<QMouseEvent*>(event);
             if (mouseEvent->button() == Qt::LeftButton) {
                 panelDragStartPositions[button] = mouseEvent->position().toPoint();

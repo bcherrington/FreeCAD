@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: LGPL-2.1-or-later
 
+#include <algorithm>
 #include <cstdlib>
 #include <memory>
 #include <string>
 
 #include <QAction>
+#include <QContextMenuEvent>
 #include <QCoreApplication>
 #include <QDockWidget>
 #include <QKeySequence>
@@ -376,6 +378,68 @@ private Q_SLOTS:
         }
     }
 
+    void panelRailArrowKeysTraverseVisibleLaunchers()  // NOLINT
+    {
+        preferences->SetBool("CompactJetBrainsLayout", false);
+        createMainWindow();
+
+        const QStringList dockNames {
+            QStringLiteral("CompactKeyboardFirstDock"),
+            QStringLiteral("CompactKeyboardSecondDock"),
+        };
+        for (const QString& name : dockNames) {
+            auto panel = new QWidget();
+            panel->setObjectName(name + QStringLiteral("Panel"));
+            panel->setWindowTitle(name);
+            auto dock = Gui::DockWindowManager::instance()->addDockWindow(
+                name.toUtf8().constData(),
+                panel,
+                Qt::LeftDockWidgetArea
+            );
+            QVERIFY(dock);
+            dock->toggleViewAction()->setData(name.toUtf8());
+            dock->toggleViewAction()->setVisible(true);
+        }
+
+        preferences->SetBool("CompactJetBrainsPanelPlacementEnabled", true);
+        preferences->SetBool("CompactJetBrainsLayout", true);
+        mainWindow->show();
+        processPendingEvents();
+
+        auto strip = mainWindow->findChild<QWidget*>(
+            QStringLiteral("_fc_compact_left_panel_railContent")
+        );
+        QVERIFY(strip);
+
+        QList<QToolButton*> buttons;
+        for (QToolButton* button : strip->findChildren<QToolButton*>()) {
+            if (!button->isHidden() && button->isEnabled()
+                && button->property("_fc_compact_panel_assignment").isValid()) {
+                buttons.append(button);
+            }
+        }
+        std::sort(buttons.begin(), buttons.end(), [strip](QToolButton* left, QToolButton* right) {
+            return left->mapTo(strip, QPoint()).y() < right->mapTo(strip, QPoint()).y();
+        });
+        QVERIFY(buttons.size() >= 2);
+
+        buttons.first()->setFocus(Qt::TabFocusReason);
+        QTRY_COMPARE(QApplication::focusWidget(), buttons.first());
+        QTest::keyClick(buttons.first(), Qt::Key_Down);
+        QTRY_COMPARE(QApplication::focusWidget(), buttons.at(1));
+        QTest::keyClick(buttons.at(1), Qt::Key_Up);
+        QTRY_COMPARE(QApplication::focusWidget(), buttons.first());
+        QTest::keyClick(buttons.first(), Qt::Key_End);
+        QTRY_COMPARE(QApplication::focusWidget(), buttons.last());
+        QTest::keyClick(buttons.last(), Qt::Key_Home);
+        QTRY_COMPARE(QApplication::focusWidget(), buttons.first());
+
+        for (const QString& name : dockNames) {
+            Gui::PanelPlacementStore::removePlacement(name);
+            Gui::DockWindowManager::instance()->removeDockWindow(name.toUtf8().constData());
+        }
+    }
+
     void compactPanelSlotPreferenceOverridesDefaultRail()  // NOLINT
     {
         preferences->SetBool("CompactJetBrainsLayout", false);
@@ -467,6 +531,8 @@ private Q_SLOTS:
         QCOMPARE(button->statusTip(), QStringLiteral("Live panel status"));
         QCOMPARE(button->isChecked(), action->isChecked());
         QCOMPARE(button->defaultAction()->shortcut(), QKeySequence(QStringLiteral("Ctrl+Alt+9")));
+        QVERIFY(button->styleSheet().contains(QStringLiteral("palette(highlight)")));
+        QVERIFY(button->styleSheet().contains(QStringLiteral("border-right")));
 
         action->setText(QStringLiteral("Renamed live panel"));
         action->setToolTip(QStringLiteral("Open the renamed live panel"));
@@ -483,6 +549,77 @@ private Q_SLOTS:
 
         Gui::PanelPlacementStore::removePlacement(QStringLiteral("CompactLiveActionDock"));
         Gui::DockWindowManager::instance()->removeDockWindow("CompactLiveActionDock");
+    }
+
+    void panelLauncherContextMenuMovesLauncherWithoutMovingDock()  // NOLINT
+    {
+        preferences->SetBool("CompactJetBrainsLayout", false);
+        createMainWindow();
+
+        auto panel = new QWidget();
+        panel->setObjectName(QStringLiteral("CompactContextMenuPanel"));
+        panel->setWindowTitle(QStringLiteral("Compact context menu"));
+        auto dock = Gui::DockWindowManager::instance()
+                        ->addDockWindow("CompactContextMenuDock", panel, Qt::LeftDockWidgetArea);
+        QVERIFY(dock);
+        dock->toggleViewAction()->setData(QByteArray("CompactContextMenuDock"));
+        dock->toggleViewAction()->setVisible(true);
+
+        preferences->SetBool("CompactJetBrainsPanelPlacementEnabled", true);
+        preferences->SetBool("CompactJetBrainsLayout", true);
+        mainWindow->show();
+        processPendingEvents();
+
+        QTRY_VERIFY(panelButtonForAssignment(QStringLiteral("CompactContextMenuDock")));
+        QToolButton* button = panelButtonForAssignment(QStringLiteral("CompactContextMenuDock"));
+        const auto originalDockArea = mainWindow->dockWidgetArea(dock);
+        const QPoint localPosition = button->rect().center();
+        QContextMenuEvent contextEvent(
+            QContextMenuEvent::Keyboard,
+            localPosition,
+            button->mapToGlobal(localPosition)
+        );
+        QApplication::sendEvent(button, &contextEvent);
+
+        auto menu = mainWindow->findChild<QMenu*>(QStringLiteral("_fc_compact_panel_context_menu"));
+        QVERIFY(menu);
+        QMenu* launcherMenu = nullptr;
+        for (QAction* action : menu->actions()) {
+            if (action->text() == QStringLiteral("Move Launcher To")) {
+                launcherMenu = action->menu();
+                break;
+            }
+        }
+        QVERIFY(launcherMenu);
+        QAction* rightUpper = nullptr;
+        for (QAction* action : launcherMenu->actions()) {
+            if (action->text() == QStringLiteral("Right Upper")) {
+                rightUpper = action;
+                break;
+            }
+        }
+        QVERIFY(rightUpper);
+        rightUpper->trigger();
+        processPendingEvents();
+
+        QTRY_VERIFY(panelButtonForAssignment(QStringLiteral("CompactContextMenuDock")));
+        button = panelButtonForAssignment(QStringLiteral("CompactContextMenuDock"));
+        auto rightStrip = mainWindow->findChild<QWidget*>(
+            QStringLiteral("_fc_compact_right_panel_railContent")
+        );
+        QVERIFY(rightStrip);
+        QVERIFY(rightStrip->isAncestorOf(button));
+        QCOMPARE(mainWindow->dockWidgetArea(dock), originalDockArea);
+
+        const Gui::PanelPlacement placement = Gui::PanelPlacementStore::loadPlacement(
+            QStringLiteral("CompactContextMenuDock")
+        );
+        QCOMPARE(placement.launcher.rail, Gui::PanelPlacement::Launcher::Rail::Right);
+        QCOMPARE(placement.launcher.cluster, Gui::PanelPlacement::Launcher::Cluster::Upper);
+
+        menu->close();
+        Gui::PanelPlacementStore::removePlacement(QStringLiteral("CompactContextMenuDock"));
+        Gui::DockWindowManager::instance()->removeDockWindow("CompactContextMenuDock");
     }
 
     void panelPlacementManagerUsesUnifiedLauncherWithoutMovingDock()  // NOLINT
