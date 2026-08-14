@@ -299,6 +299,7 @@ private:
     QTimer visibilityIconDoubleClickTimer;
 
     bool expandIndicatorPressed = false;
+    bool visibilityIconPressed = false;
 
     static std::unique_ptr<QPixmap> documentPixmap;
     static std::unique_ptr<QPixmap> documentPartialPixmap;
@@ -318,6 +319,7 @@ private:
 
     std::string myName;  // for debugging purpose
     int updateBlocked = 0;
+    bool statusUpdatePendingAfterRestore = false;
 
     // State tracking for the two-stage "Select All" operation
     bool lastSelectAllParent = false;   // true if last select was group-level, used for double-tap
@@ -338,6 +340,8 @@ private:
     Connection connectRelDocument;
     Connection connectShowHidden;
     Connection connectChangedViewObj;
+    Connection connectStartOpenDocument;
+    Connection connectFinishOpenDocument;
 };
 
 /** The link between the tree and a document.
@@ -495,6 +499,7 @@ public:
     Gui::ViewProviderDocumentObject* object() const;
     void testStatus(bool resetStatus, QIcon& icon1, QIcon& icon2);
     void testStatus(bool resetStatus);
+    bool isVisibleInTree() const;
     void displayStatusInfo();
     void setExpandedStatus(bool);
     void setData(int column, int role, const QVariant& value) override;

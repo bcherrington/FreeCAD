@@ -6,7 +6,9 @@ add_subdirectory(propertyeditor)
 # Standard C++ GTest tests
 add_executable(Gui_tests_run
         Assistant.cpp
+        BitmapFactory.cpp
         Camera.cpp
+        ColorScaleOverlayTest.cpp
         FileDialog.cpp
         StyleParameters/StyleParametersApplicationTest.cpp
         StyleParameters/ParserTest.cpp
@@ -17,13 +19,12 @@ add_executable(Gui_tests_run
 )
 
 # Qt tests
-setup_qt_test(PanelRails)
+setup_qt_test(CompactMainWindowChrome)
 setup_qt_test(QuantitySpinBox)
+setup_qt_test(SelectionView)
 
 target_link_libraries(Gui_tests_run PRIVATE
-    GTest::gtest_main
     GTest::gmock_main
-    ${Google_Tests_LIBS}
     FreeCADApp
     FreeCADGui
 )

@@ -6,6 +6,9 @@
 #include <App/ElementMap.h>
 #include <src/App/InitApplication.h>
 
+#include <iomanip>
+#include <sstream>
+
 // NOLINTBEGIN(readability-magic-numbers)
 
 
@@ -559,5 +562,46 @@ TEST_F(ElementMapTest, addAndGetChildElementsTest)
     EXPECT_TRUE(std::any_of(result.begin(), result.end(), [](Data::ElementMap::MappedChildElements e) {
         return e.indexedName.toString() == "Pong2";
     }));
+}
+
+TEST_F(ElementMapTest, restoreParsesDotSeparatedEntriesWithoutBoostSplit)
+{
+    // Arrange
+    auto nameSid = _hasher->getID("restore-name-sid");
+    auto childSid = _hasher->getID("restore-child-sid");
+
+    std::stringstream stream;
+    stream << "987654 PostfixCount 2\n"
+           << "Face\n"
+           << ";Postfix\n"
+           << "\nMapCount 1\n"
+           << "\nElementMap 1 987654 1\n"
+           << "\nFace\n"
+           << "\nChildCount 1\n"
+           << "3 0 2 7 0 ChildPostfix 0." << childSid.value() << "\n"
+           << "\nNameCount 2\n"
+           << "0\n"
+           << std::hex << ";CustomMapped.2." << nameSid.value() << " :1.2.0." << nameSid.value()
+           << " 0\n"
+           << "\nEndMap\n";
+
+    auto elementMap = std::make_shared<Data::ElementMap>();
+
+    // Act
+    auto restored = elementMap->restore(_hasher, stream);
+    Data::ElementIDRefs restoredNameSids;
+    auto mappedName = restored->find(Data::IndexedName("Face", 1), &restoredNameSids);
+    auto mappedIndex = restored->find(Data::MappedName("CustomMapped;Postfix"));
+    auto childElements = restored->getChildElements();
+
+    // Assert
+    EXPECT_EQ(mappedName.toString(), "CustomMapped;Postfix");
+    EXPECT_EQ(mappedIndex.toString(), "Face1");
+    ASSERT_EQ(restoredNameSids.size(), 1);
+    EXPECT_EQ(restoredNameSids.front().value(), nameSid.value());
+    ASSERT_EQ(childElements.size(), 1);
+    EXPECT_EQ(childElements.front().indexedName.toString(), "Face3");
+    ASSERT_EQ(childElements.front().sids.size(), 1);
+    EXPECT_EQ(childElements.front().sids.front().value(), childSid.value());
 }
 // NOLINTEND(readability-magic-numbers)

@@ -393,6 +393,7 @@ public:
 
     // Returns if document and object recomputes should be done async.
     bool isAsyncRecomputeEnabled();
+    bool isFineGrainedRecomputeEnabled();
     bool canRecomputeRequestOnWorker(const RecomputeRequest& req) const;
 
     // Adds a recompute request to the processing queue.
@@ -508,6 +509,8 @@ public:
     fastsignals::signal<void (const App::Property&)> signalAppendDynamicProperty;
     /// Signal on renaming a dynamic property.
     fastsignals::signal<void (const App::Property&, const char*)> signalRenameDynamicProperty;
+    /// signal on moving a dynamic property
+    fastsignals::signal<void (const App::Property&, const App::DocumentObject&)> signalMoveDynamicProperty;
     /// Signal before removing a dynamic property.
     fastsignals::signal<void (const App::Property&)> signalRemoveDynamicProperty;
     /// Signal before changing the editor mode of a property.
@@ -893,6 +896,7 @@ public:
     /// Check if there is any link to the given object
     bool hasLinksTo(const DocumentObject *obj) const;
     /// @}
+
 
     friend class App::Document;
 

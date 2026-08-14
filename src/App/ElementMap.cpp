@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: LGPL-2.1-or-later
 
+#include <algorithm>
 #include <unordered_map>
 #ifndef FC_DEBUG
 #include <random>
 #endif
+#include <string_view>
 
 #include "ElementMap.h"
 #include "ElementNamingUtils.h"
@@ -13,9 +15,7 @@
 #include "Document.h"
 #include "DocumentObject.h"
 
-#include <boost/algorithm/string/classification.hpp>
 #include <boost/algorithm/string/predicate.hpp>
-#include <boost/algorithm/string/split.hpp>
 #include <boost/io/ios_state.hpp>
 
 
@@ -23,6 +23,100 @@ FC_LOG_LEVEL_INIT("ElementMap", true, 2);  // NOLINT
 
 namespace Data
 {
+
+namespace
+{
+
+class DotTokenReader
+{
+public:
+    explicit DotTokenReader(std::string_view text)
+        : _text(text)
+    {}
+
+    bool next(std::string_view& token)
+    {
+        if (_pos > _text.size()) {
+            return false;
+        }
+
+        const auto end = _text.find('.', _pos);
+        if (end == std::string_view::npos) {
+            token = _text.substr(_pos);
+            _pos = _text.size() + 1;
+            return true;
+        }
+
+        token = _text.substr(_pos, end - _pos);
+        _pos = end + 1;
+        return true;
+    }
+
+    bool hasMore() const
+    {
+        return _pos <= _text.size();
+    }
+
+private:
+    std::string_view _text;
+    std::string_view::size_type _pos = 0;
+};
+
+std::string_view viewOf(const std::string& text)
+{
+    return {text.data(), text.size()};
+}
+
+std::size_t countDotSuffixTokens(std::string_view text)
+{
+    return static_cast<std::size_t>(std::count(text.begin(), text.end(), '.'));
+}
+
+int digitValue(char ch)
+{
+    if (ch >= '0' && ch <= '9') {
+        return ch - '0';
+    }
+    if (ch >= 'a' && ch <= 'z') {
+        return ch - 'a' + 10;
+    }
+    if (ch >= 'A' && ch <= 'Z') {
+        return ch - 'A' + 10;
+    }
+    return -1;
+}
+
+long parseRestoreLong(std::string_view token, int base)
+{
+    bool negative = false;
+    if (!token.empty() && (token.front() == '-' || token.front() == '+')) {
+        negative = token.front() == '-';
+        token.remove_prefix(1);
+    }
+
+    long value = 0;
+    for (char ch : token) {
+        const int digit = digitValue(ch);
+        if (digit < 0 || digit >= base) {
+            break;
+        }
+        value = value * base + digit;
+    }
+    return negative ? -value : value;
+}
+
+MappedName restoreMappedNameToken(std::string_view token)
+{
+    if (token.size() >= ELEMENT_MAP_PREFIX_SIZE
+        && token.compare(0, ELEMENT_MAP_PREFIX_SIZE, ELEMENT_MAP_PREFIX) == 0) {
+        token.remove_prefix(ELEMENT_MAP_PREFIX_SIZE);
+    }
+    auto name = MappedName::fromRawData(token.data(), static_cast<int>(token.size()));
+    name.compact();
+    return name;
+}
+
+}  // namespace
 
 
 // Because the existence of hierarchical element maps, for the same document
@@ -306,7 +400,6 @@ ElementMapPtr ElementMap::restore(::App::StringHasherRef hasherRef,
     const char* hasherIDWarn = nullptr;
     const char* postfixWarn = nullptr;
     const char* childSIDWarn = nullptr;
-    std::vector<std::string> tokens;
 
     for (int i = 0; i < typeCount; ++i) {
         int outerCount = 0;
@@ -357,16 +450,18 @@ ElementMapPtr ElementMap::restore(::App::StringHasherRef hasherRef,
                 FC_THROWM(Base::RuntimeError, "Invalid element child string id");  // NOLINT
             }
 
-            tokens.clear();
-            boost::split(tokens, tmp, boost::is_any_of("."));
-            if (tokens.size() > 1) {
-                child.sids.reserve(static_cast<int>(tokens.size()) - 1);
-                for (unsigned k = 1; k < tokens.size(); ++k) {
+            const auto childSidCount = countDotSuffixTokens(viewOf(tmp));
+            if (childSidCount > 0) {
+                child.sids.reserve(static_cast<int>(childSidCount));
+                DotTokenReader childSidTokens(viewOf(tmp));
+                std::string_view childSidToken;
+                childSidTokens.next(childSidToken);
+                while (childSidTokens.next(childSidToken)) {
                     // The element child string ID is saved as decimal
                     // instead of hex by accident. To simplify maintenance
                     // of backward compatibility, it is not corrected, and
                     // just restored as decimal here.
-                    long childID = strtol(tokens[k].c_str(), nullptr, decBase);
+                    long childID = parseRestoreLong(childSidToken, decBase);
                     auto sid = hasherRef->getID(childID);
                     if (!sid) {
                         childSIDWarn = "Missing element child string id";
@@ -401,45 +496,46 @@ ElementMapPtr ElementMap::restore(::App::StringHasherRef hasherRef,
                     ref->next = std::make_unique<MappedNameRef>();
                     ref = ref->next.get();
                 }
-                tokens.clear();
-                boost::split(tokens, tmp, boost::is_any_of("."));
-                if (tokens.size() < 2) {
+                DotTokenReader nameTokens(viewOf(tmp));
+                std::string_view firstToken;
+                std::string_view secondToken;
+                if (!nameTokens.next(firstToken) || !nameTokens.next(secondToken)
+                    || firstToken.empty()) {
                     FC_THROWM(Base::RuntimeError, "Invalid element entry");  // NOLINT
                 }
 
-                int offset = 1;
                 ::App::StringID::IndexID prefixID {};
                 prefixID.id = 0;
+                std::string_view postfixToken = secondToken;
 
-                switch (tokens[0][0]) {
+                switch (firstToken[0]) {
                     case ':': {
-                        if (tokens.size() < 3) {
+                        if (!nameTokens.next(postfixToken)) {
                             FC_THROWM(Base::RuntimeError, "Invalid element entry");  // NOLINT
                         }
-                        ++offset;
-                        long elementNameIndex = strtol(tokens[0].c_str() + 1, nullptr, hexBase);
+                        long elementNameIndex = parseRestoreLong(firstToken.substr(1), hexBase);
                         if (elementNameIndex <= 0 || elementNameIndex > (int)postfixes.size()) {
                             FC_THROWM(Base::RuntimeError, "Invalid element name index");  // NOLINT
                         }
-                        long elementIndex = strtol(tokens[1].c_str(), nullptr, hexBase);
+                        long elementIndex = parseRestoreLong(secondToken, hexBase);
                         ref->name = MappedName(
                             IndexedName::fromConst(postfixes[elementNameIndex - 1].c_str(),
                                                    static_cast<int>(elementIndex)));
                         break;
                     }
                     case '$':
-                        ref->name = MappedName(tokens[0].c_str() + 1);
+                        ref->name = restoreMappedNameToken(firstToken.substr(1));
                         prefixID = ::App::StringID::fromString(ref->name.dataBytes());
                         break;
                     case ';':
-                        ref->name = MappedName(tokens[0].c_str() + 1);
+                        ref->name = restoreMappedNameToken(firstToken.substr(1));
                         break;
                     default:
                         FC_THROWM(Base::RuntimeError, "Invalid element name marker");  // NOLINT
                 }
 
-                if (tokens[offset] != "0") {
-                    long postfixIndex = strtol(tokens[offset].c_str(), nullptr, hexBase);
+                if (postfixToken != "0") {
+                    long postfixIndex = parseRestoreLong(postfixToken, hexBase);
                     if (postfixIndex <= 0 || postfixIndex > (int)postfixes.size()) {
                         postfixWarn = "Invalid element postfix index";
                     }
@@ -450,14 +546,15 @@ ElementMapPtr ElementMap::restore(::App::StringHasherRef hasherRef,
 
                 this->mappedNames.emplace(ref->name, idx);
 
+                const bool hasSidTokens = nameTokens.hasMore();
                 if (!hasherRef) {
-                    if (offset + 1 < (int)tokens.size()) {
+                    if (hasSidTokens) {
                         hasherWarn = "No hasherRef";
                     }
                     continue;
                 }
 
-                ref->sids.reserve((tokens.size() - offset - 1 + prefixID.id) != 0U ? 1 : 0);
+                ref->sids.reserve((hasSidTokens || prefixID.id != 0) ? 1 : 0);
                 if (prefixID.id != 0) {
                     auto sid = hasherRef->getID(prefixID.id);
                     if (!sid) {
@@ -467,8 +564,9 @@ ElementMapPtr ElementMap::restore(::App::StringHasherRef hasherRef,
                         ref->sids.push_back(sid);
                     }
                 }
-                for (int l = offset + 1; l < (int)tokens.size(); ++l) {
-                    long readID = strtol(tokens[l].c_str(), nullptr, hexBase);
+                std::string_view sidToken;
+                while (nameTokens.next(sidToken)) {
+                    long readID = parseRestoreLong(sidToken, hexBase);
                     auto sid = hasherRef->getID(readID);
                     if (!sid) {
                         hasherIDWarn = "Invalid element name string id";

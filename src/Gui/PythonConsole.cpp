@@ -490,6 +490,14 @@ PythonConsole::PythonConsole(QWidget* parent)
     flusher = new QTimer(this);
     connect(flusher, &QTimer::timeout, this, &PythonConsole::flushOutput);
     flusher->start(100);
+
+    clearAction = addAction(
+        QIcon(QStringLiteral(":/icons/edit-delete.svg")),
+        tr("Clear Console"),
+        QKeySequence(Qt::CTRL | Qt::Key_L)
+    );
+    clearAction->setShortcutContext(Qt::WidgetShortcut);
+    QObject::connect(clearAction, &QAction::triggered, this, &PythonConsole::onClearConsole);
 }
 
 /** Destroys the object and frees any allocated resources */
@@ -1366,11 +1374,17 @@ void PythonConsole::contextMenuEvent(QContextMenuEvent* e)
     a->setShortcut(QKeySequence(QStringLiteral("CTRL+A")));
     a->setEnabled(!document()->isEmpty());
 
-    a = menu.addAction(tr("Clear Console"), this, &PythonConsole::onClearConsole);
-    a->setEnabled(!document()->isEmpty());
+    clearAction->setEnabled(!document()->isEmpty());
+    menu.addAction(clearAction);
 
     menu.addSeparator();
     menu.addAction(tr("Insert File Name…"), this, &PythonConsole::onInsertFileName);
+    menu.addSeparator();
+
+    QAction* windowMode = menu.addAction(
+        getMainWindow()->isPythonConsoleStandalone() ? tr("Dock Python Console")
+                                                     : tr("Open Python Console in Window")
+    );
     menu.addSeparator();
 
     QAction* wrap = menu.addAction(tr("Word Wrap"));
@@ -1383,6 +1397,14 @@ void PythonConsole::contextMenuEvent(QContextMenuEvent* e)
     }
     else if (exec == saveh) {
         d->hGrpSettings->SetBool("SavePythonHistory", saveh->isChecked());
+    }
+    else if (exec == windowMode) {
+        if (getMainWindow()->isPythonConsoleStandalone()) {
+            getMainWindow()->dockPythonConsole();
+        }
+        else {
+            getMainWindow()->showPythonConsoleWindow(true);
+        }
     }
 }
 

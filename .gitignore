@@ -55,7 +55,10 @@ ui_*.h
 /lib/
 /src/Tools/offlinedoc/*.txt
 /src/Tools/offlinedoc/localwiki/
-OpenSCAD_rc.py
+/src/Mod/CAM/research/
+/src/3rdParty/Clipper2/Clipper2Lib/include/clipper2/clipper.version.h
+*_rc.py
+*_rc.rcc
 tags
 /CMakeUserPresets.json
 Testing
@@ -69,10 +72,11 @@ src/Tools/freecad.zip
 tsupdate_stderr.log
 tsupdate_stdout.log
 # pixi environments
+pixi.lock
 *.egg-info
-.pixi
-
-# local Node artifacts
-/node_modules/
-/package.json
-/package-lock.json
+.pixi/
+node_modules/
+.cache/
+.codegraph/
+package.*
+package-lock.*

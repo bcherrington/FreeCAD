@@ -1018,6 +1018,11 @@ public:
         else if (auto dockWidget = qobject_cast<QDockWidget*>(parent)) {
             const QDockWidget::DockWidgetFeatures features = dockWidget->features();
 
+            for (auto action : dockWidget->actions()) {
+                if (action->property("DockTitleBarAction").toBool()) {
+                    actions.append(action);
+                }
+            }
             actions.append(&_actOverlay);
             if (features.testFlag(QDockWidget::DockWidgetFloatable)) {
                 actions.append(&_actFloat);
@@ -1710,7 +1715,7 @@ void OverlayManager::onTaskViewUpdate()
             || it->second->tabWidget->getAutoMode() != OverlayTabWidget::AutoMode::TaskShow) {
             return;
         }
-        d->onToggleDockWidget(dock, taskview->isEmpty() ? -2 : 2);
+        d->onToggleDockWidget(dock, taskview->isEmpty(false) ? -2 : 2);
     }
 }
 
