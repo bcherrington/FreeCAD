@@ -208,10 +208,16 @@ void StartupProcess::setupFileDialog()
 
 // ------------------------------------------------------------------------------------------------
 
-StartupPostProcess::StartupPostProcess(MainWindow* mw, Application& guiApp, QApplication* app)
+StartupPostProcess::StartupPostProcess(
+    MainWindow* mw,
+    Application& guiApp,
+    QApplication* app,
+    QWidget* earlySplash
+)
     : mainWindow {mw}
     , guiApp {guiApp}
     , qtApp(app)
+    , earlySplash(earlySplash)
 {}
 
 void StartupPostProcess::setLoadFromPythonModule(bool value)
@@ -453,7 +459,7 @@ void StartupPostProcess::setImportImageFormats()
 void StartupPostProcess::showMainWindow()
 {
     // show splasher while initializing the GUI
-    if (!Application::hiddenMainWindow() && !loadFromPythonModule) {
+    if (!earlySplash && !Application::hiddenMainWindow() && !loadFromPythonModule) {
         mainWindow->startSplasher();
     }
 
@@ -471,7 +477,12 @@ void StartupPostProcess::showMainWindow()
 
     // stop splash screen and set immediately the active window that may be of interest
     // for scripts using Python binding for Qt
-    mainWindow->stopSplasher();
+    if (earlySplash) {
+        earlySplash->close();
+    }
+    else {
+        mainWindow->stopSplasher();
+    }
     mainWindow->activateWindow();
 }
 

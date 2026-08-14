@@ -476,6 +476,47 @@ OverlayTabWidget::OverlayTabWidget(QWidget* parent, Qt::DockWidgetArea pos)
     connect(_animator, &QAbstractAnimation::stateChanged, this, &OverlayTabWidget::onAnimationStateChanged);
 }
 
+OverlayTabWidget::~OverlayTabWidget()
+{
+    timer.stop();
+    repaintTimer.stop();
+
+    if (_animator) {
+        disconnect(_animator, nullptr, this, nullptr);
+        _animator->stop();
+        _animator->setTargetObject(nullptr);
+    }
+
+    switch (dockArea) {
+        case Qt::LeftDockWidgetArea:
+            if (_LeftOverlay == this) {
+                _LeftOverlay = nullptr;
+            }
+            break;
+        case Qt::RightDockWidgetArea:
+            if (_RightOverlay == this) {
+                _RightOverlay = nullptr;
+            }
+            break;
+        case Qt::TopDockWidgetArea:
+            if (_TopOverlay == this) {
+                _TopOverlay = nullptr;
+            }
+            break;
+        case Qt::BottomDockWidgetArea:
+            if (_BottomOverlay == this) {
+                _BottomOverlay = nullptr;
+            }
+            break;
+        default:
+            break;
+    }
+
+    if (_Dragging == this) {
+        _Dragging = nullptr;
+    }
+}
+
 void OverlayTabWidget::refreshIcons()
 {
     auto curStyleSheet = App::GetApplication()
