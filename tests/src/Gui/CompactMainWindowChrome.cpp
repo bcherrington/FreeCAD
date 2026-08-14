@@ -14,6 +14,7 @@
 #include <QLineEdit>
 #include <QMenuBar>
 #include <QMenu>
+#include <QPointer>
 #include <QTest>
 #include <QToolBar>
 #include <QToolButton>
@@ -581,7 +582,9 @@ private Q_SLOTS:
         );
         QApplication::sendEvent(button, &contextEvent);
 
-        auto menu = mainWindow->findChild<QMenu*>(QStringLiteral("_fc_compact_panel_context_menu"));
+        QPointer<QMenu> menu = mainWindow->findChild<QMenu*>(
+            QStringLiteral("_fc_compact_panel_context_menu")
+        );
         QVERIFY(menu);
         QMenu* launcherMenu = nullptr;
         for (QAction* action : menu->actions()) {
@@ -617,9 +620,106 @@ private Q_SLOTS:
         QCOMPARE(placement.launcher.rail, Gui::PanelPlacement::Launcher::Rail::Right);
         QCOMPARE(placement.launcher.cluster, Gui::PanelPlacement::Launcher::Cluster::Upper);
 
-        menu->close();
+        if (menu) {
+            menu->close();
+        }
         Gui::PanelPlacementStore::removePlacement(QStringLiteral("CompactContextMenuDock"));
         Gui::DockWindowManager::instance()->removeDockWindow("CompactContextMenuDock");
+    }
+
+    void panelMoveMenuOverlaysOnlyTheRequestedPanel()  // NOLINT
+    {
+        preferences->SetBool("CompactJetBrainsLayout", false);
+        createMainWindow();
+
+        auto peerPanel = new QWidget();
+        peerPanel->setWindowTitle(QStringLiteral("Compact overlay peer"));
+        auto peerDock = Gui::DockWindowManager::instance()->addDockWindow(
+            "CompactOverlayPeerDock",
+            peerPanel,
+            Qt::LeftDockWidgetArea
+        );
+        QVERIFY(peerDock);
+        peerDock->toggleViewAction()->setData(QByteArray("CompactOverlayPeerDock"));
+        peerDock->toggleViewAction()->setVisible(true);
+
+        auto targetPanel = new QWidget();
+        targetPanel->setWindowTitle(QStringLiteral("Compact overlay target"));
+        auto targetDock = Gui::DockWindowManager::instance()->addDockWindow(
+            "CompactOverlayTargetDock",
+            targetPanel,
+            Qt::LeftDockWidgetArea
+        );
+        QVERIFY(targetDock);
+        targetDock->toggleViewAction()->setData(QByteArray("CompactOverlayTargetDock"));
+        targetDock->toggleViewAction()->setVisible(true);
+        targetDock->setFloating(true);
+
+        preferences->SetBool("CompactJetBrainsPanelPlacementEnabled", true);
+        preferences->SetBool("CompactJetBrainsLayout", true);
+        mainWindow->show();
+        peerDock->show();
+        targetDock->show();
+        processPendingEvents();
+
+        QTRY_VERIFY(panelButtonForAssignment(QStringLiteral("CompactOverlayTargetDock")));
+        QToolButton* button = panelButtonForAssignment(QStringLiteral("CompactOverlayTargetDock"));
+        const QRect centralBefore = mainWindow->centralWidget()->geometry();
+        const QRect peerBefore = peerDock->geometry();
+        const QPoint localPosition = button->rect().center();
+        QContextMenuEvent contextEvent(
+            QContextMenuEvent::Keyboard,
+            localPosition,
+            button->mapToGlobal(localPosition)
+        );
+        QApplication::sendEvent(button, &contextEvent);
+
+        QPointer<QMenu> menu = mainWindow->findChild<QMenu*>(
+            QStringLiteral("_fc_compact_panel_context_menu")
+        );
+        QVERIFY(menu);
+        QMenu* moveMenu = nullptr;
+        for (QAction* action : menu->actions()) {
+            if (action->text() == QStringLiteral("Move To")) {
+                moveMenu = action->menu();
+                break;
+            }
+        }
+        QVERIFY(moveMenu);
+        QAction* overlayLeft = nullptr;
+        for (QAction* action : moveMenu->actions()) {
+            if (action->text() == QStringLiteral("Overlay Left")) {
+                overlayLeft = action;
+                break;
+            }
+        }
+        QVERIFY(overlayLeft);
+        overlayLeft->trigger();
+        processPendingEvents();
+
+        QCOMPARE(
+            Gui::OverlayManager::instance()->dockWidgetOverlayArea(targetDock),
+            Qt::LeftDockWidgetArea
+        );
+        QCOMPARE(Gui::OverlayManager::instance()->dockWidgetOverlayArea(peerDock), Qt::NoDockWidgetArea);
+        QCOMPARE(mainWindow->dockWidgetArea(peerDock), Qt::LeftDockWidgetArea);
+        QCOMPARE(peerDock->geometry(), peerBefore);
+        QCOMPARE(mainWindow->centralWidget()->geometry(), centralBefore);
+
+        targetDock->hide();
+        processPendingEvents();
+        QCOMPARE(mainWindow->centralWidget()->geometry(), centralBefore);
+        targetDock->show();
+        processPendingEvents();
+        QCOMPARE(mainWindow->centralWidget()->geometry(), centralBefore);
+
+        if (menu) {
+            menu->close();
+        }
+        Gui::PanelPlacementStore::removePlacement(QStringLiteral("CompactOverlayPeerDock"));
+        Gui::PanelPlacementStore::removePlacement(QStringLiteral("CompactOverlayTargetDock"));
+        Gui::DockWindowManager::instance()->removeDockWindow("CompactOverlayTargetDock");
+        Gui::DockWindowManager::instance()->removeDockWindow("CompactOverlayPeerDock");
     }
 
     void panelPlacementManagerUsesUnifiedLauncherWithoutMovingDock()  // NOLINT
