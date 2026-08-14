@@ -114,6 +114,8 @@ private:
     void setup();
     void setGlobalEventFilterActive(bool active);
     void syncMenuBar();
+    void refreshShortcutActions();
+    void clearShortcutActions();
     void showMainMenu();
     void hideMainMenu();
     void openFirstMenu();
@@ -186,6 +188,7 @@ private:
     QToolButton* workbenchButton = nullptr;
     QAction* workbenchMenuInsertionPoint = nullptr;
     QList<QAction*> workbenchMenuTitleActions;
+    QList<QPointer<QAction>> shortcutActions;
     QToolButton* minimizeButton = nullptr;
     QToolButton* maximizeButton = nullptr;
     QToolButton* closeButton = nullptr;
