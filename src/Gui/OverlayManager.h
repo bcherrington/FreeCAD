@@ -80,6 +80,12 @@ public:
 
     /// Setup title bar for a QDockWidget
     void setupTitleBar(QDockWidget*);
+    /// Report whether experimental compact panel placement owns canonical header behavior
+    bool usesCanonicalHeaderOwnership() const;
+    /// Set whether the dock-local header is owned by the overlay host instead of the dock itself
+    void setDockHeaderOwnedByOverlay(QDockWidget*, bool ownedByOverlay);
+    /// Report whether the dock-local header is currently owned by the overlay host
+    bool isDockHeaderOwnedByOverlay(QDockWidget*) const;
 
     /// Overlay mode
     enum class OverlayMode
@@ -140,6 +146,14 @@ public:
     bool isCompactRailTabOwnershipEnabled() const;
     /// Global runtime state shared with late-created overlay hosts
     static bool compactRailTabOwnershipEnabled();
+    /// Set edge-host auto hide for the overlay host containing this dock.
+    /// Current implementation is host scoped per overlay edge, not per dock.
+    bool setDockWidgetOverlayAutoHide(QDockWidget*, bool enabled);
+    /// Query whether the overlay host containing this dock is currently in auto hide mode.
+    /// Current implementation is host scoped per overlay edge, not per dock.
+    bool dockWidgetOverlayAutoHide(QDockWidget*) const;
+    /// Refresh the overlay-host header for the active dock of this tab widget
+    void refreshOverlayTitleBar(OverlayTabWidget*);
     /// Switch a dock widget back to normal display
     void unsetupDockWidget(QDockWidget*);
 

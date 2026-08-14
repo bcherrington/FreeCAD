@@ -24,6 +24,8 @@
 
 #include "CompactTitleBarStyle.h"
 
+#include <QColor>
+#include <QString>
 #include <QSizePolicy>
 #include <QToolBar>
 #include <QToolButton>
@@ -42,10 +44,10 @@ constexpr int CompactTightGap = 8;
 constexpr int CompactDropdownRightPadding = 12;
 constexpr int CompactDropdownIndicatorRight = 2;
 constexpr int CompactDropdownIndicatorWidth = 8;
-constexpr int CompactPanelRailWidth = 32;
+constexpr int CompactPanelRailWidth = 36;
 constexpr int CompactPanelRailIconSize = 18;
 constexpr int CompactPanelButtonSize = 28;
-constexpr int CompactPanelOuterPadding = 2;
+constexpr int CompactPanelOuterPadding = 4;
 constexpr int CompactPanelItemGap = 2;
 constexpr int CompactPanelGroupGap = 8;
 constexpr int CompactPanelActiveIndicatorThickness = 2;
@@ -55,6 +57,56 @@ constexpr int CompactPanelSplitterThickness = 1;
 constexpr int CompactPanelSplitterHitThickness = 6;
 constexpr int CompactPanelOverlayBoundaryThickness = 1;
 constexpr int CompactPanelOverlayElevation = 10;
+
+bool isDarkPalette(const QPalette& palette)
+{
+    return palette.color(QPalette::Window).lightness() < 128;
+}
+
+QString toCssRgba(const QColor& color)
+{
+    return QStringLiteral("rgba(%1, %2, %3, %4)")
+        .arg(color.red())
+        .arg(color.green())
+        .arg(color.blue())
+        .arg(color.alpha());
+}
+
+QString indicatorBorderProperty(PanelIndicatorEdge indicatorEdge)
+{
+    switch (indicatorEdge) {
+        case PanelIndicatorEdge::Left:
+            return QStringLiteral("border-left");
+        case PanelIndicatorEdge::Right:
+            return QStringLiteral("border-right");
+        case PanelIndicatorEdge::Top:
+            return QStringLiteral("border-top");
+        case PanelIndicatorEdge::Bottom:
+            return QStringLiteral("border-bottom");
+    }
+
+    return QStringLiteral("border-right");
+}
+
+PanelIndicatorEdge indicatorEdgeForButton(const QToolButton* button)
+{
+    if (!button) {
+        return PanelIndicatorEdge::Right;
+    }
+
+    const QString edge = button->property("compactPanelIndicatorEdge").toString().toLower();
+    if (edge == QStringLiteral("left")) {
+        return PanelIndicatorEdge::Left;
+    }
+    if (edge == QStringLiteral("top")) {
+        return PanelIndicatorEdge::Top;
+    }
+    if (edge == QStringLiteral("bottom")) {
+        return PanelIndicatorEdge::Bottom;
+    }
+
+    return PanelIndicatorEdge::Right;
+}
 }  // namespace
 
 int iconSize()
@@ -144,6 +196,69 @@ int panelOverlayElevation()
     return CompactPanelOverlayElevation;
 }
 
+QColor panelHighlightTint(const QPalette& palette)
+{
+    QColor tint = palette.color(QPalette::Highlight);
+    tint.setAlpha(isDarkPalette(palette) ? 72 : 40);
+    return tint;
+}
+
+QColor panelOpenIndicatorColor(const QPalette& palette)
+{
+    QColor indicator = palette.color(QPalette::Highlight);
+    indicator = isDarkPalette(palette) ? indicator.lighter(125) : indicator.darker(105);
+    indicator.setAlpha(230);
+    return indicator;
+}
+
+QColor panelFocusCueColor(const QPalette& palette)
+{
+    QColor focus = palette.color(QPalette::Highlight);
+    focus = isDarkPalette(palette) ? focus.lighter(150) : focus.darker(115);
+    focus.setAlpha(190);
+    return focus;
+}
+
+QString panelButtonStyleSheet(const QPalette& palette, PanelIndicatorEdge indicatorEdge)
+{
+    const QString hoverTint = toCssRgba(panelHighlightTint(palette));
+    const QString checkedTint = toCssRgba(panelHighlightTint(palette));
+    const QString indicator = toCssRgba(panelOpenIndicatorColor(palette));
+    const QString focusCue = toCssRgba(panelFocusCueColor(palette));
+    const QString indicatorBorder = indicatorBorderProperty(indicatorEdge);
+
+    return QStringLiteral(
+               "QToolButton {"
+               " padding: 0px;"
+               " margin: 0px;"
+               " background-color: transparent;"
+               " border: 2px solid transparent;"
+               " border-radius: 6px;"
+               "}"
+               "QToolButton:hover {"
+               " background-color: %1;"
+               "}"
+               "QToolButton:checked {"
+               " background-color: %2;"
+               " %3: %4px solid %5;"
+               "}"
+               "QToolButton:focus {"
+               " border: 2px solid %6;"
+               "}"
+               "QToolButton:checked:focus {"
+               " background-color: %2;"
+               " border: 2px solid %6;"
+               " %3: %4px solid %5;"
+               "}"
+    )
+        .arg(hoverTint)
+        .arg(checkedTint)
+        .arg(indicatorBorder)
+        .arg(panelActiveIndicatorThickness())
+        .arg(indicator)
+        .arg(focusCue);
+}
+
 void applyIconButtonMetrics(QToolButton* button, const QToolBar* toolbar)
 {
     if (!button) {
@@ -216,6 +331,8 @@ void applyPanelButtonMetrics(QToolButton* button)
     button->setMinimumSize(size);
     button->setMaximumSize(size);
     button->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
+    button->setAutoRaise(true);
+    button->setStyleSheet(panelButtonStyleSheet(button->palette(), indicatorEdgeForButton(button)));
 }
 
 }  // namespace Gui::CompactTitleBarStyle

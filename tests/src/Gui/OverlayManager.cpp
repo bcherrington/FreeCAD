@@ -2,15 +2,18 @@
 
 #include <memory>
 
+#include <QAction>
 #include <QCoreApplication>
 #include <QDockWidget>
 #include <QTabBar>
 #include <QTest>
+#include <QToolButton>
 #include <QWidget>
 
 #include <App/Application.h>
 #include <Base/Parameter.h>
 #include <Gui/Application.h>
+#include <Gui/DockWindowManager.h>
 #include <Gui/MainWindow.h>
 #include <Gui/OverlayManager.h>
 #include <Gui/OverlayParams.h>
@@ -54,6 +57,7 @@ private Q_SLOTS:
             mainWindow = std::make_unique<Gui::MainWindow>();
             mainWindow->resize(900, 600);
         }
+        mainWindow->show();
         Gui::OverlayParams::setDockOverlayHideTabBar(false);
         QCoreApplication::processEvents();
     }
@@ -78,7 +82,11 @@ private Q_SLOTS:
             const auto docks = mainWindow->findChildren<QDockWidget*>();
             for (QDockWidget* dock : docks) {
                 if (dock->objectName().startsWith(QStringLiteral("Overlay"))) {
-                    delete dock;
+                    if (!Gui::DockWindowManager::instance()->removeDockWindow(
+                            dock->objectName().toUtf8().constData()
+                        )) {
+                        delete dock;
+                    }
                 }
             }
         }
@@ -190,6 +198,118 @@ private Q_SLOTS:
         QVERIFY(!leftOverlay->isCompactRailTabOwnershipEnabled());
     }
 
+    void canonicalHeaderOwnershipKeepsSingleVisibleHeader()  // NOLINT
+    {
+        preferences->SetBool("CompactJetBrainsPanelPlacementEnabled", true);
+        auto* dock = addDock(QStringLiteral("OverlayCanonicalHeaderDock"));
+        auto* manager = Gui::OverlayManager::instance();
+        manager->setupTitleBar(dock);
+        QCoreApplication::processEvents();
+        QVERIFY(dock);
+        QVERIFY(!manager->isDockHeaderOwnedByOverlay(dock));
+        QVERIFY(dock->titleBarWidget());
+        QVERIFY(!dock->titleBarWidget()->isHidden());
+        QCOMPARE(
+            dock->titleBarWidget()->property("_fc_overlay_title_role").toByteArray(),
+            QByteArray("dock")
+        );
+
+        QVERIFY(manager->moveDockWidgetToOverlayOnly(dock, Qt::LeftDockWidgetArea));
+
+        auto* leftOverlay = overlay(QStringLiteral("OverlayLeft"));
+        QVERIFY(leftOverlay);
+        leftOverlay->show();
+        QCoreApplication::processEvents();
+
+        QVERIFY(manager->isDockHeaderOwnedByOverlay(dock));
+        QVERIFY(dock->titleBarWidget());
+        QCOMPARE(
+            dock->titleBarWidget()->property("_fc_overlay_title_role").toByteArray(),
+            QByteArray("placeholder")
+        );
+        QCOMPARE(activeHeaderCount(dock, leftOverlay), 1);
+
+        manager->floatDockWidget(dock);
+        QCoreApplication::processEvents();
+
+        QCOMPARE(manager->dockWidgetOverlayArea(dock), Qt::NoDockWidgetArea);
+        QVERIFY(!manager->isDockHeaderOwnedByOverlay(dock));
+        QVERIFY(dock->titleBarWidget());
+        QVERIFY(!dock->titleBarWidget()->isHidden());
+        QCOMPARE(
+            dock->titleBarWidget()->property("_fc_overlay_title_role").toByteArray(),
+            QByteArray("dock")
+        );
+        QCOMPARE(activeHeaderCount(dock, nullptr), 1);
+
+        delete dock;
+    }
+
+    void overlayHeaderTracksActiveDockActions()  // NOLINT
+    {
+        preferences->SetBool("CompactJetBrainsPanelPlacementEnabled", true);
+        auto* first = addDock(QStringLiteral("OverlayHeaderActionsFirst"));
+        auto* second = addDock(QStringLiteral("OverlayHeaderActionsSecond"));
+        QVERIFY(first);
+        QVERIFY(second);
+
+        auto* firstAction = new QAction(QStringLiteral("Pin First"), first);
+        firstAction->setProperty("DockTitleBarAction", true);
+        first->addAction(firstAction);
+
+        auto* manager = Gui::OverlayManager::instance();
+        manager->moveDockWidgetToOverlay(first, Qt::LeftDockWidgetArea);
+
+        auto* leftOverlay = overlay(QStringLiteral("OverlayLeft"));
+        QVERIFY(leftOverlay);
+        leftOverlay->show();
+        leftOverlay->setOverlayMode(false);
+        QCoreApplication::processEvents();
+        const int firstIndex = leftOverlay->dockWidgetIndex(first);
+        const int secondIndex = leftOverlay->dockWidgetIndex(second);
+        QVERIFY(firstIndex >= 0);
+        QVERIFY(secondIndex >= 0);
+        const QRect secondTab = leftOverlay->tabBar()->tabRect(secondIndex);
+        const QRect firstTab = leftOverlay->tabBar()->tabRect(firstIndex);
+        QVERIFY(secondTab.isValid());
+        QVERIFY(firstTab.isValid());
+        QTest::mouseClick(leftOverlay->tabBar(), Qt::LeftButton, Qt::NoModifier, secondTab.center());
+        QCoreApplication::processEvents();
+        QCOMPARE(leftOverlay->currentDockWidget(), second);
+        QTest::mouseClick(leftOverlay->tabBar(), Qt::LeftButton, Qt::NoModifier, firstTab.center());
+        QCoreApplication::processEvents();
+        QCOMPARE(leftOverlay->currentDockWidget(), first);
+        manager->refreshOverlayTitleBar(leftOverlay);
+
+        QWidget* overlayTitleBar = leftOverlay->getTitleBar();
+        QVERIFY(overlayTitleBar);
+        QCOMPARE(titleBarButtonCount(overlayTitleBar), 4);
+
+        QTest::mouseClick(leftOverlay->tabBar(), Qt::LeftButton, Qt::NoModifier, secondTab.center());
+        QCoreApplication::processEvents();
+
+        QCOMPARE(leftOverlay->currentDockWidget(), second);
+        manager->refreshOverlayTitleBar(leftOverlay);
+        overlayTitleBar = leftOverlay->getTitleBar();
+        QVERIFY(overlayTitleBar);
+        QCOMPARE(titleBarButtonCount(overlayTitleBar), 3);
+    }
+
+    void overlayAutoHideApiIsRuntimeOnlyForSingleDock()  // NOLINT
+    {
+        preferences->SetBool("CompactJetBrainsPanelPlacementEnabled", true);
+        auto* dock = addManagedDock(QStringLiteral("OverlayAutoHideDock"));
+        QVERIFY(dock);
+
+        auto* manager = Gui::OverlayManager::instance();
+        QVERIFY(manager->moveDockWidgetToOverlayOnly(dock, Qt::LeftDockWidgetArea));
+        QVERIFY(!manager->dockWidgetOverlayAutoHide(dock));
+        QVERIFY(manager->setDockWidgetOverlayAutoHide(dock, true));
+        QVERIFY(manager->dockWidgetOverlayAutoHide(dock));
+        QVERIFY(manager->setDockWidgetOverlayAutoHide(dock, false));
+        QVERIFY(!manager->dockWidgetOverlayAutoHide(dock));
+    }
+
     void invalidAreaIsRejectedWithoutMutation()  // NOLINT
     {
         QDockWidget* first = addDock(QStringLiteral("OverlayInvalidFirst"));
@@ -251,6 +371,28 @@ private Q_SLOTS:
     }
 
 private:
+    int activeHeaderCount(QDockWidget* dock, Gui::OverlayTabWidget* overlayHost) const
+    {
+        int active = 0;
+        if (dock && dock->titleBarWidget() && !dock->titleBarWidget()->isHidden()
+            && dock->titleBarWidget()->property("_fc_overlay_title_role").toByteArray()
+                != QByteArray("placeholder")) {
+            ++active;
+        }
+        if (overlayHost && overlayHost->dockWidgetIndex(dock) >= 0 && !overlayHost->isHidden()
+            && overlayHost->getTitleBar() && !overlayHost->getTitleBar()->isHidden()) {
+            ++active;
+        }
+        return active;
+    }
+
+    int titleBarButtonCount(QWidget* titleBar) const
+    {
+        return titleBar
+            ? titleBar->findChildren<QToolButton*>(QString(), Qt::FindDirectChildrenOnly).size()
+            : 0;
+    }
+
     QDockWidget* addDock(const QString& name)
     {
         auto* dock = new QDockWidget(name, mainWindow.get());
@@ -259,6 +401,24 @@ private:
         mainWindow->addDockWidget(Qt::LeftDockWidgetArea, dock);
         dock->show();
         dock->toggleViewAction()->setChecked(true);
+        QCoreApplication::processEvents();
+        return dock;
+    }
+
+    QDockWidget* addManagedDock(const QString& name)
+    {
+        auto* panel = new QWidget();
+        panel->setObjectName(name + QStringLiteral("Panel"));
+        panel->setWindowTitle(name);
+        auto* dock = Gui::DockWindowManager::instance()
+                         ->addDockWindow(name.toUtf8().constData(), panel, Qt::LeftDockWidgetArea);
+        if (!dock) {
+            delete panel;
+            return nullptr;
+        }
+        dock->toggleViewAction()->setData(name.toUtf8());
+        dock->toggleViewAction()->setVisible(true);
+        dock->show();
         QCoreApplication::processEvents();
         return dock;
     }

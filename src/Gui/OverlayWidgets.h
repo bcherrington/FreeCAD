@@ -260,6 +260,8 @@ public:
     {
         return titleBar;
     }
+    /// Refresh the title bar layout after active dock ownership changes
+    void refreshTitleBarLayout();
 
     /// Get the docking position of this tab widget
     Qt::DockWidgetArea getDockArea() const

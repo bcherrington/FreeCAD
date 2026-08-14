@@ -23,13 +23,24 @@
 #ifndef GUI_COMPACTTITLEBARSTYLE_H
 #define GUI_COMPACTTITLEBARSTYLE_H
 
+#include <QColor>
+#include <QPalette>
 #include <QSize>
+#include <QString>
 
 class QToolBar;
 class QToolButton;
 
 namespace Gui::CompactTitleBarStyle
 {
+
+enum class PanelIndicatorEdge
+{
+    Left,
+    Right,
+    Top,
+    Bottom
+};
 
 int iconSize();
 QSize buttonSize(const QToolBar* toolbar);
@@ -49,6 +60,13 @@ int panelSplitterThickness();
 int panelSplitterHitThickness();
 int panelOverlayBoundaryThickness();
 int panelOverlayElevation();
+QColor panelHighlightTint(const QPalette& palette);
+QColor panelOpenIndicatorColor(const QPalette& palette);
+QColor panelFocusCueColor(const QPalette& palette);
+QString panelButtonStyleSheet(
+    const QPalette& palette,
+    PanelIndicatorEdge indicatorEdge = PanelIndicatorEdge::Right
+);
 
 void applyIconButtonMetrics(QToolButton* button, const QToolBar* toolbar);
 void applyMenuButtonMetrics(QToolButton* button, const QToolBar* toolbar);

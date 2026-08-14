@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: LGPL-2.1-or-later
 
 #include <array>
+#include <tuple>
 
 #include <QTest>
 #include <QStringList>
@@ -35,6 +36,20 @@ bool findBool(ParameterGrp::handle group, const char* key, bool* value = nullptr
         if (name == key) {
             if (value) {
                 *value = entry;
+            }
+            return true;
+        }
+    }
+
+    return false;
+}
+
+bool findAscii(ParameterGrp::handle group, const char* key, QString* value = nullptr)
+{
+    for (const auto& [name, entry] : group->GetASCIIMap()) {
+        if (name == key) {
+            if (value) {
+                *value = QString::fromUtf8(entry.c_str());
             }
             return true;
         }
@@ -147,6 +162,17 @@ private Q_SLOTS:
             QCOMPARE(parsed, region);
         }
 
+        const std::array<std::pair<PanelPlacement::VisibilityPolicy, QString>, 2> policies {{
+            {PanelPlacement::VisibilityPolicy::Exclusive, QStringLiteral("exclusive")},
+            {PanelPlacement::VisibilityPolicy::Multiple, QStringLiteral("multiple")},
+        }};
+        for (const auto& [policy, text] : policies) {
+            PanelPlacement::VisibilityPolicy parsed = PanelPlacement::VisibilityPolicy::Exclusive;
+            QCOMPARE(panelPlacementVisibilityPolicyToString(policy), text);
+            QVERIFY(panelPlacementVisibilityPolicyFromString(text, &parsed));
+            QCOMPARE(parsed, policy);
+        }
+
         const std::array<std::pair<PanelPlacement::Launcher::Rail, QString>, 2> rails {{
             {PanelPlacement::Launcher::Rail::Left, QStringLiteral("left")},
             {PanelPlacement::Launcher::Rail::Right, QStringLiteral("right")},
@@ -207,31 +233,56 @@ private Q_SLOTS:
 
     void saveLoadRoundtrip()  // NOLINT
     {
-        PanelPlacement placement;
-        placement.panelId = QStringLiteral("CodexTestPanelPlacementRoundtrip");
-        placement.mode = PanelPlacement::Mode::Overlay;
-        placement.edge = PanelPlacement::Edge::Right;
-        placement.region = PanelPlacement::Region::End;
-        placement.groupId = QStringLiteral("main-right");
-        placement.groupOrder = 5;
-        placement.tabOrder = 2;
-        placement.splitRelation = QStringLiteral("after:Std_TaskView");
-        placement.extent = 240;
-        placement.floatingGeometry = QRect(100, 120, 640, 480);
-        placement.launcher.rail = PanelPlacement::Launcher::Rail::Left;
-        placement.launcher.cluster = PanelPlacement::Launcher::Cluster::Bottom;
-        placement.launcher.order = 7;
+        const std::array<PanelPlacement, 2> cases = []() {
+            std::array<PanelPlacement, 2> placements;
 
-        QVERIFY(PanelPlacementStore::savePlacement(placement));
-        QCOMPARE(PanelPlacementStore::schemaVersion(), PanelPlacementStore::CurrentSchemaVersion);
-        QVERIFY(PanelPlacementStore::migrationMarker());
+            placements[0].panelId = QStringLiteral("CodexTestPanelPlacementRoundtrip");
+            placements[0].mode = PanelPlacement::Mode::Overlay;
+            placements[0].edge = PanelPlacement::Edge::Right;
+            placements[0].region = PanelPlacement::Region::End;
+            placements[0].order = 7;
+            placements[0].visibilityPolicy = PanelPlacement::VisibilityPolicy::Multiple;
+            placements[0].groupId = QStringLiteral("main-right");
+            placements[0].groupOrder = 5;
+            placements[0].tabOrder = 2;
+            placements[0].splitRelation = QStringLiteral("after:Std_TaskView");
+            placements[0].extent = 240;
+            placements[0].floatingGeometry = QRect(100, 120, 640, 480);
 
-        PanelPlacement loaded;
-        QVERIFY(PanelPlacementStore::loadUnifiedPlacement(placement.panelId, &loaded));
+            placements[1].panelId = QStringLiteral("CodexTestPanelPlacementRoundtripSecond");
+            placements[1].mode = PanelPlacement::Mode::Docked;
+            placements[1].edge = PanelPlacement::Edge::Bottom;
+            placements[1].region = PanelPlacement::Region::Start;
+            placements[1].order = 3;
+            placements[1].visibilityPolicy = PanelPlacement::VisibilityPolicy::Exclusive;
+            placements[1].groupId = QStringLiteral("main-bottom");
 
-        PanelPlacement expected = placement;
-        expected.normalize();
-        QCOMPARE(loaded, expected);
+            return placements;
+        }();
+
+        for (const auto& input : cases) {
+            QVERIFY(PanelPlacementStore::savePlacement(input));
+            QCOMPARE(PanelPlacementStore::schemaVersion(), PanelPlacementStore::CurrentSchemaVersion);
+            QVERIFY(PanelPlacementStore::migrationMarker());
+
+            PanelPlacement loaded;
+            QVERIFY(PanelPlacementStore::loadUnifiedPlacement(input.panelId, &loaded));
+
+            PanelPlacement expected = input;
+            expected.normalize();
+            QCOMPARE(loaded, expected);
+
+            auto group = placementsRoot->GetGroup(input.panelId.toUtf8().constData());
+            long storedOrder = -1;
+            QString storedPolicy;
+            QVERIFY(findInt(group, "Order", &storedOrder));
+            QVERIFY(findAscii(group, "VisibilityPolicy", &storedPolicy));
+            QCOMPARE(storedOrder, static_cast<long>(expected.order));
+            QCOMPARE(storedPolicy, panelPlacementVisibilityPolicyToString(expected.visibilityPolicy));
+            QVERIFY(!findAscii(group, "LauncherRail"));
+            QVERIFY(!findAscii(group, "LauncherCluster"));
+            QVERIFY(!findInt(group, "LauncherOrder"));
+        }
     }
 
     void mismatchedFallbackIdUsesRequestedId()  // NOLINT
@@ -239,13 +290,17 @@ private Q_SLOTS:
         PanelPlacement fallback;
         fallback.panelId = QStringLiteral("WrongFallbackId");
         fallback.edge = PanelPlacement::Edge::Right;
-        fallback.launcher.cluster = PanelPlacement::Launcher::Cluster::Lower;
+        fallback.region = PanelPlacement::Region::Center;
+        fallback.order = 6;
+        fallback.visibilityPolicy = PanelPlacement::VisibilityPolicy::Multiple;
 
         const QString requestedId = QStringLiteral("CodexTestPanelPlacementRequestedId");
         PanelPlacement loaded = PanelPlacementStore::loadPlacement(requestedId, fallback);
         QCOMPARE(loaded.panelId, requestedId);
         QCOMPARE(loaded.edge, PanelPlacement::Edge::Right);
-        QCOMPARE(loaded.launcher.cluster, PanelPlacement::Launcher::Cluster::Lower);
+        QCOMPARE(loaded.region, PanelPlacement::Region::Center);
+        QCOMPARE(loaded.order, 6);
+        QCOMPARE(loaded.visibilityPolicy, PanelPlacement::VisibilityPolicy::Multiple);
     }
 
     void corruptFallback()  // NOLINT
@@ -271,6 +326,8 @@ private Q_SLOTS:
         QCOMPARE(loaded.mode, PanelPlacement::Mode::Docked);
         QCOMPARE(loaded.edge, PanelPlacement::Edge::Left);
         QCOMPARE(loaded.region, PanelPlacement::Region::Start);
+        QCOMPARE(loaded.order, 0);
+        QCOMPARE(loaded.visibilityPolicy, PanelPlacement::VisibilityPolicy::Exclusive);
         QCOMPARE(loaded.groupOrder, 0);
         QCOMPARE(loaded.tabOrder, 0);
         QCOMPARE(loaded.extent, 0);
@@ -288,9 +345,10 @@ private Q_SLOTS:
 
         PanelPlacement unified;
         unified.panelId = unifiedId;
-        unified.launcher.rail = PanelPlacement::Launcher::Rail::Left;
-        unified.launcher.cluster = PanelPlacement::Launcher::Cluster::Lower;
-        unified.launcher.order = 3;
+        unified.mode = PanelPlacement::Mode::Overlay;
+        unified.edge = PanelPlacement::Edge::Right;
+        unified.region = PanelPlacement::Region::Center;
+        unified.order = 3;
         QVERIFY(PanelPlacementStore::savePlacement(unified));
         compactSlots->SetASCII(unifiedId.toUtf8().constData(), "right-upper");
 
@@ -299,32 +357,26 @@ private Q_SLOTS:
 
         panelRailsSlots->SetASCII(railsId.toUtf8().constData(), "bottom-left");
 
-        QCOMPARE(
-            PanelPlacementStore::loadPlacement(unifiedId).launcher.cluster,
-            PanelPlacement::Launcher::Cluster::Lower
-        );
-        QCOMPARE(
-            PanelPlacementStore::loadPlacement(unifiedId).launcher.rail,
-            PanelPlacement::Launcher::Rail::Left
-        );
+        const PanelPlacement loadedUnified = PanelPlacementStore::loadPlacement(unifiedId);
+        QCOMPARE(loadedUnified.mode, PanelPlacement::Mode::Overlay);
+        QCOMPARE(loadedUnified.edge, PanelPlacement::Edge::Right);
+        QCOMPARE(loadedUnified.region, PanelPlacement::Region::Center);
+        QCOMPARE(loadedUnified.order, 3);
+        QCOMPARE(loadedUnified.visibilityPolicy, PanelPlacement::VisibilityPolicy::Exclusive);
 
-        QCOMPARE(
-            PanelPlacementStore::loadPlacement(compactId).launcher.rail,
-            PanelPlacement::Launcher::Rail::Right
-        );
-        QCOMPARE(
-            PanelPlacementStore::loadPlacement(compactId).launcher.cluster,
-            PanelPlacement::Launcher::Cluster::Lower
-        );
+        const PanelPlacement loadedCompact = PanelPlacementStore::loadPlacement(compactId);
+        QCOMPARE(loadedCompact.mode, PanelPlacement::Mode::Docked);
+        QCOMPARE(loadedCompact.edge, PanelPlacement::Edge::Right);
+        QCOMPARE(loadedCompact.region, PanelPlacement::Region::Center);
+        QCOMPARE(loadedCompact.order, 0);
+        QCOMPARE(loadedCompact.visibilityPolicy, PanelPlacement::VisibilityPolicy::Exclusive);
 
-        QCOMPARE(
-            PanelPlacementStore::loadPlacement(railsId).launcher.rail,
-            PanelPlacement::Launcher::Rail::Left
-        );
-        QCOMPARE(
-            PanelPlacementStore::loadPlacement(railsId).launcher.cluster,
-            PanelPlacement::Launcher::Cluster::Bottom
-        );
+        const PanelPlacement loadedRails = PanelPlacementStore::loadPlacement(railsId);
+        QCOMPARE(loadedRails.mode, PanelPlacement::Mode::Docked);
+        QCOMPARE(loadedRails.edge, PanelPlacement::Edge::Bottom);
+        QCOMPARE(loadedRails.region, PanelPlacement::Region::Start);
+        QCOMPARE(loadedRails.order, 0);
+        QCOMPARE(loadedRails.visibilityPolicy, PanelPlacement::VisibilityPolicy::Exclusive);
     }
 
     void partialUnifiedLauncherBackfillsFromLegacy()  // NOLINT
@@ -339,9 +391,11 @@ private Q_SLOTS:
 
         PanelPlacement loaded = PanelPlacementStore::loadPlacement(panelId);
         QCOMPARE(loaded.panelId, panelId);
+        QCOMPARE(loaded.edge, PanelPlacement::Edge::Right);
+        QCOMPARE(loaded.region, PanelPlacement::Region::Center);
+        QCOMPARE(loaded.order, 9);
         QCOMPARE(loaded.launcher.rail, PanelPlacement::Launcher::Rail::Right);
         QCOMPARE(loaded.launcher.cluster, PanelPlacement::Launcher::Cluster::Lower);
-        QCOMPARE(loaded.launcher.order, 9);
     }
 
     void legacyRetention()  // NOLINT
@@ -378,27 +432,74 @@ private Q_SLOTS:
         QCOMPARE(third, second);
     }
 
-    void launcherPlacementIsIndependent()  // NOLINT
+    void canonicalLocationDerivesCompatibilityLauncher()  // NOLINT
     {
-        PanelPlacement placement;
-        placement.panelId = QStringLiteral("CodexTestPanelPlacementIndependent");
-        placement.mode = PanelPlacement::Mode::Docked;
-        placement.edge = PanelPlacement::Edge::Right;
-        placement.region = PanelPlacement::Region::Center;
-        placement.launcher.rail = PanelPlacement::Launcher::Rail::Left;
-        placement.launcher.cluster = PanelPlacement::Launcher::Cluster::Bottom;
-        placement.launcher.order = 4;
+        const std::array<
+            std::tuple<PanelPlacement::Edge, PanelPlacement::Region, PanelPlacement::Launcher::Rail, PanelPlacement::Launcher::Cluster>,
+            4>
+            cases {{
+                {PanelPlacement::Edge::Left,
+                 PanelPlacement::Region::Start,
+                 PanelPlacement::Launcher::Rail::Left,
+                 PanelPlacement::Launcher::Cluster::Upper},
+                {PanelPlacement::Edge::Right,
+                 PanelPlacement::Region::Center,
+                 PanelPlacement::Launcher::Rail::Right,
+                 PanelPlacement::Launcher::Cluster::Lower},
+                {PanelPlacement::Edge::Bottom,
+                 PanelPlacement::Region::Start,
+                 PanelPlacement::Launcher::Rail::Left,
+                 PanelPlacement::Launcher::Cluster::Bottom},
+                {PanelPlacement::Edge::Bottom,
+                 PanelPlacement::Region::End,
+                 PanelPlacement::Launcher::Rail::Right,
+                 PanelPlacement::Launcher::Cluster::Bottom},
+            }};
 
-        QVERIFY(PanelPlacementStore::savePlacement(placement));
+        int index = 0;
+        for (const auto& [edge, region, expectedRail, expectedCluster] : cases) {
+            PanelPlacement placement;
+            placement.panelId = QStringLiteral("CodexTestPanelPlacementIndependent%1").arg(index++);
+            placement.mode = PanelPlacement::Mode::Docked;
+            placement.edge = edge;
+            placement.region = region;
+            placement.order = 4;
 
-        PanelPlacement loaded;
-        QVERIFY(PanelPlacementStore::loadUnifiedPlacement(placement.panelId, &loaded));
-        QCOMPARE(loaded.mode, PanelPlacement::Mode::Docked);
+            QVERIFY(PanelPlacementStore::savePlacement(placement));
+
+            PanelPlacement loaded;
+            QVERIFY(PanelPlacementStore::loadUnifiedPlacement(placement.panelId, &loaded));
+            QCOMPARE(loaded.mode, PanelPlacement::Mode::Docked);
+            QCOMPARE(loaded.edge, edge);
+            QCOMPARE(loaded.region, region);
+            QCOMPARE(loaded.order, 4);
+            QCOMPARE(loaded.launcher.rail, expectedRail);
+            QCOMPARE(loaded.launcher.cluster, expectedCluster);
+            QCOMPARE(loaded.launcher.order, 4);
+        }
+    }
+
+    void v1LocationWinsButLauncherOrderMigrates()  // NOLINT
+    {
+        const QString panelId = QStringLiteral("CodexTestPanelPlacementV1Conflict");
+        auto group = placementsRoot->GetGroup(panelId.toUtf8().constData());
+        placementsRoot->SetInt(PanelPlacementStore::schemaVersionKey(), 1);
+        group->SetASCII("Mode", "overlay");
+        group->SetASCII("Edge", "right");
+        group->SetASCII("Region", "end");
+        group->SetASCII("LauncherRail", "left");
+        group->SetASCII("LauncherCluster", "lower");
+        group->SetInt("LauncherOrder", 11);
+
+        const PanelPlacement loaded = PanelPlacementStore::loadPlacement(panelId);
+        QCOMPARE(loaded.mode, PanelPlacement::Mode::Overlay);
         QCOMPARE(loaded.edge, PanelPlacement::Edge::Right);
-        QCOMPARE(loaded.region, PanelPlacement::Region::Center);
-        QCOMPARE(loaded.launcher.rail, PanelPlacement::Launcher::Rail::Left);
+        QCOMPARE(loaded.region, PanelPlacement::Region::End);
+        QCOMPARE(loaded.order, 11);
+        QCOMPARE(loaded.visibilityPolicy, PanelPlacement::VisibilityPolicy::Exclusive);
+        QCOMPARE(loaded.launcher.rail, PanelPlacement::Launcher::Rail::Right);
         QCOMPARE(loaded.launcher.cluster, PanelPlacement::Launcher::Cluster::Bottom);
-        QCOMPARE(loaded.launcher.order, 4);
+        QCOMPARE(loaded.launcher.order, 11);
     }
 
     void loadPlacementsSkipsInvalidDormantGroups()  // NOLINT
@@ -456,8 +557,11 @@ private Q_SLOTS:
         QCOMPARE(loaded.schemaVersion, 99);
         QCOMPARE(loaded.mode, PanelPlacement::Mode::Overlay);
         QCOMPARE(loaded.edge, PanelPlacement::Edge::Right);
-        QCOMPARE(loaded.launcher.rail, PanelPlacement::Launcher::Rail::Left);
-        QCOMPARE(loaded.launcher.cluster, PanelPlacement::Launcher::Cluster::Lower);
+        QCOMPARE(loaded.region, PanelPlacement::Region::Start);
+        QCOMPARE(loaded.order, 0);
+        QCOMPARE(loaded.visibilityPolicy, PanelPlacement::VisibilityPolicy::Exclusive);
+        QCOMPARE(loaded.launcher.rail, PanelPlacement::Launcher::Rail::Right);
+        QCOMPARE(loaded.launcher.cluster, PanelPlacement::Launcher::Cluster::Upper);
 
         QVERIFY(PanelPlacementStore::savePlacement(loaded));
         QCOMPARE(PanelPlacementStore::schemaVersion(), PanelPlacementStore::CurrentSchemaVersion);
@@ -469,6 +573,7 @@ private:
         const QStringList panelIds {
             QStringLiteral("CodexTestPanelPlacementRequestedId"),
             QStringLiteral("CodexTestPanelPlacementRoundtrip"),
+            QStringLiteral("CodexTestPanelPlacementRoundtripSecond"),
             QStringLiteral("CodexTestPanelPlacementCorrupt"),
             QStringLiteral("CodexTestPanelPlacementUnified"),
             QStringLiteral("CodexTestPanelPlacementCompact"),
@@ -476,7 +581,11 @@ private:
             QStringLiteral("CodexTestPanelPlacementPartialUnified"),
             QStringLiteral("CodexTestPanelPlacementRetention"),
             QStringLiteral("CodexTestPanelPlacementIdempotent"),
-            QStringLiteral("CodexTestPanelPlacementIndependent"),
+            QStringLiteral("CodexTestPanelPlacementIndependent0"),
+            QStringLiteral("CodexTestPanelPlacementIndependent1"),
+            QStringLiteral("CodexTestPanelPlacementIndependent2"),
+            QStringLiteral("CodexTestPanelPlacementIndependent3"),
+            QStringLiteral("CodexTestPanelPlacementV1Conflict"),
             QStringLiteral("CodexTestPanelPlacementListedA"),
             QStringLiteral("CodexTestPanelPlacementListedB"),
             QStringLiteral("CodexTestPanelPlacementListedLegacy"),

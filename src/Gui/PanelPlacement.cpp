@@ -50,6 +50,8 @@ constexpr auto MigrationMarkerKey = "MigrationMarker";
 constexpr auto ModeKey = "Mode";
 constexpr auto EdgeKey = "Edge";
 constexpr auto RegionKey = "Region";
+constexpr auto OrderKey = "Order";
+constexpr auto VisibilityPolicyKey = "VisibilityPolicy";
 constexpr auto GroupIdKey = "GroupId";
 constexpr auto GroupOrderKey = "GroupOrder";
 constexpr auto TabOrderKey = "TabOrder";
@@ -88,6 +90,11 @@ const std::array<EnumString<PanelPlacement::Region>, 3> regionStrings {{
     {PanelPlacement::Region::Start, "start"},
     {PanelPlacement::Region::Center, "center"},
     {PanelPlacement::Region::End, "end"},
+}};
+
+const std::array<EnumString<PanelPlacement::VisibilityPolicy>, 2> visibilityPolicyStrings {{
+    {PanelPlacement::VisibilityPolicy::Exclusive, "exclusive"},
+    {PanelPlacement::VisibilityPolicy::Multiple, "multiple"},
 }};
 
 const std::array<EnumString<Launcher::Rail>, 2> railStrings {{
@@ -143,6 +150,42 @@ bool enumFromString(const std::array<EnumString<Enum>, Size>& values, const QStr
 ParameterGrp::handle preferencesGroup(const char* path)
 {
     return App::GetApplication().GetParameterGroupByPath(path);
+}
+
+bool hasIntEntry(ParameterGrp::handle group, const char* key, long* value = nullptr)
+{
+    if (!group || !key) {
+        return false;
+    }
+
+    for (const auto& [name, entry] : group->GetIntMap()) {
+        if (name == key) {
+            if (value) {
+                *value = entry;
+            }
+            return true;
+        }
+    }
+
+    return false;
+}
+
+bool hasAsciiEntry(ParameterGrp::handle group, const char* key, QString* value = nullptr)
+{
+    if (!group || !key) {
+        return false;
+    }
+
+    for (const auto& [name, entry] : group->GetASCIIMap()) {
+        if (name == key) {
+            if (value) {
+                *value = QString::fromUtf8(entry.c_str());
+            }
+            return true;
+        }
+    }
+
+    return false;
 }
 
 QString fromAscii(const std::string& value)
@@ -221,15 +264,113 @@ bool legacyLauncherFromSlotName(const QString& slotName, Launcher* launcher)
     return false;
 }
 
-struct LauncherValidity
+void applyCompatibilityLauncherFromLocation(PanelPlacement* placement)
 {
-    bool rail = false;
-    bool cluster = false;
+    if (!placement) {
+        return;
+    }
+
+    placement->launcher.order = placement->order;
+    switch (placement->edge) {
+        case PanelPlacement::Edge::Left:
+            placement->launcher.rail = Launcher::Rail::Left;
+            placement->launcher.cluster = placement->region == PanelPlacement::Region::Start
+                ? Launcher::Cluster::Upper
+                : placement->region == PanelPlacement::Region::End ? Launcher::Cluster::Bottom
+                                                                   : Launcher::Cluster::Lower;
+            break;
+        case PanelPlacement::Edge::Right:
+            placement->launcher.rail = Launcher::Rail::Right;
+            placement->launcher.cluster = placement->region == PanelPlacement::Region::Start
+                ? Launcher::Cluster::Upper
+                : placement->region == PanelPlacement::Region::End ? Launcher::Cluster::Bottom
+                                                                   : Launcher::Cluster::Lower;
+            break;
+        case PanelPlacement::Edge::Bottom:
+            placement->launcher.cluster = Launcher::Cluster::Bottom;
+            placement->launcher.rail = placement->region == PanelPlacement::Region::End
+                ? Launcher::Rail::Right
+                : Launcher::Rail::Left;
+            break;
+        case PanelPlacement::Edge::Top:
+            placement->launcher.cluster = Launcher::Cluster::Upper;
+            placement->launcher.rail = placement->region == PanelPlacement::Region::End
+                ? Launcher::Rail::Right
+                : Launcher::Rail::Left;
+            break;
+        case PanelPlacement::Edge::None:
+            placement->launcher.rail = Launcher::Rail::Left;
+            placement->launcher.cluster = Launcher::Cluster::Upper;
+            break;
+    }
+
+    placement->launcher.normalize();
+}
+
+bool applyLocationFromLauncher(
+    PanelPlacement* placement,
+    Launcher::Rail rail,
+    Launcher::Cluster cluster,
+    int order,
+    bool overwriteLocation
+)
+{
+    if (!placement) {
+        return false;
+    }
+
+    if (overwriteLocation) {
+        placement->mode = PanelPlacement::Mode::Docked;
+    }
+
+    switch (cluster) {
+        case Launcher::Cluster::Upper:
+            if (overwriteLocation) {
+                placement->edge = rail == Launcher::Rail::Right ? PanelPlacement::Edge::Right
+                                                                : PanelPlacement::Edge::Left;
+                placement->region = PanelPlacement::Region::Start;
+            }
+            break;
+        case Launcher::Cluster::Lower:
+            if (overwriteLocation) {
+                placement->edge = rail == Launcher::Rail::Right ? PanelPlacement::Edge::Right
+                                                                : PanelPlacement::Edge::Left;
+                placement->region = PanelPlacement::Region::Center;
+            }
+            break;
+        case Launcher::Cluster::Bottom:
+            if (overwriteLocation) {
+                placement->edge = PanelPlacement::Edge::Bottom;
+                placement->region = rail == Launcher::Rail::Right ? PanelPlacement::Region::End
+                                                                  : PanelPlacement::Region::Start;
+            }
+            break;
+    }
+
+    placement->order = order;
+    placement->launcher.rail = rail;
+    placement->launcher.cluster = cluster;
+    placement->launcher.order = order;
+    placement->launcher.normalize();
+    return true;
+}
+
+struct PlacementFieldValidity
+{
+    bool mode = false;
+    bool edge = false;
+    bool region = false;
+    bool order = false;
+    bool visibilityPolicy = false;
+    bool groupOrder = false;
+    bool launcherRail = false;
+    bool launcherCluster = false;
+    bool launcherOrder = false;
 };
 
-LauncherValidity loadPlacementFields(ParameterGrp::handle group, PanelPlacement* placement)
+PlacementFieldValidity loadPlacementFields(ParameterGrp::handle group, PanelPlacement* placement)
 {
-    LauncherValidity validity;
+    PlacementFieldValidity validity;
     if (!group || !placement) {
         return validity;
     }
@@ -238,17 +379,32 @@ LauncherValidity loadPlacementFields(ParameterGrp::handle group, PanelPlacement*
     loaded.panelId = placement->panelId;
     loaded.schemaVersion = PanelPlacementStore::schemaVersion();
 
-    const QString mode = fromAscii(group->GetASCII(ModeKey, ""));
-    (void)panelPlacementModeFromString(mode, &loaded.mode);
+    QString mode;
+    validity.mode = hasAsciiEntry(group, ModeKey, &mode)
+        && panelPlacementModeFromString(mode, &loaded.mode);
 
-    const QString edge = fromAscii(group->GetASCII(EdgeKey, ""));
-    (void)panelPlacementEdgeFromString(edge, &loaded.edge);
+    QString edge;
+    validity.edge = hasAsciiEntry(group, EdgeKey, &edge)
+        && panelPlacementEdgeFromString(edge, &loaded.edge);
 
-    const QString region = fromAscii(group->GetASCII(RegionKey, ""));
-    (void)panelPlacementRegionFromString(region, &loaded.region);
+    QString region;
+    validity.region = hasAsciiEntry(group, RegionKey, &region)
+        && panelPlacementRegionFromString(region, &loaded.region);
+
+    long order = 0;
+    validity.order = hasIntEntry(group, OrderKey, &order);
+    if (validity.order) {
+        loaded.order = static_cast<int>(order);
+    }
+
+    QString visibilityPolicy;
+    validity.visibilityPolicy = hasAsciiEntry(group, VisibilityPolicyKey, &visibilityPolicy)
+        && panelPlacementVisibilityPolicyFromString(visibilityPolicy, &loaded.visibilityPolicy);
 
     loaded.groupId = fromAscii(group->GetASCII(GroupIdKey, ""));
-    loaded.groupOrder = static_cast<int>(group->GetInt(GroupOrderKey, 0));
+    long groupOrder = 0;
+    validity.groupOrder = hasIntEntry(group, GroupOrderKey, &groupOrder);
+    loaded.groupOrder = static_cast<int>(groupOrder);
     loaded.tabOrder = static_cast<int>(group->GetInt(TabOrderKey, 0));
     loaded.splitRelation = fromAscii(group->GetASCII(SplitRelationKey, ""));
     loaded.extent = static_cast<int>(group->GetInt(ExtentKey, 0));
@@ -258,16 +414,102 @@ LauncherValidity loadPlacementFields(ParameterGrp::handle group, PanelPlacement*
         loaded.floatingGeometry = floatingGeometry;
     }
 
-    const QString rail = fromAscii(group->GetASCII(LauncherRailKey, ""));
-    validity.rail = panelPlacementRailFromString(rail, &loaded.launcher.rail);
+    QString rail;
+    validity.launcherRail = hasAsciiEntry(group, LauncherRailKey, &rail)
+        && panelPlacementRailFromString(rail, &loaded.launcher.rail);
 
-    const QString cluster = fromAscii(group->GetASCII(LauncherClusterKey, ""));
-    validity.cluster = panelPlacementClusterFromString(cluster, &loaded.launcher.cluster);
+    QString cluster;
+    validity.launcherCluster = hasAsciiEntry(group, LauncherClusterKey, &cluster)
+        && panelPlacementClusterFromString(cluster, &loaded.launcher.cluster);
 
-    loaded.launcher.order = static_cast<int>(group->GetInt(LauncherOrderKey, 0));
-    loaded.normalize();
+    long launcherOrder = 0;
+    validity.launcherOrder = hasIntEntry(group, LauncherOrderKey, &launcherOrder);
+    if (validity.launcherOrder) {
+        loaded.launcher.order = static_cast<int>(launcherOrder);
+    }
     *placement = loaded;
     return validity;
+}
+
+PanelPlacement migrateLoadedPlacement(
+    const QString& panelId,
+    const PanelPlacement& fallback,
+    const PlacementFieldValidity& validity,
+    const PanelPlacement& rawPlacement
+)
+{
+    PanelPlacement placement = rawPlacement;
+    const Launcher fallbackLauncher = fallback.launcher;
+
+    if (!validity.order) {
+        if (validity.groupOrder) {
+            placement.order = rawPlacement.groupOrder;
+        }
+        else if (validity.launcherOrder) {
+            placement.order = rawPlacement.launcher.order;
+        }
+        else {
+            placement.order = fallback.order;
+        }
+    }
+
+    if (!validity.visibilityPolicy) {
+        placement.visibilityPolicy = PanelPlacement::VisibilityPolicy::Exclusive;
+    }
+
+    if (!validity.region) {
+        placement.region = fallback.region;
+    }
+
+    // A legacy launcher may supply a missing location, but it must not replace a
+    // valid persisted mode/edge pair merely because schema v1 did not store Region.
+    const bool needsLocationFromLauncher = !(validity.mode && validity.edge);
+    if (needsLocationFromLauncher) {
+        if (validity.launcherRail && validity.launcherCluster) {
+            applyLocationFromLauncher(
+                &placement,
+                rawPlacement.launcher.rail,
+                rawPlacement.launcher.cluster,
+                validity.launcherOrder ? rawPlacement.launcher.order : placement.order,
+                true
+            );
+        }
+        else {
+            Launcher legacyLauncher = rawPlacement.launcher;
+            if (!validity.launcherRail) {
+                legacyLauncher.rail = fallbackLauncher.rail;
+            }
+            if (!validity.launcherCluster) {
+                legacyLauncher.cluster = fallbackLauncher.cluster;
+            }
+            if (!validity.launcherOrder) {
+                legacyLauncher.order = placement.order;
+            }
+            Launcher importedLegacyLauncher = legacyLauncher;
+            if (PanelPlacementStore::importLegacyLauncher(panelId, &importedLegacyLauncher)) {
+                if (!validity.launcherRail) {
+                    legacyLauncher.rail = importedLegacyLauncher.rail;
+                }
+                if (!validity.launcherCluster) {
+                    legacyLauncher.cluster = importedLegacyLauncher.cluster;
+                }
+            }
+            else {
+                legacyLauncher.normalize();
+            }
+            applyLocationFromLauncher(
+                &placement,
+                legacyLauncher.rail,
+                legacyLauncher.cluster,
+                legacyLauncher.order,
+                true
+            );
+        }
+    }
+
+    placement.panelId = panelId;
+    placement.normalize();
+    return placement;
 }
 
 }  // namespace
@@ -288,6 +530,7 @@ void PanelPlacement::normalize()
         schemaVersion = CurrentSchemaVersion;
     }
     panelId = panelId.trimmed();
+    order = std::max(order, 0);
     groupOrder = std::max(groupOrder, 0);
     tabOrder = std::max(tabOrder, 0);
     extent = std::max(extent, 0);
@@ -304,6 +547,8 @@ void PanelPlacement::normalize()
         mode = Mode::Docked;
         edge = Edge::Left;
     }
+
+    applyCompatibilityLauncherFromLocation(this);
 }
 
 bool PanelPlacement::hasStablePanelId() const
@@ -314,7 +559,8 @@ bool PanelPlacement::hasStablePanelId() const
 bool PanelPlacement::operator==(const PanelPlacement& other) const
 {
     return schemaVersion == other.schemaVersion && panelId == other.panelId && mode == other.mode
-        && edge == other.edge && region == other.region && groupId == other.groupId
+        && edge == other.edge && region == other.region && order == other.order
+        && visibilityPolicy == other.visibilityPolicy && groupId == other.groupId
         && groupOrder == other.groupOrder && tabOrder == other.tabOrder
         && splitRelation == other.splitRelation && extent == other.extent
         && floatingGeometry == other.floatingGeometry && launcher == other.launcher;
@@ -363,6 +609,19 @@ QString Gui::panelPlacementRegionToString(PanelPlacement::Region region)
 bool Gui::panelPlacementRegionFromString(const QString& value, PanelPlacement::Region* region)
 {
     return enumFromString(regionStrings, value, region);
+}
+
+QString Gui::panelPlacementVisibilityPolicyToString(PanelPlacement::VisibilityPolicy policy)
+{
+    return enumToString(visibilityPolicyStrings, policy);
+}
+
+bool Gui::panelPlacementVisibilityPolicyFromString(
+    const QString& value,
+    PanelPlacement::VisibilityPolicy* policy
+)
+{
+    return enumFromString(visibilityPolicyStrings, value, policy);
 }
 
 QString Gui::panelPlacementRailToString(Launcher::Rail rail)
@@ -468,8 +727,11 @@ bool PanelPlacementStore::loadUnifiedPlacement(const QString& panelId, PanelPlac
         return false;
     }
 
-    placement->panelId = panelId;
-    loadPlacementFields(root->GetGroup(groupName.constData()), placement);
+    PanelPlacement rawPlacement;
+    rawPlacement.panelId = panelId;
+    const PlacementFieldValidity validity
+        = loadPlacementFields(root->GetGroup(groupName.constData()), &rawPlacement);
+    *placement = migrateLoadedPlacement(panelId, PanelPlacement(), validity, rawPlacement);
     return true;
 }
 
@@ -481,28 +743,23 @@ PanelPlacement PanelPlacementStore::loadPlacement(const QString& panelId, const 
     auto root = preferencesGroup(placementsPath());
     const QByteArray groupName = stableIdBytes(panelId);
     if (root->HasGroup(groupName.constData())) {
-        const Launcher originalLauncher = placement.launcher;
-        const LauncherValidity validity
-            = loadPlacementFields(root->GetGroup(groupName.constData()), &placement);
-        if (!validity.rail || !validity.cluster) {
-            Launcher legacyLauncher = originalLauncher;
-            if (importLegacyLauncher(panelId, &legacyLauncher)) {
-                if (!validity.rail) {
-                    placement.launcher.rail = legacyLauncher.rail;
-                }
-                if (!validity.cluster) {
-                    placement.launcher.cluster = legacyLauncher.cluster;
-                }
-            }
-        }
-        placement.panelId = panelId;
-        placement.normalize();
-        return placement;
+        PanelPlacement rawPlacement = placement;
+        rawPlacement.panelId = panelId;
+        const PlacementFieldValidity validity
+            = loadPlacementFields(root->GetGroup(groupName.constData()), &rawPlacement);
+        return migrateLoadedPlacement(panelId, fallback, validity, rawPlacement);
     }
 
     PanelPlacement::Launcher legacyLauncher = placement.launcher;
     if (importLegacyLauncher(panelId, &legacyLauncher)) {
-        placement.launcher = legacyLauncher;
+        applyLocationFromLauncher(
+            &placement,
+            legacyLauncher.rail,
+            legacyLauncher.cluster,
+            legacyLauncher.order,
+            true
+        );
+        placement.visibilityPolicy = PanelPlacement::VisibilityPolicy::Exclusive;
     }
 
     placement.normalize();
@@ -550,6 +807,11 @@ bool PanelPlacementStore::savePlacement(const PanelPlacement& placement)
     group->SetASCII(ModeKey, panelPlacementModeToString(normalized.mode).toUtf8().constData());
     group->SetASCII(EdgeKey, panelPlacementEdgeToString(normalized.edge).toUtf8().constData());
     group->SetASCII(RegionKey, panelPlacementRegionToString(normalized.region).toUtf8().constData());
+    group->SetInt(OrderKey, normalized.order);
+    group->SetASCII(
+        VisibilityPolicyKey,
+        panelPlacementVisibilityPolicyToString(normalized.visibilityPolicy).toUtf8().constData()
+    );
 
     if (normalized.groupId.isEmpty()) {
         group->RemoveASCII(GroupIdKey);
@@ -580,15 +842,9 @@ bool PanelPlacementStore::savePlacement(const PanelPlacement& placement)
         group->RemoveASCII(FloatingGeometryKey);
     }
 
-    group->SetASCII(
-        LauncherRailKey,
-        panelPlacementRailToString(normalized.launcher.rail).toUtf8().constData()
-    );
-    group->SetASCII(
-        LauncherClusterKey,
-        panelPlacementClusterToString(normalized.launcher.cluster).toUtf8().constData()
-    );
-    group->SetInt(LauncherOrderKey, normalized.launcher.order);
+    // Schema-v1 launcher keys are intentionally left untouched when present so the
+    // default-off experimental feature can still roll back to the legacy reader. New
+    // schema-v2 groups never create them.
     return true;
 }
 

@@ -93,10 +93,18 @@ private:
         BottomRight,
     };
 
+    enum class PanelLane
+    {
+        Outer,
+        Inner,
+        None,
+    };
+
     struct PanelEntry
     {
         QDockWidget* dock = nullptr;
         PanelSlot slot = PanelSlot::LeftLower;
+        PanelLane lane = PanelLane::Outer;
         int order = 0;
     };
 
@@ -148,6 +156,9 @@ private:
     PanelSlot panelSlotForDock(QDockWidget* dock) const;
     PanelSlot fallbackSlotForDock(QDockWidget* dock) const;
     PanelSlot legacyPanelSlotForDock(QDockWidget* dock) const;
+    PanelPlacement panelPlacementForDock(QDockWidget* dock) const;
+    PanelLane panelLaneForPlacement(const PanelPlacement& placement) const;
+    PanelSlot panelSlotForPlacement(const PanelPlacement& placement, QDockWidget* dock) const;
     Qt::DockWidgetArea dockAreaForSlot(PanelSlot slot) const;
     int panelOrderForDock(const QDockWidget* dock, PanelSlot slot) const;
     QIcon dockIcon(const QDockWidget* dock, PanelSlot slot) const;
@@ -158,16 +169,36 @@ private:
     PanelGroup panelGroup(PanelSlot slot) const;
     QString panelSlotName(PanelSlot slot) const;
     bool panelSlotFromName(const QString& name, PanelSlot* slot) const;
-    QWidget* panelDropStripForTarget(QWidget* target) const;
-    QVector<QRect> panelButtonGeometries(QWidget* strip, PanelSlot slot) const;
+    QWidget* panelDropLaneForTarget(QWidget* target) const;
+    PanelLane panelLaneForTarget(QWidget* target) const;
+    QVector<QRect> panelButtonGeometries(QWidget* laneWidget, PanelSlot slot, PanelLane lane) const;
     PanelSlot dropPanelSlotForPosition(QWidget* target, const QPoint& position) const;
-    QRect panelDropZoneGeometry(QWidget* strip, PanelSlot slot) const;
-    QRect panelDropInsertionGeometry(QWidget* strip, PanelSlot slot) const;
-    QRect panelDropGroupGeometry(QWidget* strip, PanelSlot slot, const QRect& insertion) const;
+    int panelDropOrderForPosition(
+        QWidget* laneWidget,
+        PanelSlot slot,
+        PanelLane lane,
+        const QPoint& position,
+        const QString& assignmentId
+    ) const;
+    QRect panelDropZoneGeometry(QWidget* laneWidget, PanelSlot slot) const;
+    QRect panelDropInsertionGeometry(
+        QWidget* laneWidget,
+        PanelSlot slot,
+        PanelLane lane,
+        int order,
+        const QString& assignmentId
+    ) const;
+    QRect panelDropGroupGeometry(QWidget* laneWidget, PanelSlot slot, const QRect& insertion) const;
     void updatePanelDropIndicator(QWidget* target, const QPoint& position);
     void hidePanelDropIndicator();
     void setPanelSlotForDock(QDockWidget* dock, PanelSlot slot);
     void movePanelDockToSlot(QDockWidget* dock, PanelSlot slot);
+    bool requestPanelMoveToPresentation(
+        QDockWidget* dock,
+        PanelLane lane,
+        PanelSlot slot,
+        int targetIndex = -1
+    );
     void startPanelButtonDrag(QToolButton* button);
     bool handlePanelDrop(QWidget* target, const QPoint& position, const QString& assignmentId);
     void hideOtherPanelsInSlot(QDockWidget* dock, PanelSlot slot);
@@ -177,6 +208,12 @@ private:
     void syncPanelPlacementRegistrations();
     PanelPlacement::Launcher launcherForSlot(PanelSlot slot, int order) const;
     PanelSlot panelSlotForLauncher(const PanelPlacement::Launcher& launcher) const;
+    PanelPlacement placementForPresentation(
+        QDockWidget* dock,
+        PanelLane lane,
+        PanelSlot slot,
+        int order
+    ) const;
     PanelPlacement fallbackPanelPlacementForDock(QDockWidget* dock) const;
 
     QToolButton* createTitleButton(const QString& tooltip, QWidget* parent);

@@ -4,6 +4,7 @@
 #include <functional>
 #include <memory>
 #include <optional>
+#include <utility>
 #include <vector>
 
 #include <QDockWidget>
@@ -46,10 +47,16 @@ struct ExactBoolBackup
 class FakeHost final: public PanelPlacementHost
 {
 public:
-    struct Step
+    struct PlacementStep
     {
         Result result;
         std::function<void(QDockWidget*, const PanelPlacement&)> mutate;
+    };
+
+    struct VisibilityStep
+    {
+        Result result;
+        std::function<void(QDockWidget*, const PanelPlacement&, bool)> mutate;
     };
 
     Result applyPlacement(MainWindow*, QDockWidget* dockWidget, const PanelPlacement& placement) override
@@ -57,10 +64,10 @@ public:
         ++applyCount;
         appliedPlacements.push_back(placement);
 
-        Step step;
-        if (!steps.empty()) {
-            step = std::move(steps.front());
-            steps.erase(steps.begin());
+        PlacementStep step;
+        if (!placementSteps.empty()) {
+            step = std::move(placementSteps.front());
+            placementSteps.erase(placementSteps.begin());
         }
         else {
             step.result.success = true;
@@ -69,6 +76,34 @@ public:
         if (step.mutate) {
             step.result.mutated = true;
             step.mutate(dockWidget, placement);
+        }
+
+        return step.result;
+    }
+
+    Result applyVisibility(
+        MainWindow* mainWindow,
+        QDockWidget* dockWidget,
+        const PanelPlacement& placement,
+        bool visible
+    ) override
+    {
+        ++visibilityApplyCount;
+        appliedVisibility.emplace_back(placement.panelId, visible);
+
+        VisibilityStep step;
+        if (!visibilitySteps.empty()) {
+            step = std::move(visibilitySteps.front());
+            visibilitySteps.erase(visibilitySteps.begin());
+        }
+        else {
+            step.result
+                = PanelPlacementHost::applyVisibility(mainWindow, dockWidget, placement, visible);
+        }
+
+        if (step.mutate) {
+            step.result.mutated = true;
+            step.mutate(dockWidget, placement, visible);
         }
 
         return step.result;
@@ -83,48 +118,82 @@ public:
         return true;
     }
 
-    void enqueueSuccess(std::function<void(QDockWidget*, const PanelPlacement&)> mutate = {})
+    void enqueuePlacementSuccess(std::function<void(QDockWidget*, const PanelPlacement&)> mutate = {})
     {
-        Step step;
+        PlacementStep step;
         step.result.success = true;
         step.mutate = std::move(mutate);
-        steps.push_back(std::move(step));
+        placementSteps.push_back(std::move(step));
     }
 
-    void enqueueFailure(
+    void enqueuePlacementFailure(
         PanelPlacementHost::Error error,
         const QString& message,
         std::function<void(QDockWidget*, const PanelPlacement&)> mutate = {}
     )
     {
-        Step step;
+        PlacementStep step;
         step.result.success = false;
         step.result.error = error;
         step.result.message = message;
         step.mutate = std::move(mutate);
-        steps.push_back(std::move(step));
+        placementSteps.push_back(std::move(step));
+    }
+
+    void enqueueVisibilitySuccess(
+        std::function<void(QDockWidget*, const PanelPlacement&, bool)> mutate = {}
+    )
+    {
+        VisibilityStep step;
+        step.result.success = true;
+        step.mutate = std::move(mutate);
+        visibilitySteps.push_back(std::move(step));
+    }
+
+    void enqueueVisibilityFailure(
+        PanelPlacementHost::Error error,
+        const QString& message,
+        std::function<void(QDockWidget*, const PanelPlacement&, bool)> mutate = {}
+    )
+    {
+        VisibilityStep step;
+        step.result.success = false;
+        step.result.error = error;
+        step.result.message = message;
+        step.mutate = std::move(mutate);
+        visibilitySteps.push_back(std::move(step));
     }
 
     int applyCount = 0;
+    int visibilityApplyCount = 0;
     std::vector<PanelPlacement> appliedPlacements;
-    std::vector<Step> steps;
+    std::vector<std::pair<QString, bool>> appliedVisibility;
+    std::vector<PlacementStep> placementSteps;
+    std::vector<VisibilityStep> visibilitySteps;
     std::optional<PanelPlacement> queriedPlacement;
 };
 
 PanelPlacement makePlacement(
     const QString& panelId,
     PanelPlacement::Mode mode = PanelPlacement::Mode::Docked,
-    PanelPlacement::Edge edge = PanelPlacement::Edge::Left
+    PanelPlacement::Edge edge = PanelPlacement::Edge::Left,
+    PanelPlacement::Region region = PanelPlacement::Region::Start,
+    int order = 0,
+    PanelPlacement::VisibilityPolicy policy = PanelPlacement::VisibilityPolicy::Exclusive
 )
 {
     PanelPlacement placement;
     placement.panelId = panelId;
     placement.mode = mode;
     placement.edge = edge;
-    placement.region = PanelPlacement::Region::Start;
-    placement.launcher.rail = PanelPlacement::Launcher::Rail::Left;
+    placement.region = region;
+    placement.order = order;
+    placement.visibilityPolicy = policy;
+    placement.launcher.rail = edge == PanelPlacement::Edge::Right
+        ? PanelPlacement::Launcher::Rail::Right
+        : PanelPlacement::Launcher::Rail::Left;
     placement.launcher.cluster = PanelPlacement::Launcher::Cluster::Upper;
-    placement.launcher.order = 0;
+    placement.launcher.order = order;
     placement.normalize();
     return placement;
 }
@@ -205,9 +274,6 @@ private Q_SLOTS:
             dock.get(),
             makePlacement(QStringLiteral("CodexTestPanelPlacementManagerActivation"))
         ));
-        const PanelPlacement before = manager.runtimePlacement(
-            QStringLiteral("CodexTestPanelPlacementManagerActivation")
-        );
 
         QSignalSpy activeSpy(&manager, &PanelPlacementManager::activeChanged);
         manager.setActive(true);
@@ -215,10 +281,7 @@ private Q_SLOTS:
 
         QCOMPARE(activeSpy.count(), 2);
         QCOMPARE(hostPtr->applyCount, 0);
-        QCOMPARE(
-            manager.runtimePlacement(QStringLiteral("CodexTestPanelPlacementManagerActivation")),
-            before
-        );
+        QCOMPARE(hostPtr->visibilityApplyCount, 0);
     }
 
     void registrationRejectsInvalidAndDuplicateInput()  // NOLINT
@@ -255,116 +318,380 @@ private Q_SLOTS:
         );
     }
 
-    void successfulTransactionPersistsPlacement()  // NOLINT
+    void requestPlacementReordersSourceAndTargetAreasAndPersistsPeers()  // NOLINT
     {
         mainWindowPrefs->SetBool(PanelPlacementStore::featureFlagKey(), true);
 
         auto host = std::make_unique<FakeHost>();
         FakeHost* hostPtr = host.get();
-        hostPtr->enqueueSuccess([](QDockWidget* dockWidget, const PanelPlacement& placement) {
-            if (placement.mode == PanelPlacement::Mode::Floating) {
-                dockWidget->setFloating(true);
-                dockWidget->setGeometry(placement.floatingGeometry);
-            }
-        });
+        hostPtr->enqueuePlacementSuccess();
 
         PanelPlacementManager manager(nullptr, std::move(host));
         manager.setActive(true);
 
-        const QString panelId = QStringLiteral("CodexTestPanelPlacementManagerSuccess");
-        PanelPlacement original = makePlacement(panelId);
-        original.launcher.order = 3;
-        QVERIFY(PanelPlacementStore::savePlacement(original));
+        const QString leftA = QStringLiteral("CodexTestPanelPlacementManagerMoveLeftA");
+        const QString leftB = QStringLiteral("CodexTestPanelPlacementManagerMoveLeftB");
+        const QString rightA = QStringLiteral("CodexTestPanelPlacementManagerMoveRightA");
+        const PanelPlacement persistedLeftA = makePlacement(
+            leftA,
+            PanelPlacement::Mode::Docked,
+            PanelPlacement::Edge::Left,
+            PanelPlacement::Region::Start,
+            0
+        );
+        const PanelPlacement persistedLeftB = makePlacement(
+            leftB,
+            PanelPlacement::Mode::Docked,
+            PanelPlacement::Edge::Left,
+            PanelPlacement::Region::Start,
+            1
+        );
+        const PanelPlacement persistedRightA = makePlacement(
+            rightA,
+            PanelPlacement::Mode::Docked,
+            PanelPlacement::Edge::Right,
+            PanelPlacement::Region::Start,
+            0
+        );
+        QVERIFY(PanelPlacementStore::savePlacement(persistedLeftA));
+        QVERIFY(PanelPlacementStore::savePlacement(persistedLeftB));
+        QVERIFY(PanelPlacementStore::savePlacement(persistedRightA));
 
-        std::unique_ptr<QDockWidget> dock(makeDock(panelId));
-        QVERIFY(manager.registerPanel(panelId, dock.get(), original));
+        QMainWindow hostWindow;
+        std::unique_ptr<QDockWidget> dockLeftA(makeDock(leftA));
+        std::unique_ptr<QDockWidget> dockLeftB(makeDock(leftB));
+        std::unique_ptr<QDockWidget> dockRightA(makeDock(rightA));
+        hostWindow.addDockWidget(Qt::LeftDockWidgetArea, dockLeftA.get());
+        hostWindow.addDockWidget(Qt::LeftDockWidgetArea, dockLeftB.get());
+        hostWindow.addDockWidget(Qt::RightDockWidgetArea, dockRightA.get());
+        hostWindow.show();
+        QApplication::processEvents();
+        QVERIFY(manager.registerPanel(leftA, dockLeftA.get(), persistedLeftA));
+        QVERIFY(manager.registerPanel(leftB, dockLeftB.get(), persistedLeftB));
+        QVERIFY(manager.registerPanel(rightA, dockRightA.get(), persistedRightA));
 
-        PanelPlacement target = manager.persistedPlacement(panelId);
-        target.mode = PanelPlacement::Mode::Floating;
-        target.floatingGeometry = QRect(40, 60, 320, 240);
+        PanelPlacement target = persistedLeftA;
+        target.edge = PanelPlacement::Edge::Right;
+        target.order = 0;
+        target.visibilityPolicy = PanelPlacement::VisibilityPolicy::Multiple;
         target.normalize();
 
-        const auto result = manager.requestPlacement(panelId, target);
+        const auto result = manager.requestPlacement(leftA, target);
         QVERIFY(result.success);
-        QCOMPARE(
-            static_cast<int>(result.error),
-            static_cast<int>(PanelPlacementManager::RequestError::None)
-        );
         QCOMPARE(hostPtr->applyCount, 1);
 
-        PanelPlacement loaded;
-        QVERIFY(PanelPlacementStore::loadUnifiedPlacement(panelId, &loaded));
-        QCOMPARE(loaded, target);
-        QCOMPARE(manager.persistedPlacement(panelId), target);
-        QCOMPARE(manager.runtimePlacement(panelId).mode, PanelPlacement::Mode::Floating);
-        QCOMPARE(manager.runtimePlacement(panelId).floatingGeometry, QRect(40, 60, 320, 240));
+        QCOMPARE(
+            manager.orderedPanelIds(
+                makePlacement(QString(), PanelPlacement::Mode::Docked, PanelPlacement::Edge::Left)
+            ),
+            QStringList {leftB}
+        );
+        QCOMPARE(
+            manager.orderedPanelIds(
+                makePlacement(QString(), PanelPlacement::Mode::Docked, PanelPlacement::Edge::Right)
+            ),
+            (QStringList {leftA, rightA})
+        );
+
+        PanelPlacement loadedLeftA;
+        PanelPlacement loadedLeftB;
+        PanelPlacement loadedRightA;
+        QVERIFY(PanelPlacementStore::loadUnifiedPlacement(leftA, &loadedLeftA));
+        QVERIFY(PanelPlacementStore::loadUnifiedPlacement(leftB, &loadedLeftB));
+        QVERIFY(PanelPlacementStore::loadUnifiedPlacement(rightA, &loadedRightA));
+        QCOMPARE(loadedLeftA.edge, PanelPlacement::Edge::Right);
+        QCOMPARE(loadedLeftA.order, 0);
+        QCOMPARE(loadedLeftA.visibilityPolicy, PanelPlacement::VisibilityPolicy::Multiple);
+        QCOMPARE(loadedLeftB.edge, PanelPlacement::Edge::Left);
+        QCOMPARE(loadedLeftB.order, 0);
+        QCOMPARE(loadedRightA.edge, PanelPlacement::Edge::Right);
+        QCOMPARE(loadedRightA.order, 1);
+        QCOMPARE(loadedRightA.visibilityPolicy, PanelPlacement::VisibilityPolicy::Multiple);
+        QCOMPARE(manager.persistedPlacement(rightA).order, 1);
+        QCOMPARE(manager.runtimePlacement(rightA).order, 1);
     }
 
-    void failedTransactionRollsBackWithoutPersisting()  // NOLINT
+    void requestVisibilityExclusiveShowsOnePanel()  // NOLINT
     {
         mainWindowPrefs->SetBool(PanelPlacementStore::featureFlagKey(), true);
 
         auto host = std::make_unique<FakeHost>();
         FakeHost* hostPtr = host.get();
-        hostPtr->enqueueFailure(
+        PanelPlacementManager manager(nullptr, std::move(host));
+        manager.setActive(true);
+
+        const QString panelA = QStringLiteral("CodexTestPanelPlacementManagerVisibleA");
+        const QString panelB = QStringLiteral("CodexTestPanelPlacementManagerVisibleB");
+        const PanelPlacement placementA = makePlacement(
+            panelA,
+            PanelPlacement::Mode::Docked,
+            PanelPlacement::Edge::Left,
+            PanelPlacement::Region::Start,
+            0
+        );
+        const PanelPlacement placementB = makePlacement(
+            panelB,
+            PanelPlacement::Mode::Docked,
+            PanelPlacement::Edge::Left,
+            PanelPlacement::Region::Start,
+            1
+        );
+        QVERIFY(PanelPlacementStore::savePlacement(placementA));
+        QVERIFY(PanelPlacementStore::savePlacement(placementB));
+
+        QMainWindow hostWindow;
+        QDockWidget* dockA = makeDock(panelA);
+        QDockWidget* dockB = makeDock(panelB);
+        hostWindow.addDockWidget(Qt::LeftDockWidgetArea, dockA);
+        hostWindow.addDockWidget(Qt::LeftDockWidgetArea, dockB);
+        hostWindow.show();
+        QApplication::processEvents();
+        dockA->show();
+        dockB->show();
+
+        QVERIFY(manager.registerPanel(panelA, dockA, placementA));
+        QVERIFY(manager.registerPanel(panelB, dockB, placementB));
+
+        const auto result = manager.requestVisibility(panelB, true);
+        QVERIFY(result.success);
+        QCOMPARE(hostPtr->visibilityApplyCount, 1);
+        QVERIFY(!dockA->isVisible());
+        QVERIFY(dockB->isVisible());
+    }
+
+    void requestAreaVisibilityPolicyMultipleKeepsPeersVisible()  // NOLINT
+    {
+        mainWindowPrefs->SetBool(PanelPlacementStore::featureFlagKey(), true);
+
+        auto host = std::make_unique<FakeHost>();
+        PanelPlacementManager manager(nullptr, std::move(host));
+        manager.setActive(true);
+
+        const QString panelA = QStringLiteral("CodexTestPanelPlacementManagerMultipleA");
+        const QString panelB = QStringLiteral("CodexTestPanelPlacementManagerMultipleB");
+        const PanelPlacement placementA = makePlacement(
+            panelA,
+            PanelPlacement::Mode::Docked,
+            PanelPlacement::Edge::Left,
+            PanelPlacement::Region::Start,
+            0
+        );
+        const PanelPlacement placementB = makePlacement(
+            panelB,
+            PanelPlacement::Mode::Docked,
+            PanelPlacement::Edge::Left,
+            PanelPlacement::Region::Start,
+            1
+        );
+        QVERIFY(PanelPlacementStore::savePlacement(placementA));
+        QVERIFY(PanelPlacementStore::savePlacement(placementB));
+
+        QMainWindow hostWindow;
+        QDockWidget* dockA = makeDock(panelA);
+        QDockWidget* dockB = makeDock(panelB);
+        hostWindow.addDockWidget(Qt::LeftDockWidgetArea, dockA);
+        hostWindow.addDockWidget(Qt::LeftDockWidgetArea, dockB);
+        hostWindow.show();
+        QApplication::processEvents();
+        dockA->show();
+        dockB->hide();
+
+        QVERIFY(manager.registerPanel(panelA, dockA, placementA));
+        QVERIFY(manager.registerPanel(panelB, dockB, placementB));
+        QVERIFY(
+            manager.requestAreaVisibilityPolicy(panelA, PanelPlacement::VisibilityPolicy::Multiple).success
+        );
+
+        const auto visibilityResult = manager.requestVisibility(panelB, true);
+        QVERIFY(visibilityResult.success);
+        QVERIFY(dockA->isVisible());
+        QVERIFY(dockB->isVisible());
+        QCOMPARE(
+            manager.persistedPlacement(panelA).visibilityPolicy,
+            PanelPlacement::VisibilityPolicy::Multiple
+        );
+        QCOMPARE(
+            manager.persistedPlacement(panelB).visibilityPolicy,
+            PanelPlacement::VisibilityPolicy::Multiple
+        );
+    }
+
+    void requestAreaVisibilityPolicyExclusiveKeepsFirstVisibleByOrder()  // NOLINT
+    {
+        mainWindowPrefs->SetBool(PanelPlacementStore::featureFlagKey(), true);
+
+        auto host = std::make_unique<FakeHost>();
+        PanelPlacementManager manager(nullptr, std::move(host));
+        manager.setActive(true);
+
+        const QString panelA = QStringLiteral("CodexTestPanelPlacementManagerPolicyA");
+        const QString panelB = QStringLiteral("CodexTestPanelPlacementManagerPolicyB");
+        const QString panelC = QStringLiteral("CodexTestPanelPlacementManagerPolicyC");
+        const PanelPlacement placementA = makePlacement(
+            panelA,
+            PanelPlacement::Mode::Docked,
+            PanelPlacement::Edge::Left,
+            PanelPlacement::Region::Start,
+            0,
+            PanelPlacement::VisibilityPolicy::Multiple
+        );
+        const PanelPlacement placementB = makePlacement(
+            panelB,
+            PanelPlacement::Mode::Docked,
+            PanelPlacement::Edge::Left,
+            PanelPlacement::Region::Start,
+            1,
+            PanelPlacement::VisibilityPolicy::Multiple
+        );
+        const PanelPlacement placementC = makePlacement(
+            panelC,
+            PanelPlacement::Mode::Docked,
+            PanelPlacement::Edge::Left,
+            PanelPlacement::Region::Start,
+            2,
+            PanelPlacement::VisibilityPolicy::Multiple
+        );
+        QVERIFY(PanelPlacementStore::savePlacement(placementA));
+        QVERIFY(PanelPlacementStore::savePlacement(placementB));
+        QVERIFY(PanelPlacementStore::savePlacement(placementC));
+
+        QMainWindow hostWindow;
+        QDockWidget* dockA = makeDock(panelA);
+        QDockWidget* dockB = makeDock(panelB);
+        QDockWidget* dockC = makeDock(panelC);
+        hostWindow.addDockWidget(Qt::LeftDockWidgetArea, dockA);
+        hostWindow.addDockWidget(Qt::LeftDockWidgetArea, dockB);
+        hostWindow.addDockWidget(Qt::LeftDockWidgetArea, dockC);
+        hostWindow.show();
+        QApplication::processEvents();
+        dockA->show();
+        dockB->show();
+        dockC->hide();
+
+        QVERIFY(manager.registerPanel(panelA, dockA, placementA));
+        QVERIFY(manager.registerPanel(panelB, dockB, placementB));
+        QVERIFY(manager.registerPanel(panelC, dockC, placementC));
+
+        const auto result = manager.requestAreaVisibilityPolicy(
+            panelB,
+            PanelPlacement::VisibilityPolicy::Exclusive
+        );
+        QVERIFY(result.success);
+        QVERIFY(dockA->isVisible());
+        QVERIFY(!dockB->isVisible());
+        QVERIFY(!dockC->isVisible());
+        QCOMPARE(
+            manager.persistedPlacement(panelA).visibilityPolicy,
+            PanelPlacement::VisibilityPolicy::Exclusive
+        );
+        QCOMPARE(
+            manager.persistedPlacement(panelB).visibilityPolicy,
+            PanelPlacement::VisibilityPolicy::Exclusive
+        );
+        QCOMPARE(
+            manager.persistedPlacement(panelC).visibilityPolicy,
+            PanelPlacement::VisibilityPolicy::Exclusive
+        );
+    }
+
+    void requestPlacementFailureRollsBackMutatedTargetAndPeerPersistence()  // NOLINT
+    {
+        mainWindowPrefs->SetBool(PanelPlacementStore::featureFlagKey(), true);
+
+        auto host = std::make_unique<FakeHost>();
+        FakeHost* hostPtr = host.get();
+        hostPtr->enqueuePlacementFailure(
             PanelPlacementHost::Error::ApplyFailed,
             QStringLiteral("attach failed"),
             [](QDockWidget* dockWidget, const PanelPlacement&) {
-                dockWidget->hide();
                 dockWidget->setFloating(true);
-                dockWidget->setGeometry(QRect(15, 20, 410, 300));
+                dockWidget->setGeometry(QRect(30, 40, 320, 240));
             }
         );
-        hostPtr->enqueueSuccess([](QDockWidget* dockWidget, const PanelPlacement& placement) {
-            if (placement.mode == PanelPlacement::Mode::Docked) {
-                dockWidget->setFloating(false);
-            }
+        hostPtr->enqueuePlacementSuccess([](QDockWidget* dockWidget, const PanelPlacement&) {
+            dockWidget->setFloating(false);
         });
 
         PanelPlacementManager manager(nullptr, std::move(host));
         manager.setActive(true);
 
-        const QString panelId = QStringLiteral("CodexTestPanelPlacementManagerRollback");
-        PanelPlacement original = makePlacement(panelId);
-        original.launcher.order = 2;
-        QVERIFY(PanelPlacementStore::savePlacement(original));
+        const QString leftA = QStringLiteral("CodexTestPanelPlacementManagerRollbackA");
+        const QString leftB = QStringLiteral("CodexTestPanelPlacementManagerRollbackB");
+        const QString rightA = QStringLiteral("CodexTestPanelPlacementManagerRollbackC");
+        const PanelPlacement persistedLeftA = makePlacement(
+            leftA,
+            PanelPlacement::Mode::Docked,
+            PanelPlacement::Edge::Left,
+            PanelPlacement::Region::Start,
+            0
+        );
+        const PanelPlacement persistedLeftB = makePlacement(
+            leftB,
+            PanelPlacement::Mode::Docked,
+            PanelPlacement::Edge::Left,
+            PanelPlacement::Region::Start,
+            1
+        );
+        const PanelPlacement persistedRightA = makePlacement(
+            rightA,
+            PanelPlacement::Mode::Docked,
+            PanelPlacement::Edge::Right,
+            PanelPlacement::Region::Start,
+            0
+        );
+        QVERIFY(PanelPlacementStore::savePlacement(persistedLeftA));
+        QVERIFY(PanelPlacementStore::savePlacement(persistedLeftB));
+        QVERIFY(PanelPlacementStore::savePlacement(persistedRightA));
 
-        QDockWidget* dock = makeDock(panelId);
-        QMainWindow dockHost;
-        dockHost.addDockWidget(Qt::LeftDockWidgetArea, dock);
-        dockHost.show();
+        QMainWindow hostWindow;
+        std::unique_ptr<QDockWidget> dockLeftA(makeDock(leftA));
+        std::unique_ptr<QDockWidget> dockLeftB(makeDock(leftB));
+        std::unique_ptr<QDockWidget> dockRightA(makeDock(rightA));
+        hostWindow.addDockWidget(Qt::LeftDockWidgetArea, dockLeftA.get());
+        hostWindow.addDockWidget(Qt::LeftDockWidgetArea, dockLeftB.get());
+        hostWindow.addDockWidget(Qt::RightDockWidgetArea, dockRightA.get());
+        hostWindow.show();
         QApplication::processEvents();
-        QVERIFY(manager.registerPanel(panelId, dock, original));
+        QVERIFY(manager.registerPanel(leftA, dockLeftA.get(), persistedLeftA));
+        QVERIFY(manager.registerPanel(leftB, dockLeftB.get(), persistedLeftB));
+        QVERIFY(manager.registerPanel(rightA, dockRightA.get(), persistedRightA));
 
-        PanelPlacement target = manager.persistedPlacement(panelId);
-        target.mode = PanelPlacement::Mode::Floating;
-        target.floatingGeometry = QRect(25, 35, 500, 280);
+        PanelPlacement target = persistedLeftA;
+        target.edge = PanelPlacement::Edge::Right;
+        target.order = 0;
+        target.visibilityPolicy = PanelPlacement::VisibilityPolicy::Multiple;
         target.normalize();
 
-        const auto result = manager.requestPlacement(panelId, target);
+        const auto result = manager.requestPlacement(leftA, target);
         QVERIFY(!result.success);
         QCOMPARE(
             static_cast<int>(result.error),
             static_cast<int>(PanelPlacementManager::RequestError::HostFailure)
         );
         QCOMPARE(hostPtr->applyCount, 2);
-        QVERIFY(dock->isVisible());
-        QVERIFY(!dock->isFloating());
+        QCOMPARE(manager.persistedPlacement(leftA), persistedLeftA);
+        QCOMPARE(manager.runtimePlacement(leftA).mode, PanelPlacement::Mode::Docked);
 
-        PanelPlacement loaded;
-        QVERIFY(PanelPlacementStore::loadUnifiedPlacement(panelId, &loaded));
-        QCOMPARE(loaded, original);
-        QCOMPARE(manager.persistedPlacement(panelId), original);
-        QCOMPARE(manager.runtimePlacement(panelId).mode, PanelPlacement::Mode::Docked);
+        PanelPlacement loadedLeftA;
+        PanelPlacement loadedLeftB;
+        PanelPlacement loadedRightA;
+        QVERIFY(PanelPlacementStore::loadUnifiedPlacement(leftA, &loadedLeftA));
+        QVERIFY(PanelPlacementStore::loadUnifiedPlacement(leftB, &loadedLeftB));
+        QVERIFY(PanelPlacementStore::loadUnifiedPlacement(rightA, &loadedRightA));
+        QCOMPARE(loadedLeftA, persistedLeftA);
+        QCOMPARE(loadedLeftB, persistedLeftB);
+        QCOMPARE(loadedRightA, persistedRightA);
+        QCOMPARE(manager.persistedPlacement(leftB), persistedLeftB);
+        QCOMPARE(manager.persistedPlacement(rightA), persistedRightA);
     }
 
-    void rollbackFailureReportsSafeState()  // NOLINT
+    void rollbackFailureReportsUnsafeRuntimeState()  // NOLINT
     {
         mainWindowPrefs->SetBool(PanelPlacementStore::featureFlagKey(), true);
 
         auto host = std::make_unique<FakeHost>();
         FakeHost* hostPtr = host.get();
-        hostPtr->enqueueFailure(
+        hostPtr->enqueuePlacementFailure(
             PanelPlacementHost::Error::ApplyFailed,
             QStringLiteral("attach failed"),
             [](QDockWidget* dockWidget, const PanelPlacement&) {
@@ -372,7 +699,7 @@ private Q_SLOTS:
                 dockWidget->setGeometry(QRect(90, 90, 280, 180));
             }
         );
-        hostPtr->enqueueFailure(
+        hostPtr->enqueuePlacementFailure(
             PanelPlacementHost::Error::ApplyFailed,
             QStringLiteral("rollback failed")
         );
@@ -381,14 +708,15 @@ private Q_SLOTS:
         manager.setActive(true);
 
         const QString panelId = QStringLiteral("CodexTestPanelPlacementManagerRollbackFailure");
-        PanelPlacement original = makePlacement(panelId);
+        const PanelPlacement original = makePlacement(panelId);
         QVERIFY(PanelPlacementStore::savePlacement(original));
 
         std::unique_ptr<QDockWidget> dock(makeDock(panelId));
         QVERIFY(manager.registerPanel(panelId, dock.get(), original));
 
-        PanelPlacement target = manager.persistedPlacement(panelId);
+        PanelPlacement target = original;
         target.mode = PanelPlacement::Mode::Floating;
+        target.edge = PanelPlacement::Edge::None;
         target.floatingGeometry = QRect(90, 90, 280, 180);
         target.normalize();
 
@@ -401,193 +729,6 @@ private Q_SLOTS:
         QCOMPARE(hostPtr->applyCount, 2);
         QCOMPARE(manager.persistedPlacement(panelId), original);
         QCOMPARE(manager.runtimePlacement(panelId).mode, PanelPlacement::Mode::Floating);
-
-        PanelPlacement loaded;
-        QVERIFY(PanelPlacementStore::loadUnifiedPlacement(panelId, &loaded));
-        QCOMPARE(loaded, original);
-    }
-
-    void overlayOriginRollbackPreservesSemanticPlacement()  // NOLINT
-    {
-        mainWindowPrefs->SetBool(PanelPlacementStore::featureFlagKey(), true);
-
-        const QString panelId = QStringLiteral("CodexTestPanelPlacementManagerOverlayRollback");
-        PanelPlacement original
-            = makePlacement(panelId, PanelPlacement::Mode::Overlay, PanelPlacement::Edge::Left);
-        QVERIFY(PanelPlacementStore::savePlacement(original));
-
-        auto host = std::make_unique<FakeHost>();
-        FakeHost* hostPtr = host.get();
-        hostPtr->queriedPlacement = original;
-        hostPtr->enqueueFailure(
-            PanelPlacementHost::Error::ApplyFailed,
-            QStringLiteral("attach failed"),
-            [](QDockWidget* dockWidget, const PanelPlacement&) { dockWidget->setFloating(true); }
-        );
-        hostPtr->enqueueSuccess();
-
-        PanelPlacementManager manager(nullptr, std::move(host));
-        manager.setActive(true);
-        std::unique_ptr<QDockWidget> dock(makeDock(panelId));
-        QVERIFY(manager.registerPanel(panelId, dock.get(), original));
-        QCOMPARE(manager.runtimePlacement(panelId).mode, PanelPlacement::Mode::Overlay);
-
-        PanelPlacement target = original;
-        target.mode = PanelPlacement::Mode::Floating;
-        target.edge = PanelPlacement::Edge::None;
-        target.floatingGeometry = QRect(80, 100, 320, 240);
-        target.normalize();
-
-        const auto result = manager.requestPlacement(panelId, target);
-        QVERIFY(!result.success);
-        QCOMPARE(hostPtr->applyCount, 2);
-        QCOMPARE(hostPtr->appliedPlacements.at(1).mode, PanelPlacement::Mode::Overlay);
-        QCOMPARE(hostPtr->appliedPlacements.at(1).edge, PanelPlacement::Edge::Left);
-        QCOMPARE(manager.runtimePlacement(panelId), original);
-        QCOMPARE(manager.persistedPlacement(panelId), original);
-    }
-
-    void registrationImportsLiveOverlayWithoutEagerPersistence()  // NOLINT
-    {
-        const QString panelId = QStringLiteral("CodexTestPanelPlacementManagerOverlayImport");
-        PanelPlacement liveOverlay
-            = makePlacement(panelId, PanelPlacement::Mode::Overlay, PanelPlacement::Edge::Right);
-        liveOverlay.launcher.rail = PanelPlacement::Launcher::Rail::Left;
-        liveOverlay.launcher.cluster = PanelPlacement::Launcher::Cluster::Bottom;
-
-        auto host = std::make_unique<FakeHost>();
-        host->queriedPlacement = liveOverlay;
-        PanelPlacementManager manager(nullptr, std::move(host));
-        std::unique_ptr<QDockWidget> dock(makeDock(panelId));
-
-        QVERIFY(!PanelPlacementStore::hasPlacement(panelId));
-        QVERIFY(manager.registerPanel(panelId, dock.get(), liveOverlay));
-        QCOMPARE(manager.runtimePlacement(panelId), liveOverlay);
-        QCOMPARE(manager.persistedPlacement(panelId), liveOverlay);
-        QVERIFY(!PanelPlacementStore::hasPlacement(panelId));
-    }
-
-    void launcherUpdateDoesNotAttach()  // NOLINT
-    {
-        mainWindowPrefs->SetBool(PanelPlacementStore::featureFlagKey(), true);
-
-        auto host = std::make_unique<FakeHost>();
-        FakeHost* hostPtr = host.get();
-        PanelPlacementManager manager(nullptr, std::move(host));
-        manager.setActive(true);
-
-        const QString panelId = QStringLiteral("CodexTestPanelPlacementManagerLauncher");
-        PanelPlacement original = makePlacement(panelId);
-        QVERIFY(PanelPlacementStore::savePlacement(original));
-
-        std::unique_ptr<QDockWidget> dock(makeDock(panelId));
-        QVERIFY(manager.registerPanel(panelId, dock.get(), original));
-
-        PanelPlacement::Launcher launcher = original.launcher;
-        launcher.rail = PanelPlacement::Launcher::Rail::Right;
-        launcher.cluster = PanelPlacement::Launcher::Cluster::Bottom;
-        launcher.order = 5;
-
-        const auto result = manager.updateLauncher(panelId, launcher);
-        QVERIFY(result.success);
-        QCOMPARE(hostPtr->applyCount, 0);
-
-        PanelPlacement loaded;
-        QVERIFY(PanelPlacementStore::loadUnifiedPlacement(panelId, &loaded));
-        QCOMPARE(loaded.launcher, launcher);
-        QCOMPARE(manager.runtimePlacement(panelId).launcher, launcher);
-    }
-
-    void unsupportedAutoHideRequestIsInert()  // NOLINT
-    {
-        mainWindowPrefs->SetBool(PanelPlacementStore::featureFlagKey(), true);
-
-        PanelPlacementManager manager(nullptr);
-        manager.setActive(true);
-
-        const QString panelId = QStringLiteral("CodexTestPanelPlacementManagerOverlay");
-        PanelPlacement original = makePlacement(panelId);
-        QVERIFY(PanelPlacementStore::savePlacement(original));
-
-        QDockWidget* dock = makeDock(panelId);
-        QMainWindow dockHost;
-        dockHost.addDockWidget(Qt::LeftDockWidgetArea, dock);
-        dockHost.show();
-        QApplication::processEvents();
-        QVERIFY(manager.registerPanel(panelId, dock, original));
-
-        PanelPlacement target = manager.persistedPlacement(panelId);
-        target.mode = PanelPlacement::Mode::AutoHide;
-        target.edge = PanelPlacement::Edge::Left;
-        target.normalize();
-
-        const auto result = manager.requestPlacement(panelId, target);
-        QVERIFY(!result.success);
-        QCOMPARE(
-            static_cast<int>(result.error),
-            static_cast<int>(PanelPlacementManager::RequestError::UnsupportedPlacement)
-        );
-        QVERIFY(!dock->isFloating());
-        QVERIFY(dock->isVisible());
-        QCOMPARE(manager.persistedPlacement(panelId), original);
-    }
-
-    void focusAndVisibilityAreRestored()  // NOLINT
-    {
-        mainWindowPrefs->SetBool(PanelPlacementStore::featureFlagKey(), true);
-
-        PanelPlacementManager manager(nullptr, std::make_unique<FakeHost>());
-        manager.setActive(true);
-
-        const QString panelId = QStringLiteral("CodexTestPanelPlacementManagerFocus");
-        PanelPlacement original = makePlacement(panelId);
-        QVERIFY(PanelPlacementStore::savePlacement(original));
-
-        QDockWidget* dock = makeDock(panelId);
-        auto* content = new QWidget(dock);
-        auto* layout = new QVBoxLayout(content);
-        auto* editor = new QLineEdit(content);
-        layout->addWidget(editor);
-        content->setLayout(layout);
-        dock->setWidget(content);
-
-        QMainWindow focusHost;
-        auto* focusSink = new QWidget(&focusHost);
-        auto* focusSinkEditor = new QLineEdit(focusSink);
-        auto* sinkLayout = new QVBoxLayout(focusSink);
-        sinkLayout->addWidget(focusSinkEditor);
-        focusHost.setCentralWidget(focusSink);
-        focusHost.addDockWidget(Qt::LeftDockWidgetArea, dock);
-        focusHost.show();
-        focusHost.activateWindow();
-        QApplication::processEvents();
-        editor->setFocus(Qt::OtherFocusReason);
-        QApplication::processEvents();
-
-        auto* fakeHost = static_cast<FakeHost*>(manager.host());
-        fakeHost->enqueueSuccess(
-            [focusSinkEditor](QDockWidget* dockWidget, const PanelPlacement& placement) {
-                dockWidget->hide();
-                dockWidget->setFloating(placement.mode == PanelPlacement::Mode::Floating);
-                focusSinkEditor->setFocus(Qt::OtherFocusReason);
-            }
-        );
-
-        QVERIFY(manager.registerPanel(panelId, dock, original));
-        focusHost.activateWindow();
-        editor->setFocus(Qt::OtherFocusReason);
-        QApplication::processEvents();
-        QTRY_COMPARE(QApplication::focusWidget(), static_cast<QWidget*>(editor));
-
-        PanelPlacement target = manager.persistedPlacement(panelId);
-        target.mode = PanelPlacement::Mode::Floating;
-        target.floatingGeometry = QRect(100, 120, 240, 180);
-        target.normalize();
-
-        const auto result = manager.requestPlacement(panelId, target);
-        QVERIFY(result.success);
-        QVERIFY(dock->isVisible());
-        QTRY_COMPARE(QApplication::focusWidget(), static_cast<QWidget*>(editor));
     }
 
     void reentrantTransitionIsRejected()  // NOLINT
@@ -599,7 +740,7 @@ private Q_SLOTS:
         manager.setActive(true);
 
         const QString panelId = QStringLiteral("CodexTestPanelPlacementManagerReentrant");
-        PanelPlacement original = makePlacement(panelId);
+        const PanelPlacement original = makePlacement(panelId);
         QVERIFY(PanelPlacementStore::savePlacement(original));
 
         std::unique_ptr<QDockWidget> dock(makeDock(panelId));
@@ -607,14 +748,15 @@ private Q_SLOTS:
 
         auto* fakeHost = static_cast<FakeHost*>(manager.host());
         PanelPlacementManager::RequestResult nestedResult;
-        fakeHost->enqueueSuccess(
+        fakeHost->enqueuePlacementSuccess(
             [&manager, &panelId, &nestedResult](QDockWidget*, const PanelPlacement& placement) {
                 nestedResult = manager.requestPlacement(panelId, placement);
             }
         );
 
-        PanelPlacement target = manager.persistedPlacement(panelId);
+        PanelPlacement target = original;
         target.mode = PanelPlacement::Mode::Floating;
+        target.edge = PanelPlacement::Edge::None;
         target.floatingGeometry = QRect(60, 80, 280, 180);
         target.normalize();
 
@@ -630,24 +772,30 @@ private Q_SLOTS:
 private:
     void clearTestState()
     {
-        const std::array<QString, 12> panelIds {{
+        const std::array<QString, 17> panelIds {{
             QStringLiteral("CodexTestPanelPlacementManagerA"),
             QStringLiteral("CodexTestPanelPlacementManagerActivation"),
             QStringLiteral("CodexTestPanelPlacementManagerB"),
-            QStringLiteral("CodexTestPanelPlacementManagerSuccess"),
-            QStringLiteral("CodexTestPanelPlacementManagerRollback"),
+            QStringLiteral("CodexTestPanelPlacementManagerMoveLeftA"),
+            QStringLiteral("CodexTestPanelPlacementManagerMoveLeftB"),
+            QStringLiteral("CodexTestPanelPlacementManagerMoveRightA"),
+            QStringLiteral("CodexTestPanelPlacementManagerVisibleA"),
+            QStringLiteral("CodexTestPanelPlacementManagerVisibleB"),
+            QStringLiteral("CodexTestPanelPlacementManagerMultipleA"),
+            QStringLiteral("CodexTestPanelPlacementManagerMultipleB"),
+            QStringLiteral("CodexTestPanelPlacementManagerPolicyA"),
+            QStringLiteral("CodexTestPanelPlacementManagerPolicyB"),
+            QStringLiteral("CodexTestPanelPlacementManagerPolicyC"),
+            QStringLiteral("CodexTestPanelPlacementManagerRollbackA"),
+            QStringLiteral("CodexTestPanelPlacementManagerRollbackB"),
+            QStringLiteral("CodexTestPanelPlacementManagerRollbackC"),
             QStringLiteral("CodexTestPanelPlacementManagerRollbackFailure"),
-            QStringLiteral("CodexTestPanelPlacementManagerOverlayRollback"),
-            QStringLiteral("CodexTestPanelPlacementManagerOverlayImport"),
-            QStringLiteral("CodexTestPanelPlacementManagerLauncher"),
-            QStringLiteral("CodexTestPanelPlacementManagerOverlay"),
-            QStringLiteral("CodexTestPanelPlacementManagerFocus"),
-            QStringLiteral("CodexTestPanelPlacementManagerReentrant"),
         }};
 
         for (const auto& panelId : panelIds) {
             placementsRoot->RemoveGrp(panelId.toUtf8().constData());
         }
+        placementsRoot->RemoveGrp("CodexTestPanelPlacementManagerReentrant");
     }
 
     ParameterGrp::handle placementsRoot;

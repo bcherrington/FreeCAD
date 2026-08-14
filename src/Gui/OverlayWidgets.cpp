@@ -1863,15 +1863,20 @@ void OverlayTabWidget::addWidget(QDockWidget* dock, const QString& title)
     OverlayManager::setFocusView();
     getMainWindow()->removeDockWidget(dock);
 
-    auto titleWidget = dock->titleBarWidget();
-    if (titleWidget && titleWidget->objectName() == QStringLiteral("OverlayTitle")) {
-        // replace the title bar with an invisible widget to hide it. The
-        // OverlayTabWidget uses its own title bar for all docks.
-        auto w = new QWidget();
-        w->setObjectName(QStringLiteral("OverlayTitle"));
-        dock->setTitleBarWidget(w);
-        w->hide();
-        titleWidget->deleteLater();
+    if (OverlayManager::instance()->usesCanonicalHeaderOwnership()) {
+        OverlayManager::instance()->setDockHeaderOwnedByOverlay(dock, true);
+    }
+    else {
+        auto titleWidget = dock->titleBarWidget();
+        if (titleWidget && titleWidget->objectName() == QStringLiteral("OverlayTitle")) {
+            // replace the title bar with an invisible widget to hide it. The
+            // OverlayTabWidget uses its own title bar for all docks.
+            auto w = new QWidget();
+            w->setObjectName(QStringLiteral("OverlayTitle"));
+            dock->setTitleBarWidget(w);
+            w->hide();
+            titleWidget->deleteLater();
+        }
     }
 
     dock->show();
@@ -1879,6 +1884,7 @@ void OverlayTabWidget::addWidget(QDockWidget* dock, const QString& title)
     auto dummyWidget = new QWidget(this);
     addTab(dummyWidget, title);
     updateTabBarVisibility();
+    OverlayManager::instance()->refreshOverlayTitleBar(this);
     connect(dock, &QObject::destroyed, dummyWidget, &QObject::deleteLater);
 
     dock->setFeatures(dock->features() & ~QDockWidget::DockWidgetFloatable);
@@ -1939,14 +1945,20 @@ void OverlayTabWidget::removeWidget(QDockWidget* dock, QDockWidget* lastDock)
         hide();
     }
 
-    auto tw = dock->titleBarWidget();
-    if (!tw || tw->objectName() == QStringLiteral("OverlayTitle")) {
-        OverlayManager::instance()->setupTitleBar(dock);
+    if (OverlayManager::instance()->usesCanonicalHeaderOwnership()) {
+        OverlayManager::instance()->setDockHeaderOwnedByOverlay(dock, false);
+    }
+    else {
+        auto tw = dock->titleBarWidget();
+        if (!tw || tw->objectName() == QStringLiteral("OverlayTitle")) {
+            OverlayManager::instance()->setupTitleBar(dock);
+        }
     }
 
     dock->setFeatures(dock->features() | QDockWidget::DockWidgetFloatable);
 
     setOverlayMode(dock, OverlayOption::Disable);
+    OverlayManager::instance()->refreshOverlayTitleBar(this);
 
     saveTabs();
 }
@@ -2077,6 +2089,7 @@ void OverlayTabWidget::onSplitterResize(int index)
         }
     }
 
+    OverlayManager::instance()->refreshOverlayTitleBar(this);
     saveTabs();
 }
 
@@ -2098,7 +2111,16 @@ void OverlayTabWidget::onCurrentChanged(int index)
     }
     splitter->setSizes(sizes);
     onSplitterResize(index);
+    OverlayManager::instance()->refreshOverlayTitleBar(this);
     saveTabs();
+}
+
+void OverlayTabWidget::refreshTitleBarLayout()
+{
+    if (_state <= State::Normal) {
+        setupLayout();
+    }
+    update();
 }
 
 void OverlayTabWidget::onSizeGripMove(const QPoint& p)
@@ -2268,7 +2290,10 @@ void OverlayTitleBar::paintEvent(QPaintEvent*)
                 default:
                     break;
             }
-            dock = tabWidget->dockWidget(0);
+            dock = tabWidget->currentDockWidget();
+            if (!dock) {
+                dock = tabWidget->dockWidget(0);
+            }
         }
     }
     if (!dock) {

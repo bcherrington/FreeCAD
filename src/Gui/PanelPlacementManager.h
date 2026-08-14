@@ -68,6 +68,13 @@ public:
         const PanelPlacement& placement
     ) = 0;
 
+    virtual Result applyVisibility(
+        MainWindow* mainWindow,
+        QDockWidget* dockWidget,
+        const PanelPlacement& placement,
+        bool visible
+    );
+
     /// Query semantic host state that cannot be inferred from QDockWidget alone.
     /// Return false to let the manager fall back to normal dock/floating inspection.
     virtual bool queryPlacement(
@@ -136,7 +143,12 @@ public:
     PanelPlacement runtimePlacement(const QString& panelId) const;
 
     RequestResult requestPlacement(const QString& panelId, const PanelPlacement& placement);
-    RequestResult updateLauncher(const QString& panelId, const PanelPlacement::Launcher& launcher);
+    RequestResult requestVisibility(const QString& panelId, bool visible);
+    RequestResult requestAreaVisibilityPolicy(
+        const QString& panelId,
+        PanelPlacement::VisibilityPolicy policy
+    );
+    QStringList orderedPanelIds(const PanelPlacement& area) const;
 
     void setHost(std::unique_ptr<PanelPlacementHost> host);
     PanelPlacementHost* host() const;
@@ -146,7 +158,6 @@ Q_SIGNALS:
     void panelRegistered(const QString& panelId);
     void panelUnregistered(const QString& panelId);
     void placementChanged(const QString& panelId);
-    void launcherChanged(const QString& panelId);
 
 private:
     struct Registration
@@ -163,12 +174,22 @@ private:
     const Registration* findRegistration(const QString& panelId) const;
 
     static PanelPlacement normalizePlacement(const QString& panelId, const PanelPlacement& placement);
+    static bool supportsArea(const PanelPlacement& placement);
+    static bool isSameArea(const PanelPlacement& left, const PanelPlacement& right);
+    QStringList orderedPanelIdsInternal(
+        const PanelPlacement& area,
+        const QString& excludedPanelId = QString()
+    ) const;
+    PanelPlacement::VisibilityPolicy resolvedAreaPolicy(
+        const QStringList& panelIds,
+        PanelPlacement::VisibilityPolicy fallback
+    ) const;
     PanelPlacement snapshotRuntimePlacement(
         MainWindow* mainWindow,
         QDockWidget* dockWidget,
         const PanelPlacement& basis
     ) const;
-    static void restoreVisibilityAndFocus(QDockWidget* dockWidget, bool visible, QWidget* focusWidget);
+    static void restoreFocus(QWidget* focusWidget);
 
     RequestResult makeUnavailableResult(
         const QString& panelId,

@@ -97,6 +97,17 @@ constexpr auto CompactPanelDropInsertionIndicatorObjectName
 constexpr auto CompactPanelDragMimeType = "application/x-freecad-compact-panel";
 constexpr auto CompactPanelAssignmentProperty = "_fc_compact_panel_assignment";
 constexpr auto CompactPanelSlotProperty = "_fc_compact_panel_slot";
+constexpr auto CompactPanelLaneProperty = "_fc_compact_panel_lane";
+constexpr auto CompactPanelOrderProperty = "_fc_compact_panel_order";
+constexpr auto CompactPanelOverflowProperty = "_fc_compact_panel_overflow";
+constexpr auto CompactLeftOuterLaneObjectName = "_fc_compact_left_panel_dock_lane";
+constexpr auto CompactLeftInnerLaneObjectName = "_fc_compact_left_panel_overlay_lane";
+constexpr auto CompactRightOuterLaneObjectName = "_fc_compact_right_panel_dock_lane";
+constexpr auto CompactRightInnerLaneObjectName = "_fc_compact_right_panel_overlay_lane";
+constexpr auto CompactLeftOuterOverflowObjectName = "_fc_compact_left_panel_dock_overflow";
+constexpr auto CompactLeftInnerOverflowObjectName = "_fc_compact_left_panel_overlay_overflow";
+constexpr auto CompactRightOuterOverflowObjectName = "_fc_compact_right_panel_dock_overflow";
+constexpr auto CompactRightInnerOverflowObjectName = "_fc_compact_right_panel_overlay_overflow";
 constexpr int CompactResizeBorderWidth = 6;
 
 QString trText(const char* text)
@@ -858,11 +869,6 @@ void clearStrip(QWidget* content)
     }
 }
 
-void addStripSpacer(QToolBar* toolbar)
-{
-    addToolBarStretch(toolbar);
-}
-
 QWidget* createStrip(QWidget* parent, QWidget** content, const QString& objectName)
 {
     auto container = new QFrame(parent);
@@ -872,7 +878,7 @@ QWidget* createStrip(QWidget* parent, QWidget** content, const QString& objectNa
     container->setAutoFillBackground(true);
     container->setAcceptDrops(true);
 
-    auto layout = new QVBoxLayout(container);
+    auto layout = new QHBoxLayout(container);
     layout->setContentsMargins(
         CompactTitleBarStyle::panelOuterPadding(),
         CompactTitleBarStyle::panelOuterPadding(),
@@ -1837,13 +1843,6 @@ void CompactMainWindowChrome::setPanelPlacementManager(PanelPlacementManager* ma
         );
         connect(
             panelPlacementManager,
-            &PanelPlacementManager::launcherChanged,
-            this,
-            &CompactMainWindowChrome::schedulePanelStripRefresh,
-            Qt::UniqueConnection
-        );
-        connect(
-            panelPlacementManager,
             &PanelPlacementManager::panelRegistered,
             this,
             &CompactMainWindowChrome::schedulePanelStripRefresh,
@@ -1981,7 +1980,10 @@ void CompactMainWindowChrome::layoutPanelStrips()
         return;
     }
 
-    const int panelStripWidth = compactPanelStripWidth();
+    const int laneCount = usesPanelPlacementManager() ? 2 : 1;
+    const int panelStripWidth = CompactTitleBarStyle::panelRailWidth() * laneCount
+        + (laneCount > 1 ? CompactTitleBarStyle::panelItemGap() : 0)
+        + (2 * CompactTitleBarStyle::panelOuterPadding());
     const QList<QWidget*> railWidgets {leftStripHost, rightStripHost, leftStrip, rightStrip};
     for (QWidget* widget : railWidgets) {
         if (widget->minimumWidth() != panelStripWidth || widget->maximumWidth() != panelStripWidth) {
@@ -1997,26 +1999,77 @@ void CompactMainWindowChrome::refreshPanelStrips()
         return;
     }
 
+    QString focusedPanelId;
+    if (auto* focusedButton = qobject_cast<QToolButton*>(QApplication::focusWidget()); focusedButton
+        && (leftStripContent->isAncestorOf(focusedButton)
+            || rightStripContent->isAncestorOf(focusedButton))) {
+        focusedPanelId = focusedButton->property(CompactPanelAssignmentProperty).toString();
+    }
+
     clearStrip(leftStripContent);
     clearStrip(rightStripContent);
 
-    auto leftStripToolBar = createButtonToolBar(leftStripContent, Qt::Vertical);
-    auto rightStripToolBar = createButtonToolBar(rightStripContent, Qt::Vertical);
-    leftStripToolBar->setAcceptDrops(true);
-    rightStripToolBar->setAcceptDrops(true);
-    leftStripToolBar->installEventFilter(this);
-    rightStripToolBar->installEventFilter(this);
-    leftStripContent->layout()->addWidget(leftStripToolBar);
-    rightStripContent->layout()->addWidget(rightStripToolBar);
+    const auto createLaneWidget = [this](QWidget* parent, const QString& objectName, PanelLane lane) {
+        auto* widget = new QWidget(parent);
+        widget->setObjectName(objectName);
+        widget->setProperty(CompactPanelLaneProperty, static_cast<int>(lane));
+        widget->setAcceptDrops(true);
+        widget->installEventFilter(this);
+        widget->setFixedWidth(CompactTitleBarStyle::panelRailWidth());
+        auto* layout = new QVBoxLayout(widget);
+        layout->setContentsMargins(0, 0, 0, 0);
+        layout->setSpacing(CompactTitleBarStyle::panelItemGap());
+        return widget;
+    };
 
-    auto addButton = [this](QDockWidget* dock, QToolBar* toolbar, PanelSlot slot) {
-        QAction* action = dock->toggleViewAction();
-        if (!action) {
-            return;
-        }
+    const bool managerEnabled = usesPanelPlacementManager();
+    QWidget* leftOuterLane = createLaneWidget(
+        leftStripContent,
+        QLatin1String(CompactLeftOuterLaneObjectName),
+        PanelLane::Outer
+    );
+    leftStripContent->layout()->addWidget(leftOuterLane);
+    QWidget* leftInnerLane = nullptr;
+    if (managerEnabled) {
+        leftInnerLane = createLaneWidget(
+            leftStripContent,
+            QLatin1String(CompactLeftInnerLaneObjectName),
+            PanelLane::Inner
+        );
+        leftStripContent->layout()->addWidget(leftInnerLane);
+    }
 
-        toolbar->addAction(action);
-        if (auto button = qobject_cast<QToolButton*>(toolbar->widgetForAction(action))) {
+    QWidget* rightInnerLane = nullptr;
+    if (managerEnabled) {
+        rightInnerLane = createLaneWidget(
+            rightStripContent,
+            QLatin1String(CompactRightInnerLaneObjectName),
+            PanelLane::Inner
+        );
+        rightStripContent->layout()->addWidget(rightInnerLane);
+    }
+    QWidget* rightOuterLane = createLaneWidget(
+        rightStripContent,
+        QLatin1String(CompactRightOuterLaneObjectName),
+        PanelLane::Outer
+    );
+    rightStripContent->layout()->addWidget(rightOuterLane);
+
+    auto createPanelButton =
+        [this](QDockWidget* dock, QWidget* laneWidget, PanelLane lane, PanelSlot slot) {
+            QAction* action = dock ? dock->toggleViewAction() : nullptr;
+            if (!action || !laneWidget || !laneWidget->layout()) {
+                return static_cast<QToolButton*>(nullptr);
+            }
+
+            auto* button = new QToolButton(laneWidget);
+            button->setDefaultAction(action);
+            button->setProperty(CompactPanelAssignmentProperty, panelAssignmentId(dock));
+            button->setProperty(CompactPanelSlotProperty, panelSlotName(slot));
+            button->setProperty(CompactPanelLaneProperty, static_cast<int>(lane));
+            button->setProperty(CompactPanelOrderProperty, panelOrderForDock(dock, slot));
+            button->setFocusPolicy(Qt::StrongFocus);
+            button->setAutoRaise(true);
             const QPointer<QDockWidget> dockGuard(dock);
             const auto syncAccessibleMetadata = [this, dockGuard, action, button]() {
                 const QString label = action->text().isEmpty() ? dockTitle(dockGuard)
@@ -2031,10 +2084,7 @@ void CompactMainWindowChrome::refreshPanelStrips()
             if (action->icon().isNull()) {
                 button->setIcon(dockIcon(dock, slot));
             }
-            button->setProperty(CompactPanelAssignmentProperty, panelAssignmentId(dock));
-            button->setProperty(CompactPanelSlotProperty, panelSlotName(slot));
-            button->setFocusPolicy(Qt::StrongFocus);
-            button->setAutoRaise(true);
+
             const bool rightRail = slot == PanelSlot::RightTop || slot == PanelSlot::RightLower
                 || slot == PanelSlot::BottomRight;
             button->setStyleSheet(
@@ -2050,10 +2100,52 @@ void CompactMainWindowChrome::refreshPanelStrips()
             );
             button->installEventFilter(this);
             CompactTitleBarStyle::applyPanelButtonMetrics(button);
-        }
-    };
+            if (auto* boxLayout = qobject_cast<QBoxLayout*>(laneWidget->layout())) {
+                boxLayout->addWidget(button, 0, Qt::AlignHCenter);
+            }
+            else {
+                laneWidget->layout()->addWidget(button);
+            }
+            return button;
+        };
+
+    auto createOverflowButton =
+        [this](QWidget* laneWidget, const QString& objectName, const QList<PanelEntry>& overflowEntries) {
+            if (!laneWidget || overflowEntries.isEmpty()) {
+                return static_cast<QToolButton*>(nullptr);
+            }
+
+            auto* button = new QToolButton(laneWidget);
+            button->setObjectName(objectName);
+            button->setProperty(CompactPanelOverflowProperty, true);
+            button->setAutoRaise(true);
+            button->setPopupMode(QToolButton::InstantPopup);
+            button->setFocusPolicy(Qt::StrongFocus);
+            button->setIcon(laneWidget->style()->standardIcon(QStyle::SP_ArrowDown));
+            button->setToolTip(trText("More panels"));
+            button->setAccessibleName(trText("More panels"));
+            auto* menu = new QMenu(button);
+            for (const auto& entry : overflowEntries) {
+                QAction* action = entry.dock ? entry.dock->toggleViewAction() : nullptr;
+                if (!action) {
+                    continue;
+                }
+                QAction* menuAction = menu->addAction(action->icon(), dockTitle(entry.dock));
+                connect(menuAction, &QAction::triggered, this, [action]() { action->trigger(); });
+            }
+            button->setMenu(menu);
+            CompactTitleBarStyle::applyPanelButtonMetrics(button);
+            if (auto* boxLayout = qobject_cast<QBoxLayout*>(laneWidget->layout())) {
+                boxLayout->addWidget(button, 0, Qt::AlignHCenter);
+            }
+            else {
+                laneWidget->layout()->addWidget(button);
+            }
+            return button;
+        };
 
     QList<PanelEntry> entries;
+    QList<PanelEntry> floatingEntries;
     const QList<QDockWidget*> docks = managedDockContainers();
     for (auto dock : docks) {
         syncPanelPlacementRegistration(dock);
@@ -2071,11 +2163,28 @@ void CompactMainWindowChrome::refreshPanelStrips()
             &CompactMainWindowChrome::schedulePanelStripRefresh,
             Qt::UniqueConnection
         );
-        const auto slot = panelSlotForDock(dock);
-        entries.push_back({dock, slot, panelOrderForDock(dock, slot)});
+
+        if (!managerEnabled) {
+            const auto slot = legacyPanelSlotForDock(dock);
+            entries.push_back({dock, slot, PanelLane::Outer, panelOrderForDock(dock, slot)});
+            continue;
+        }
+
+        const PanelPlacement placement = panelPlacementForDock(dock);
+        const PanelLane lane = panelLaneForPlacement(placement);
+        const PanelSlot slot = panelSlotForPlacement(placement, dock);
+        if (lane == PanelLane::None) {
+            floatingEntries.push_back({dock, slot, PanelLane::Outer, panelOrderForDock(dock, slot)});
+            continue;
+        }
+
+        entries.push_back({dock, slot, lane, panelOrderForDock(dock, slot)});
     }
 
     std::sort(entries.begin(), entries.end(), [this](const PanelEntry& left, const PanelEntry& right) {
+        if (left.lane != right.lane) {
+            return static_cast<int>(left.lane) < static_cast<int>(right.lane);
+        }
         if (left.slot != right.slot) {
             return static_cast<int>(left.slot) < static_cast<int>(right.slot);
         }
@@ -2086,65 +2195,181 @@ void CompactMainWindowChrome::refreshPanelStrips()
         return dockTitle(left.dock).localeAwareCompare(dockTitle(right.dock)) < 0;
     });
 
-    bool addedLeftTop = false;
-    bool addedLeftSeparator = false;
-    bool addedRightTop = false;
-    bool addedRightSeparator = false;
-    bool addedLeftBottomSpacer = false;
-    bool addedRightBottomSpacer = false;
-    for (const auto& entry : entries) {
-        switch (entry.slot) {
-            case PanelSlot::LeftTop:
-                addButton(entry.dock, leftStripToolBar, entry.slot);
-                addedLeftTop = true;
-                break;
-            case PanelSlot::LeftLower:
-                if (!addedLeftSeparator) {
-                    if (addedLeftTop) {
-                        leftStripToolBar->addSeparator();
-                    }
-                    addedLeftSeparator = true;
-                }
-                addButton(entry.dock, leftStripToolBar, entry.slot);
-                break;
-            case PanelSlot::RightTop:
-                addButton(entry.dock, rightStripToolBar, entry.slot);
-                addedRightTop = true;
-                break;
-            case PanelSlot::RightLower:
-                if (!addedRightSeparator) {
-                    if (addedRightTop) {
-                        rightStripToolBar->addSeparator();
-                    }
-                    addedRightSeparator = true;
-                }
-                addButton(entry.dock, rightStripToolBar, entry.slot);
-                break;
-            case PanelSlot::BottomLeft:
-                if (!addedLeftBottomSpacer) {
-                    addStripSpacer(leftStripToolBar);
-                    addedLeftBottomSpacer = true;
-                }
-                addButton(entry.dock, leftStripToolBar, entry.slot);
-                break;
-            case PanelSlot::BottomRight:
-                if (!addedRightBottomSpacer) {
-                    addStripSpacer(rightStripToolBar);
-                    addedRightBottomSpacer = true;
-                }
-                addButton(entry.dock, rightStripToolBar, entry.slot);
-                break;
+    const auto entriesFor = [&entries](PanelLane lane, PanelSlot slot) {
+        QList<PanelEntry> filtered;
+        for (const auto& entry : entries) {
+            if (entry.lane == lane && entry.slot == slot) {
+                filtered.push_back(entry);
+            }
         }
-    }
+        return filtered;
+    };
 
-    if (!addedLeftBottomSpacer) {
-        addStripSpacer(leftStripToolBar);
+    const int buttonHeight = CompactTitleBarStyle::panelButtonSize().height();
+    const int laneSpacing = CompactTitleBarStyle::panelItemGap();
+    const int lanePadding = CompactTitleBarStyle::panelOuterPadding();
+    const int laneHeight = std::max(
+        std::max(leftStripContent->height(), rightStripContent->height()),
+        std::max(
+            leftStripHost ? leftStripHost->height() : 0,
+            rightStripHost ? rightStripHost->height() : 0
+        )
+    );
+    const int laneCapacity = std::max(
+        1,
+        (std::max(laneHeight, buttonHeight) - (2 * lanePadding) + laneSpacing)
+            / std::max(1, buttonHeight + laneSpacing)
+    );
+
+    const auto populateLane = [this, &createPanelButton, &createOverflowButton, laneCapacity](
+                                  QWidget* laneWidget,
+                                  const QString& overflowObjectName,
+                                  PanelLane lane,
+                                  const QList<PanelEntry>& topEntries,
+                                  const QList<PanelEntry>& lowerEntries,
+                                  const QList<PanelEntry>& bottomEntries,
+                                  const QList<PanelEntry>& extraOverflowEntries
+                              ) {
+        if (!laneWidget || !laneWidget->layout()) {
+            return;
+        }
+
+        QList<PanelEntry> topVisible = topEntries;
+        QList<PanelEntry> lowerVisible = lowerEntries;
+        QList<PanelEntry> bottomVisible = bottomEntries;
+        QList<PanelEntry> overflowEntries = extraOverflowEntries;
+
+        const int totalCount = topEntries.size() + lowerEntries.size() + bottomEntries.size();
+        int visibleCapacity = laneCapacity;
+        if (totalCount > laneCapacity) {
+            visibleCapacity = std::max(0, laneCapacity - 1);
+        }
+
+        const auto trimGroup = [&overflowEntries, &visibleCapacity](QList<PanelEntry>* group) {
+            if (!group) {
+                return;
+            }
+            const int keep = std::clamp(visibleCapacity, 0, static_cast<int>(group->size()));
+            visibleCapacity -= keep;
+            while (group->size() > keep) {
+                overflowEntries.push_back(group->takeLast());
+            }
+        };
+
+        trimGroup(&topVisible);
+        trimGroup(&lowerVisible);
+        trimGroup(&bottomVisible);
+
+        const auto addGroup = [&createPanelButton, laneWidget, lane](const QList<PanelEntry>& group) {
+            for (const auto& entry : group) {
+                createPanelButton(entry.dock, laneWidget, lane, entry.slot);
+            }
+        };
+
+        addGroup(topVisible);
+        if (!topVisible.isEmpty() && !lowerVisible.isEmpty()) {
+            auto* spacer = new QWidget(laneWidget);
+            spacer->setFixedHeight(CompactTitleBarStyle::panelGroupGap());
+            laneWidget->layout()->addWidget(spacer);
+        }
+        addGroup(lowerVisible);
+        laneWidget->layout()->addItem(
+            new QSpacerItem(0, 0, QSizePolicy::Minimum, QSizePolicy::Expanding)
+        );
+        if ((!topVisible.isEmpty() || !lowerVisible.isEmpty()) && !bottomVisible.isEmpty()) {
+            auto* spacer = new QWidget(laneWidget);
+            spacer->setFixedHeight(CompactTitleBarStyle::panelGroupGap());
+            laneWidget->layout()->addWidget(spacer);
+        }
+        addGroup(bottomVisible);
+        createOverflowButton(laneWidget, overflowObjectName, overflowEntries);
+    };
+
+    if (!managerEnabled) {
+        populateLane(
+            leftOuterLane,
+            QLatin1String(CompactLeftOuterOverflowObjectName),
+            PanelLane::Outer,
+            entriesFor(PanelLane::Outer, PanelSlot::LeftTop),
+            entriesFor(PanelLane::Outer, PanelSlot::LeftLower),
+            entriesFor(PanelLane::Outer, PanelSlot::BottomLeft),
+            {}
+        );
+        populateLane(
+            rightOuterLane,
+            QLatin1String(CompactRightOuterOverflowObjectName),
+            PanelLane::Outer,
+            entriesFor(PanelLane::Outer, PanelSlot::RightTop),
+            entriesFor(PanelLane::Outer, PanelSlot::RightLower),
+            entriesFor(PanelLane::Outer, PanelSlot::BottomRight),
+            {}
+        );
     }
-    if (!addedRightBottomSpacer) {
-        addStripSpacer(rightStripToolBar);
+    else {
+        QList<PanelEntry> leftFloating;
+        QList<PanelEntry> rightFloating;
+        for (const auto& entry : floatingEntries) {
+            if (entry.slot == PanelSlot::RightTop || entry.slot == PanelSlot::RightLower
+                || entry.slot == PanelSlot::BottomRight) {
+                rightFloating.push_back(entry);
+            }
+            else {
+                leftFloating.push_back(entry);
+            }
+        }
+
+        populateLane(
+            leftOuterLane,
+            QLatin1String(CompactLeftOuterOverflowObjectName),
+            PanelLane::Outer,
+            entriesFor(PanelLane::Outer, PanelSlot::LeftTop),
+            entriesFor(PanelLane::Outer, PanelSlot::LeftLower),
+            entriesFor(PanelLane::Outer, PanelSlot::BottomLeft),
+            leftFloating
+        );
+        populateLane(
+            leftInnerLane,
+            QLatin1String(CompactLeftInnerOverflowObjectName),
+            PanelLane::Inner,
+            entriesFor(PanelLane::Inner, PanelSlot::LeftTop),
+            entriesFor(PanelLane::Inner, PanelSlot::LeftLower),
+            entriesFor(PanelLane::Inner, PanelSlot::BottomLeft),
+            {}
+        );
+        populateLane(
+            rightInnerLane,
+            QLatin1String(CompactRightInnerOverflowObjectName),
+            PanelLane::Inner,
+            entriesFor(PanelLane::Inner, PanelSlot::RightTop),
+            entriesFor(PanelLane::Inner, PanelSlot::RightLower),
+            entriesFor(PanelLane::Inner, PanelSlot::BottomRight),
+            {}
+        );
+        populateLane(
+            rightOuterLane,
+            QLatin1String(CompactRightOuterOverflowObjectName),
+            PanelLane::Outer,
+            entriesFor(PanelLane::Outer, PanelSlot::RightTop),
+            entriesFor(PanelLane::Outer, PanelSlot::RightLower),
+            entriesFor(PanelLane::Outer, PanelSlot::BottomRight),
+            rightFloating
+        );
     }
 
     layoutPanelStrips();
+
+    if (!focusedPanelId.isEmpty()) {
+        const QList<QWidget*> stripContents {leftStripContent, rightStripContent};
+        for (QWidget* content : stripContents) {
+            for (QToolButton* button : content->findChildren<QToolButton*>()) {
+                if (button->property(CompactPanelAssignmentProperty).toString() == focusedPanelId
+                    && button->isVisibleTo(content) && button->isEnabled()) {
+                    button->setFocus(Qt::OtherFocusReason);
+                    return;
+                }
+            }
+        }
+    }
 }
 
 void CompactMainWindowChrome::schedulePanelStripRefresh()
@@ -2271,22 +2496,42 @@ bool CompactMainWindowChrome::eventFilter(QObject* watched, QEvent* event)
 
     if (auto button = qobject_cast<QToolButton*>(watched);
         button && button->property(CompactPanelAssignmentProperty).isValid()) {
-        if (event->type() == QEvent::KeyPress) {
+        if (event->type() == QEvent::ShortcutOverride) {
+            auto* keyEvent = static_cast<QKeyEvent*>(event);
+            if (keyEvent->key() == Qt::Key_Up || keyEvent->key() == Qt::Key_Down
+                || keyEvent->key() == Qt::Key_Home || keyEvent->key() == Qt::Key_End) {
+                keyEvent->accept();
+                return false;
+            }
+        }
+        else if (event->type() == QEvent::KeyPress) {
             auto keyEvent = static_cast<QKeyEvent*>(event);
             if (keyEvent->key() == Qt::Key_Up || keyEvent->key() == Qt::Key_Down
                 || keyEvent->key() == Qt::Key_Home || keyEvent->key() == Qt::Key_End) {
-                QWidget* strip = panelDropStripForTarget(button);
+                QWidget* strip = panelDropLaneForTarget(button);
                 QList<QToolButton*> buttons;
                 if (strip) {
                     for (QToolButton* candidate : strip->findChildren<QToolButton*>()) {
-                        if (!candidate->isHidden() && candidate->isEnabled()
-                            && candidate->property(CompactPanelAssignmentProperty).isValid()) {
+                        if (candidate->isVisibleTo(strip) && candidate->isEnabled()
+                            && candidate->property(CompactPanelAssignmentProperty).isValid()
+                            && !candidate->property(CompactPanelOverflowProperty).toBool()) {
                             buttons.append(candidate);
                         }
                     }
                 }
                 std::sort(buttons.begin(), buttons.end(), [strip](QToolButton* left, QToolButton* right) {
-                    return left->mapTo(strip, QPoint()).y() < right->mapTo(strip, QPoint()).y();
+                    const int leftY = left->mapTo(strip, QPoint()).y();
+                    const int rightY = right->mapTo(strip, QPoint()).y();
+                    if (leftY != rightY) {
+                        return leftY < rightY;
+                    }
+                    const int leftOrder = left->property(CompactPanelOrderProperty).toInt();
+                    const int rightOrder = right->property(CompactPanelOrderProperty).toInt();
+                    if (leftOrder != rightOrder) {
+                        return leftOrder < rightOrder;
+                    }
+                    return left->property(CompactPanelAssignmentProperty).toString()
+                        < right->property(CompactPanelAssignmentProperty).toString();
                 });
                 const int current = buttons.indexOf(button);
                 if (current >= 0 && !buttons.isEmpty()) {
@@ -2321,89 +2566,64 @@ bool CompactMainWindowChrome::eventFilter(QObject* watched, QEvent* event)
                 menu->setAttribute(Qt::WA_DeleteOnClose);
 
                 if (usesPanelPlacementManager() && panelPlacementManager->isRegistered(assignmentId)) {
+                    const PanelSlot currentSlot = panelSlotForDock(dock);
                     auto moveMenu = menu->addMenu(trText("Move To"));
-                    const auto addPlacement = [this, moveMenu, assignmentId](
-                                                  const QString& label,
-                                                  PanelPlacement::Mode mode,
-                                                  PanelPlacement::Edge edge
-                                              ) {
-                        QAction* action = moveMenu->addAction(label);
-                        connect(action, &QAction::triggered, this, [this, assignmentId, mode, edge]() {
-                            PanelPlacement placement = panelPlacementManager->persistedPlacement(
-                                assignmentId
-                            );
-                            placement.mode = mode;
-                            placement.edge = edge;
-                            placement.normalize();
-                            const auto result
-                                = panelPlacementManager->requestPlacement(assignmentId, placement);
-                            if (result.success) {
-                                schedulePanelStripRefresh();
-                            }
-                        });
-                    };
+                    const auto addPlacement =
+                        [this, moveMenu, dock](const QString& label, PanelLane lane, PanelSlot slot) {
+                            QAction* action = moveMenu->addAction(label);
+                            connect(action, &QAction::triggered, this, [this, dock, lane, slot]() {
+                                if (requestPanelMoveToPresentation(dock, lane, slot)) {
+                                    schedulePanelStripRefresh();
+                                }
+                            });
+                        };
                     addPlacement(
                         trText("Dock Left"),
-                        PanelPlacement::Mode::Docked,
-                        PanelPlacement::Edge::Left
+                        PanelLane::Outer,
+                        currentSlot == PanelSlot::LeftTop ? PanelSlot::LeftTop : PanelSlot::LeftLower
                     );
                     addPlacement(
                         trText("Dock Right"),
-                        PanelPlacement::Mode::Docked,
-                        PanelPlacement::Edge::Right
+                        PanelLane::Outer,
+                        currentSlot == PanelSlot::RightTop ? PanelSlot::RightTop : PanelSlot::RightLower
                     );
                     addPlacement(
                         trText("Dock Bottom"),
-                        PanelPlacement::Mode::Docked,
-                        PanelPlacement::Edge::Bottom
+                        PanelLane::Outer,
+                        currentSlot == PanelSlot::BottomRight ? PanelSlot::BottomRight
+                                                              : PanelSlot::BottomLeft
                     );
                     moveMenu->addSeparator();
                     addPlacement(
                         trText("Overlay Left"),
-                        PanelPlacement::Mode::Overlay,
-                        PanelPlacement::Edge::Left
+                        PanelLane::Inner,
+                        currentSlot == PanelSlot::LeftTop ? PanelSlot::LeftTop : PanelSlot::LeftLower
                     );
                     addPlacement(
                         trText("Overlay Right"),
-                        PanelPlacement::Mode::Overlay,
-                        PanelPlacement::Edge::Right
-                    );
-                    addPlacement(
-                        trText("Overlay Top"),
-                        PanelPlacement::Mode::Overlay,
-                        PanelPlacement::Edge::Top
+                        PanelLane::Inner,
+                        currentSlot == PanelSlot::RightTop ? PanelSlot::RightTop : PanelSlot::RightLower
                     );
                     addPlacement(
                         trText("Overlay Bottom"),
-                        PanelPlacement::Mode::Overlay,
-                        PanelPlacement::Edge::Bottom
+                        PanelLane::Inner,
+                        currentSlot == PanelSlot::BottomRight ? PanelSlot::BottomRight
+                                                              : PanelSlot::BottomLeft
                     );
                     moveMenu->addSeparator();
-                    addPlacement(
-                        trText("Float"),
-                        PanelPlacement::Mode::Floating,
-                        PanelPlacement::Edge::None
-                    );
-                }
-
-                auto launcherMenu = menu->addMenu(trText("Move Launcher To"));
-                const QList<QPair<QString, PanelSlot>> launcherTargets {
-                    {trText("Left Upper"), PanelSlot::LeftTop},
-                    {trText("Left Lower"), PanelSlot::LeftLower},
-                    {trText("Left Bottom"), PanelSlot::BottomLeft},
-                    {trText("Right Upper"), PanelSlot::RightTop},
-                    {trText("Right Lower"), PanelSlot::RightLower},
-                    {trText("Right Bottom"), PanelSlot::BottomRight},
-                };
-                const QPointer<QDockWidget> dockGuard(dock);
-                for (const auto& [label, slot] : launcherTargets) {
-                    QAction* action = launcherMenu->addAction(label);
-                    connect(action, &QAction::triggered, this, [this, dockGuard, slot]() {
-                        if (!dockGuard) {
-                            return;
+                    QAction* floatAction = moveMenu->addAction(trText("Float"));
+                    connect(floatAction, &QAction::triggered, this, [this, assignmentId]() {
+                        PanelPlacement placement = panelPlacementManager->persistedPlacement(
+                            assignmentId
+                        );
+                        placement.mode = PanelPlacement::Mode::Floating;
+                        placement.edge = PanelPlacement::Edge::None;
+                        placement.normalize();
+                        const auto result
+                            = panelPlacementManager->requestPlacement(assignmentId, placement);
+                        if (result.success) {
+                            schedulePanelStripRefresh();
                         }
-                        setPanelSlotForDock(dockGuard, slot);
-                        schedulePanelStripRefresh();
                     });
                 }
 
@@ -2585,6 +2805,18 @@ QList<QDockWidget*> CompactMainWindowChrome::managedDockContainers() const
         }
     }
 
+    // Overlay hosts reparent their dock widgets away from DockWindowManager's
+    // ordinary widget ancestry. Registered panels remain authoritative and must
+    // keep their location toggle while overlaid or floating.
+    if (panelPlacementManager && panelPlacementManager->isEnabled()) {
+        for (const QString& panelId : panelPlacementManager->registeredPanelIds()) {
+            if (auto* dock = panelPlacementManager->dockWidget(panelId);
+                dock && !docks.contains(dock)) {
+                docks.push_back(dock);
+            }
+        }
+    }
+
     return docks;
 }
 
@@ -2716,30 +2948,58 @@ bool CompactMainWindowChrome::panelSlotFromName(const QString& name, PanelSlot* 
     return false;
 }
 
-QWidget* CompactMainWindowChrome::panelDropStripForTarget(QWidget* target) const
+QWidget* CompactMainWindowChrome::panelDropLaneForTarget(QWidget* target) const
 {
-    QWidget* strip = target;
-    while (strip && strip != leftStripContent && strip != rightStripContent) {
-        strip = strip->parentWidget();
+    QWidget* laneWidget = target;
+    while (laneWidget && !laneWidget->property(CompactPanelLaneProperty).isValid()
+           && laneWidget != leftStripContent && laneWidget != rightStripContent) {
+        laneWidget = laneWidget->parentWidget();
     }
 
-    return strip;
+    if (laneWidget && laneWidget->property(CompactPanelLaneProperty).isValid()) {
+        return laneWidget;
+    }
+
+    return target == nullptr
+        ? nullptr
+        : (leftStripContent && leftStripContent->isAncestorOf(target) ? leftStripContent
+                                                                      : rightStripContent);
 }
 
-QVector<QRect> CompactMainWindowChrome::panelButtonGeometries(QWidget* strip, PanelSlot slot) const
+CompactMainWindowChrome::PanelLane CompactMainWindowChrome::panelLaneForTarget(QWidget* target) const
+{
+    QWidget* laneWidget = panelDropLaneForTarget(target);
+    if (!laneWidget || !laneWidget->property(CompactPanelLaneProperty).isValid()) {
+        return PanelLane::Outer;
+    }
+
+    return static_cast<PanelLane>(laneWidget->property(CompactPanelLaneProperty).toInt());
+}
+
+QVector<QRect> CompactMainWindowChrome::panelButtonGeometries(
+    QWidget* laneWidget,
+    PanelSlot slot,
+    PanelLane lane
+) const
 {
     QVector<QRect> buttonRects;
-    if (!strip) {
+    if (!laneWidget) {
         return buttonRects;
     }
 
     const QString slotName = panelSlotName(slot);
-    const auto buttons = strip->findChildren<QToolButton*>();
+    const auto buttons = laneWidget->findChildren<QToolButton*>();
     for (auto button : buttons) {
+        if (button->property(CompactPanelOverflowProperty).toBool()) {
+            continue;
+        }
         if (button->property(CompactPanelSlotProperty).toString() != slotName) {
             continue;
         }
-        buttonRects.push_back(QRect(button->mapTo(strip, QPoint(0, 0)), button->size()));
+        if (button->property(CompactPanelLaneProperty).toInt() != static_cast<int>(lane)) {
+            continue;
+        }
+        buttonRects.push_back(QRect(button->mapTo(laneWidget, QPoint(0, 0)), button->size()));
     }
 
     std::sort(buttonRects.begin(), buttonRects.end(), [](const QRect& left, const QRect& right) {
@@ -2764,14 +3024,7 @@ CompactMainWindowChrome::PanelSlot CompactMainWindowChrome::fallbackSlotForDock(
 
 CompactMainWindowChrome::PanelSlot CompactMainWindowChrome::panelSlotForDock(QDockWidget* dock) const
 {
-    if (usesPanelPlacementManager() && dock) {
-        const QString panelId = panelAssignmentId(dock);
-        if (isStablePanelId(panelId) && panelPlacementManager->isRegistered(panelId)) {
-            return panelSlotForLauncher(panelPlacementManager->persistedPlacement(panelId).launcher);
-        }
-    }
-
-    return legacyPanelSlotForDock(dock);
+    return panelSlotForPlacement(panelPlacementForDock(dock), dock);
 }
 
 CompactMainWindowChrome::PanelSlot CompactMainWindowChrome::legacyPanelSlotForDock(QDockWidget* dock) const
@@ -2795,6 +3048,72 @@ CompactMainWindowChrome::PanelSlot CompactMainWindowChrome::legacyPanelSlotForDo
     }
 
     return fallbackSlotForDock(dock);
+}
+
+PanelPlacement CompactMainWindowChrome::panelPlacementForDock(QDockWidget* dock) const
+{
+    if (usesPanelPlacementManager() && dock) {
+        const QString panelId = panelAssignmentId(dock);
+        if (isStablePanelId(panelId) && panelPlacementManager->isRegistered(panelId)) {
+            return panelPlacementManager->persistedPlacement(panelId);
+        }
+    }
+
+    return fallbackPanelPlacementForDock(dock);
+}
+
+CompactMainWindowChrome::PanelLane CompactMainWindowChrome::panelLaneForPlacement(
+    const PanelPlacement& placement
+) const
+{
+    switch (placement.mode) {
+        case PanelPlacement::Mode::Docked:
+            return PanelLane::Outer;
+        case PanelPlacement::Mode::Overlay:
+        case PanelPlacement::Mode::AutoHide:
+            return PanelLane::Inner;
+        case PanelPlacement::Mode::Floating:
+            return PanelLane::None;
+    }
+
+    return PanelLane::Outer;
+}
+
+CompactMainWindowChrome::PanelSlot CompactMainWindowChrome::panelSlotForPlacement(
+    const PanelPlacement& placement,
+    QDockWidget* dock
+) const
+{
+    switch (placement.edge) {
+        case PanelPlacement::Edge::Left:
+            if (placement.region == PanelPlacement::Region::Start) {
+                return PanelSlot::LeftTop;
+            }
+            if (placement.region == PanelPlacement::Region::End) {
+                return PanelSlot::BottomLeft;
+            }
+            return PanelSlot::LeftLower;
+        case PanelPlacement::Edge::Right:
+            if (placement.region == PanelPlacement::Region::Start) {
+                return PanelSlot::RightTop;
+            }
+            if (placement.region == PanelPlacement::Region::End) {
+                return PanelSlot::BottomRight;
+            }
+            return PanelSlot::RightLower;
+        case PanelPlacement::Edge::Bottom:
+            return placement.region == PanelPlacement::Region::End ? PanelSlot::BottomRight
+                                                                   : PanelSlot::BottomLeft;
+        case PanelPlacement::Edge::Top:
+            if (placement.region == PanelPlacement::Region::End) {
+                return PanelSlot::RightTop;
+            }
+            return PanelSlot::LeftTop;
+        case PanelPlacement::Edge::None:
+            break;
+    }
+
+    return dock ? legacyPanelSlotForDock(dock) : PanelSlot::LeftLower;
 }
 
 PanelPlacement::Launcher CompactMainWindowChrome::launcherForSlot(PanelSlot slot, int order) const
@@ -2860,14 +3179,9 @@ void CompactMainWindowChrome::setPanelSlotForDock(QDockWidget* dock, PanelSlot s
         if (!panelPlacementManager->isRegistered(assignmentId)) {
             return;
         }
-
-        PanelPlacement::Launcher launcher
-            = panelPlacementManager->persistedPlacement(assignmentId).launcher;
-        const PanelPlacement::Launcher slotLauncher = launcherForSlot(slot, launcher.order);
-        launcher.rail = slotLauncher.rail;
-        launcher.cluster = slotLauncher.cluster;
-        launcher.normalize();
-        panelPlacementManager->updateLauncher(assignmentId, launcher);
+        const PanelPlacement currentPlacement = panelPlacementForDock(dock);
+        const PanelLane lane = panelLaneForPlacement(currentPlacement);
+        requestPanelMoveToPresentation(dock, lane == PanelLane::None ? PanelLane::Outer : lane, slot);
         return;
     }
 
@@ -2895,26 +3209,173 @@ void CompactMainWindowChrome::movePanelDockToSlot(QDockWidget* dock, PanelSlot s
     layoutChrome();
 }
 
+PanelPlacement CompactMainWindowChrome::placementForPresentation(
+    QDockWidget* dock,
+    PanelLane lane,
+    PanelSlot slot,
+    int order
+) const
+{
+    PanelPlacement placement = panelPlacementForDock(dock);
+    placement.panelId = panelAssignmentId(dock);
+    placement.mode = lane == PanelLane::Inner && placement.mode == PanelPlacement::Mode::AutoHide
+        ? PanelPlacement::Mode::AutoHide
+        : (lane == PanelLane::Inner ? PanelPlacement::Mode::Overlay : PanelPlacement::Mode::Docked);
+
+    switch (slot) {
+        case PanelSlot::LeftTop:
+            placement.edge = PanelPlacement::Edge::Left;
+            placement.region = PanelPlacement::Region::Start;
+            break;
+        case PanelSlot::LeftLower:
+            placement.edge = PanelPlacement::Edge::Left;
+            placement.region = PanelPlacement::Region::Center;
+            break;
+        case PanelSlot::RightTop:
+            placement.edge = PanelPlacement::Edge::Right;
+            placement.region = PanelPlacement::Region::Start;
+            break;
+        case PanelSlot::RightLower:
+            placement.edge = PanelPlacement::Edge::Right;
+            placement.region = PanelPlacement::Region::Center;
+            break;
+        case PanelSlot::BottomLeft:
+            placement.edge = PanelPlacement::Edge::Bottom;
+            placement.region = PanelPlacement::Region::Start;
+            break;
+        case PanelSlot::BottomRight:
+            placement.edge = PanelPlacement::Edge::Bottom;
+            placement.region = PanelPlacement::Region::End;
+            break;
+    }
+
+    placement.order = std::max(order, 0);
+    placement.groupOrder = placement.order;
+    placement.launcher = launcherForSlot(slot, placement.order);
+    if (placement.mode != PanelPlacement::Mode::Floating) {
+        placement.floatingGeometry = QRect();
+    }
+    placement.normalize();
+    return placement;
+}
+
+bool CompactMainWindowChrome::requestPanelMoveToPresentation(
+    QDockWidget* dock,
+    PanelLane lane,
+    PanelSlot slot,
+    int targetIndex
+)
+{
+    if (!dock || !usesPanelPlacementManager()) {
+        return false;
+    }
+
+    const QString assignmentId = panelAssignmentId(dock);
+    if (!isStablePanelId(assignmentId) || !panelPlacementManager->isRegistered(assignmentId)) {
+        return false;
+    }
+
+    const PanelPlacement currentPlacement = panelPlacementForDock(dock);
+    const PanelLane currentLane = panelLaneForPlacement(currentPlacement);
+    const PanelSlot currentSlot = panelSlotForPlacement(currentPlacement, dock);
+
+    QList<PanelEntry> sourceEntries;
+    QList<PanelEntry> targetEntries;
+    for (QDockWidget* candidate : managedDockContainers()) {
+        const QString candidateId = panelAssignmentId(candidate);
+        if (!isStablePanelId(candidateId) || !panelPlacementManager->isRegistered(candidateId)
+            || candidateId == assignmentId) {
+            continue;
+        }
+
+        const PanelPlacement candidatePlacement = panelPlacementForDock(candidate);
+        const PanelLane candidateLane = panelLaneForPlacement(candidatePlacement);
+        const PanelSlot candidateSlot = panelSlotForPlacement(candidatePlacement, candidate);
+        PanelEntry entry {
+            candidate,
+            candidateSlot,
+            candidateLane,
+            panelOrderForDock(candidate, candidateSlot)
+        };
+        if (candidateLane == currentLane && candidateSlot == currentSlot) {
+            sourceEntries.push_back(entry);
+        }
+        if (candidateLane == lane && candidateSlot == slot) {
+            targetEntries.push_back(entry);
+        }
+    }
+
+    const auto sortEntries = [this](QList<PanelEntry>* list) {
+        if (!list) {
+            return;
+        }
+        std::sort(list->begin(), list->end(), [this](const PanelEntry& left, const PanelEntry& right) {
+            if (left.order != right.order) {
+                return left.order < right.order;
+            }
+            return dockTitle(left.dock).localeAwareCompare(dockTitle(right.dock)) < 0;
+        });
+    };
+    sortEntries(&sourceEntries);
+    sortEntries(&targetEntries);
+
+    const PanelEntry movedEntry {dock, slot, lane, 0};
+    if (currentLane == lane && currentSlot == slot) {
+        const int insertIndex = std::clamp(targetIndex, 0, static_cast<int>(targetEntries.size()));
+        targetEntries.insert(insertIndex, movedEntry);
+    }
+    else {
+        const int insertIndex = targetIndex < 0
+            ? static_cast<int>(targetEntries.size())
+            : std::clamp(targetIndex, 0, static_cast<int>(targetEntries.size()));
+        targetEntries.insert(insertIndex, movedEntry);
+    }
+
+    const auto applySequence = [this](const QList<PanelEntry>& list) {
+        for (int index = 0; index < list.size(); ++index) {
+            const PanelEntry& entry = list.at(index);
+            PanelPlacement placement
+                = placementForPresentation(entry.dock, entry.lane, entry.slot, index);
+            const QString panelId = panelAssignmentId(entry.dock);
+            const auto result = panelPlacementManager->requestPlacement(panelId, placement);
+            if (!result.success) {
+                return false;
+            }
+        }
+        return true;
+    };
+
+    if (currentLane != PanelLane::None && (currentLane != lane || currentSlot != slot)) {
+        if (!applySequence(sourceEntries)) {
+            return false;
+        }
+    }
+
+    return applySequence(targetEntries);
+}
+
 CompactMainWindowChrome::PanelSlot CompactMainWindowChrome::dropPanelSlotForPosition(
     QWidget* target,
     const QPoint& position
 ) const
 {
-    QWidget* strip = panelDropStripForTarget(target);
-    const bool leftSide = strip == leftStripContent;
+    QWidget* laneWidget = panelDropLaneForTarget(target);
+    const bool leftSide = laneWidget && leftStripContent
+        && leftStripContent->isAncestorOf(laneWidget);
     const QPoint globalPosition = target ? target->mapToGlobal(position) : position;
-    const QPoint stripPosition = strip ? strip->mapFromGlobal(globalPosition) : position;
-    const int height = std::max(1, strip ? strip->height() : target->height());
+    const QPoint stripPosition = laneWidget ? laneWidget->mapFromGlobal(globalPosition) : position;
+    const int height = std::max(1, laneWidget ? laneWidget->height() : target->height());
     const int buttonHeight = CompactTitleBarStyle::panelButtonSize().height();
     const int margin = CompactTitleBarStyle::panelOuterPadding();
+    const PanelLane lane = panelLaneForTarget(target);
 
     const PanelSlot topSlot = leftSide ? PanelSlot::LeftTop : PanelSlot::RightTop;
     const PanelSlot lowerSlot = leftSide ? PanelSlot::LeftLower : PanelSlot::RightLower;
     const PanelSlot bottomSlot = leftSide ? PanelSlot::BottomLeft : PanelSlot::BottomRight;
 
-    const auto topButtons = panelButtonGeometries(strip, topSlot);
-    const auto lowerButtons = panelButtonGeometries(strip, lowerSlot);
-    const auto bottomButtons = panelButtonGeometries(strip, bottomSlot);
+    const auto topButtons = panelButtonGeometries(laneWidget, topSlot, lane);
+    const auto lowerButtons = panelButtonGeometries(laneWidget, lowerSlot, lane);
+    const auto bottomButtons = panelButtonGeometries(laneWidget, bottomSlot, lane);
 
     int bottomBoundary = height - std::max(buttonHeight * 2, height / 4);
     if (!bottomButtons.isEmpty()) {
@@ -2946,13 +3407,53 @@ CompactMainWindowChrome::PanelSlot CompactMainWindowChrome::dropPanelSlotForPosi
     return stripPosition.y() <= lowerBoundary ? topSlot : lowerSlot;
 }
 
-QRect CompactMainWindowChrome::panelDropZoneGeometry(QWidget* strip, PanelSlot slot) const
+int CompactMainWindowChrome::panelDropOrderForPosition(
+    QWidget* laneWidget,
+    PanelSlot slot,
+    PanelLane lane,
+    const QPoint& position,
+    const QString& assignmentId
+) const
 {
-    if (!strip) {
+    if (!laneWidget) {
+        return 0;
+    }
+
+    QList<QToolButton*> buttons;
+    for (QToolButton* button : laneWidget->findChildren<QToolButton*>()) {
+        if (button->property(CompactPanelOverflowProperty).toBool()
+            || button->property(CompactPanelLaneProperty).toInt() != static_cast<int>(lane)
+            || button->property(CompactPanelSlotProperty).toString() != panelSlotName(slot)
+            || button->property(CompactPanelAssignmentProperty).toString() == assignmentId) {
+            continue;
+        }
+        buttons.push_back(button);
+    }
+
+    std::sort(buttons.begin(), buttons.end(), [laneWidget](QToolButton* left, QToolButton* right) {
+        return left->mapTo(laneWidget, QPoint()).y() < right->mapTo(laneWidget, QPoint()).y();
+    });
+
+    const QPoint globalPosition = laneWidget->mapToGlobal(position);
+    const QPoint lanePosition = laneWidget->mapFromGlobal(globalPosition);
+    int index = 0;
+    for (QToolButton* button : buttons) {
+        const QRect rect(button->mapTo(laneWidget, QPoint()), button->size());
+        if (lanePosition.y() < rect.center().y()) {
+            break;
+        }
+        ++index;
+    }
+    return index;
+}
+
+QRect CompactMainWindowChrome::panelDropZoneGeometry(QWidget* laneWidget, PanelSlot slot) const
+{
+    if (!laneWidget) {
         return {};
     }
 
-    const QRect bounds = strip->rect().adjusted(2, 2, -2, -2);
+    const QRect bounds = laneWidget->rect().adjusted(2, 2, -2, -2);
     const int zoneHeight = std::max(1, bounds.height() / 3);
     int top = bounds.top();
     switch (slot) {
@@ -2975,16 +3476,23 @@ QRect CompactMainWindowChrome::panelDropZoneGeometry(QWidget* strip, PanelSlot s
     return QRect(bounds.left(), top, bounds.width(), std::max(1, bottom - top + 1));
 }
 
-QRect CompactMainWindowChrome::panelDropInsertionGeometry(QWidget* strip, PanelSlot slot) const
+QRect CompactMainWindowChrome::panelDropInsertionGeometry(
+    QWidget* laneWidget,
+    PanelSlot slot,
+    PanelLane lane,
+    int order,
+    const QString& assignmentId
+) const
 {
-    if (!strip) {
+    if (!laneWidget) {
         return {};
     }
+    Q_UNUSED(assignmentId)
 
     const QSize size = CompactTitleBarStyle::panelButtonSize();
-    const QVector<QRect> slotButtonRects = panelButtonGeometries(strip, slot);
+    QVector<QRect> slotButtonRects = panelButtonGeometries(laneWidget, slot, lane);
 
-    const QRect bounds = strip->rect().adjusted(
+    const QRect bounds = laneWidget->rect().adjusted(
         CompactTitleBarStyle::panelOuterPadding(),
         CompactTitleBarStyle::panelOuterPadding(),
         -CompactTitleBarStyle::panelOuterPadding(),
@@ -2992,20 +3500,22 @@ QRect CompactMainWindowChrome::panelDropInsertionGeometry(QWidget* strip, PanelS
     );
     const int x = bounds.left() + std::max(0, (bounds.width() - size.width()) / 2);
     const bool bottomSlot = slot == PanelSlot::BottomLeft || slot == PanelSlot::BottomRight;
-    int y = panelDropZoneGeometry(strip, slot).top() + CompactTitleBarStyle::panelOuterPadding();
-
-    if (!slotButtonRects.isEmpty()) {
-        if (bottomSlot) {
-            y = slotButtonRects.constFirst().top() - CompactTitleBarStyle::panelItemGap()
-                - size.height();
-        }
-        else {
-            y = slotButtonRects.constLast().bottom() + 1 + CompactTitleBarStyle::panelItemGap();
-        }
+    int y = panelDropZoneGeometry(laneWidget, slot).top() + CompactTitleBarStyle::panelOuterPadding();
+    if (order > 0 && order <= slotButtonRects.size()) {
+        y = slotButtonRects.at(order - 1).bottom() + 1 + CompactTitleBarStyle::panelItemGap();
+    }
+    else if (order == 0 && !slotButtonRects.isEmpty()) {
+        y = slotButtonRects.constFirst().top() - CompactTitleBarStyle::panelItemGap() - size.height();
+    }
+    else if (!slotButtonRects.isEmpty() && bottomSlot) {
+        y = slotButtonRects.constFirst().top() - CompactTitleBarStyle::panelItemGap() - size.height();
+    }
+    else if (!slotButtonRects.isEmpty()) {
+        y = slotButtonRects.constLast().bottom() + 1 + CompactTitleBarStyle::panelItemGap();
     }
     else if (bottomSlot) {
-        y = panelDropZoneGeometry(strip, slot).bottom() - CompactTitleBarStyle::panelOuterPadding()
-            - size.height() + 1;
+        y = panelDropZoneGeometry(laneWidget, slot).bottom()
+            - CompactTitleBarStyle::panelOuterPadding() - size.height() + 1;
     }
 
     y = std::clamp(y, bounds.top(), std::max(bounds.top(), bounds.bottom() - size.height() + 1));
@@ -3013,22 +3523,23 @@ QRect CompactMainWindowChrome::panelDropInsertionGeometry(QWidget* strip, PanelS
 }
 
 QRect CompactMainWindowChrome::panelDropGroupGeometry(
-    QWidget* strip,
+    QWidget* laneWidget,
     PanelSlot slot,
     const QRect& insertion
 ) const
 {
-    if (!strip) {
+    if (!laneWidget) {
         return {};
     }
 
     QRect group = insertion;
-    const QVector<QRect> slotButtonRects = panelButtonGeometries(strip, slot);
+    const QVector<QRect> slotButtonRects
+        = panelButtonGeometries(laneWidget, slot, panelLaneForTarget(laneWidget));
     for (const QRect& buttonRect : slotButtonRects) {
         group = group.united(buttonRect);
     }
 
-    return group.adjusted(-2, -2, 2, 2).intersected(strip->rect().adjusted(1, 1, -1, -1));
+    return group.adjusted(-2, -2, 2, 2).intersected(laneWidget->rect().adjusted(1, 1, -1, -1));
 }
 
 void CompactMainWindowChrome::updatePanelDropIndicator(QWidget* target, const QPoint& position)
@@ -3037,21 +3548,28 @@ void CompactMainWindowChrome::updatePanelDropIndicator(QWidget* target, const QP
         return;
     }
 
-    QWidget* strip = panelDropStripForTarget(target);
-    if (!strip) {
+    QWidget* laneWidget = panelDropLaneForTarget(target);
+    if (!laneWidget) {
         hidePanelDropIndicator();
         return;
     }
 
     const PanelSlot slot = dropPanelSlotForPosition(target, position);
-    const QRect insertion = panelDropInsertionGeometry(strip, slot);
-    const QRect group = panelDropGroupGeometry(strip, slot, insertion);
+    const PanelLane lane = panelLaneForTarget(target);
+    const QString assignmentId = target && target->property(CompactPanelAssignmentProperty).isValid()
+        ? target->property(CompactPanelAssignmentProperty).toString()
+        : QString();
+    const int order = panelDropOrderForPosition(laneWidget, slot, lane, position, assignmentId);
+    const QRect insertion = panelDropInsertionGeometry(laneWidget, slot, lane, order, assignmentId);
+    const QRect group = panelDropGroupGeometry(laneWidget, slot, insertion);
 
-    panelDropIndicator->setGeometry(QRect(strip->mapTo(mainWindow, group.topLeft()), group.size()));
+    panelDropIndicator->setGeometry(
+        QRect(laneWidget->mapTo(mainWindow, group.topLeft()), group.size())
+    );
     panelDropIndicator->raise();
     panelDropIndicator->show();
     panelDropInsertionIndicator->setGeometry(
-        QRect(strip->mapTo(mainWindow, insertion.topLeft()), insertion.size())
+        QRect(laneWidget->mapTo(mainWindow, insertion.topLeft()), insertion.size())
     );
     panelDropInsertionIndicator->raise();
     panelDropInsertionIndicator->show();
@@ -3112,11 +3630,17 @@ bool CompactMainWindowChrome::handlePanelDrop(
         }
 
         const PanelSlot slot = dropPanelSlotForPosition(target, position);
-        setPanelSlotForDock(dock, slot);
         if (usesPanelPlacementManager()) {
-            refreshPanelStrips();
-            return true;
+            QWidget* laneWidget = panelDropLaneForTarget(target);
+            const PanelLane lane = panelLaneForTarget(target);
+            const int order = panelDropOrderForPosition(laneWidget, slot, lane, position, assignmentId);
+            const bool moved = requestPanelMoveToPresentation(dock, lane, slot, order);
+            if (moved) {
+                refreshPanelStrips();
+            }
+            return moved;
         }
+        setPanelSlotForDock(dock, slot);
         const bool wasVisible = dock->isVisible();
         movePanelDockToSlot(dock, slot);
         if (wasVisible) {
@@ -3166,7 +3690,8 @@ int CompactMainWindowChrome::panelOrderForDock(const QDockWidget* dock, PanelSlo
     if (usesPanelPlacementManager() && dock) {
         const QString panelId = panelAssignmentId(dock);
         if (isStablePanelId(panelId) && panelPlacementManager->isRegistered(panelId)) {
-            return panelPlacementManager->persistedPlacement(panelId).launcher.order;
+            const PanelPlacement placement = panelPlacementManager->persistedPlacement(panelId);
+            return placement.groupOrder > 0 ? placement.groupOrder : placement.launcher.order;
         }
     }
 
@@ -3202,7 +3727,20 @@ void CompactMainWindowChrome::syncPanelPlacementRegistration(QDockWidget* dock)
         return;
     }
 
-    panelPlacementManager->registerPanel(panelId, dock, fallbackPanelPlacementForDock(dock));
+    const bool hasPersistedPlacement = PanelPlacementStore::hasPlacement(panelId);
+    if (!panelPlacementManager->registerPanel(panelId, dock, fallbackPanelPlacementForDock(dock))) {
+        return;
+    }
+
+    // Manager activation is deliberately side-effect free. The compact shell is
+    // the presentation owner, so it explicitly restores a saved panel location
+    // when that panel first joins the flagged shell.
+    if (hasPersistedPlacement) {
+        panelPlacementManager->requestPlacement(
+            panelId,
+            panelPlacementManager->persistedPlacement(panelId)
+        );
+    }
 }
 
 void CompactMainWindowChrome::syncPanelPlacementRegistrations()
@@ -3222,7 +3760,14 @@ PanelPlacement CompactMainWindowChrome::fallbackPanelPlacementForDock(QDockWidge
     PanelPlacement placement;
     placement.panelId = panelAssignmentId(dock);
     const PanelSlot slot = legacyPanelSlotForDock(dock);
-    placement.launcher = launcherForSlot(slot, panelOrderForDock(dock, slot));
+    placement.groupOrder = panelOrderForDock(dock, slot);
+    placement.launcher = launcherForSlot(slot, placement.groupOrder);
+    placement.region = slot == PanelSlot::LeftTop || slot == PanelSlot::RightTop
+        ? PanelPlacement::Region::Start
+        : (slot == PanelSlot::LeftLower || slot == PanelSlot::RightLower
+               ? PanelPlacement::Region::Center
+               : (slot == PanelSlot::BottomRight ? PanelPlacement::Region::End
+                                                 : PanelPlacement::Region::Start));
     if (!dock) {
         placement.normalize();
         return placement;
@@ -3235,7 +3780,9 @@ PanelPlacement CompactMainWindowChrome::fallbackPanelPlacementForDock(QDockWidge
     }
     else {
         placement.mode = PanelPlacement::Mode::Docked;
-        placement.edge = panelEdgeForArea(mainWindow->dockWidgetArea(dock));
+        placement.edge = slot == PanelSlot::BottomLeft || slot == PanelSlot::BottomRight
+            ? PanelPlacement::Edge::Bottom
+            : panelEdgeForArea(mainWindow->dockWidgetArea(dock));
     }
     placement.normalize();
     return placement;

@@ -69,6 +69,20 @@ using namespace Gui;
 
 static std::array<OverlayTabWidget*, 4> _Overlays;
 static bool _compactRailTabOwnershipEnabled = false;
+static constexpr auto OverlayTitleRoleProperty = "_fc_overlay_title_role";
+static constexpr auto OverlayHeaderOwnerProperty = "_fc_overlay_header_owner";
+static constexpr auto OverlayTitleRoleDock = "dock";
+static constexpr auto OverlayTitleRoleOverlayHost = "overlay-host";
+static constexpr auto OverlayTitleRolePlaceholder = "placeholder";
+static constexpr auto OverlayHeaderOwnerDock = "dock";
+static constexpr auto OverlayHeaderOwnerOverlay = "overlay";
+
+static bool compactPanelPlacementEnabled()
+{
+    return App::GetApplication()
+        .GetParameterGroupByPath("User parameter:BaseApp/Preferences/MainWindow")
+        ->GetBool("CompactJetBrainsPanelPlacementEnabled", false);
+}
 
 static inline OverlayTabWidget* findTabWidget(QWidget* widget = nullptr, bool filterDialog = false)
 {
@@ -1029,10 +1043,99 @@ public:
         refresh();
     }
 
+    bool usesCanonicalHeaderOwnership() const
+    {
+        return compactPanelPlacementEnabled();
+    }
+
+    static bool hasTitleRole(const QWidget* widget, const char* role)
+    {
+        return widget && widget->property(OverlayTitleRoleProperty).toByteArray() == role;
+    }
+
+    static void setHeaderOwnerProperty(QDockWidget* dock, bool ownedByOverlay)
+    {
+        if (!dock) {
+            return;
+        }
+        dock->setProperty(
+            OverlayHeaderOwnerProperty,
+            ownedByOverlay ? OverlayHeaderOwnerOverlay : OverlayHeaderOwnerDock
+        );
+    }
+
+    static bool isHeaderOwnedByOverlay(const QDockWidget* dock)
+    {
+        return dock
+            && dock->property(OverlayHeaderOwnerProperty).toByteArray() == OverlayHeaderOwnerOverlay;
+    }
+
+    QWidget* createTitlePlaceholder(QDockWidget* dock)
+    {
+        auto* widget = new QWidget(dock);
+        widget->setObjectName(QStringLiteral("OverlayTitle"));
+        widget->setProperty(OverlayTitleRoleProperty, OverlayTitleRolePlaceholder);
+        widget->hide();
+        return widget;
+    }
+
+    QDockWidget* titleDockForParent(QWidget* parent) const
+    {
+        if (auto dockWidget = qobject_cast<QDockWidget*>(parent)) {
+            return dockWidget;
+        }
+        auto* tabWidget = qobject_cast<OverlayTabWidget*>(parent);
+        if (!tabWidget) {
+            return nullptr;
+        }
+        if (auto* currentDock = tabWidget->currentDockWidget()) {
+            return currentDock;
+        }
+        return tabWidget->dockWidget(0);
+    }
+
+    QList<QAction*> titleActionsForDock(
+        QDockWidget* dockWidget,
+        bool includeOverlayToggle,
+        bool forceFloatAction = false
+    )
+    {
+        QList<QAction*> actions;
+        if (!dockWidget) {
+            return actions;
+        }
+        const QDockWidget::DockWidgetFeatures features = dockWidget->features();
+        for (auto action : dockWidget->actions()) {
+            if (action->property("DockTitleBarAction").toBool()) {
+                actions.append(action);
+            }
+        }
+        if (includeOverlayToggle) {
+            actions.append(&_actOverlay);
+        }
+        if (forceFloatAction || features.testFlag(QDockWidget::DockWidgetFloatable)) {
+            actions.append(&_actFloat);
+        }
+        if (features.testFlag(QDockWidget::DockWidgetClosable)) {
+            actions.append(&_actClose);
+        }
+        return actions;
+    }
+
     void setupTitleBar(QDockWidget* dock)
     {
         auto* oldWidget = dock->titleBarWidget();
-        dock->setTitleBarWidget(createTitleBar(dock));
+        if (usesCanonicalHeaderOwnership()) {
+            if (isHeaderOwnedByOverlay(dock)) {
+                dock->setTitleBarWidget(createTitlePlaceholder(dock));
+            }
+            else {
+                dock->setTitleBarWidget(createTitleBar(dock));
+            }
+        }
+        else {
+            dock->setTitleBarWidget(createTitleBar(dock));
+        }
         if (oldWidget) {
             oldWidget->deleteLater();
         }
@@ -1042,26 +1145,22 @@ public:
     {
         OverlayTitleBar* widget = new OverlayTitleBar(parent);
         widget->setObjectName(QStringLiteral("OverlayTitle"));
+        widget->setProperty(
+            OverlayTitleRoleProperty,
+            qobject_cast<OverlayTabWidget*>(parent) ? OverlayTitleRoleOverlayHost : OverlayTitleRoleDock
+        );
 
         QList<QAction*> actions;
         if (auto tabWidget = qobject_cast<OverlayTabWidget*>(parent)) {
-            actions = tabWidget->actions();
+            if (usesCanonicalHeaderOwnership()) {
+                actions = titleActionsForDock(titleDockForParent(tabWidget), true, true);
+            }
+            else {
+                actions = tabWidget->actions();
+            }
         }
         else if (auto dockWidget = qobject_cast<QDockWidget*>(parent)) {
-            const QDockWidget::DockWidgetFeatures features = dockWidget->features();
-
-            for (auto action : dockWidget->actions()) {
-                if (action->property("DockTitleBarAction").toBool()) {
-                    actions.append(action);
-                }
-            }
-            actions.append(&_actOverlay);
-            if (features.testFlag(QDockWidget::DockWidgetFloatable)) {
-                actions.append(&_actFloat);
-            }
-            if (features.testFlag(QDockWidget::DockWidgetClosable)) {
-                actions.append(&_actClose);
-            }
+            actions = titleActionsForDock(dockWidget, true);
         }
         else {
             actions = _actions;
@@ -1069,6 +1168,22 @@ public:
 
         widget->setTitleItem(OverlayTabWidget::prepareTitleWidget(widget, actions));
         return widget;
+    }
+
+    void refreshOverlayTitleBar(OverlayTabWidget* tabWidget)
+    {
+        if (!tabWidget || !usesCanonicalHeaderOwnership()) {
+            return;
+        }
+
+        QWidget* oldWidget = tabWidget->getTitleBar();
+        QWidget* newWidget = createTitleBar(tabWidget);
+        tabWidget->setTitleBar(newWidget);
+        if (oldWidget) {
+            oldWidget->deleteLater();
+        }
+        tabWidget->refreshTitleBarLayout();
+        newWidget->update();
     }
 
     void onAction(QAction* action)
@@ -1723,6 +1838,26 @@ Qt::DockWidgetArea OverlayManager::dockWidgetOverlayArea(QDockWidget* dw) const
     return d->dockWidgetOverlayArea(dw);
 }
 
+bool OverlayManager::usesCanonicalHeaderOwnership() const
+{
+    return d->usesCanonicalHeaderOwnership();
+}
+
+void OverlayManager::setDockHeaderOwnedByOverlay(QDockWidget* dock, bool ownedByOverlay)
+{
+    if (!dock || !d->usesCanonicalHeaderOwnership()) {
+        return;
+    }
+
+    Private::setHeaderOwnerProperty(dock, ownedByOverlay);
+    d->setupTitleBar(dock);
+}
+
+bool OverlayManager::isDockHeaderOwnedByOverlay(QDockWidget* dock) const
+{
+    return d->usesCanonicalHeaderOwnership() && Private::isHeaderOwnedByOverlay(dock);
+}
+
 void OverlayManager::unsetupDockWidget(QDockWidget* dw)
 {
     d->toggleOverlay(dw, ToggleMode::Unset);
@@ -1762,6 +1897,10 @@ void OverlayManager::onDockFeaturesChange(QDockWidget::DockWidgetFeatures featur
     // Rebuild the title widget as it may have a different set of buttons shown.
     if (auto tw = dw->titleBarWidget(); !tw || qobject_cast<OverlayTitleBar*>(tw)) {
         setupTitleBar(dw);
+    }
+    auto it = d->_overlayMap.find(dw);
+    if (it != d->_overlayMap.end() && it->second) {
+        d->refreshOverlayTitleBar(it->second->tabWidget);
     }
 }
 
@@ -1809,6 +1948,9 @@ void OverlayManager::onDockWidgetTitleChange(const QString& title)
     int index = tabWidget->dockWidgetIndex(dock);
     if (index >= 0) {
         tabWidget->setTabText(index, title);
+    }
+    if (tabWidget->getTitleBar()) {
+        tabWidget->getTitleBar()->update();
     }
 }
 
@@ -2354,6 +2496,37 @@ bool OverlayManager::isCompactRailTabOwnershipEnabled() const
 bool OverlayManager::compactRailTabOwnershipEnabled()
 {
     return _compactRailTabOwnershipEnabled;
+}
+
+bool OverlayManager::setDockWidgetOverlayAutoHide(QDockWidget* dock, bool enabled)
+{
+    auto it = d->_overlayMap.find(dock);
+    if (!d->usesCanonicalHeaderOwnership() || it == d->_overlayMap.end() || !it->second) {
+        return false;
+    }
+
+    OverlayTabWidget* tabWidget = it->second->tabWidget;
+    const ParameterGrp::handle persistedHandle = tabWidget->hGrp;
+    tabWidget->hGrp = nullptr;
+    tabWidget->setAutoMode(
+        enabled ? OverlayTabWidget::AutoMode::AutoHide : OverlayTabWidget::AutoMode::NoAutoMode
+    );
+    tabWidget->hGrp = persistedHandle;
+    return true;
+}
+
+bool OverlayManager::dockWidgetOverlayAutoHide(QDockWidget* dock) const
+{
+    auto it = d->_overlayMap.find(dock);
+    if (!d->usesCanonicalHeaderOwnership() || it == d->_overlayMap.end() || !it->second) {
+        return false;
+    }
+    return it->second->tabWidget->getAutoMode() == OverlayTabWidget::AutoMode::AutoHide;
+}
+
+void OverlayManager::refreshOverlayTitleBar(OverlayTabWidget* tabWidget)
+{
+    d->refreshOverlayTitleBar(tabWidget);
 }
 
 void OverlayManager::setFocusView()

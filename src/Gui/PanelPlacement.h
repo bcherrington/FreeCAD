@@ -33,7 +33,7 @@ namespace Gui
 
 struct GuiExport PanelPlacement
 {
-    static constexpr int CurrentSchemaVersion = 1;
+    static constexpr int CurrentSchemaVersion = 2;
     // Safe policy:
     // - Reads accept any positive root schema version and hydrate known fields.
     // - Non-positive or missing schema versions normalize to CurrentSchemaVersion.
@@ -61,6 +61,12 @@ struct GuiExport PanelPlacement
         Start,
         Center,
         End,
+    };
+
+    enum class VisibilityPolicy
+    {
+        Exclusive,
+        Multiple,
     };
 
     struct Launcher
@@ -95,12 +101,15 @@ struct GuiExport PanelPlacement
     Mode mode = Mode::Docked;
     Edge edge = Edge::Left;
     Region region = Region::Start;
+    int order = 0;
+    VisibilityPolicy visibilityPolicy = VisibilityPolicy::Exclusive;
     QString groupId;
     int groupOrder = 0;
     int tabOrder = 0;
     QString splitRelation;
     int extent = 0;
     QRect floatingGeometry;
+    // Compatibility view for untouched callers during the migration to v2.
     Launcher launcher;
 
     void normalize();
@@ -123,6 +132,12 @@ GuiExport bool panelPlacementEdgeFromString(const QString& value, PanelPlacement
 
 GuiExport QString panelPlacementRegionToString(PanelPlacement::Region region);
 GuiExport bool panelPlacementRegionFromString(const QString& value, PanelPlacement::Region* region);
+
+GuiExport QString panelPlacementVisibilityPolicyToString(PanelPlacement::VisibilityPolicy policy);
+GuiExport bool panelPlacementVisibilityPolicyFromString(
+    const QString& value,
+    PanelPlacement::VisibilityPolicy* policy
+);
 
 GuiExport QString panelPlacementRailToString(PanelPlacement::Launcher::Rail rail);
 GuiExport bool panelPlacementRailFromString(const QString& value, PanelPlacement::Launcher::Rail* rail);
