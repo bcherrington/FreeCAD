@@ -7,6 +7,7 @@
 #include <QAction>
 #include <QCoreApplication>
 #include <QDockWidget>
+#include <QKeySequence>
 #include <QLayout>
 #include <QLineEdit>
 #include <QMenuBar>
@@ -431,6 +432,57 @@ private Q_SLOTS:
             slots->SetASCII(assignmentId.toUtf8().constData(), previousSlot.c_str());
         }
         Gui::DockWindowManager::instance()->removeDockWindow("CompactSlotTestDock");
+    }
+
+    void panelLauncherUsesLiveDockActionAndTriggersExactlyOnce()  // NOLINT
+    {
+        preferences->SetBool("CompactJetBrainsLayout", false);
+        createMainWindow();
+
+        auto panel = new QWidget();
+        panel->setObjectName(QStringLiteral("CompactLiveActionPanel"));
+        panel->setWindowTitle(QStringLiteral("Compact live action"));
+        auto dock = Gui::DockWindowManager::instance()
+                        ->addDockWindow("CompactLiveActionDock", panel, Qt::LeftDockWidgetArea);
+        QVERIFY(dock);
+
+        QAction* action = dock->toggleViewAction();
+        QVERIFY(action);
+        action->setData(QByteArray("CompactLiveActionDock"));
+        action->setVisible(true);
+        action->setText(QStringLiteral("Live panel"));
+        action->setToolTip(QStringLiteral("Open the live panel"));
+        action->setStatusTip(QStringLiteral("Live panel status"));
+        action->setShortcut(QKeySequence(QStringLiteral("Ctrl+Alt+9")));
+
+        preferences->SetBool("CompactJetBrainsPanelPlacementEnabled", true);
+        preferences->SetBool("CompactJetBrainsLayout", true);
+        processPendingEvents();
+
+        QTRY_VERIFY(panelButtonForAssignment(QStringLiteral("CompactLiveActionDock")));
+        QToolButton* button = panelButtonForAssignment(QStringLiteral("CompactLiveActionDock"));
+        QCOMPARE(button->defaultAction(), action);
+        QCOMPARE(button->accessibleName(), QStringLiteral("Live panel"));
+        QCOMPARE(button->accessibleDescription(), QStringLiteral("Open the live panel"));
+        QCOMPARE(button->statusTip(), QStringLiteral("Live panel status"));
+        QCOMPARE(button->isChecked(), action->isChecked());
+        QCOMPARE(button->defaultAction()->shortcut(), QKeySequence(QStringLiteral("Ctrl+Alt+9")));
+
+        action->setText(QStringLiteral("Renamed live panel"));
+        action->setToolTip(QStringLiteral("Open the renamed live panel"));
+        action->setEnabled(false);
+        QCOMPARE(button->accessibleName(), QStringLiteral("Renamed live panel"));
+        QCOMPARE(button->accessibleDescription(), QStringLiteral("Open the renamed live panel"));
+        QVERIFY(!button->isEnabled());
+
+        action->setEnabled(true);
+        int triggerCount = 0;
+        connect(action, &QAction::triggered, this, [&triggerCount]() { ++triggerCount; });
+        QTest::mouseClick(button, Qt::LeftButton);
+        QCOMPARE(triggerCount, 1);
+
+        Gui::PanelPlacementStore::removePlacement(QStringLiteral("CompactLiveActionDock"));
+        Gui::DockWindowManager::instance()->removeDockWindow("CompactLiveActionDock");
     }
 
     void panelPlacementManagerUsesUnifiedLauncherWithoutMovingDock()  // NOLINT

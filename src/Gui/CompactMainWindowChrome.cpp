@@ -2008,20 +2008,27 @@ void CompactMainWindowChrome::refreshPanelStrips()
     rightStripContent->layout()->addWidget(rightStripToolBar);
 
     auto addButton = [this](QDockWidget* dock, QToolBar* toolbar, PanelSlot slot) {
-        const QString title = dockTitle(dock);
-        auto action = new QAction(dockIcon(dock, slot), title, toolbar);
-        action->setToolTip(title);
-        action->setStatusTip(title);
-        action->setCheckable(true);
-        action->setChecked(dock->isVisible());
-
-        connect(action, &QAction::triggered, this, [this, dock, slot]() {
-            activatePanelDock(dock, slot);
-        });
+        QAction* action = dock->toggleViewAction();
+        if (!action) {
+            return;
+        }
 
         toolbar->addAction(action);
         if (auto button = qobject_cast<QToolButton*>(toolbar->widgetForAction(action))) {
-            button->setAccessibleName(title);
+            const QPointer<QDockWidget> dockGuard(dock);
+            const auto syncAccessibleMetadata = [this, dockGuard, action, button]() {
+                const QString label = action->text().isEmpty() ? dockTitle(dockGuard)
+                                                               : action->text();
+                button->setAccessibleName(label);
+                button->setAccessibleDescription(action->toolTip());
+                button->setToolTip(action->toolTip().isEmpty() ? label : action->toolTip());
+                button->setStatusTip(action->statusTip());
+            };
+            syncAccessibleMetadata();
+            connect(action, &QAction::changed, button, syncAccessibleMetadata);
+            if (action->icon().isNull()) {
+                button->setIcon(dockIcon(dock, slot));
+            }
             button->setProperty(CompactPanelAssignmentProperty, panelAssignmentId(dock));
             button->setProperty(CompactPanelSlotProperty, panelSlotName(slot));
             button->installEventFilter(this);
@@ -2963,26 +2970,6 @@ bool CompactMainWindowChrome::handlePanelDrop(
     }
 
     return false;
-}
-
-void CompactMainWindowChrome::activatePanelDock(QDockWidget* dock, PanelSlot slot)
-{
-    if (!dock || !dock->toggleViewAction()) {
-        return;
-    }
-
-    if (dock->isVisible()) {
-        dock->toggleViewAction()->activate(QAction::Trigger);
-        refreshPanelStrips();
-        return;
-    }
-
-    hideOtherPanelsInSlot(dock, slot);
-    if (!dock->isVisible()) {
-        dock->toggleViewAction()->activate(QAction::Trigger);
-    }
-    dock->raise();
-    refreshPanelStrips();
 }
 
 void CompactMainWindowChrome::hideOtherPanelsInSlot(QDockWidget* dock, PanelSlot slot)

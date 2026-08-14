@@ -170,7 +170,6 @@ private:
     void movePanelDockToSlot(QDockWidget* dock, PanelSlot slot);
     void startPanelButtonDrag(QToolButton* button);
     bool handlePanelDrop(QWidget* target, const QPoint& position, const QString& assignmentId);
-    void activatePanelDock(QDockWidget* dock, PanelSlot slot);
     void hideOtherPanelsInSlot(QDockWidget* dock, PanelSlot slot);
     void schedulePanelStripRefresh();
     bool usesPanelPlacementManager() const;
