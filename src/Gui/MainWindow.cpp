@@ -31,9 +31,9 @@
 #include <QDesktopServices>
 #include <QDockWidget>
 #include <QFontMetrics>
+#include <QHash>
 #include <QFrame>
 #include <QHBoxLayout>
-#include <QHash>
 #include <QKeySequence>
 #include <QLabel>
 #include <QMdiSubWindow>
@@ -45,6 +45,8 @@
 #include <QOpenGLWidget>
 #include <QPainter>
 #include <QProcess>
+#include <QPointer>
+#include <QPushButton>
 #include <QRegularExpression>
 #include <QRegularExpressionMatch>
 #include <QScreen>
@@ -60,7 +62,6 @@
 #include <QVBoxLayout>
 #include <QWhatsThis>
 #include <QWindow>
-#include <QPushButton>
 #include <string>
 
 
@@ -352,6 +353,12 @@ struct MainWindowP
     bool whatsthis;
     QString whatstext;
     Assistant* assistant;
+    QPointer<PythonConsole> pythonConsole;
+    QPointer<QMainWindow> pythonConsoleWindow;
+    bool pythonConsoleDockVisibleBeforeWindow = false;
+    QPointer<ReportOutput> reportView;
+    QPointer<QMainWindow> reportViewWindow;
+    bool reportViewDockVisibleBeforeWindow = false;
     int currentStatusType = 100;
     int actionUpdateDelay = 0;
     QMap<QString, QPointer<UrlHandler>> urlHandler;
@@ -362,6 +369,84 @@ struct MainWindowP
     bool _restoring = false;
     QTime _showNormal;
     void restoreWindowState(const QByteArray&);
+};
+
+class PythonConsoleWindow: public QMainWindow
+{
+public:
+    explicit PythonConsoleWindow(QWidget* parent = nullptr)
+        : QMainWindow(parent, Qt::Window)
+    {
+        setObjectName(QStringLiteral("PythonConsoleWindow"));
+        setAttribute(Qt::WA_DeleteOnClose, false);
+        setAttribute(Qt::WA_QuitOnClose, false);
+    }
+
+protected:
+    QMenu* createPopupMenu() override
+    {
+        auto action = findChild<QAction*>(QStringLiteral("DockPythonConsoleTitleAction"));
+        if (!action) {
+            return nullptr;
+        }
+
+        auto menu = new QMenu(this);
+        menu->addAction(action);
+        return menu;
+    }
+
+    void closeEvent(QCloseEvent* event) override
+    {
+        if (property("MainWindowClosing").toBool() || !event->spontaneous()) {
+            setProperty("ClosedByApplication", true);
+            event->accept();
+            return;
+        }
+
+        event->ignore();
+        if (auto mainWindow = getMainWindow()) {
+            mainWindow->dockPythonConsole();
+        }
+    }
+};
+
+class ReportViewWindow: public QMainWindow
+{
+public:
+    explicit ReportViewWindow(QWidget* parent = nullptr)
+        : QMainWindow(parent, Qt::Window)
+    {
+        setObjectName(QStringLiteral("ReportViewWindow"));
+        setAttribute(Qt::WA_DeleteOnClose, false);
+        setAttribute(Qt::WA_QuitOnClose, false);
+    }
+
+protected:
+    QMenu* createPopupMenu() override
+    {
+        auto action = findChild<QAction*>(QStringLiteral("DockReportViewTitleAction"));
+        if (!action) {
+            return nullptr;
+        }
+
+        auto menu = new QMenu(this);
+        menu->addAction(action);
+        return menu;
+    }
+
+    void closeEvent(QCloseEvent* event) override
+    {
+        if (property("MainWindowClosing").toBool() || !event->spontaneous()) {
+            setProperty("ClosedByApplication", true);
+            event->accept();
+            return;
+        }
+
+        event->ignore();
+        if (auto mainWindow = getMainWindow()) {
+            mainWindow->dockReportView();
+        }
+    }
 };
 
 }  // namespace Gui
@@ -670,6 +755,8 @@ MainWindow::~MainWindow()
         disconnect(d->mdiArea, &QMdiArea::subWindowActivated, this, &MainWindow::onWindowActivated);
     }
     delete d->compactChrome;
+    delete d->pythonConsoleWindow;
+    delete d->reportViewWindow;
     delete d->status;
     delete d;
     instance = nullptr;
@@ -816,6 +903,7 @@ bool MainWindow::setupReportView()
         pcReport->setWindowIcon(BitmapFactory().pixmap("MacroEditor"));
         pcReport->setObjectName(QStringLiteral("Report view"));
         pcReport->setWindowTitle(QDockWidget::tr("Report View"));
+        d->reportView = pcReport;
 
         DockWindowManager* pDockMgr = DockWindowManager::instance();
         pDockMgr->registerDockWindow("Std_ReportView", pcReport);
@@ -828,6 +916,52 @@ bool MainWindow::setupReportView()
     return false;
 }
 
+QAction* MainWindow::createReportViewWindowAction(QObject* parent)
+{
+    auto action = new QAction(parent);
+    action->setObjectName(QStringLiteral("ReportViewWindowTitleAction"));
+    action->setIcon(qApp->style()->standardIcon(QStyle::SP_TitleBarMaxButton));
+    action->setText(tr("Open Report View in Window"));
+    action->setToolTip(tr("Open Report View in Window"));
+    action->setStatusTip(tr("Open Report View in Window"));
+    action->setProperty("DockTitleBarAction", true);
+    connect(action, &QAction::triggered, this, [this]() { showReportViewWindow(true); });
+    return action;
+}
+
+QAction* MainWindow::createDockReportViewAction(QObject* parent)
+{
+    auto action = new QAction(parent);
+    action->setObjectName(QStringLiteral("DockReportViewTitleAction"));
+    action->setIcon(qApp->style()->standardIcon(QStyle::SP_TitleBarNormalButton));
+    action->setText(tr("Dock Report View"));
+    action->setToolTip(tr("Dock Report View"));
+    action->setStatusTip(tr("Dock Report View"));
+    connect(action, &QAction::triggered, this, [this]() { dockReportView(); });
+    return action;
+}
+
+void MainWindow::setupReportViewDockWidget(QDockWidget* dock)
+{
+    if (!dock || dock->objectName() != QStringLiteral("Report view")) {
+        return;
+    }
+
+    const auto actions = dock->actions();
+    for (auto action : actions) {
+        if (action->objectName() == QStringLiteral("ReportViewWindowTitleAction")) {
+            return;
+        }
+    }
+
+    dock->addAction(createReportViewWindowAction(dock));
+
+    if (auto titleBar = dock->titleBarWidget();
+        titleBar && titleBar->objectName() == QStringLiteral("OverlayTitle")) {
+        OverlayManager::instance()->setupTitleBar(dock);
+    }
+}
+
 bool MainWindow::setupPythonConsole()
 {
     // Python console
@@ -836,6 +970,7 @@ bool MainWindow::setupPythonConsole()
         pcPython->setWindowIcon(Gui::BitmapFactory().iconFromTheme("applications-python"));
         pcPython->setObjectName(QStringLiteral("Python console"));
         pcPython->setWindowTitle(QDockWidget::tr("Python Console"));
+        d->pythonConsole = pcPython;
 
         DockWindowManager* pDockMgr = DockWindowManager::instance();
         pDockMgr->registerDockWindow("Std_PythonView", pcPython);
@@ -843,6 +978,384 @@ bool MainWindow::setupPythonConsole()
     }
 
     return false;
+}
+
+QAction* MainWindow::createPythonConsoleWindowAction(QObject* parent)
+{
+    auto action = new QAction(parent);
+    action->setObjectName(QStringLiteral("PythonConsoleWindowTitleAction"));
+    action->setIcon(qApp->style()->standardIcon(QStyle::SP_TitleBarMaxButton));
+    action->setText(tr("Open Python Console in Window"));
+    action->setToolTip(tr("Open Python Console in Window"));
+    action->setStatusTip(tr("Open Python Console in Window"));
+    action->setProperty("DockTitleBarAction", true);
+    connect(action, &QAction::triggered, this, [this]() { showPythonConsoleWindow(true); });
+    return action;
+}
+
+QAction* MainWindow::createDockPythonConsoleAction(QObject* parent)
+{
+    auto action = new QAction(parent);
+    action->setObjectName(QStringLiteral("DockPythonConsoleTitleAction"));
+    action->setIcon(qApp->style()->standardIcon(QStyle::SP_TitleBarNormalButton));
+    action->setText(tr("Dock Python Console"));
+    action->setToolTip(tr("Dock Python Console"));
+    action->setStatusTip(tr("Dock Python Console"));
+    connect(action, &QAction::triggered, this, [this]() { dockPythonConsole(); });
+    return action;
+}
+
+void MainWindow::setupPythonConsoleDockWidget(QDockWidget* dock)
+{
+    if (!dock || dock->objectName() != QStringLiteral("Python console")) {
+        return;
+    }
+
+    const auto actions = dock->actions();
+    for (auto action : actions) {
+        if (action->objectName() == QStringLiteral("PythonConsoleWindowTitleAction")) {
+            return;
+        }
+    }
+
+    dock->addAction(createPythonConsoleWindowAction(dock));
+
+    if (auto titleBar = dock->titleBarWidget();
+        titleBar && titleBar->objectName() == QStringLiteral("OverlayTitle")) {
+        OverlayManager::instance()->setupTitleBar(dock);
+    }
+}
+
+PythonConsole* MainWindow::pythonConsole() const
+{
+    if (d->pythonConsole) {
+        return d->pythonConsole;
+    }
+
+    if (auto pc = DockWindowManager::instance()->getDockWindow("Python console")) {
+        d->pythonConsole = qobject_cast<PythonConsole*>(pc);
+    }
+    if (!d->pythonConsole) {
+        d->pythonConsole = qobject_cast<PythonConsole*>(
+            DockWindowManager::instance()->findRegisteredDockWindow("Std_PythonView")
+        );
+    }
+    if (!d->pythonConsole) {
+        d->pythonConsole = findChild<PythonConsole*>();
+    }
+
+    return d->pythonConsole;
+}
+
+bool MainWindow::isPythonConsoleStandalone() const
+{
+    return d->pythonConsoleWindow && pythonConsole()
+        && d->pythonConsoleWindow->centralWidget() == pythonConsole();
+}
+
+ReportOutput* MainWindow::reportView() const
+{
+    if (d->reportView) {
+        return d->reportView;
+    }
+
+    if (auto report = DockWindowManager::instance()->getDockWindow("Report view")) {
+        d->reportView = qobject_cast<ReportOutput*>(report);
+    }
+    if (!d->reportView) {
+        d->reportView = qobject_cast<ReportOutput*>(
+            DockWindowManager::instance()->findRegisteredDockWindow("Std_ReportView")
+        );
+    }
+    if (!d->reportView) {
+        d->reportView = findChild<ReportOutput*>();
+    }
+
+    return d->reportView;
+}
+
+bool MainWindow::isReportViewStandalone() const
+{
+    return d->reportViewWindow && reportView()
+        && d->reportViewWindow->centralWidget() == reportView();
+}
+
+void MainWindow::showReportViewWindow(bool show)
+{
+    auto report = reportView();
+    if (!report) {
+        return;
+    }
+
+    auto group = d->hGrp->GetGroup("ReportViewWindow");
+    if (!d->reportViewWindow) {
+        d->reportViewWindow = new ReportViewWindow();
+        d->reportViewWindow->setWindowTitle(QDockWidget::tr("Report View"));
+        d->reportViewWindow->setWindowIcon(report->windowIcon());
+        d->reportViewWindow->resize(800, 300);
+        auto toolbar = new QToolBar(d->reportViewWindow);
+        toolbar->setObjectName(QStringLiteral("ReportViewWindowToolBar"));
+        toolbar->setMovable(false);
+        toolbar->setFloatable(false);
+        toolbar->setIconSize(QSize(16, 16));
+        toolbar->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
+        auto dockAction = createDockReportViewAction(toolbar);
+        toolbar->addAction(dockAction);
+        toolbar->setContextMenuPolicy(Qt::ActionsContextMenu);
+        d->reportViewWindow->addToolBar(Qt::TopToolBarArea, toolbar);
+
+        if (auto geometry = group->GetASCII("Geometry"); !geometry.empty()) {
+            d->reportViewWindow->restoreGeometry(QByteArray::fromBase64(geometry.c_str()));
+            if (const auto screen
+                = QGuiApplication::screenAt(d->reportViewWindow->geometry().center())) {
+                const QRect available = screen->availableGeometry();
+                const QSize size = d->reportViewWindow->size().boundedTo(available.size());
+                const int x = qBound(
+                    available.left(),
+                    d->reportViewWindow->x(),
+                    available.right() - size.width() + 1
+                );
+                const int y = qBound(
+                    available.top(),
+                    d->reportViewWindow->y(),
+                    available.bottom() - size.height() + 1
+                );
+                d->reportViewWindow->setGeometry(QRect(QPoint(x, y), size));
+            }
+            else if (const auto primaryScreen = QGuiApplication::primaryScreen()) {
+                d->reportViewWindow->move(primaryScreen->availableGeometry().topLeft());
+            }
+        }
+    }
+
+    const bool alreadyStandalone = d->reportViewWindow->centralWidget() == report;
+    if (!alreadyStandalone) {
+        const bool restoringStandaloneMode = group->GetBool("Standalone", false);
+        auto pDockMgr = DockWindowManager::instance();
+        if (auto dock = pDockMgr->getDockContainer("Report view")) {
+            d->reportViewDockVisibleBeforeWindow = restoringStandaloneMode
+                ? group->GetBool("DockVisibleBeforeWindow", dock->isVisible())
+                : dock->isVisible();
+            if (dock->widget() == report) {
+                report->setParent(nullptr);
+                dock->setWidget(nullptr);
+            }
+            dock->hide();
+        }
+        else {
+            d->reportViewDockVisibleBeforeWindow = group->GetBool("DockVisibleBeforeWindow", false);
+        }
+    }
+
+    if (d->reportViewWindow->centralWidget() != report) {
+        d->reportViewWindow->setCentralWidget(report);
+    }
+
+    group->SetBool("Standalone", true);
+    group->SetBool("DockVisibleBeforeWindow", d->reportViewDockVisibleBeforeWindow);
+    group->SetBool("Visible", show);
+
+    if (!show) {
+        d->reportViewWindow->hide();
+        saveWindowSettings(true);
+        return;
+    }
+
+    if (auto dock = DockWindowManager::instance()->getDockContainer("Report view")) {
+        if (dock->widget() == report) {
+            report->setParent(nullptr);
+            dock->setWidget(nullptr);
+        }
+        dock->hide();
+    }
+
+    d->reportViewWindow->show();
+    d->reportViewWindow->raise();
+    d->reportViewWindow->activateWindow();
+    report->show();
+    report->setFocus();
+    saveWindowSettings(true);
+}
+
+void MainWindow::dockReportView()
+{
+    auto report = reportView();
+    if (!report) {
+        return;
+    }
+
+    auto group = d->hGrp->GetGroup("ReportViewWindow");
+    if (d->reportViewWindow) {
+        group->SetASCII("Geometry", d->reportViewWindow->saveGeometry().toBase64().constData());
+        group->SetBool("Standalone", false);
+        group->SetBool("Visible", false);
+        if (d->reportViewWindow->centralWidget() == report) {
+            d->reportViewWindow->takeCentralWidget();
+        }
+        d->reportViewWindow->hide();
+    }
+
+    auto dock = DockWindowManager::instance()->getDockContainer("Report view");
+    if (!dock) {
+        DockWindowManager::instance()->registerDockWindow("Std_ReportView", report);
+        dock = DockWindowManager::instance()
+                   ->addDockWindow("Report view", report, Qt::BottomDockWidgetArea);
+    }
+    if (dock) {
+        if (dock->widget() != report) {
+            dock->setWidget(report);
+        }
+        dock->toggleViewAction()->setData(QByteArray("Std_ReportView"));
+        setupReportViewDockWidget(dock);
+        report->show();
+        dock->setVisible(d->reportViewDockVisibleBeforeWindow);
+        group->SetBool("DockVisibleBeforeWindow", d->reportViewDockVisibleBeforeWindow);
+        if (d->reportViewDockVisibleBeforeWindow) {
+            dock->raise();
+        }
+        OverlayManager::instance()->refresh(dock);
+    }
+
+    saveWindowSettings(true);
+}
+
+void MainWindow::showPythonConsoleWindow(bool show)
+{
+    auto pcPython = pythonConsole();
+    if (!pcPython) {
+        return;
+    }
+
+    auto group = d->hGrp->GetGroup("PythonConsoleWindow");
+    if (!d->pythonConsoleWindow) {
+        d->pythonConsoleWindow = new PythonConsoleWindow();
+        d->pythonConsoleWindow->setWindowTitle(QDockWidget::tr("Python Console"));
+        d->pythonConsoleWindow->setWindowIcon(pcPython->windowIcon());
+        d->pythonConsoleWindow->resize(800, 300);
+        auto toolbar = new QToolBar(d->pythonConsoleWindow);
+        toolbar->setObjectName(QStringLiteral("PythonConsoleWindowToolBar"));
+        toolbar->setMovable(false);
+        toolbar->setFloatable(false);
+        toolbar->setIconSize(QSize(16, 16));
+        toolbar->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
+        auto dockAction = createDockPythonConsoleAction(toolbar);
+        toolbar->addAction(dockAction);
+        toolbar->setContextMenuPolicy(Qt::ActionsContextMenu);
+        d->pythonConsoleWindow->addToolBar(Qt::TopToolBarArea, toolbar);
+
+        if (auto geometry = group->GetASCII("Geometry"); !geometry.empty()) {
+            d->pythonConsoleWindow->restoreGeometry(QByteArray::fromBase64(geometry.c_str()));
+            if (const auto screen
+                = QGuiApplication::screenAt(d->pythonConsoleWindow->geometry().center())) {
+                const QRect available = screen->availableGeometry();
+                const QSize size = d->pythonConsoleWindow->size().boundedTo(available.size());
+                const int x = qBound(
+                    available.left(),
+                    d->pythonConsoleWindow->x(),
+                    available.right() - size.width() + 1
+                );
+                const int y = qBound(
+                    available.top(),
+                    d->pythonConsoleWindow->y(),
+                    available.bottom() - size.height() + 1
+                );
+                d->pythonConsoleWindow->setGeometry(QRect(QPoint(x, y), size));
+            }
+            else if (const auto primaryScreen = QGuiApplication::primaryScreen()) {
+                d->pythonConsoleWindow->move(primaryScreen->availableGeometry().topLeft());
+            }
+        }
+    }
+
+    const bool alreadyStandalone = d->pythonConsoleWindow->centralWidget() == pcPython;
+    if (!alreadyStandalone) {
+        const bool restoringStandaloneMode = group->GetBool("Standalone", false);
+        auto pDockMgr = DockWindowManager::instance();
+        if (auto dock = pDockMgr->getDockContainer("Python console")) {
+            d->pythonConsoleDockVisibleBeforeWindow = restoringStandaloneMode
+                ? group->GetBool("DockVisibleBeforeWindow", dock->isVisible())
+                : dock->isVisible();
+            if (dock->widget() == pcPython) {
+                pcPython->setParent(nullptr);
+                dock->setWidget(nullptr);
+            }
+            dock->hide();
+        }
+        else {
+            d->pythonConsoleDockVisibleBeforeWindow = group->GetBool("DockVisibleBeforeWindow", false);
+        }
+    }
+
+    if (d->pythonConsoleWindow->centralWidget() != pcPython) {
+        d->pythonConsoleWindow->setCentralWidget(pcPython);
+    }
+
+    group->SetBool("Standalone", true);
+    group->SetBool("DockVisibleBeforeWindow", d->pythonConsoleDockVisibleBeforeWindow);
+    group->SetBool("Visible", show);
+
+    if (!show) {
+        d->pythonConsoleWindow->hide();
+        saveWindowSettings(true);
+        return;
+    }
+
+    if (auto dock = DockWindowManager::instance()->getDockContainer("Python console")) {
+        if (dock->widget() == pcPython) {
+            pcPython->setParent(nullptr);
+            dock->setWidget(nullptr);
+        }
+        dock->hide();
+    }
+
+    d->pythonConsoleWindow->show();
+    d->pythonConsoleWindow->raise();
+    d->pythonConsoleWindow->activateWindow();
+    pcPython->show();
+    pcPython->setFocus();
+    saveWindowSettings(true);
+}
+
+void MainWindow::dockPythonConsole()
+{
+    auto pcPython = pythonConsole();
+    if (!pcPython) {
+        return;
+    }
+
+    auto group = d->hGrp->GetGroup("PythonConsoleWindow");
+    if (d->pythonConsoleWindow) {
+        group->SetASCII("Geometry", d->pythonConsoleWindow->saveGeometry().toBase64().constData());
+        group->SetBool("Standalone", false);
+        group->SetBool("Visible", false);
+        if (d->pythonConsoleWindow->centralWidget() == pcPython) {
+            d->pythonConsoleWindow->takeCentralWidget();
+        }
+        d->pythonConsoleWindow->hide();
+    }
+
+    auto dock = DockWindowManager::instance()->getDockContainer("Python console");
+    if (!dock) {
+        DockWindowManager::instance()->registerDockWindow("Std_PythonView", pcPython);
+        dock = DockWindowManager::instance()
+                   ->addDockWindow("Python console", pcPython, Qt::BottomDockWidgetArea);
+    }
+    if (dock) {
+        if (dock->widget() != pcPython) {
+            dock->setWidget(pcPython);
+        }
+        dock->toggleViewAction()->setData(QByteArray("Std_PythonView"));
+        setupPythonConsoleDockWidget(dock);
+        pcPython->show();
+        dock->setVisible(d->pythonConsoleDockVisibleBeforeWindow);
+        group->SetBool("DockVisibleBeforeWindow", d->pythonConsoleDockVisibleBeforeWindow);
+        if (d->pythonConsoleDockVisibleBeforeWindow) {
+            dock->raise();
+        }
+        OverlayManager::instance()->refresh(dock);
+    }
+
+    saveWindowSettings(true);
 }
 
 bool MainWindow::updateTreeView(bool show)
@@ -1276,7 +1789,7 @@ static View3DInventorViewer* spaceballMotionEventTarget()
 bool MainWindow::event(QEvent* e)
 {
     const bool compactLayoutEvent = e->type() == QEvent::Resize || e->type() == QEvent::Show
-        || e->type() == QEvent::WindowStateChange;
+        || e->type() == QEvent::LayoutRequest || e->type() == QEvent::WindowStateChange;
 
     if (e->type() == QEvent::EnterWhatsThisMode) {
         // Unfortunately, for top-level widgets such as menus or dialogs we
@@ -1777,14 +2290,164 @@ void MainWindow::onDockWindowMenuAboutToShow()
 
 void MainWindow::populateDockWindowMenu(QMenu* menu)
 {
-    QList<QDockWidget*> dock = this->findChildren<QDockWidget*>();
-    for (auto& it : dock) {
-        QAction* action = it->toggleViewAction();
-        action->setToolTip(tr("Toggles this dockable window"));
-        action->setStatusTip(tr("Toggles this dockable window"));
-        action->setWhatsThis(tr("Toggles this dockable window"));
-        menu->addAction(action);
+    bool addedPythonConsole = false;
+    bool addedReportView = false;
+    QSet<QDockWidget*> addedDocks;
+
+    auto addPythonConsoleMenu = [this, &addedPythonConsole, menu]() {
+        if (addedPythonConsole) {
+            return;
+        }
+        addedPythonConsole = true;
+
+        const bool standalone = isPythonConsoleStandalone();
+        const bool visible = standalone
+            ? pythonConsole() && pythonConsole()->window()->isVisible()
+            : DockWindowManager::instance()->getDockContainer("Python console")
+                && DockWindowManager::instance()->getDockContainer("Python console")->isVisible();
+
+        auto pythonMenu = menu->addMenu(
+            Gui::BitmapFactory().iconFromTheme("applications-python"),
+            QDockWidget::tr("Python Console")
+        );
+
+        auto visibleAction = pythonMenu->addAction(tr("Show Python Console"), this, [this]() {
+            if (isPythonConsoleStandalone()) {
+                showPythonConsoleWindow(!pythonConsole()->window()->isVisible());
+            }
+            else if (auto dock = DockWindowManager::instance()->getDockContainer("Python console")) {
+                dock->setVisible(!dock->isVisible());
+                if (dock->isVisible()) {
+                    dock->raise();
+                }
+                saveWindowSettings(true);
+            }
+        });
+        visibleAction->setCheckable(true);
+        visibleAction->setChecked(visible);
+        visibleAction->setToolTip(tr("Shows or hides the Python console"));
+        visibleAction->setStatusTip(tr("Shows or hides the Python console"));
+
+        pythonMenu->addSeparator();
+
+        auto pythonModeGroup = new QActionGroup(pythonMenu);
+        pythonModeGroup->setExclusive(true);
+
+        auto panelAction = pythonMenu->addAction(tr("Panel"), this, [this]() {
+            d->pythonConsoleDockVisibleBeforeWindow = true;
+            dockPythonConsole();
+        });
+        panelAction->setCheckable(true);
+        panelAction->setChecked(!standalone);
+        panelAction->setActionGroup(pythonModeGroup);
+        panelAction->setToolTip(tr("Shows the Python console as a dock panel"));
+        panelAction->setStatusTip(tr("Shows the Python console as a dock panel"));
+
+        auto windowAction = pythonMenu->addAction(tr("Window"), this, [this]() {
+            showPythonConsoleWindow(true);
+        });
+        windowAction->setCheckable(true);
+        windowAction->setChecked(standalone);
+        windowAction->setActionGroup(pythonModeGroup);
+        windowAction->setToolTip(tr("Shows the Python console as a standalone window"));
+        windowAction->setStatusTip(tr("Shows the Python console as a standalone window"));
+    };
+
+    auto addReportViewMenu = [this, &addedReportView, menu]() {
+        if (addedReportView) {
+            return;
+        }
+        addedReportView = true;
+
+        const bool standalone = isReportViewStandalone();
+        const bool visible = standalone
+            ? reportView() && reportView()->window()->isVisible()
+            : DockWindowManager::instance()->getDockContainer("Report view")
+                && DockWindowManager::instance()->getDockContainer("Report view")->isVisible();
+
+        auto reportMenu = menu->addMenu(
+            Gui::BitmapFactory().pixmap("MacroEditor"),
+            QDockWidget::tr("Report View")
+        );
+
+        auto visibleAction = reportMenu->addAction(tr("Show Report View"), this, [this]() {
+            if (isReportViewStandalone()) {
+                showReportViewWindow(!reportView()->window()->isVisible());
+            }
+            else if (auto dock = DockWindowManager::instance()->getDockContainer("Report view")) {
+                dock->setVisible(!dock->isVisible());
+                if (dock->isVisible()) {
+                    dock->raise();
+                }
+                saveWindowSettings(true);
+            }
+        });
+        visibleAction->setCheckable(true);
+        visibleAction->setChecked(visible);
+        visibleAction->setToolTip(tr("Shows or hides the Report View"));
+        visibleAction->setStatusTip(tr("Shows or hides the Report View"));
+
+        reportMenu->addSeparator();
+
+        auto reportModeGroup = new QActionGroup(reportMenu);
+        reportModeGroup->setExclusive(true);
+
+        auto panelAction = reportMenu->addAction(tr("Panel"), this, [this]() {
+            d->reportViewDockVisibleBeforeWindow = true;
+            dockReportView();
+        });
+        panelAction->setCheckable(true);
+        panelAction->setChecked(!standalone);
+        panelAction->setActionGroup(reportModeGroup);
+        panelAction->setToolTip(tr("Shows the Report View as a dock panel"));
+        panelAction->setStatusTip(tr("Shows the Report View as a dock panel"));
+
+        auto windowAction = reportMenu->addAction(tr("Window"), this, [this]() {
+            showReportViewWindow(true);
+        });
+        windowAction->setCheckable(true);
+        windowAction->setChecked(standalone);
+        windowAction->setActionGroup(reportModeGroup);
+        windowAction->setToolTip(tr("Shows the Report View as a standalone window"));
+        windowAction->setStatusTip(tr("Shows the Report View as a standalone window"));
+    };
+
+    auto addDockMenuItem =
+        [&addedDocks, &addPythonConsoleMenu, &addReportViewMenu, menu](QDockWidget* dock) {
+            if (!dock || addedDocks.contains(dock)) {
+                return;
+            }
+            addedDocks.insert(dock);
+
+            if (dock->objectName() == QStringLiteral("Python console")) {
+                addPythonConsoleMenu();
+                return;
+            }
+            if (dock->objectName() == QStringLiteral("Report view")) {
+                addReportViewMenu();
+                return;
+            }
+
+            QAction* action = dock->toggleViewAction();
+            action->setToolTip(tr("Toggles this dockable window"));
+            action->setStatusTip(tr("Toggles this dockable window"));
+            action->setWhatsThis(tr("Toggles this dockable window"));
+            menu->addAction(action);
+        };
+
+    auto dockManager = DockWindowManager::instance();
+    for (const auto& item : dockManager->dockWindowItems()) {
+        const QByteArray dockName = item.name.toUtf8();
+        addDockMenuItem(dockManager->getDockContainer(dockName.constData()));
     }
+
+    const QList<QDockWidget*> dock = this->findChildren<QDockWidget*>();
+    for (auto& it : dock) {
+        addDockMenuItem(it);
+    }
+
+    addPythonConsoleMenu();
+    addReportViewMenu();
 }
 
 void MainWindow::setDockWindowMenu(QMenu* menu)
@@ -1848,6 +2511,13 @@ void MainWindow::closeEvent(QCloseEvent* e)
 
         Q_EMIT mainWindowClosed();
         d->activityTimer->stop();
+
+        if (d->pythonConsoleWindow) {
+            d->pythonConsoleWindow->setProperty("MainWindowClosing", true);
+        }
+        if (d->reportViewWindow) {
+            d->reportViewWindow->setProperty("MainWindowClosing", true);
+        }
 
         // https://forum.freecad.org/viewtopic.php?f=8&t=67748
         // When the session manager jumps in it can happen that the closeEvent()
@@ -2166,6 +2836,10 @@ void MainWindow::switchToTopLevelMode()
 
 void MainWindow::switchToDockedMode()
 {
+    if (isPythonConsoleStandalone()) {
+        dockPythonConsole();
+    }
+
     // Search for all top-level MDI views
     QWidgetList toplevel = QApplication::topLevelWidgets();
     for (const auto& it : toplevel) {
@@ -2285,6 +2959,20 @@ void MainWindow::loadWindowSettings()
 
     OverlayManager::instance()->restore();
     updateCompactUiPrototype();
+    setupReportViewDockWidget(DockWindowManager::instance()->getDockContainer("Report view"));
+    setupPythonConsoleDockWidget(DockWindowManager::instance()->getDockContainer("Python console"));
+
+    auto reportGroup = d->hGrp->GetGroup("ReportViewWindow");
+    d->reportViewDockVisibleBeforeWindow = reportGroup->GetBool("DockVisibleBeforeWindow", false);
+    if (reportGroup->GetBool("Standalone", false)) {
+        showReportViewWindow(reportGroup->GetBool("Visible", false));
+    }
+
+    auto pythonGroup = d->hGrp->GetGroup("PythonConsoleWindow");
+    d->pythonConsoleDockVisibleBeforeWindow = pythonGroup->GetBool("DockVisibleBeforeWindow", false);
+    if (pythonGroup->GetBool("Standalone", false)) {
+        showPythonConsoleWindow(pythonGroup->GetBool("Visible", false));
+    }
 }
 
 bool MainWindow::isRestoringWindowState() const
@@ -2335,6 +3023,29 @@ void MainWindow::saveWindowSettings(bool canDelay)
     QRect rect(this->pos(), this->size());
     ss << rect.left() << " " << rect.top() << " " << rect.width() << " " << rect.height();
     d->hGrp->SetASCII("Geometry", ss.str().c_str());
+
+    if (d->pythonConsoleWindow) {
+        auto group = d->hGrp->GetGroup("PythonConsoleWindow");
+        group->SetBool("Standalone", isPythonConsoleStandalone());
+        group->SetBool(
+            "Visible",
+            d->pythonConsoleWindow->isVisible()
+                || d->pythonConsoleWindow->property("ClosedByApplication").toBool()
+        );
+        group->SetBool("DockVisibleBeforeWindow", d->pythonConsoleDockVisibleBeforeWindow);
+        group->SetASCII("Geometry", d->pythonConsoleWindow->saveGeometry().toBase64().constData());
+    }
+    if (d->reportViewWindow) {
+        auto group = d->hGrp->GetGroup("ReportViewWindow");
+        group->SetBool("Standalone", isReportViewStandalone());
+        group->SetBool(
+            "Visible",
+            d->reportViewWindow->isVisible()
+                || d->reportViewWindow->property("ClosedByApplication").toBool()
+        );
+        group->SetBool("DockVisibleBeforeWindow", d->reportViewDockVisibleBeforeWindow);
+        group->SetASCII("Geometry", d->reportViewWindow->saveGeometry().toBase64().constData());
+    }
 
     DockWindowManager::instance()->saveState();
     OverlayManager::instance()->save();

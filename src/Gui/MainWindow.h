@@ -36,6 +36,8 @@ class QMimeData;
 class QUrl;
 class QMdiSubWindow;
 class QMenu;
+class QDockWidget;
+class QAction;
 
 namespace App
 {
@@ -50,10 +52,12 @@ class CommandManager;
 class Document;
 class MacroManager;
 class MDIView;
+class PythonConsole;
 
 namespace DockWnd
 {
 class HelpView;
+class ReportOutput;
 }  // namespace DockWnd
 
 class GuiExport UrlHandler: public QObject
@@ -253,6 +257,9 @@ public:
     void initDockWindows(bool show);
 
     bool isRestoringWindowState() const;
+    PythonConsole* pythonConsole() const;
+    bool isPythonConsoleStandalone() const;
+    bool isReportViewStandalone() const;
 
 public Q_SLOTS:
     /**
@@ -304,6 +311,10 @@ public Q_SLOTS:
     void whatsThis();
     void switchToTopLevelMode();
     void switchToDockedMode();
+    void showPythonConsoleWindow(bool show = true);
+    void dockPythonConsole();
+    void showReportViewWindow(bool show = true);
+    void dockReportView();
 
     void statusMessageChanged();
 
@@ -370,6 +381,13 @@ private:
     bool updateDAGView(bool show);
     void setupCompactUiPrototype();
     void updateCompactUiPrototype();
+    void setupPythonConsoleDockWidget(QDockWidget* dock);
+    void setupReportViewDockWidget(QDockWidget* dock);
+    QAction* createPythonConsoleWindowAction(QObject* parent);
+    QAction* createDockPythonConsoleAction(QObject* parent);
+    QAction* createReportViewWindowAction(QObject* parent);
+    QAction* createDockReportViewAction(QObject* parent);
+    DockWnd::ReportOutput* reportView() const;
 
     void populateToolBarMenu(QMenu*);
     void populateDockWindowMenu(QMenu*);

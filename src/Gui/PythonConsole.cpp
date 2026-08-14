@@ -1381,6 +1381,12 @@ void PythonConsole::contextMenuEvent(QContextMenuEvent* e)
     menu.addAction(tr("Insert File Name…"), this, &PythonConsole::onInsertFileName);
     menu.addSeparator();
 
+    QAction* windowMode = menu.addAction(
+        getMainWindow()->isPythonConsoleStandalone() ? tr("Dock Python Console")
+                                                     : tr("Open Python Console in Window")
+    );
+    menu.addSeparator();
+
     QAction* wrap = menu.addAction(tr("Word Wrap"));
     wrap->setCheckable(true);
 
@@ -1391,6 +1397,14 @@ void PythonConsole::contextMenuEvent(QContextMenuEvent* e)
     }
     else if (exec == saveh) {
         d->hGrpSettings->SetBool("SavePythonHistory", saveh->isChecked());
+    }
+    else if (exec == windowMode) {
+        if (getMainWindow()->isPythonConsoleStandalone()) {
+            getMainWindow()->dockPythonConsole();
+        }
+        else {
+            getMainWindow()->showPythonConsoleWindow(true);
+        }
     }
 }
 

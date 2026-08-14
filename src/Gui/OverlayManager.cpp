@@ -1061,6 +1061,11 @@ public:
         else if (auto dockWidget = qobject_cast<QDockWidget*>(parent)) {
             const QDockWidget::DockWidgetFeatures features = dockWidget->features();
 
+            for (auto action : dockWidget->actions()) {
+                if (action->property("DockTitleBarAction").toBool()) {
+                    actions.append(action);
+                }
+            }
             actions.append(&_actOverlay);
             if (features.testFlag(QDockWidget::DockWidgetFloatable)) {
                 actions.append(&_actFloat);
@@ -1692,6 +1697,17 @@ void OverlayManager::initDockWidget(QDockWidget* dw)
 void OverlayManager::setupDockWidget(QDockWidget* dw, int dockArea)
 {
     (void)dockArea;
+    d->setupTitleBar(dw);
+}
+
+void OverlayManager::moveDockWidgetToOverlay(QDockWidget* dw, Qt::DockWidgetArea dockArea)
+{
+    if (!dw) {
+        return;
+    }
+
+    d->toggleOverlay(dw, ToggleMode::Unset);
+    d->toggleOverlay(dw, ToggleMode::Set, dockArea);
     d->setupTitleBar(dw);
 }
 

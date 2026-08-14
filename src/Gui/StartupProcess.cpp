@@ -51,7 +51,6 @@
 #include "FileDialog.h"
 #include "GuiApplication.h"
 #include "MainWindow.h"
-#include "SplashScreen.h"
 #include "Language/Translator.h"
 #include "Dialogs/DlgVersionMigrator.h"
 #include "FreeCADStyle.h"
@@ -130,11 +129,6 @@ void StartupProcess::execute()
     registerEventType();
     setThemePaths();
     setupFileDialog();
-}
-
-void StartupProcess::setupSplashScreenImagePaths()
-{
-    setImagePaths();
 }
 
 void StartupProcess::setLibraryPath()
@@ -218,12 +212,12 @@ StartupPostProcess::StartupPostProcess(
     MainWindow* mw,
     Application& guiApp,
     QApplication* app,
-    SplashScreen* splashScreen
+    QWidget* earlySplash
 )
     : mainWindow {mw}
     , guiApp {guiApp}
     , qtApp(app)
-    , splashScreen(splashScreen)
+    , earlySplash(earlySplash)
 {}
 
 void StartupPostProcess::setLoadFromPythonModule(bool value)
@@ -243,23 +237,11 @@ void StartupPostProcess::execute()
     setCursorFlashing();
     setQtStyle();
     setStyleSheet();
-    if (splashScreen) {
-        splashScreen->allowDialogsToCover();
-    }
     checkOpenGL();
     loadOpenInventor();
-    if (splashScreen) {
-        splashScreen->raiseSplash();
-    }
     setBranding();
     showMainWindow();
     activateWorkbench();
-    if (splashScreen) {
-        splashScreen->close();
-        if (!Application::hiddenMainWindow()) {
-            mainWindow->activateWindow();
-        }
-    }
     checkParameters();
     checkVersionMigration();
 }
@@ -477,7 +459,7 @@ void StartupPostProcess::setImportImageFormats()
 void StartupPostProcess::showMainWindow()
 {
     // show splasher while initializing the GUI
-    if (!splashScreen && !Application::hiddenMainWindow() && !loadFromPythonModule) {
+    if (!earlySplash && !Application::hiddenMainWindow() && !loadFromPythonModule) {
         mainWindow->startSplasher();
     }
 
@@ -489,22 +471,19 @@ void StartupPostProcess::showMainWindow()
     }
     catch (const Base::Exception& e) {
         Base::Console().error("Error in FreeCADGuiInit.py: %s\n", e.what());
-        if (splashScreen) {
-            splashScreen->close();
-        }
-        else {
-            mainWindow->stopSplasher();
-        }
+        mainWindow->stopSplasher();
         throw;
     }
 
-    // Stop splash screen and set immediately the active window that may be of interest
-    // for scripts using Python binding for Qt. The startup splash stays visible until
-    // workbench activation has brought the main window up.
-    if (!splashScreen) {
-        mainWindow->stopSplasher();
-        mainWindow->activateWindow();
+    // stop splash screen and set immediately the active window that may be of interest
+    // for scripts using Python binding for Qt
+    if (earlySplash) {
+        earlySplash->close();
     }
+    else {
+        mainWindow->stopSplasher();
+    }
+    mainWindow->activateWindow();
 }
 
 void StartupPostProcess::activateWorkbench()

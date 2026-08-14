@@ -42,6 +42,7 @@
 #include <QStyle>
 #include <QSurfaceFormat>
 #include <QTextStream>
+#include <QPixmap>
 #include <QTimer>
 #include <QThread>
 #include <QWindow>
@@ -79,6 +80,9 @@
 #include "PreferencePages/DlgSettingsCacheDirectory.h"
 #include "DocumentPy.h"
 #include "DocumentRecovery.h"
+#ifdef FREECAD_USE_EARLY_SPLASH
+# include "EarlySplash.h"
+#endif
 #include "EditableDatumLabelPy.h"
 #include "EditorView.h"
 #include "ExpressionBindingPy.h"
@@ -104,7 +108,6 @@
 #include "SoQtOffscreenRendererPy.h"
 #include "SpaceMouseParameter.h"
 #include "SplitView3DInventor.h"
-#include "SplashScreen.h"
 #include "StartupProcess.h"
 #include "TaskView/TaskView.h"
 #include "TaskView/TaskDialogPython.h"
@@ -2633,7 +2636,10 @@ void Application::runApplication()
     int argc = App::Application::GetARGC();
     GUISingleApplication mainApp(argc, App::Application::GetARGV());
 
+#ifdef FREECAD_USE_EARLY_SPLASH
     setAppNameAndIcon();
+    auto earlySplash = Gui::showEarlySplash();
+#endif
 
 #if (COIN_MAJOR_VERSION * 100 + COIN_MINOR_VERSION * 10 + COIN_MICRO_VERSION < 406) \
     && (defined(FC_OS_LINUX) || defined(FC_OS_BSD))
@@ -2654,10 +2660,15 @@ void Application::runApplication()
         return;
     }
 
+#ifndef FREECAD_USE_EARLY_SPLASH
+    setAppNameAndIcon();
+#endif
+
     StartupProcess process;
-    process.setupSplashScreenImagePaths();
-    auto splashScreen = Gui::showSplashScreen();
     process.execute();
+#ifdef FREECAD_USE_EARLY_SPLASH
+    Gui::updateEarlySplash(earlySplash.get());
+#endif
 
     Application app(true);
     MainWindow mw;
@@ -2674,7 +2685,15 @@ void Application::runApplication()
     SoDebugError::setHandlerCallback(messageHandlerCoin, 0);
 #endif
 
-    StartupPostProcess postProcess(&mw, app, &mainApp, splashScreen.get());
+    StartupPostProcess postProcess(
+        &mw,
+        app,
+        &mainApp
+#ifdef FREECAD_USE_EARLY_SPLASH
+        ,
+        earlySplash.get()
+#endif
+    );
     postProcess.execute();
 
     init3DMouse(&mw, &mainApp);

@@ -38,6 +38,7 @@
 #include "BitmapFactory.h"
 #include "DockWindowManager.h"
 #include "FileDialog.h"
+#include "MainWindow.h"
 #include "PythonConsole.h"
 #include "PythonConsolePy.h"
 #include "Tools.h"
@@ -731,8 +732,23 @@ void ReportOutput::contextMenuEvent(QContextMenuEvent* e)
     menu->addAction(tr("Clear"), this, &ReportOutput::clear);
     menu->addSeparator();
     menu->addAction(tr("Save As…"), this, &ReportOutput::onSaveAs);
+    menu->addSeparator();
 
-    menu->exec(e->globalPos());
+    auto mainWindow = Gui::getMainWindow();
+    QAction* windowMode = menu->addAction(
+        mainWindow && mainWindow->isReportViewStandalone() ? tr("Dock Report View")
+                                                           : tr("Open Report View in Window")
+    );
+
+    QAction* exec = menu->exec(e->globalPos());
+    if (exec == windowMode && mainWindow) {
+        if (mainWindow->isReportViewStandalone()) {
+            mainWindow->dockReportView();
+        }
+        else {
+            mainWindow->showReportViewWindow(true);
+        }
+    }
     delete menu;
 }
 

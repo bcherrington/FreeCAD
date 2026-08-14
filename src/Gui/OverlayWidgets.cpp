@@ -478,8 +478,6 @@ OverlayTabWidget::OverlayTabWidget(QWidget* parent, Qt::DockWidgetArea pos)
 
 OverlayTabWidget::~OverlayTabWidget()
 {
-    tabBar()->removeEventFilter(this);
-
     timer.stop();
     repaintTimer.stop();
 
@@ -514,7 +512,7 @@ OverlayTabWidget::~OverlayTabWidget()
             break;
     }
 
-    if (_Dragging == this || (_Dragging && isAncestorOf(_Dragging))) {
+    if (_Dragging == this) {
         _Dragging = nullptr;
     }
 }
@@ -1651,7 +1649,7 @@ bool OverlayTabWidget::getAutoHideRect(QRect& rect) const
     switch (dockArea) {
         case Qt::LeftDockWidgetArea:
         case Qt::RightDockWidgetArea:
-            if (_TopOverlay && _TopOverlay->isVisible() && _TopOverlay->_state <= State::Normal) {
+            if (_TopOverlay->isVisible() && _TopOverlay->_state <= State::Normal) {
                 rect.setTop(std::max(rect.top(), _TopOverlay->rectOverlay.bottom()));
             }
             if (dockArea == Qt::RightDockWidgetArea) {
@@ -1663,7 +1661,7 @@ bool OverlayTabWidget::getAutoHideRect(QRect& rect) const
             break;
         case Qt::TopDockWidgetArea:
         case Qt::BottomDockWidgetArea:
-            if (_LeftOverlay && _LeftOverlay->isVisible() && _LeftOverlay->_state <= State::Normal) {
+            if (_LeftOverlay->isVisible() && _LeftOverlay->_state <= State::Normal) {
                 rect.setLeft(std::max(rect.left(), _LeftOverlay->rectOverlay.right()));
             }
             if (dockArea == Qt::TopDockWidgetArea) {
@@ -1671,8 +1669,7 @@ bool OverlayTabWidget::getAutoHideRect(QRect& rect) const
             }
             else {
                 rect.setTop(rect.top() + std::max(rect.height() - hintWidth, 0));
-                if (_RightOverlay && _RightOverlay->isVisible()
-                    && _RightOverlay->_state <= State::Normal) {
+                if (_RightOverlay->isVisible() && _RightOverlay->_state <= State::Normal) {
                     QPoint offset = getMainWindow()->getMdiArea()->pos();
                     rect.setRight(std::min(rect.right(), _RightOverlay->x() - offset.x()));
                 }
