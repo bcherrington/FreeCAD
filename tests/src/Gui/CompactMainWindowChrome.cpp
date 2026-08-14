@@ -18,8 +18,10 @@
 #include <App/Application.h>
 #include <Base/Parameter.h>
 #include <Gui/Application.h>
+#include <Gui/CompactMainWindowChrome.h>
 #include <Gui/DockWindowManager.h>
 #include <Gui/MainWindow.h>
+#include <Gui/PanelPlacementManager.h>
 #include <src/App/InitApplication.h>
 
 class testCompactMainWindowChrome final: public QObject
@@ -43,8 +45,10 @@ private Q_SLOTS:
             "User parameter:BaseApp/Preferences/MainWindow"
         );
         compactLayoutBefore = preferences->GetBool("CompactJetBrainsLayout", false);
+        panelPlacementBefore = preferences->GetBool("CompactJetBrainsPanelPlacementEnabled", false);
         framelessBefore = preferences->GetBool("CompactJetBrainsFramelessWindow", false);
         preferences->SetBool("CompactJetBrainsLayout", true);
+        preferences->SetBool("CompactJetBrainsPanelPlacementEnabled", false);
         preferences->SetBool("CompactJetBrainsFramelessWindow", false);
     }
 
@@ -52,6 +56,7 @@ private Q_SLOTS:
     {
         if (preferences) {
             preferences->SetBool("CompactJetBrainsLayout", compactLayoutBefore);
+            preferences->SetBool("CompactJetBrainsPanelPlacementEnabled", panelPlacementBefore);
             preferences->SetBool("CompactJetBrainsFramelessWindow", framelessBefore);
         }
         preferences = nullptr;
@@ -118,6 +123,37 @@ private Q_SLOTS:
         QVERIFY(topBar->isHidden());
         QVERIFY(!menuBar->isHidden());
         QCOMPARE(mainWindow->contentsMargins(), margins);
+    }
+
+    void panelPlacementManagerRequiresDedicatedFlag()  // NOLINT
+    {
+        createMainWindow();
+        processPendingEvents();
+
+        auto manager = mainWindow->findChild<Gui::PanelPlacementManager*>();
+        QVERIFY(manager);
+        QVERIFY(compactTopBar());
+        QVERIFY(!compactTopBar()->isHidden());
+        QCOMPARE(manager->isActive(), false);
+
+        preferences->SetBool("CompactJetBrainsPanelPlacementEnabled", true);
+        processPendingEvents();
+        QCOMPARE(manager->isActive(), true);
+
+        preferences->SetBool("CompactJetBrainsLayout", false);
+        processPendingEvents();
+        QCOMPARE(manager->isActive(), false);
+        QVERIFY(compactTopBar()->isHidden());
+
+        preferences->SetBool("CompactJetBrainsLayout", true);
+        processPendingEvents();
+        QVERIFY(!compactTopBar()->isHidden());
+        QCOMPARE(manager->isActive(), true);
+
+        preferences->SetBool("CompactJetBrainsPanelPlacementEnabled", false);
+        processPendingEvents();
+        QCOMPARE(manager->isActive(), false);
+        QVERIFY(!compactTopBar()->isHidden());
     }
 
     void compactMenuBarIsVerticallyCenteredInSwitchArea()  // NOLINT
@@ -241,6 +277,124 @@ private Q_SLOTS:
             slots->SetASCII(assignmentId.toUtf8().constData(), previousSlot.c_str());
         }
         Gui::DockWindowManager::instance()->removeDockWindow("CompactSlotTestDock");
+    }
+
+    void panelPlacementManagerUsesUnifiedLauncherWithoutMovingDock()  // NOLINT
+    {
+        preferences->SetBool("CompactJetBrainsLayout", false);
+        createMainWindow();
+
+        auto chrome = compactChrome();
+        auto manager = mainWindow->findChild<Gui::PanelPlacementManager*>();
+        QVERIFY(chrome);
+        QVERIFY(manager);
+        chrome->setPanelPlacementManager(manager);
+
+        auto panel = new QWidget();
+        panel->setObjectName(QStringLiteral("CompactPlacementManagerPanel"));
+        panel->setWindowTitle(QStringLiteral("Compact placement manager"));
+        auto dock = Gui::DockWindowManager::instance()->addDockWindow(
+            "CompactPlacementManagerDock",
+            panel,
+            Qt::RightDockWidgetArea
+        );
+        QVERIFY(dock);
+        dock->toggleViewAction()->setData(QByteArray("CompactPlacementManagerDock"));
+        dock->toggleViewAction()->setVisible(true);
+
+        Gui::PanelPlacement placement;
+        placement.panelId = QStringLiteral("CompactPlacementManagerDock");
+        placement.mode = Gui::PanelPlacement::Mode::Docked;
+        placement.edge = Gui::PanelPlacement::Edge::Right;
+        placement.launcher.rail = Gui::PanelPlacement::Launcher::Rail::Left;
+        placement.launcher.cluster = Gui::PanelPlacement::Launcher::Cluster::Upper;
+        placement.launcher.order = 7;
+        QVERIFY(Gui::PanelPlacementStore::savePlacement(placement));
+
+        preferences->SetBool("CompactJetBrainsPanelPlacementEnabled", true);
+        manager->setActive(true);
+        preferences->SetBool("CompactJetBrainsLayout", true);
+        processPendingEvents();
+
+        auto leftStrip = mainWindow->findChild<QWidget*>(
+            QStringLiteral("_fc_compact_left_panel_railContent")
+        );
+        auto rightStrip = mainWindow->findChild<QWidget*>(
+            QStringLiteral("_fc_compact_right_panel_railContent")
+        );
+        QVERIFY(leftStrip);
+        QVERIFY(rightStrip);
+
+        QTRY_VERIFY(manager->isRegistered(QStringLiteral("CompactPlacementManagerDock")));
+        QTRY_VERIFY(panelButtonForAssignment(QStringLiteral("CompactPlacementManagerDock")));
+        auto button = panelButtonForAssignment(QStringLiteral("CompactPlacementManagerDock"));
+        QVERIFY(button);
+        QCOMPARE(leftStrip->isAncestorOf(button), true);
+        QCOMPARE(rightStrip->isAncestorOf(button), false);
+        QCOMPARE(mainWindow->dockWidgetArea(dock), Qt::RightDockWidgetArea);
+
+        Gui::PanelPlacementStore::removePlacement(QStringLiteral("CompactPlacementManagerDock"));
+        Gui::DockWindowManager::instance()->removeDockWindow("CompactPlacementManagerDock");
+    }
+
+    void panelPlacementManagerLauncherUpdateMovesButtonNotDock()  // NOLINT
+    {
+        preferences->SetBool("CompactJetBrainsLayout", false);
+        createMainWindow();
+
+        auto chrome = compactChrome();
+        auto manager = mainWindow->findChild<Gui::PanelPlacementManager*>();
+        QVERIFY(chrome);
+        QVERIFY(manager);
+        chrome->setPanelPlacementManager(manager);
+
+        auto panel = new QWidget();
+        panel->setObjectName(QStringLiteral("CompactLauncherUpdatePanel"));
+        panel->setWindowTitle(QStringLiteral("Compact launcher update"));
+        auto dock = Gui::DockWindowManager::instance()
+                        ->addDockWindow("CompactLauncherUpdateDock", panel, Qt::RightDockWidgetArea);
+        QVERIFY(dock);
+        dock->toggleViewAction()->setData(QByteArray("CompactLauncherUpdateDock"));
+        dock->toggleViewAction()->setVisible(true);
+
+        preferences->SetBool("CompactJetBrainsPanelPlacementEnabled", true);
+        manager->setActive(true);
+        preferences->SetBool("CompactJetBrainsLayout", true);
+        processPendingEvents();
+
+        auto leftStrip = mainWindow->findChild<QWidget*>(
+            QStringLiteral("_fc_compact_left_panel_railContent")
+        );
+        auto rightStrip = mainWindow->findChild<QWidget*>(
+            QStringLiteral("_fc_compact_right_panel_railContent")
+        );
+        QVERIFY(leftStrip);
+        QVERIFY(rightStrip);
+
+        QTRY_VERIFY(manager->isRegistered(QStringLiteral("CompactLauncherUpdateDock")));
+        QTRY_VERIFY(panelButtonForAssignment(QStringLiteral("CompactLauncherUpdateDock")));
+        auto button = panelButtonForAssignment(QStringLiteral("CompactLauncherUpdateDock"));
+        QVERIFY(button);
+        QCOMPARE(rightStrip->isAncestorOf(button), true);
+        QCOMPARE(mainWindow->dockWidgetArea(dock), Qt::RightDockWidgetArea);
+
+        Gui::PanelPlacement::Launcher launcher;
+        launcher.rail = Gui::PanelPlacement::Launcher::Rail::Left;
+        launcher.cluster = Gui::PanelPlacement::Launcher::Cluster::Lower;
+        launcher.order = 3;
+        const auto result
+            = manager->updateLauncher(QStringLiteral("CompactLauncherUpdateDock"), launcher);
+        QVERIFY2(result.success, qPrintable(result.message));
+        processPendingEvents();
+
+        button = panelButtonForAssignment(QStringLiteral("CompactLauncherUpdateDock"));
+        QVERIFY(button);
+        QCOMPARE(leftStrip->isAncestorOf(button), true);
+        QCOMPARE(rightStrip->isAncestorOf(button), false);
+        QCOMPARE(mainWindow->dockWidgetArea(dock), Qt::RightDockWidgetArea);
+
+        Gui::PanelPlacementStore::removePlacement(QStringLiteral("CompactLauncherUpdateDock"));
+        Gui::DockWindowManager::instance()->removeDockWindow("CompactLauncherUpdateDock");
     }
 
     void compactShortcutDispatchesExactlyOnceWithOriginalActionsHiddenBars()  // NOLINT
@@ -491,6 +645,11 @@ private:
         return mainWindow->findChild<QWidget*>(QStringLiteral("_fc_compact_top_bar"));
     }
 
+    Gui::CompactMainWindowChrome* compactChrome() const
+    {
+        return mainWindow->findChild<Gui::CompactMainWindowChrome*>();
+    }
+
     QMenuBar* compactMenuBar() const
     {
         return mainWindow->findChild<QMenuBar*>(QStringLiteral("_fc_compact_menu_bar"));
@@ -588,6 +747,7 @@ private:
     std::unique_ptr<Gui::MainWindow> mainWindow;
     ParameterGrp::handle preferences;
     bool compactLayoutBefore = false;
+    bool panelPlacementBefore = false;
     bool framelessBefore = false;
 };
 

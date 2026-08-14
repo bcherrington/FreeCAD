@@ -36,6 +36,8 @@
 
 #include <FCGlobal.h>
 
+#include "PanelPlacement.h"
+
 class QDockWidget;
 class QMenuBar;
 class QMouseEvent;
@@ -46,6 +48,7 @@ namespace Gui
 {
 
 class MainWindow;
+class PanelPlacementManager;
 
 class GuiExport CompactMainWindowChrome: public QObject
 {
@@ -62,6 +65,7 @@ public:
     void refreshPanelStrips();
     void updateWindowControls();
     void updateHamburgerIcon();
+    void setPanelPlacementManager(PanelPlacementManager* manager);
 
     static bool shouldUseFramelessWindow();
 
@@ -144,6 +148,7 @@ private:
     QList<QDockWidget*> managedDockContainers() const;
     PanelSlot panelSlotForDock(QDockWidget* dock) const;
     PanelSlot fallbackSlotForDock(QDockWidget* dock) const;
+    PanelSlot legacyPanelSlotForDock(QDockWidget* dock) const;
     Qt::DockWidgetArea dockAreaForSlot(PanelSlot slot) const;
     int panelOrderForDock(const QDockWidget* dock, PanelSlot slot) const;
     QIcon dockIcon(const QDockWidget* dock, PanelSlot slot) const;
@@ -169,6 +174,12 @@ private:
     void activatePanelDock(QDockWidget* dock, PanelSlot slot);
     void hideOtherPanelsInSlot(QDockWidget* dock, PanelSlot slot);
     void schedulePanelStripRefresh();
+    bool usesPanelPlacementManager() const;
+    void syncPanelPlacementRegistration(QDockWidget* dock);
+    void syncPanelPlacementRegistrations();
+    PanelPlacement::Launcher launcherForSlot(PanelSlot slot, int order) const;
+    PanelSlot panelSlotForLauncher(const PanelPlacement::Launcher& launcher) const;
+    PanelPlacement fallbackPanelPlacementForDock(QDockWidget* dock) const;
 
     QToolButton* createTitleButton(const QString& tooltip, QWidget* parent);
     void setButtonTextMetadata(QToolButton* button, const QString& text);
@@ -221,6 +232,7 @@ private:
     QRect manualResizeGeometry;
     QMargins contentsMarginsBefore;
     QString selectedMacroFile;
+    QPointer<PanelPlacementManager> panelPlacementManager;
     fastsignals::scoped_connection newDocumentConnection;
     fastsignals::scoped_connection deleteDocumentConnection;
     fastsignals::scoped_connection activeDocumentConnection;

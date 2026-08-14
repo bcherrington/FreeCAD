@@ -24,6 +24,7 @@
 
 #include "CompactMainWindowChrome.h"
 #include "CompactTitleBarStyle.h"
+#include "PanelPlacementManager.h"
 
 #include <QAction>
 #include <QActionGroup>
@@ -313,6 +314,21 @@ int compactPanelStripWidth()
 {
     return CompactTitleBarStyle::buttonSize(nullptr).width() + (2 * CompactPanelStripMargin)
         + CompactPanelStripClearance;
+}
+
+Gui::PanelPlacement::Edge panelEdgeForArea(Qt::DockWidgetArea area)
+{
+    switch (area) {
+        case Qt::RightDockWidgetArea:
+            return Gui::PanelPlacement::Edge::Right;
+        case Qt::TopDockWidgetArea:
+            return Gui::PanelPlacement::Edge::Top;
+        case Qt::BottomDockWidgetArea:
+            return Gui::PanelPlacement::Edge::Bottom;
+        case Qt::LeftDockWidgetArea:
+        default:
+            return Gui::PanelPlacement::Edge::Left;
+    }
 }
 
 QToolBar* createButtonToolBar(QWidget* parent, Qt::Orientation orientation)
@@ -1319,10 +1335,13 @@ void CompactMainWindowChrome::setActive(bool enabled)
         mainWindow->menuBar()->hide();
         updateMdiTabBarVisibility();
         syncMenuBar();
-        const QList<QDockWidget*> docks = managedDockContainers();
-        for (auto dock : docks) {
-            const auto slot = panelSlotForDock(dock);
-            movePanelDockToSlot(dock, slot);
+        syncPanelPlacementRegistrations();
+        if (!usesPanelPlacementManager()) {
+            const QList<QDockWidget*> docks = managedDockContainers();
+            for (auto dock : docks) {
+                const auto slot = panelSlotForDock(dock);
+                movePanelDockToSlot(dock, slot);
+            }
         }
     }
     else if (!enabled && active) {
@@ -1737,6 +1756,61 @@ void CompactMainWindowChrome::updateWindowControls()
     }
 }
 
+void CompactMainWindowChrome::setPanelPlacementManager(PanelPlacementManager* manager)
+{
+    if (panelPlacementManager == manager) {
+        syncPanelPlacementRegistrations();
+        schedulePanelStripRefresh();
+        return;
+    }
+
+    if (panelPlacementManager) {
+        disconnect(panelPlacementManager, nullptr, this, nullptr);
+    }
+
+    panelPlacementManager = manager;
+    if (panelPlacementManager) {
+        connect(
+            panelPlacementManager,
+            &PanelPlacementManager::activeChanged,
+            this,
+            &CompactMainWindowChrome::schedulePanelStripRefresh,
+            Qt::UniqueConnection
+        );
+        connect(
+            panelPlacementManager,
+            &PanelPlacementManager::placementChanged,
+            this,
+            &CompactMainWindowChrome::schedulePanelStripRefresh,
+            Qt::UniqueConnection
+        );
+        connect(
+            panelPlacementManager,
+            &PanelPlacementManager::launcherChanged,
+            this,
+            &CompactMainWindowChrome::schedulePanelStripRefresh,
+            Qt::UniqueConnection
+        );
+        connect(
+            panelPlacementManager,
+            &PanelPlacementManager::panelRegistered,
+            this,
+            &CompactMainWindowChrome::schedulePanelStripRefresh,
+            Qt::UniqueConnection
+        );
+        connect(
+            panelPlacementManager,
+            &PanelPlacementManager::panelUnregistered,
+            this,
+            &CompactMainWindowChrome::schedulePanelStripRefresh,
+            Qt::UniqueConnection
+        );
+    }
+
+    syncPanelPlacementRegistrations();
+    schedulePanelStripRefresh();
+}
+
 void CompactMainWindowChrome::showMainMenu()
 {
     if (!menuBar) {
@@ -1946,6 +2020,7 @@ void CompactMainWindowChrome::refreshPanelStrips()
     QList<PanelEntry> entries;
     const QList<QDockWidget*> docks = managedDockContainers();
     for (auto dock : docks) {
+        syncPanelPlacementRegistration(dock);
         connect(
             dock,
             &QDockWidget::visibilityChanged,
@@ -2512,6 +2587,18 @@ CompactMainWindowChrome::PanelSlot CompactMainWindowChrome::fallbackSlotForDock(
 
 CompactMainWindowChrome::PanelSlot CompactMainWindowChrome::panelSlotForDock(QDockWidget* dock) const
 {
+    if (usesPanelPlacementManager() && dock) {
+        const QString panelId = panelAssignmentId(dock);
+        if (isStablePanelId(panelId) && panelPlacementManager->isRegistered(panelId)) {
+            return panelSlotForLauncher(panelPlacementManager->persistedPlacement(panelId).launcher);
+        }
+    }
+
+    return legacyPanelSlotForDock(dock);
+}
+
+CompactMainWindowChrome::PanelSlot CompactMainWindowChrome::legacyPanelSlotForDock(QDockWidget* dock) const
+{
     const QString assignmentId = panelAssignmentId(dock);
     if (!assignmentId.isEmpty()) {
         auto group = App::GetApplication().GetParameterGroupByPath(
@@ -2533,10 +2620,77 @@ CompactMainWindowChrome::PanelSlot CompactMainWindowChrome::panelSlotForDock(QDo
     return fallbackSlotForDock(dock);
 }
 
+PanelPlacement::Launcher CompactMainWindowChrome::launcherForSlot(PanelSlot slot, int order) const
+{
+    PanelPlacement::Launcher launcher;
+    launcher.order = order;
+    switch (slot) {
+        case PanelSlot::LeftTop:
+            launcher.rail = PanelPlacement::Launcher::Rail::Left;
+            launcher.cluster = PanelPlacement::Launcher::Cluster::Upper;
+            break;
+        case PanelSlot::LeftLower:
+            launcher.rail = PanelPlacement::Launcher::Rail::Left;
+            launcher.cluster = PanelPlacement::Launcher::Cluster::Lower;
+            break;
+        case PanelSlot::RightTop:
+            launcher.rail = PanelPlacement::Launcher::Rail::Right;
+            launcher.cluster = PanelPlacement::Launcher::Cluster::Upper;
+            break;
+        case PanelSlot::RightLower:
+            launcher.rail = PanelPlacement::Launcher::Rail::Right;
+            launcher.cluster = PanelPlacement::Launcher::Cluster::Lower;
+            break;
+        case PanelSlot::BottomLeft:
+            launcher.rail = PanelPlacement::Launcher::Rail::Left;
+            launcher.cluster = PanelPlacement::Launcher::Cluster::Bottom;
+            break;
+        case PanelSlot::BottomRight:
+            launcher.rail = PanelPlacement::Launcher::Rail::Right;
+            launcher.cluster = PanelPlacement::Launcher::Cluster::Bottom;
+            break;
+    }
+    launcher.normalize();
+    return launcher;
+}
+
+CompactMainWindowChrome::PanelSlot CompactMainWindowChrome::panelSlotForLauncher(
+    const PanelPlacement::Launcher& launcher
+) const
+{
+    const bool rightRail = launcher.rail == PanelPlacement::Launcher::Rail::Right;
+    switch (launcher.cluster) {
+        case PanelPlacement::Launcher::Cluster::Upper:
+            return rightRail ? PanelSlot::RightTop : PanelSlot::LeftTop;
+        case PanelPlacement::Launcher::Cluster::Lower:
+            return rightRail ? PanelSlot::RightLower : PanelSlot::LeftLower;
+        case PanelPlacement::Launcher::Cluster::Bottom:
+            return rightRail ? PanelSlot::BottomRight : PanelSlot::BottomLeft;
+    }
+
+    return PanelSlot::LeftLower;
+}
+
 void CompactMainWindowChrome::setPanelSlotForDock(QDockWidget* dock, PanelSlot slot)
 {
     const QString assignmentId = panelAssignmentId(dock);
     if (assignmentId.isEmpty()) {
+        return;
+    }
+
+    if (usesPanelPlacementManager() && isStablePanelId(assignmentId)) {
+        syncPanelPlacementRegistration(dock);
+        if (!panelPlacementManager->isRegistered(assignmentId)) {
+            return;
+        }
+
+        PanelPlacement::Launcher launcher
+            = panelPlacementManager->persistedPlacement(assignmentId).launcher;
+        const PanelPlacement::Launcher slotLauncher = launcherForSlot(slot, launcher.order);
+        launcher.rail = slotLauncher.rail;
+        launcher.cluster = slotLauncher.cluster;
+        launcher.normalize();
+        panelPlacementManager->updateLauncher(assignmentId, launcher);
         return;
     }
 
@@ -2780,6 +2934,10 @@ bool CompactMainWindowChrome::handlePanelDrop(
 
         const PanelSlot slot = dropPanelSlotForPosition(target, position);
         setPanelSlotForDock(dock, slot);
+        if (usesPanelPlacementManager()) {
+            refreshPanelStrips();
+            return true;
+        }
         const bool wasVisible = dock->isVisible();
         movePanelDockToSlot(dock, slot);
         if (wasVisible) {
@@ -2846,12 +3004,82 @@ Qt::DockWidgetArea CompactMainWindowChrome::dockAreaForSlot(PanelSlot slot) cons
 
 int CompactMainWindowChrome::panelOrderForDock(const QDockWidget* dock, PanelSlot slot) const
 {
+    if (usesPanelPlacementManager() && dock) {
+        const QString panelId = panelAssignmentId(dock);
+        if (isStablePanelId(panelId) && panelPlacementManager->isRegistered(panelId)) {
+            return panelPlacementManager->persistedPlacement(panelId).launcher.order;
+        }
+    }
+
     if (const auto* knownPanel = knownPanelForActionId(dockActionId(dock))) {
         return knownPanel->order;
     }
 
     const int fallbackBase = 1000;
     return fallbackBase + static_cast<int>(slot);
+}
+
+bool CompactMainWindowChrome::usesPanelPlacementManager() const
+{
+    return panelPlacementManager && panelPlacementManager->isEnabled();
+}
+
+void CompactMainWindowChrome::syncPanelPlacementRegistration(QDockWidget* dock)
+{
+    if (!usesPanelPlacementManager() || !dock) {
+        return;
+    }
+
+    const QString panelId = panelAssignmentId(dock);
+    if (!isStablePanelId(panelId)) {
+        return;
+    }
+
+    if (panelPlacementManager->isRegistered(panelId)) {
+        return;
+    }
+
+    if (panelPlacementManager->dockWidget(panelId) == dock) {
+        return;
+    }
+
+    panelPlacementManager->registerPanel(panelId, dock, fallbackPanelPlacementForDock(dock));
+}
+
+void CompactMainWindowChrome::syncPanelPlacementRegistrations()
+{
+    if (!usesPanelPlacementManager()) {
+        return;
+    }
+
+    const QList<QDockWidget*> docks = managedDockContainers();
+    for (auto dock : docks) {
+        syncPanelPlacementRegistration(dock);
+    }
+}
+
+PanelPlacement CompactMainWindowChrome::fallbackPanelPlacementForDock(QDockWidget* dock) const
+{
+    PanelPlacement placement;
+    placement.panelId = panelAssignmentId(dock);
+    const PanelSlot slot = legacyPanelSlotForDock(dock);
+    placement.launcher = launcherForSlot(slot, panelOrderForDock(dock, slot));
+    if (!dock) {
+        placement.normalize();
+        return placement;
+    }
+
+    if (dock->isFloating()) {
+        placement.mode = PanelPlacement::Mode::Floating;
+        placement.edge = PanelPlacement::Edge::None;
+        placement.floatingGeometry = dock->geometry();
+    }
+    else {
+        placement.mode = PanelPlacement::Mode::Docked;
+        placement.edge = panelEdgeForArea(mainWindow->dockWidgetArea(dock));
+    }
+    placement.normalize();
+    return placement;
 }
 
 QIcon CompactMainWindowChrome::dockIcon(const QDockWidget* dock, PanelSlot slot) const

@@ -466,7 +466,49 @@ public:
         }
     }
 
-    bool toggleOverlay(QDockWidget* dock, ToggleMode toggle, int dockPos = Qt::NoDockWidgetArea)
+    OverlayInfo* overlayInfoForArea(int dockPos)
+    {
+        switch (dockPos) {
+            case Qt::LeftDockWidgetArea:
+                return &_left;
+            case Qt::RightDockWidgetArea:
+                return &_right;
+            case Qt::TopDockWidgetArea:
+                return &_top;
+            case Qt::BottomDockWidgetArea:
+                return &_bottom;
+            default:
+                return nullptr;
+        }
+    }
+
+    bool canResolveOverlayInfo(QDockWidget* dock, int& dockPos)
+    {
+        if (!dock || !getMainWindow()) {
+            return false;
+        }
+        if (dockPos == Qt::NoDockWidgetArea) {
+            dockPos = getMainWindow()->dockWidgetArea(dock);
+        }
+        return overlayInfoForArea(dockPos) != nullptr;
+    }
+
+    Qt::DockWidgetArea dockWidgetOverlayArea(QDockWidget* dock) const
+    {
+        auto it = _overlayMap.find(dock);
+        if (it == _overlayMap.end() || !it->second) {
+            return Qt::NoDockWidgetArea;
+        }
+
+        return it->second->dockArea;
+    }
+
+    bool toggleOverlay(
+        QDockWidget* dock,
+        ToggleMode toggle,
+        int dockPos = Qt::NoDockWidgetArea,
+        bool forced = true
+    )
     {
         if (!dock) {
             return false;
@@ -497,27 +539,14 @@ public:
         if (dockPos == Qt::NoDockWidgetArea) {
             dockPos = getMainWindow()->dockWidgetArea(dock);
         }
-        OverlayInfo* o;
-        switch (dockPos) {
-            case Qt::LeftDockWidgetArea:
-                o = &_left;
-                break;
-            case Qt::RightDockWidgetArea:
-                o = &_right;
-                break;
-            case Qt::TopDockWidgetArea:
-                o = &_top;
-                break;
-            case Qt::BottomDockWidgetArea:
-                o = &_bottom;
-                break;
-            default:
-                return false;
+        OverlayInfo* o = overlayInfoForArea(dockPos);
+        if (!o) {
+            return false;
         }
         if (toggle == ToggleMode::Check && !o->tabWidget->count()) {
             return false;
         }
-        if (o->addWidget(dock)) {
+        if (o->addWidget(dock, forced)) {
             if (toggle == ToggleMode::Transparent) {
                 o->tabWidget->setTransparent(true);
             }
@@ -1653,6 +1682,35 @@ void OverlayManager::moveDockWidgetToOverlay(QDockWidget* dw, Qt::DockWidgetArea
     d->toggleOverlay(dw, ToggleMode::Unset);
     d->toggleOverlay(dw, ToggleMode::Set, dockArea);
     d->setupTitleBar(dw);
+}
+
+bool OverlayManager::moveDockWidgetToOverlayOnly(QDockWidget* dw, Qt::DockWidgetArea dockArea)
+{
+    int resolvedDockArea = dockArea;
+    if (!d->canResolveOverlayInfo(dw, resolvedDockArea)) {
+        return false;
+    }
+    const Qt::DockWidgetArea previousArea = d->dockWidgetOverlayArea(dw);
+    if (previousArea == resolvedDockArea) {
+        d->setupTitleBar(dw);
+        return true;
+    }
+
+    d->toggleOverlay(dw, ToggleMode::Unset);
+    if (!d->toggleOverlay(dw, ToggleMode::Set, resolvedDockArea, false)) {
+        if (previousArea != Qt::NoDockWidgetArea) {
+            d->toggleOverlay(dw, ToggleMode::Set, previousArea, false);
+        }
+        return false;
+    }
+
+    d->setupTitleBar(dw);
+    return true;
+}
+
+Qt::DockWidgetArea OverlayManager::dockWidgetOverlayArea(QDockWidget* dw) const
+{
+    return d->dockWidgetOverlayArea(dw);
 }
 
 void OverlayManager::unsetupDockWidget(QDockWidget* dw)

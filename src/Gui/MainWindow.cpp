@@ -110,6 +110,7 @@
 #include "ModuleIO.h"
 #include "NotificationArea.h"
 #include "OverlayManager.h"
+#include "PanelPlacementManager.h"
 #include "ProgramInformation.h"
 #include "ProgressBar.h"
 #include "PropertyView.h"
@@ -364,6 +365,7 @@ struct MainWindowP
     QMap<QString, QPointer<UrlHandler>> urlHandler;
     std::string hiddenDockWindows;
     CompactMainWindowChrome* compactChrome = nullptr;
+    PanelPlacementManager* panelPlacementManager = nullptr;
     fastsignals::advanced_scoped_connection connParam;
     ParameterGrp::handle hGrp;
     bool _restoring = false;
@@ -507,6 +509,9 @@ MainWindow::MainWindow(QWidget* parent, Qt::WindowFlags f)
                 d->restoreStateTimer.start(100);
             }
             else if (boost::equals(Name, "CompactJetBrainsLayout")) {
+                updateCompactUiPrototype();
+            }
+            else if (boost::equals(Name, "CompactJetBrainsPanelPlacementEnabled")) {
                 updateCompactUiPrototype();
             }
             else if (boost::equals(Name, "CompactJetBrainsFramelessWindow")) {
@@ -836,20 +841,27 @@ void MainWindow::setupDockWindows()
 
 void MainWindow::setupCompactUiPrototype()
 {
+    if (!d->panelPlacementManager) {
+        d->panelPlacementManager = new PanelPlacementManager(this, this);
+    }
     if (!d->compactChrome) {
         d->compactChrome = new CompactMainWindowChrome(this);
     }
+    d->compactChrome->setPanelPlacementManager(d->panelPlacementManager);
     updateCompactUiPrototype();
 }
 
 void MainWindow::updateCompactUiPrototype()
 {
-    if (!d->compactChrome) {
-        return;
-    }
+    const bool compactEnabled = d->hGrp->GetBool("CompactJetBrainsLayout", false);
+    const bool panelPlacementEnabled = d->hGrp->GetBool("CompactJetBrainsPanelPlacementEnabled", false);
 
-    const bool enabled = d->hGrp->GetBool("CompactJetBrainsLayout", false);
-    d->compactChrome->setActive(enabled);
+    if (d->panelPlacementManager) {
+        d->panelPlacementManager->setActive(compactEnabled && panelPlacementEnabled);
+    }
+    if (d->compactChrome) {
+        d->compactChrome->setActive(compactEnabled);
+    }
 }
 
 bool MainWindow::setupTaskView()
