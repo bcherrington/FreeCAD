@@ -3,8 +3,11 @@
 #include <cstdlib>
 #include <memory>
 
+#include <QAction>
 #include <QCoreApplication>
 #include <QEvent>
+#include <QLineEdit>
+#include <QMenu>
 #include <QMenuBar>
 #include <QPointer>
 #include <QTabBar>
@@ -90,6 +93,7 @@ public:
         if (!Gui::Application::Instance) {
             guiApplication = std::make_unique<Gui::Application>(false);
         }
+        Gui::Application::initOpenInventor();
     }
 
 private Q_SLOTS:
@@ -387,7 +391,238 @@ private Q_SLOTS:
         QVERIFY(chrome.isNull());
     }
 
+    void compactShortcutDispatchesExactlyOnceWithOriginalActionsHiddenBars()  // NOLINT
+    {
+        preferences->SetBool("CompactJetBrainsLayout", false);
+        createMainWindow();
+        compactMenuBar()->hide();
+
+        auto focusHost = new QWidget(mainWindow->centralWidget());
+        focusHost->resize(320, 180);
+        focusHost->setFocusPolicy(Qt::StrongFocus);
+        focusHost->show();
+        mainWindow->show();
+        focusHost->setFocus();
+
+        auto syntheticMenu = mainWindow->menuBar()->addMenu(QStringLiteral("Compact synthetic"));
+        auto nestedMenu = syntheticMenu->addMenu(QStringLiteral("Nested"));
+        auto undoAction = new QAction(QStringLiteral("Synthetic undo"), syntheticMenu);
+        auto vtAction = new QAction(QStringLiteral("Synthetic VT"), nestedMenu);
+        undoAction->setShortcut(QKeySequence::fromString(QStringLiteral("Ctrl+Z")));
+        vtAction->setShortcut(QKeySequence::fromString(QStringLiteral("V,T")));
+
+        int undoTriggers = 0;
+        int vtTriggers = 0;
+        QObject::connect(undoAction, &QAction::triggered, this, [&undoTriggers]() { ++undoTriggers; });
+        QObject::connect(vtAction, &QAction::triggered, this, [&vtTriggers]() { ++vtTriggers; });
+
+        syntheticMenu->addAction(undoAction);
+        nestedMenu->addAction(vtAction);
+
+        processPendingEvents();
+        preferences->SetBool("CompactJetBrainsLayout", true);
+        processPendingEvents();
+
+        QTRY_VERIFY(compactTopBar() && compactTopBar()->isVisible());
+        QCOMPARE(mainWindow->menuBar()->isHidden(), true);
+        QVERIFY(compactTopBar());
+        auto compactMenu = compactMenuBar();
+        QVERIFY(compactMenu);
+        QCOMPARE(compactMenu->isHidden(), true);
+
+        QTRY_VERIFY(focusHost->hasFocus());
+
+        QTest::keyClick(focusHost, Qt::Key_Z, Qt::ControlModifier);
+        processPendingEvents();
+
+        QTest::keyClick(focusHost, Qt::Key_V);
+        processPendingEvents();
+        QTest::keyClick(focusHost, Qt::Key_T);
+        processPendingEvents();
+
+        QTRY_COMPARE(undoTriggers, 1);
+        QTRY_COMPARE(vtTriggers, 1);
+
+        delete focusHost;
+        delete syntheticMenu;
+    }
+
+    void qLineEditCtrlZHasLocalPriority()  // NOLINT
+    {
+        preferences->SetBool("CompactJetBrainsLayout", false);
+        createMainWindow();
+        compactMenuBar()->hide();
+
+        auto lineEdit = new QLineEdit(mainWindow->centralWidget());
+        lineEdit->setText(QStringLiteral("base"));
+        lineEdit->insert(QStringLiteral("-changed"));
+        lineEdit->show();
+        mainWindow->show();
+        lineEdit->setFocus();
+
+        auto syntheticMenu = mainWindow->menuBar()->addMenu(QStringLiteral("Edit menu"));
+        auto undoAction = new QAction(QStringLiteral("Undo"), syntheticMenu);
+        undoAction->setShortcut(QKeySequence::fromString(QStringLiteral("Ctrl+Z")));
+        int undoTriggers = 0;
+        QObject::connect(undoAction, &QAction::triggered, this, [&undoTriggers]() { ++undoTriggers; });
+        syntheticMenu->addAction(undoAction);
+
+        preferences->SetBool("CompactJetBrainsLayout", true);
+        processPendingEvents();
+
+        QTRY_VERIFY(compactTopBar() && compactTopBar()->isVisible());
+        QCOMPARE(mainWindow->menuBar()->isHidden(), true);
+        QVERIFY(compactTopBar());
+        auto compactMenu = compactMenuBar();
+        QVERIFY(compactMenu);
+        QCOMPARE(compactMenu->isHidden(), true);
+        QTRY_VERIFY(lineEdit->hasFocus());
+
+        QTest::keyClick(lineEdit, Qt::Key_Z, Qt::ControlModifier);
+        processPendingEvents();
+
+        QTRY_COMPARE(undoTriggers, 0);
+        QCOMPARE(lineEdit->text(), QStringLiteral("base"));
+
+        delete lineEdit;
+        delete syntheticMenu;
+    }
+
+    void workbenchRefreshRemovesStaleHostedActionsAndAddsCurrent()  // NOLINT
+    {
+        preferences->SetBool("CompactJetBrainsLayout", false);
+        createMainWindow();
+        compactMenuBar()->hide();
+        mainWindow->show();
+        mainWindow->setFocus();
+
+        auto oldMenu = mainWindow->menuBar()->addMenu(QStringLiteral("Old workbench menu"));
+        auto oldAction = new QAction(QStringLiteral("Old action"), oldMenu);
+        oldAction->setShortcut(QKeySequence::fromString(QStringLiteral("Ctrl+Y")));
+        int oldTriggers = 0;
+        QObject::connect(oldAction, &QAction::triggered, this, [&oldTriggers]() { ++oldTriggers; });
+        oldMenu->addAction(oldAction);
+
+        auto oldActionInTree = oldMenu->menuAction();
+
+        QCOMPARE(mainWindowActionAssociationCount(oldAction, mainWindow.get()), 0);
+        QCOMPARE(mainWindowActionListCount(oldAction), 0);
+
+        preferences->SetBool("CompactJetBrainsLayout", true);
+        processPendingEvents();
+        QTRY_VERIFY(compactTopBar() && compactTopBar()->isVisible());
+        QTRY_COMPARE(mainWindowActionAssociationCount(oldAction, mainWindow.get()), 1);
+        QTRY_COMPARE(mainWindowActionListCount(oldAction), 1);
+
+        mainWindow->activateWorkbench(QStringLiteral("PartWorkbench"));
+        processPendingEvents();
+
+        oldMenu->removeAction(oldAction);
+        mainWindow->menuBar()->removeAction(oldActionInTree);
+
+        auto freshMenu = mainWindow->menuBar()->addMenu(QStringLiteral("Fresh workbench menu"));
+        auto freshAction = new QAction(QStringLiteral("Fresh action"), freshMenu);
+        freshAction->setShortcut(QKeySequence::fromString(QStringLiteral("Ctrl+U")));
+        int freshTriggers = 0;
+        QObject::connect(freshAction, &QAction::triggered, this, [&freshTriggers]() {
+            ++freshTriggers;
+        });
+        freshMenu->addAction(freshAction);
+
+        mainWindow->activateWorkbench(QStringLiteral("PartWorkbench"));
+        processPendingEvents();
+
+        QCOMPARE(mainWindowActionAssociationCount(oldAction, mainWindow.get()), 0);
+        QCOMPARE(mainWindowActionListCount(oldAction), 0);
+        QCOMPARE(mainWindowActionAssociationCount(freshAction, mainWindow.get()), 1);
+        QCOMPARE(mainWindowActionListCount(freshAction), 1);
+
+        mainWindow->activateWorkbench(QStringLiteral("PartWorkbench"));
+        processPendingEvents();
+
+        QCOMPARE(mainWindowActionAssociationCount(freshAction, mainWindow.get()), 1);
+        QCOMPARE(mainWindowActionListCount(freshAction), 1);
+
+        QTest::keyClick(mainWindow.get(), Qt::Key_Y, Qt::ControlModifier);
+        processPendingEvents();
+        QTest::keyClick(mainWindow.get(), Qt::Key_U, Qt::ControlModifier);
+        processPendingEvents();
+
+        QCOMPARE(oldTriggers, 0);
+        QCOMPARE(freshTriggers, 1);
+
+        delete oldMenu;
+        delete freshMenu;
+    }
+
+    void compactCleanupPreservesPreExistingMainWindowAssociation()  // NOLINT
+    {
+        preferences->SetBool("CompactJetBrainsLayout", false);
+        createMainWindow();
+        compactMenuBar()->hide();
+        mainWindow->show();
+        mainWindow->setFocus();
+
+        auto directMenu = mainWindow->menuBar()->addMenu(QStringLiteral("Direct action menu"));
+        auto directAction = new QAction(QStringLiteral("Direct action"), directMenu);
+        directAction->setShortcut(QKeySequence::fromString(QStringLiteral("Ctrl+X")));
+        int directTriggers = 0;
+        QObject::connect(directAction, &QAction::triggered, this, [&directTriggers]() {
+            ++directTriggers;
+        });
+        directMenu->addAction(directAction);
+
+        auto hostedMenu = mainWindow->menuBar()->addMenu(QStringLiteral("Hosted action menu"));
+        auto hostedAction = new QAction(QStringLiteral("Hosted action"), hostedMenu);
+        hostedAction->setShortcut(QKeySequence::fromString(QStringLiteral("Ctrl+Y")));
+        int hostedTriggers = 0;
+        QObject::connect(hostedAction, &QAction::triggered, this, [&hostedTriggers]() {
+            ++hostedTriggers;
+        });
+        hostedMenu->addAction(hostedAction);
+
+        mainWindow->addAction(directAction);
+        QCOMPARE(mainWindowActionAssociationCount(directAction, mainWindow.get()), 1);
+        QCOMPARE(mainWindowActionListCount(directAction), 1);
+        QCOMPARE(mainWindowActionAssociationCount(hostedAction, mainWindow.get()), 0);
+        QCOMPARE(mainWindowActionListCount(hostedAction), 0);
+
+        preferences->SetBool("CompactJetBrainsLayout", true);
+        processPendingEvents();
+        QTRY_VERIFY(compactTopBar() && compactTopBar()->isVisible());
+        QCOMPARE(mainWindowActionAssociationCount(directAction, mainWindow.get()), 1);
+        QCOMPARE(mainWindowActionListCount(directAction), 1);
+        QCOMPARE(mainWindowActionAssociationCount(hostedAction, mainWindow.get()), 1);
+        QCOMPARE(mainWindowActionListCount(hostedAction), 1);
+
+        preferences->SetBool("CompactJetBrainsLayout", false);
+        processPendingEvents();
+        QTRY_VERIFY(!compactTopBar() || compactTopBar()->isHidden());
+        QCOMPARE(mainWindowActionAssociationCount(directAction, mainWindow.get()), 1);
+        QCOMPARE(mainWindowActionListCount(directAction), 1);
+        QCOMPARE(mainWindowActionAssociationCount(hostedAction, mainWindow.get()), 0);
+        QCOMPARE(mainWindowActionListCount(hostedAction), 0);
+
+        QTest::keyClick(mainWindow.get(), Qt::Key_X, Qt::ControlModifier);
+        processPendingEvents();
+        QTest::keyClick(mainWindow.get(), Qt::Key_Y, Qt::ControlModifier);
+        processPendingEvents();
+
+        QCOMPARE(directTriggers, 1);
+        QCOMPARE(hostedTriggers, 1);
+
+        delete directMenu;
+        delete hostedMenu;
+    }
+
 private:
+    void processPendingEvents() const
+    {
+        QCoreApplication::processEvents();
+        QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+        QCoreApplication::processEvents();
+    }
+
     void createMainWindow()
     {
         if (mainWindow) {
@@ -441,6 +676,52 @@ private:
     {
         return mainWindow ? mainWindow->findChild<QTabBar*>(QStringLiteral("mdiAreaTabBar"))
                           : nullptr;
+    }
+
+    QMenuBar* compactMenuBar() const
+    {
+        return mainWindow->findChild<QMenuBar*>(QStringLiteral("_fc_compact_menu_bar"));
+    }
+
+    int mainWindowActionAssociationCount(const QAction* action, const QWidget* widget) const
+    {
+        if (!action || !widget) {
+            return 0;
+        }
+
+#if QT_VERSION >= QT_VERSION_CHECK(6, 0, 0)
+        int count = 0;
+        for (auto* obj : action->associatedObjects()) {
+            if (obj == widget) {
+                ++count;
+            }
+        }
+#else
+        int count = 0;
+        for (auto* widgetCandidate : action->associatedWidgets()) {
+            if (widgetCandidate == widget) {
+                ++count;
+            }
+        }
+#endif
+
+        return count;
+    }
+
+    int mainWindowActionListCount(const QAction* action) const
+    {
+        if (!mainWindow || !action) {
+            return 0;
+        }
+
+        int count = 0;
+        for (auto* candidate : mainWindow->actions()) {
+            if (candidate == action) {
+                ++count;
+            }
+        }
+
+        return count;
     }
 
     QToolButton* buttonWithToolTip(const QString& tooltip) const

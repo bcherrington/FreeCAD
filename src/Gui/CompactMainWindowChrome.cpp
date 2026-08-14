@@ -625,6 +625,51 @@ bool isStandardTopLevelMenu(const QAction* action)
     return standardMenus.contains(id) || standardMenus.contains(title);
 }
 
+void collectShortcutActions(QMenu* menu, QList<QAction*>& actions, QSet<QAction*>& seen)
+{
+    if (!menu) {
+        return;
+    }
+
+    for (auto action : menu->actions()) {
+        if (!action || !action->isVisible()) {
+            continue;
+        }
+
+        if (auto submenu = action->menu()) {
+            collectShortcutActions(submenu, actions, seen);
+        }
+        else if (!action->isSeparator() && !action->shortcuts().isEmpty() && !seen.contains(action)) {
+            seen.insert(action);
+            actions.append(action);
+        }
+    }
+}
+
+QList<QAction*> shortcutActionsFromMenuBar(QMenuBar* menuBar)
+{
+    QList<QAction*> actions;
+    QSet<QAction*> seen;
+    if (!menuBar) {
+        return actions;
+    }
+
+    for (auto action : menuBar->actions()) {
+        if (!action || !action->isVisible()) {
+            continue;
+        }
+
+        if (auto menu = action->menu()) {
+            collectShortcutActions(menu, actions, seen);
+        }
+        else if (!action->isSeparator() && !action->shortcuts().isEmpty() && !seen.contains(action)) {
+            seen.insert(action);
+            actions.append(action);
+        }
+    }
+    return actions;
+}
+
 void copyMenuActions(const QMenu* source, QMenu* target)
 {
     if (!source || !target) {
@@ -773,6 +818,7 @@ CompactMainWindowChrome::CompactMainWindowChrome(MainWindow* mainWindow)
 CompactMainWindowChrome::~CompactMainWindowChrome()
 {
     shuttingDown = true;
+    clearShortcutActions();
     clearWorkbenchMenuButtons();
     setGlobalEventFilterActive(false);
 }
@@ -1049,9 +1095,11 @@ void CompactMainWindowChrome::setup()
     connect(mainWindow, &MainWindow::workbenchActivated, this, [this]() {
         QTimer::singleShot(0, this, &CompactMainWindowChrome::updateWorkbenchButton);
         QTimer::singleShot(0, this, &CompactMainWindowChrome::rebuildWorkbenchMenuButtons);
+        QTimer::singleShot(0, this, &CompactMainWindowChrome::refreshShortcutActions);
     });
     connect(mainWindow, &MainWindow::mainWindowClosed, this, [this]() {
         shuttingDown = true;
+        clearShortcutActions();
         clearWorkbenchMenuButtons();
     });
     newDocumentConnection = App::GetApplication().signalNewDocument.connect(
@@ -1105,6 +1153,7 @@ void CompactMainWindowChrome::setActive(bool enabled)
         syncMenuBar();
     }
     else if (!enabled && active) {
+        clearShortcutActions();
         hideMainMenu();
         setGlobalEventFilterActive(false);
         mainWindow->menuBar()->setVisible(menuBarVisibleBefore);
@@ -1139,6 +1188,9 @@ void CompactMainWindowChrome::setActive(bool enabled)
     }
 
     active = enabled;
+    if (enabled) {
+        refreshShortcutActions();
+    }
     if (enabled && toolBar && menuBar && !menuBar->isVisible()) {
         toolBar->show();
     }
@@ -1181,6 +1233,37 @@ void CompactMainWindowChrome::syncMenuBar()
         menuBar->removeAction(action);
     }
     menuBar->addActions(mainWindow->menuBar()->actions());
+    refreshShortcutActions();
+}
+
+void CompactMainWindowChrome::refreshShortcutActions()
+{
+    clearShortcutActions();
+    if (!active || shuttingDown || !mainWindow) {
+        return;
+    }
+
+    const auto existingActions = mainWindow->actions();
+    for (auto action : shortcutActionsFromMenuBar(mainWindow->menuBar())) {
+        if (existingActions.contains(action)) {
+            continue;
+        }
+
+        mainWindow->addAction(action);
+        shortcutActions.append(action);
+    }
+}
+
+void CompactMainWindowChrome::clearShortcutActions()
+{
+    if (mainWindow) {
+        for (const auto& action : std::as_const(shortcutActions)) {
+            if (action) {
+                mainWindow->removeAction(action);
+            }
+        }
+    }
+    shortcutActions.clear();
 }
 
 void CompactMainWindowChrome::scheduleDocumentButtonUpdate()
