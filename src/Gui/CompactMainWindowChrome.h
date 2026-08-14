@@ -134,7 +134,6 @@ private:
     void clearWorkbenchMenuButtons();
     void updateMdiTabBarVisibility();
     void applyContentsMargins();
-    void layoutWorkArea();
     void layoutTopBar();
     void layoutPanelStrips();
     void layoutResizeGrips();
@@ -188,6 +187,7 @@ private:
 private:
     MainWindow* mainWindow = nullptr;
     QWidget* topBar = nullptr;
+    QToolBar* topBarHost = nullptr;
     QWidget* switchArea = nullptr;
     QPointer<QWidget> toolBar = nullptr;
     QMenuBar* menuBar = nullptr;
@@ -205,6 +205,8 @@ private:
     QToolButton* closeButton = nullptr;
     QWidget* leftStrip = nullptr;
     QWidget* rightStrip = nullptr;
+    QToolBar* leftStripHost = nullptr;
+    QToolBar* rightStripHost = nullptr;
     QWidget* leftStripContent = nullptr;
     QWidget* rightStripContent = nullptr;
     QWidget* panelDropIndicator = nullptr;

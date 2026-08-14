@@ -4,6 +4,7 @@
 
 #include <QCoreApplication>
 #include <QDockWidget>
+#include <QTabBar>
 #include <QTest>
 #include <QWidget>
 
@@ -12,6 +13,7 @@
 #include <Gui/Application.h>
 #include <Gui/MainWindow.h>
 #include <Gui/OverlayManager.h>
+#include <Gui/OverlayParams.h>
 #include <Gui/OverlayWidgets.h>
 #include <Gui/PanelPlacementManager.h>
 #include <src/App/InitApplication.h>
@@ -39,6 +41,7 @@ private Q_SLOTS:
         compactLayoutBefore = preferences->GetBool("CompactJetBrainsLayout", false);
         panelPlacementBefore = preferences->GetBool("CompactJetBrainsPanelPlacementEnabled", false);
         framelessBefore = preferences->GetBool("CompactJetBrainsFramelessWindow", false);
+        overlayHideTabBarBefore = Gui::OverlayParams::getDockOverlayHideTabBar();
         preferences->SetBool("CompactJetBrainsLayout", false);
         preferences->SetBool("CompactJetBrainsPanelPlacementEnabled", false);
         preferences->SetBool("CompactJetBrainsFramelessWindow", false);
@@ -51,12 +54,16 @@ private Q_SLOTS:
             mainWindow = std::make_unique<Gui::MainWindow>();
             mainWindow->resize(900, 600);
         }
+        Gui::OverlayParams::setDockOverlayHideTabBar(false);
         QCoreApplication::processEvents();
     }
 
     void cleanup()  // NOLINT
     {
         preferences->SetBool("CompactJetBrainsPanelPlacementEnabled", false);
+        if (mainWindow) {
+            Gui::OverlayManager::instance()->setCompactRailTabOwnershipEnabled(false);
+        }
         auto placements = App::GetApplication().GetParameterGroupByPath(
             Gui::PanelPlacementStore::placementsPath()
         );
@@ -81,6 +88,7 @@ private Q_SLOTS:
 
     void cleanupTestCase()  // NOLINT
     {
+        Gui::OverlayParams::setDockOverlayHideTabBar(overlayHideTabBarBefore);
         Gui::OverlayManager::destruct();
         mainWindow.reset();
         preferences->SetBool("CompactJetBrainsLayout", compactLayoutBefore);
@@ -119,6 +127,67 @@ private Q_SLOTS:
         QCOMPARE(manager->dockWidgetOverlayArea(first), Qt::LeftDockWidgetArea);
         QCOMPARE(manager->dockWidgetOverlayArea(second), Qt::LeftDockWidgetArea);
         QCOMPARE(leftOverlay->count(), 2);
+    }
+
+    void compactRailOwnershipHidesAndRestoresLeftOverlayTabs()  // NOLINT
+    {
+        QDockWidget* first = addDock(QStringLiteral("OverlayCompactTabsFirst"));
+        addDock(QStringLiteral("OverlayCompactTabsSecond"));
+
+        auto* manager = Gui::OverlayManager::instance();
+        manager->moveDockWidgetToOverlay(first, Qt::LeftDockWidgetArea);
+
+        auto* leftOverlay = overlay(QStringLiteral("OverlayLeft"));
+        QVERIFY(leftOverlay);
+        QCOMPARE(leftOverlay->count(), 2);
+
+        leftOverlay->show();
+        leftOverlay->setOverlayMode(false);
+        QVERIFY(!leftOverlay->isHidden());
+        QVERIFY(!leftOverlay->tabBar()->isHidden());
+
+        manager->setCompactRailTabOwnershipEnabled(true);
+        QVERIFY(leftOverlay->tabBar()->isHidden());
+        QVERIFY(leftOverlay->isCompactRailTabOwnershipEnabled());
+
+        manager->setCompactRailTabOwnershipEnabled(false);
+        leftOverlay->show();
+        leftOverlay->setOverlayMode(false);
+        QVERIFY(!leftOverlay->tabBar()->isHidden());
+        QVERIFY(!leftOverlay->isCompactRailTabOwnershipEnabled());
+    }
+
+    void compactRailOwnershipAppliesToRecreatedOverlayHosts()  // NOLINT
+    {
+        auto* manager = Gui::OverlayManager::instance();
+        manager->setCompactRailTabOwnershipEnabled(true);
+        Gui::OverlayManager::destruct();
+        QCoreApplication::processEvents();
+        const auto staleOverlays = mainWindow->findChildren<Gui::OverlayTabWidget*>();
+        for (Gui::OverlayTabWidget* staleOverlay : staleOverlays) {
+            delete staleOverlay;
+        }
+
+        QDockWidget* first = addDock(QStringLiteral("OverlayCompactRecreatedFirst"));
+        addDock(QStringLiteral("OverlayCompactRecreatedSecond"));
+
+        auto* recreated = Gui::OverlayManager::instance();
+        recreated->moveDockWidgetToOverlay(first, Qt::LeftDockWidgetArea);
+
+        auto* leftOverlay = overlay(QStringLiteral("OverlayLeft"));
+        QVERIFY(leftOverlay);
+        QCOMPARE(leftOverlay->count(), 2);
+        leftOverlay->show();
+        leftOverlay->setOverlayMode(false);
+        QVERIFY(!leftOverlay->isHidden());
+        QVERIFY(leftOverlay->tabBar()->isHidden());
+        QVERIFY(leftOverlay->isCompactRailTabOwnershipEnabled());
+
+        recreated->setCompactRailTabOwnershipEnabled(false);
+        leftOverlay->show();
+        leftOverlay->setOverlayMode(false);
+        QVERIFY(!leftOverlay->tabBar()->isHidden());
+        QVERIFY(!leftOverlay->isCompactRailTabOwnershipEnabled());
     }
 
     void invalidAreaIsRejectedWithoutMutation()  // NOLINT
@@ -205,6 +274,7 @@ private:
     bool compactLayoutBefore = false;
     bool panelPlacementBefore = false;
     bool framelessBefore = false;
+    bool overlayHideTabBarBefore = true;
 };
 
 QTEST_MAIN(testOverlayManager)

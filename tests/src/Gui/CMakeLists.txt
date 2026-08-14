@@ -20,6 +20,7 @@ add_executable(Gui_tests_run
 
 # Qt tests
 setup_qt_test(CompactMainWindowChrome)
+setup_qt_test(CompactTitleBarStyle)
 setup_qt_test(OverlayManager)
 setup_qt_test(PanelPlacement)
 setup_qt_test(PanelPlacementManager)

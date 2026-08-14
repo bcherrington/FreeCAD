@@ -279,6 +279,13 @@ public:
     void restore(ParameterGrp::handle handle);
     /// Save tab orders and positions
     void saveTabs();
+    /// Let an external selector rail own the legacy overlay tab bar at runtime
+    void setCompactRailTabOwnershipEnabled(bool enabled);
+    /// Report whether an external selector rail currently owns the legacy tab bar
+    bool isCompactRailTabOwnershipEnabled() const
+    {
+        return compactRailTabOwnership;
+    }
 
     /** @name Graphics effect properties setters and getters */
     //@{
@@ -388,6 +395,10 @@ protected:
     void setOverlayMode(QWidget* widget, OverlayOption option);
     /// Helper function to set overlay mode for a give widget
     static void _setOverlayMode(QWidget* widget, OverlayOption option);
+    /// Report whether the tab bar should be shown for hover hint mode
+    bool shouldShowHintTabBar() const;
+    /// Refresh legacy tab selector visibility for the current state
+    void updateTabBarVisibility();
 
 protected:
     void onCurrentChanged(int index);
@@ -427,6 +438,7 @@ private:
     AutoMode autoMode = AutoMode::NoAutoMode;
     bool repainting = false;
     bool overlaid = false;
+    bool compactRailTabOwnership = false;
     bool currentTransparent = false;
     bool touched = false;
     bool busy = false;

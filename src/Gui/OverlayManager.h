@@ -134,6 +134,12 @@ public:
     bool moveDockWidgetToOverlayOnly(QDockWidget*, Qt::DockWidgetArea dockArea);
     /// Report the active overlay area for a dock widget, or Qt::NoDockWidgetArea when not overlaid
     Qt::DockWidgetArea dockWidgetOverlayArea(QDockWidget*) const;
+    /// Let the experimental compact rail own overlay tab selectors at runtime
+    void setCompactRailTabOwnershipEnabled(bool enabled);
+    /// Report whether the experimental compact rail currently owns overlay tab selectors
+    bool isCompactRailTabOwnershipEnabled() const;
+    /// Global runtime state shared with late-created overlay hosts
+    static bool compactRailTabOwnershipEnabled();
     /// Switch a dock widget back to normal display
     void unsetupDockWidget(QDockWidget*);
 

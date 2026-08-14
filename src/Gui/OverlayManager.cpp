@@ -68,6 +68,7 @@ FC_LOG_LEVEL_INIT("Dock", true, true);
 using namespace Gui;
 
 static std::array<OverlayTabWidget*, 4> _Overlays;
+static bool _compactRailTabOwnershipEnabled = false;
 
 static inline OverlayTabWidget* findTabWidget(QWidget* widget = nullptr, bool filterDialog = false)
 {
@@ -365,6 +366,7 @@ public:
     QPoint wheelPos;
 
     std::map<QString, OverlayTabWidget*> _dockWidgetNameMap;
+    bool compactRailTabOwnershipEnabled = _compactRailTabOwnershipEnabled;
 
     bool raising = false;
 
@@ -417,6 +419,7 @@ public:
 
         retranslate();
         refreshIcons();
+        applyCompactRailTabOwnership();
 
         for (auto action : _actions) {
             QObject::connect(action, &QAction::triggered, host, &OverlayManager::onAction);
@@ -1584,6 +1587,13 @@ public:
         }
     }
 
+    void applyCompactRailTabOwnership()
+    {
+        for (auto* overlayInfo : _overlayInfos) {
+            overlayInfo->tabWidget->setCompactRailTabOwnershipEnabled(compactRailTabOwnershipEnabled);
+        }
+    }
+
     void reload(OverlayManager::ReloadMode mode)
     {
         if (mode == OverlayManager::ReloadMode::ReloadResume) {
@@ -2327,6 +2337,23 @@ const QString& OverlayManager::getStyleSheet() const
 bool OverlayManager::getHideTab() const
 {
     return OverlayStyleSheet::instance()->hideTab;
+}
+
+void OverlayManager::setCompactRailTabOwnershipEnabled(bool enabled)
+{
+    _compactRailTabOwnershipEnabled = enabled;
+    d->compactRailTabOwnershipEnabled = enabled;
+    d->applyCompactRailTabOwnership();
+}
+
+bool OverlayManager::isCompactRailTabOwnershipEnabled() const
+{
+    return _compactRailTabOwnershipEnabled;
+}
+
+bool OverlayManager::compactRailTabOwnershipEnabled()
+{
+    return _compactRailTabOwnershipEnabled;
 }
 
 void OverlayManager::setFocusView()

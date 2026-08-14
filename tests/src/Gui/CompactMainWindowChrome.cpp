@@ -7,6 +7,7 @@
 #include <QAction>
 #include <QCoreApplication>
 #include <QDockWidget>
+#include <QLayout>
 #include <QLineEdit>
 #include <QMenuBar>
 #include <QMenu>
@@ -19,8 +20,10 @@
 #include <Base/Parameter.h>
 #include <Gui/Application.h>
 #include <Gui/CompactMainWindowChrome.h>
+#include <Gui/CompactTitleBarStyle.h>
 #include <Gui/DockWindowManager.h>
 #include <Gui/MainWindow.h>
+#include <Gui/OverlayManager.h>
 #include <Gui/PanelPlacementManager.h>
 #include <src/App/InitApplication.h>
 
@@ -93,8 +96,14 @@ private Q_SLOTS:
             auto action = button->defaultAction();
             QVERIFY(action);
             QVERIFY(action->isCheckable());
-            auto toolbar = qobject_cast<QToolBar*>(button->parentWidget());
-            QCOMPARE(button->iconSize(), toolbar->iconSize());
+            QCOMPARE(
+                button->iconSize(),
+                QSize(
+                    Gui::CompactTitleBarStyle::panelRailIconSize(),
+                    Gui::CompactTitleBarStyle::panelRailIconSize()
+                )
+            );
+            QCOMPARE(button->minimumSize(), Gui::CompactTitleBarStyle::panelButtonSize());
         }
     }
 
@@ -115,14 +124,159 @@ private Q_SLOTS:
         QCoreApplication::processEvents();
         auto topBar = compactTopBar();
         QVERIFY(topBar);
-        QVERIFY(!topBar->isHidden());
+        QVERIFY(!compactTopBarHost()->isHidden());
         QVERIFY(menuBar->isHidden());
 
         preferences->SetBool("CompactJetBrainsLayout", false);
         QCoreApplication::processEvents();
-        QVERIFY(topBar->isHidden());
+        QVERIFY(compactTopBarHost()->isHidden());
         QVERIFY(!menuBar->isHidden());
         QCOMPARE(mainWindow->contentsMargins(), margins);
+    }
+
+    void experimentalPlacementOwnsLegacyOverlayTabsOnlyWhileEnabled()  // NOLINT
+    {
+        createMainWindow();
+
+        QVERIFY(!Gui::OverlayManager::compactRailTabOwnershipEnabled());
+
+        preferences->SetBool("CompactJetBrainsPanelPlacementEnabled", true);
+        processPendingEvents();
+        QVERIFY(Gui::OverlayManager::compactRailTabOwnershipEnabled());
+
+        preferences->SetBool("CompactJetBrainsPanelPlacementEnabled", false);
+        processPendingEvents();
+        QVERIFY(!Gui::OverlayManager::compactRailTabOwnershipEnabled());
+    }
+
+    void compactShellMarginsReserveRailsForCentralAndDocks()  // NOLINT
+    {
+        preferences->SetBool("CompactJetBrainsLayout", false);
+        createMainWindow();
+
+        struct DockCleanup
+        {
+            ~DockCleanup()
+            {
+                for (const auto& name : dockNames) {
+                    Gui::DockWindowManager::instance()->removeDockWindow(name.toUtf8().constData());
+                }
+            }
+
+            QStringList dockNames;
+        } cleanup {
+            {QStringLiteral("CompactGeometryLeftDock"), QStringLiteral("CompactGeometryBottomDock")}
+        };
+
+        auto central = mainWindow->centralWidget();
+        QVERIFY(central);
+
+        auto leftPanel = new QWidget();
+        leftPanel->setObjectName(QStringLiteral("CompactGeometryLeftPanel"));
+        leftPanel->setWindowTitle(QStringLiteral("Compact geometry left"));
+        auto leftDock = Gui::DockWindowManager::instance()->addDockWindow(
+            "CompactGeometryLeftDock",
+            leftPanel,
+            Qt::LeftDockWidgetArea
+        );
+        QVERIFY(leftDock);
+        leftDock->toggleViewAction()->setData(QByteArray("CompactGeometryLeftDock"));
+        leftDock->toggleViewAction()->setVisible(true);
+
+        auto bottomPanel = new QWidget();
+        bottomPanel->setObjectName(QStringLiteral("CompactGeometryBottomPanel"));
+        bottomPanel->setWindowTitle(QStringLiteral("Compact geometry bottom"));
+        auto bottomDock = Gui::DockWindowManager::instance()->addDockWindow(
+            "CompactGeometryBottomDock",
+            bottomPanel,
+            Qt::BottomDockWidgetArea
+        );
+        QVERIFY(bottomDock);
+        bottomDock->toggleViewAction()->setData(QByteArray("CompactGeometryBottomDock"));
+        bottomDock->toggleViewAction()->setVisible(true);
+
+        const QMargins originalMargins(6, 7, 8, 9);
+        mainWindow->setContentsMargins(originalMargins);
+        const QMargins originalLayoutMargins = mainWindow->layout()->contentsMargins();
+        mainWindow->show();
+        leftDock->show();
+        bottomDock->show();
+        processPendingEvents();
+
+        QTRY_VERIFY(central->isVisible());
+        QTRY_VERIFY(leftDock->isVisible());
+        QTRY_VERIFY(bottomDock->isVisible());
+
+        const QRect centralBefore = central->geometry();
+        const QRect leftDockBefore = leftDock->geometry();
+        const QRect bottomDockBefore = bottomDock->geometry();
+
+        preferences->SetBool("CompactJetBrainsPanelPlacementEnabled", true);
+        preferences->SetBool("CompactJetBrainsLayout", true);
+        processPendingEvents();
+
+        auto topBar = compactTopBar();
+        auto leftRail = mainWindow->findChild<QToolBar*>(
+            QStringLiteral("_fc_compact_left_panel_rail_host")
+        );
+        auto rightRail = mainWindow->findChild<QToolBar*>(
+            QStringLiteral("_fc_compact_right_panel_rail_host")
+        );
+        QVERIFY(topBar);
+        QVERIFY(leftRail);
+        QVERIFY(rightRail);
+        QTRY_VERIFY(topBar->isVisible());
+        QTRY_VERIFY(leftRail->isVisible());
+        QTRY_VERIFY(rightRail->isVisible());
+
+        QCOMPARE(mainWindow->contentsMargins(), originalMargins);
+        const QMargins compactLayoutMargins = mainWindow->layout()->contentsMargins();
+        QCOMPARE(compactLayoutMargins, originalLayoutMargins);
+
+        const QRect leftRailRect = widgetRectInMainWindow(leftRail);
+        const QRect rightRailRect = widgetRectInMainWindow(rightRail);
+        const QRect topBarRect = widgetRectInMainWindow(topBar);
+        const QRect centralRect = widgetRectInMainWindow(central);
+        const QRect leftDockRect = widgetRectInMainWindow(leftDock);
+        const QRect bottomDockRect = widgetRectInMainWindow(bottomDock);
+
+        QVERIFY2(
+            !leftRailRect.intersects(centralRect),
+            qPrintable(QStringLiteral("Left rail intersects central widget: rail=%1 central=%2")
+                           .arg(rectString(leftRailRect), rectString(centralRect)))
+        );
+        QVERIFY2(
+            !rightRailRect.intersects(centralRect),
+            qPrintable(QStringLiteral("Right rail intersects central widget: rail=%1 central=%2")
+                           .arg(rectString(rightRailRect), rectString(centralRect)))
+        );
+        QVERIFY2(
+            !leftRailRect.intersects(leftDockRect),
+            qPrintable(QStringLiteral("Left rail intersects left dock: rail=%1 dock=%2")
+                           .arg(rectString(leftRailRect), rectString(leftDockRect)))
+        );
+        QVERIFY2(
+            !leftRailRect.intersects(bottomDockRect),
+            qPrintable(QStringLiteral("Left rail intersects bottom dock: rail=%1 dock=%2")
+                           .arg(rectString(leftRailRect), rectString(bottomDockRect)))
+        );
+        QVERIFY2(
+            !rightRailRect.intersects(bottomDockRect),
+            qPrintable(QStringLiteral("Right rail intersects bottom dock: rail=%1 dock=%2")
+                           .arg(rectString(rightRailRect), rectString(bottomDockRect)))
+        );
+        QVERIFY(!topBarRect.intersects(leftRailRect));
+        QVERIFY(!topBarRect.intersects(rightRailRect));
+        QVERIFY(!topBarRect.intersects(centralRect));
+
+        preferences->SetBool("CompactJetBrainsLayout", false);
+        processPendingEvents();
+
+        QCOMPARE(mainWindow->contentsMargins(), originalMargins);
+        QCOMPARE(mainWindow->layout()->contentsMargins(), originalLayoutMargins);
+        QCOMPARE(central->geometry(), centralBefore);
+        QCOMPARE(leftDock->geometry(), leftDockBefore);
+        QCOMPARE(bottomDock->geometry(), bottomDockBefore);
     }
 
     void panelPlacementManagerRequiresDedicatedFlag()  // NOLINT
@@ -133,7 +287,7 @@ private Q_SLOTS:
         auto manager = mainWindow->findChild<Gui::PanelPlacementManager*>();
         QVERIFY(manager);
         QVERIFY(compactTopBar());
-        QVERIFY(!compactTopBar()->isHidden());
+        QVERIFY(!compactTopBarHost()->isHidden());
         QCOMPARE(manager->isActive(), false);
 
         preferences->SetBool("CompactJetBrainsPanelPlacementEnabled", true);
@@ -143,17 +297,17 @@ private Q_SLOTS:
         preferences->SetBool("CompactJetBrainsLayout", false);
         processPendingEvents();
         QCOMPARE(manager->isActive(), false);
-        QVERIFY(compactTopBar()->isHidden());
+        QVERIFY(compactTopBarHost()->isHidden());
 
         preferences->SetBool("CompactJetBrainsLayout", true);
         processPendingEvents();
-        QVERIFY(!compactTopBar()->isHidden());
+        QVERIFY(!compactTopBarHost()->isHidden());
         QCOMPARE(manager->isActive(), true);
 
         preferences->SetBool("CompactJetBrainsPanelPlacementEnabled", false);
         processPendingEvents();
         QCOMPARE(manager->isActive(), false);
-        QVERIFY(!compactTopBar()->isHidden());
+        QVERIFY(!compactTopBarHost()->isHidden());
     }
 
     void compactMenuBarIsVerticallyCenteredInSwitchArea()  // NOLINT
@@ -603,7 +757,7 @@ private Q_SLOTS:
 
         preferences->SetBool("CompactJetBrainsLayout", false);
         processPendingEvents();
-        QTRY_VERIFY(!compactTopBar() || compactTopBar()->isHidden());
+        QTRY_VERIFY(!compactTopBarHost() || compactTopBarHost()->isHidden());
         QCOMPARE(mainWindowActionAssociationCount(directAction, mainWindow.get()), 1);
         QCOMPARE(mainWindowActionListCount(directAction), 1);
         QCOMPARE(mainWindowActionAssociationCount(hostedAction, mainWindow.get()), 0);
@@ -645,6 +799,11 @@ private:
         return mainWindow->findChild<QWidget*>(QStringLiteral("_fc_compact_top_bar"));
     }
 
+    QToolBar* compactTopBarHost() const
+    {
+        return mainWindow->findChild<QToolBar*>(QStringLiteral("_fc_compact_top_bar_host"));
+    }
+
     Gui::CompactMainWindowChrome* compactChrome() const
     {
         return mainWindow->findChild<Gui::CompactMainWindowChrome*>();
@@ -653,6 +812,11 @@ private:
     QMenuBar* compactMenuBar() const
     {
         return mainWindow->findChild<QMenuBar*>(QStringLiteral("_fc_compact_menu_bar"));
+    }
+
+    QWidget* panelRail(const QString& objectName) const
+    {
+        return mainWindow->findChild<QWidget*>(objectName);
     }
 
     int mainWindowActionAssociationCount(const QAction* action, const QWidget* widget) const
@@ -741,6 +905,23 @@ private:
         }
 
         return match;
+    }
+
+    static QString rectString(const QRect& rect)
+    {
+        return QStringLiteral("[%1,%2 %3x%4]")
+            .arg(rect.x())
+            .arg(rect.y())
+            .arg(rect.width())
+            .arg(rect.height());
+    }
+
+    QRect widgetRectInMainWindow(const QWidget* widget) const
+    {
+        if (!widget || !mainWindow) {
+            return {};
+        }
+        return QRect(widget->mapTo(mainWindow.get(), QPoint()), widget->size());
     }
 
     std::unique_ptr<Gui::Application> guiApplication;

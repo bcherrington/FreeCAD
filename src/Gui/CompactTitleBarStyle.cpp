@@ -42,6 +42,19 @@ constexpr int CompactTightGap = 8;
 constexpr int CompactDropdownRightPadding = 12;
 constexpr int CompactDropdownIndicatorRight = 2;
 constexpr int CompactDropdownIndicatorWidth = 8;
+constexpr int CompactPanelRailWidth = 32;
+constexpr int CompactPanelRailIconSize = 18;
+constexpr int CompactPanelButtonSize = 28;
+constexpr int CompactPanelOuterPadding = 2;
+constexpr int CompactPanelItemGap = 2;
+constexpr int CompactPanelGroupGap = 8;
+constexpr int CompactPanelActiveIndicatorThickness = 2;
+constexpr int CompactPanelHeaderHeight = 32;
+constexpr int CompactPanelHeaderControlSize = 24;
+constexpr int CompactPanelSplitterThickness = 1;
+constexpr int CompactPanelSplitterHitThickness = 6;
+constexpr int CompactPanelOverlayBoundaryThickness = 1;
+constexpr int CompactPanelOverlayElevation = 10;
 }  // namespace
 
 int iconSize()
@@ -64,6 +77,71 @@ int groupGap()
 int tightGap()
 {
     return CompactTightGap;
+}
+
+int panelRailWidth()
+{
+    return CompactPanelRailWidth;
+}
+
+int panelRailIconSize()
+{
+    return CompactPanelRailIconSize;
+}
+
+QSize panelButtonSize()
+{
+    return QSize(CompactPanelButtonSize, CompactPanelButtonSize);
+}
+
+int panelOuterPadding()
+{
+    return CompactPanelOuterPadding;
+}
+
+int panelItemGap()
+{
+    return CompactPanelItemGap;
+}
+
+int panelGroupGap()
+{
+    return CompactPanelGroupGap;
+}
+
+int panelActiveIndicatorThickness()
+{
+    return CompactPanelActiveIndicatorThickness;
+}
+
+int panelHeaderHeight()
+{
+    return CompactPanelHeaderHeight;
+}
+
+int panelHeaderControlSize()
+{
+    return CompactPanelHeaderControlSize;
+}
+
+int panelSplitterThickness()
+{
+    return CompactPanelSplitterThickness;
+}
+
+int panelSplitterHitThickness()
+{
+    return CompactPanelSplitterHitThickness;
+}
+
+int panelOverlayBoundaryThickness()
+{
+    return CompactPanelOverlayBoundaryThickness;
+}
+
+int panelOverlayElevation()
+{
+    return CompactPanelOverlayElevation;
 }
 
 void applyIconButtonMetrics(QToolButton* button, const QToolBar* toolbar)
@@ -124,6 +202,20 @@ void applyIconMenuButtonMetrics(QToolButton* button, const QToolBar* toolbar)
     button->setIconSize(size);
     button->setFixedSize(buttonSize(toolbar));
     button->setStyleSheet(QStringLiteral("QToolButton::menu-indicator { image: none; width: 0px; }"));
+}
+
+void applyPanelButtonMetrics(QToolButton* button)
+{
+    if (!button) {
+        return;
+    }
+
+    const QSize size = panelButtonSize();
+    const QSize icon(panelRailIconSize(), panelRailIconSize());
+    button->setIconSize(icon);
+    button->setMinimumSize(size);
+    button->setMaximumSize(size);
+    button->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
 }
 
 }  // namespace Gui::CompactTitleBarStyle

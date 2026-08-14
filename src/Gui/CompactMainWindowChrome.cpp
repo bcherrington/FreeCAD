@@ -95,8 +95,6 @@ constexpr auto CompactPanelDropInsertionIndicatorObjectName
 constexpr auto CompactPanelDragMimeType = "application/x-freecad-compact-panel";
 constexpr auto CompactPanelAssignmentProperty = "_fc_compact_panel_assignment";
 constexpr auto CompactPanelSlotProperty = "_fc_compact_panel_slot";
-constexpr int CompactPanelStripMargin = 3;
-constexpr int CompactPanelStripClearance = 2;
 constexpr int CompactResizeBorderWidth = 6;
 
 QString trText(const char* text)
@@ -312,8 +310,7 @@ bool isCompactUiDockCandidate(const QDockWidget* dock)
 
 int compactPanelStripWidth()
 {
-    return CompactTitleBarStyle::buttonSize(nullptr).width() + (2 * CompactPanelStripMargin)
-        + CompactPanelStripClearance;
+    return CompactTitleBarStyle::panelRailWidth();
 }
 
 Gui::PanelPlacement::Edge panelEdgeForArea(Qt::DockWidgetArea area)
@@ -343,6 +340,26 @@ QToolBar* createButtonToolBar(QWidget* parent, Qt::Orientation orientation)
     toolbar->setContentsMargins(0, 0, 0, 0);
     toolbar->layout()->setContentsMargins(0, 0, 0, 0);
     return toolbar;
+}
+
+QToolBar* createShellToolBar(
+    MainWindow* window,
+    Qt::ToolBarArea area,
+    Qt::Orientation orientation,
+    const QString& objectName
+)
+{
+    auto host = new QToolBar(window);
+    host->setObjectName(objectName);
+    host->setMovable(false);
+    host->setFloatable(false);
+    host->setAllowedAreas(area);
+    host->setOrientation(orientation);
+    host->setContentsMargins(0, 0, 0, 0);
+    host->layout()->setContentsMargins(0, 0, 0, 0);
+    host->hide();
+    window->addToolBar(area, host);
+    return host;
 }
 
 void addToolBarStretch(QToolBar* toolbar)
@@ -844,9 +861,9 @@ void addStripSpacer(QToolBar* toolbar)
     addToolBarStretch(toolbar);
 }
 
-QWidget* createStrip(MainWindow* window, QWidget** content, const QString& objectName)
+QWidget* createStrip(QWidget* parent, QWidget** content, const QString& objectName)
 {
-    auto container = new QFrame(window);
+    auto container = new QFrame(parent);
     container->setObjectName(objectName + QStringLiteral("Content"));
     container->setFixedWidth(compactPanelStripWidth());
     container->setFrameShape(QFrame::NoFrame);
@@ -855,12 +872,12 @@ QWidget* createStrip(MainWindow* window, QWidget** content, const QString& objec
 
     auto layout = new QVBoxLayout(container);
     layout->setContentsMargins(
-        CompactPanelStripMargin,
-        CompactPanelStripMargin,
-        CompactPanelStripMargin,
-        CompactPanelStripMargin
+        CompactTitleBarStyle::panelOuterPadding(),
+        CompactTitleBarStyle::panelOuterPadding(),
+        CompactTitleBarStyle::panelOuterPadding(),
+        CompactTitleBarStyle::panelOuterPadding()
     );
-    layout->setSpacing(CompactPanelStripMargin);
+    layout->setSpacing(CompactTitleBarStyle::panelItemGap());
 
     container->hide();
     *content = container;
@@ -1292,9 +1309,35 @@ void CompactMainWindowChrome::setup()
 
     removeLegacyDockStrips();
 
-    leftStrip = createStrip(mainWindow, &leftStripContent, QLatin1String(CompactLeftStripObjectName));
+    topBarHost = createShellToolBar(
+        mainWindow,
+        Qt::TopToolBarArea,
+        Qt::Horizontal,
+        QStringLiteral("_fc_compact_top_bar_host")
+    );
+    topBar->show();
+    topBarHost->addWidget(topBar);
+
+    leftStripHost = createShellToolBar(
+        mainWindow,
+        Qt::LeftToolBarArea,
+        Qt::Vertical,
+        QStringLiteral("_fc_compact_left_panel_rail_host")
+    );
+    rightStripHost = createShellToolBar(
+        mainWindow,
+        Qt::RightToolBarArea,
+        Qt::Vertical,
+        QStringLiteral("_fc_compact_right_panel_rail_host")
+    );
+    leftStrip
+        = createStrip(leftStripHost, &leftStripContent, QLatin1String(CompactLeftStripObjectName));
     rightStrip
-        = createStrip(mainWindow, &rightStripContent, QLatin1String(CompactRightStripObjectName));
+        = createStrip(rightStripHost, &rightStripContent, QLatin1String(CompactRightStripObjectName));
+    leftStrip->show();
+    rightStrip->show();
+    leftStripHost->addWidget(leftStrip);
+    rightStripHost->addWidget(rightStrip);
     leftStripContent->installEventFilter(this);
     rightStripContent->installEventFilter(this);
 
@@ -1316,9 +1359,9 @@ void CompactMainWindowChrome::setActive(bool enabled)
         return;
     }
 
-    topBar->setVisible(enabled);
-    leftStrip->setVisible(enabled);
-    rightStrip->setVisible(enabled);
+    topBarHost->setVisible(enabled);
+    leftStripHost->setVisible(enabled);
+    rightStripHost->setVisible(enabled);
 
     if (enabled && !active) {
         setGlobalEventFilterActive(true);
@@ -1352,6 +1395,12 @@ void CompactMainWindowChrome::setActive(bool enabled)
         mainWindow->menuBar()->setVisible(menuBarVisibleBefore);
         if (contentsMarginsSaved) {
             mainWindow->setContentsMargins(contentsMarginsBefore);
+            if (auto layout = mainWindow->layout()) {
+                layout->activate();
+            }
+            if (auto central = mainWindow->centralWidget()) {
+                central->updateGeometry();
+            }
             contentsMarginsSaved = false;
         }
         if (auto tabBar
@@ -1876,39 +1925,18 @@ void CompactMainWindowChrome::layoutChrome()
     updateMdiTabBarVisibility();
     layoutTopBar();
     applyContentsMargins();
-    layoutWorkArea();
     layoutPanelStrips();
     layoutResizeGrips();
 }
 
 void CompactMainWindowChrome::applyContentsMargins()
 {
-    if (!active || !contentsMarginsSaved) {
+    if (!contentsMarginsSaved) {
         return;
     }
 
-    const int topBarHeight = topBar && topBar->isVisible() ? topBar->height() : 0;
-    mainWindow->setContentsMargins(
-        contentsMarginsBefore.left(),
-        contentsMarginsBefore.top() + topBarHeight,
-        contentsMarginsBefore.right(),
-        contentsMarginsBefore.bottom()
-    );
-}
-
-void CompactMainWindowChrome::layoutWorkArea()
-{
-    auto central = mainWindow->centralWidget();
-    if (!active || !central) {
-        return;
-    }
-
-    const int panelStripWidth = compactPanelStripWidth();
-    QRect geometry = central->geometry();
-    geometry.setLeft(panelStripWidth);
-    geometry.setRight(mainWindow->width() - panelStripWidth - 1);
-    if (geometry.isValid()) {
-        central->setGeometry(geometry);
+    if (mainWindow->contentsMargins() != contentsMarginsBefore) {
+        mainWindow->setContentsMargins(contentsMarginsBefore);
     }
 }
 
@@ -1928,7 +1956,12 @@ void CompactMainWindowChrome::layoutTopBar()
     }
 
     const int topBarHeight = topBar->sizeHint().height();
-    topBar->setGeometry(0, 0, mainWindow->width(), topBarHeight);
+    if (topBarHost->minimumHeight() != topBarHeight || topBarHost->maximumHeight() != topBarHeight) {
+        topBarHost->setFixedHeight(topBarHeight);
+    }
+    if (topBar->minimumHeight() != topBarHeight || topBar->maximumHeight() != topBarHeight) {
+        topBar->setFixedHeight(topBarHeight);
+    }
     if (auto layout = topBar->layout()) {
         layout->activate();
     }
@@ -1946,33 +1979,12 @@ void CompactMainWindowChrome::layoutPanelStrips()
         return;
     }
 
-    int top = 0;
-
-    if (auto central = mainWindow->centralWidget()) {
-        top = central->geometry().top();
-    }
-    else if (topBar && topBar->isVisible()) {
-        top = topBar->geometry().bottom() + 1;
-    }
-    else if (mainWindow->menuBar() && mainWindow->menuBar()->isVisible()) {
-        top = mainWindow->menuBar()->geometry().bottom() + 1;
-    }
-
-    int bottom = mainWindow->height();
-    if (mainWindow->statusBar() && mainWindow->statusBar()->isVisible()) {
-        bottom = mainWindow->statusBar()->geometry().top();
-    }
-
     const int panelStripWidth = compactPanelStripWidth();
-    const int stripHeight = std::max(0, bottom - top);
-    leftStrip->setFixedWidth(panelStripWidth);
-    rightStrip->setFixedWidth(panelStripWidth);
-    leftStrip->setGeometry(0, top, panelStripWidth, stripHeight);
-    rightStrip->setGeometry(mainWindow->width() - panelStripWidth, top, panelStripWidth, stripHeight);
-    leftStrip->raise();
-    rightStrip->raise();
-    if (topBar) {
-        topBar->raise();
+    const QList<QWidget*> railWidgets {leftStripHost, rightStripHost, leftStrip, rightStrip};
+    for (QWidget* widget : railWidgets) {
+        if (widget->minimumWidth() != panelStripWidth || widget->maximumWidth() != panelStripWidth) {
+            widget->setFixedWidth(panelStripWidth);
+        }
     }
 }
 
@@ -2013,7 +2025,7 @@ void CompactMainWindowChrome::refreshPanelStrips()
             button->setProperty(CompactPanelAssignmentProperty, panelAssignmentId(dock));
             button->setProperty(CompactPanelSlotProperty, panelSlotName(slot));
             button->installEventFilter(this);
-            CompactTitleBarStyle::applyIconButtonMetrics(button, toolbar);
+            CompactTitleBarStyle::applyPanelButtonMetrics(button);
         }
     };
 
@@ -2728,8 +2740,8 @@ CompactMainWindowChrome::PanelSlot CompactMainWindowChrome::dropPanelSlotForPosi
     const QPoint globalPosition = target ? target->mapToGlobal(position) : position;
     const QPoint stripPosition = strip ? strip->mapFromGlobal(globalPosition) : position;
     const int height = std::max(1, strip ? strip->height() : target->height());
-    const int buttonHeight = CompactTitleBarStyle::buttonSize(nullptr).height();
-    const int margin = CompactPanelStripMargin;
+    const int buttonHeight = CompactTitleBarStyle::panelButtonSize().height();
+    const int margin = CompactTitleBarStyle::panelOuterPadding();
 
     const PanelSlot topSlot = leftSide ? PanelSlot::LeftTop : PanelSlot::RightTop;
     const PanelSlot lowerSlot = leftSide ? PanelSlot::LeftLower : PanelSlot::RightLower;
@@ -2804,29 +2816,31 @@ QRect CompactMainWindowChrome::panelDropInsertionGeometry(QWidget* strip, PanelS
         return {};
     }
 
-    const QSize size = CompactTitleBarStyle::buttonSize(nullptr);
+    const QSize size = CompactTitleBarStyle::panelButtonSize();
     const QVector<QRect> slotButtonRects = panelButtonGeometries(strip, slot);
 
     const QRect bounds = strip->rect().adjusted(
-        CompactPanelStripMargin,
-        CompactPanelStripMargin,
-        -CompactPanelStripMargin,
-        -CompactPanelStripMargin
+        CompactTitleBarStyle::panelOuterPadding(),
+        CompactTitleBarStyle::panelOuterPadding(),
+        -CompactTitleBarStyle::panelOuterPadding(),
+        -CompactTitleBarStyle::panelOuterPadding()
     );
     const int x = bounds.left() + std::max(0, (bounds.width() - size.width()) / 2);
     const bool bottomSlot = slot == PanelSlot::BottomLeft || slot == PanelSlot::BottomRight;
-    int y = panelDropZoneGeometry(strip, slot).top() + CompactPanelStripMargin;
+    int y = panelDropZoneGeometry(strip, slot).top() + CompactTitleBarStyle::panelOuterPadding();
 
     if (!slotButtonRects.isEmpty()) {
         if (bottomSlot) {
-            y = slotButtonRects.constFirst().top() - CompactPanelStripMargin - size.height();
+            y = slotButtonRects.constFirst().top() - CompactTitleBarStyle::panelItemGap()
+                - size.height();
         }
         else {
-            y = slotButtonRects.constLast().bottom() + 1 + CompactPanelStripMargin;
+            y = slotButtonRects.constLast().bottom() + 1 + CompactTitleBarStyle::panelItemGap();
         }
     }
     else if (bottomSlot) {
-        y = panelDropZoneGeometry(strip, slot).bottom() - CompactPanelStripMargin - size.height() + 1;
+        y = panelDropZoneGeometry(strip, slot).bottom() - CompactTitleBarStyle::panelOuterPadding()
+            - size.height() + 1;
     }
 
     y = std::clamp(y, bounds.top(), std::max(bounds.top(), bounds.bottom() - size.height() + 1));

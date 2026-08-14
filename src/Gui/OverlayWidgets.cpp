@@ -459,6 +459,7 @@ OverlayTabWidget::OverlayTabWidget(QWidget* parent, Qt::DockWidgetArea pos)
 
     retranslate();
     refreshIcons();
+    setCompactRailTabOwnershipEnabled(OverlayManager::compactRailTabOwnershipEnabled());
 
     connect(tabBar(), &QTabBar::tabBarClicked, this, &OverlayTabWidget::onCurrentChanged);
     connect(tabBar(), &QTabBar::tabMoved, this, &OverlayTabWidget::onTabMoved);
@@ -1213,9 +1214,7 @@ void OverlayTabWidget::setState(State state)
             else if (dockArea == Qt::BottomDockWidgetArea) {
                 setTabPosition(South);
             }
-            if (this->count() == 1) {
-                tabBar()->hide();
-            }
+            updateTabBarVisibility();
             _graphicsEffectTab->setEnabled(false);
             titleBar->show();
             splitter->show();
@@ -1228,7 +1227,7 @@ void OverlayTabWidget::setState(State state)
                 break;
             }
             _state = state;
-            if (this->count() && OverlayParams::getDockOverlayHintTabBar()) {
+            if (shouldShowHintTabBar()) {
                 tabBar()->setToolTip(proxyWidget->toolTip());
                 tabBar()->show();
                 titleBar->hide();
@@ -1568,6 +1567,22 @@ bool OverlayTabWidget::onEscape()
     return false;
 }
 
+void OverlayTabWidget::setCompactRailTabOwnershipEnabled(bool enabled)
+{
+    if (compactRailTabOwnership == enabled) {
+        return;
+    }
+
+    compactRailTabOwnership = enabled;
+    updateTabBarVisibility();
+    if (titleBar && splitter && _state <= State::Normal) {
+        setupLayout();
+    }
+    if (!rectOverlay.isNull()) {
+        setRect(rectOverlay);
+    }
+}
+
 void OverlayTabWidget::setOverlayMode(bool enable)
 {
     overlaid = enable;
@@ -1621,20 +1636,44 @@ void OverlayTabWidget::setOverlayMode(bool enable)
     setOverlayMode(this, option);
 
     _graphicsEffect->setEnabled(effectEnabled() && (enable || isTransparent()));
-
-    if (_state == State::Hint && OverlayParams::getDockOverlayHintTabBar()) {
-        tabBar()->setToolTip(proxyWidget->toolTip());
-        tabBar()->show();
-    }
-    else if (OverlayParams::getDockOverlayHideTabBar() || count() == 1) {
-        tabBar()->hide();
-    }
-    else {
-        tabBar()->setToolTip(QString());
-        tabBar()->setVisible(!enable || !OverlayManager::instance()->getHideTab());
-    }
+    updateTabBarVisibility();
 
     setRect(rectOverlay);
+}
+
+bool OverlayTabWidget::shouldShowHintTabBar() const
+{
+    return count() > 0 && !compactRailTabOwnership && OverlayParams::getDockOverlayHintTabBar();
+}
+
+void OverlayTabWidget::updateTabBarVisibility()
+{
+    if (count() <= 1 || compactRailTabOwnership) {
+        tabBar()->setToolTip(QString());
+        tabBar()->hide();
+        return;
+    }
+
+    if (_state == State::Hint) {
+        if (shouldShowHintTabBar()) {
+            tabBar()->setToolTip(proxyWidget->toolTip());
+            tabBar()->show();
+        }
+        else {
+            tabBar()->setToolTip(QString());
+            tabBar()->hide();
+        }
+        return;
+    }
+
+    if (OverlayParams::getDockOverlayHideTabBar()) {
+        tabBar()->setToolTip(QString());
+        tabBar()->hide();
+        return;
+    }
+
+    tabBar()->setToolTip(QString());
+    tabBar()->setVisible(!overlaid || !OverlayManager::instance()->getHideTab());
 }
 
 const QRect& OverlayTabWidget::getRect()
@@ -1758,7 +1797,7 @@ void OverlayTabWidget::setRect(QRect rect)
         if (_state != State::Hint && _state != State::Hidden) {
             startHide();
         }
-        else if (count() && OverlayParams::getDockOverlayHintTabBar()) {
+        else if (shouldShowHintTabBar()) {
             switch (dockArea) {
                 case Qt::LeftDockWidgetArea:
                 case Qt::RightDockWidgetArea:
@@ -1839,6 +1878,7 @@ void OverlayTabWidget::addWidget(QDockWidget* dock, const QString& title)
     splitter->addWidget(dock);
     auto dummyWidget = new QWidget(this);
     addTab(dummyWidget, title);
+    updateTabBarVisibility();
     connect(dock, &QObject::destroyed, dummyWidget, &QObject::deleteLater);
 
     dock->setFeatures(dock->features() & ~QDockWidget::DockWidgetFloatable);
@@ -1893,6 +1933,7 @@ void OverlayTabWidget::removeWidget(QDockWidget* dock, QDockWidget* lastDock)
     auto w = this->widget(index);
     removeTab(index);
     w->deleteLater();
+    updateTabBarVisibility();
 
     if (!count()) {
         hide();
@@ -1924,7 +1965,7 @@ void OverlayTabWidget::setupLayout()
         return;
     }
 
-    if (count() == 1) {
+    if (count() == 1 || !tabBar()->isVisible()) {
         tabSize = 0;
     }
     else {

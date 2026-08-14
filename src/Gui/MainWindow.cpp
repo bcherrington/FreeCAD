@@ -855,10 +855,12 @@ void MainWindow::updateCompactUiPrototype()
 {
     const bool compactEnabled = d->hGrp->GetBool("CompactJetBrainsLayout", false);
     const bool panelPlacementEnabled = d->hGrp->GetBool("CompactJetBrainsPanelPlacementEnabled", false);
+    const bool experimentalPanelPlacementActive = compactEnabled && panelPlacementEnabled;
 
     if (d->panelPlacementManager) {
-        d->panelPlacementManager->setActive(compactEnabled && panelPlacementEnabled);
+        d->panelPlacementManager->setActive(experimentalPanelPlacementActive);
     }
+    OverlayManager::instance()->setCompactRailTabOwnershipEnabled(experimentalPanelPlacementActive);
     if (d->compactChrome) {
         d->compactChrome->setActive(compactEnabled);
     }

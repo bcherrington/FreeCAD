@@ -36,9 +36,24 @@ QSize buttonSize(const QToolBar* toolbar);
 int groupGap();
 int tightGap();
 
+int panelRailWidth();
+int panelRailIconSize();
+QSize panelButtonSize();
+int panelOuterPadding();
+int panelItemGap();
+int panelGroupGap();
+int panelActiveIndicatorThickness();
+int panelHeaderHeight();
+int panelHeaderControlSize();
+int panelSplitterThickness();
+int panelSplitterHitThickness();
+int panelOverlayBoundaryThickness();
+int panelOverlayElevation();
+
 void applyIconButtonMetrics(QToolButton* button, const QToolBar* toolbar);
 void applyMenuButtonMetrics(QToolButton* button, const QToolBar* toolbar);
 void applyIconMenuButtonMetrics(QToolButton* button, const QToolBar* toolbar);
+void applyPanelButtonMetrics(QToolButton* button);
 void resizeMenuButton(QToolButton* button, int maximumWidth = 260);
 
 }  // namespace Gui::CompactTitleBarStyle
