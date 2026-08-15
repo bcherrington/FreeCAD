@@ -129,7 +129,6 @@ public:
     /// Prepare a dock widget for overlay display
     void setupDockWidget(QDockWidget*, int dockArea = Qt::NoDockWidgetArea);
     /// Move a dock widget into the overlay group for the requested dock area
-    void moveDockWidgetToOverlay(QDockWidget*, Qt::DockWidgetArea dockArea);
     /// Switch a dock widget back to normal display
     void unsetupDockWidget(QDockWidget*);
 

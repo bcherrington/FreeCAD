@@ -1789,7 +1789,7 @@ static View3DInventorViewer* spaceballMotionEventTarget()
 bool MainWindow::event(QEvent* e)
 {
     const bool compactLayoutEvent = e->type() == QEvent::Resize || e->type() == QEvent::Show
-        || e->type() == QEvent::LayoutRequest || e->type() == QEvent::WindowStateChange;
+        || e->type() == QEvent::WindowStateChange;
 
     if (e->type() == QEvent::EnterWhatsThisMode) {
         // Unfortunately, for top-level widgets such as menus or dialogs we

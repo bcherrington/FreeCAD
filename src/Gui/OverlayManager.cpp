@@ -1700,17 +1700,6 @@ void OverlayManager::setupDockWidget(QDockWidget* dw, int dockArea)
     d->setupTitleBar(dw);
 }
 
-void OverlayManager::moveDockWidgetToOverlay(QDockWidget* dw, Qt::DockWidgetArea dockArea)
-{
-    if (!dw) {
-        return;
-    }
-
-    d->toggleOverlay(dw, ToggleMode::Unset);
-    d->toggleOverlay(dw, ToggleMode::Set, dockArea);
-    d->setupTitleBar(dw);
-}
-
 void OverlayManager::unsetupDockWidget(QDockWidget* dw)
 {
     d->toggleOverlay(dw, ToggleMode::Unset);
