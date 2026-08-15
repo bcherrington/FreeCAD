@@ -4,6 +4,7 @@
 #include <memory>
 
 #include <QAction>
+#include <QApplication>
 #include <QCoreApplication>
 #include <QEvent>
 #include <QLineEdit>
@@ -458,6 +459,8 @@ private Q_SLOTS:
         auto compactMenu = compactMenuBar();
         QVERIFY(compactMenu);
         QCOMPARE(compactMenu->isHidden(), true);
+        activateTestWindow();
+        lineEdit->setFocus(Qt::OtherFocusReason);
         QTRY_VERIFY(lineEdit->hasFocus());
 
         QTest::keyClick(lineEdit, Qt::Key_Z, Qt::ControlModifier);
@@ -525,6 +528,10 @@ private Q_SLOTS:
         QCOMPARE(mainWindowActionAssociationCount(freshAction, mainWindow.get()), 1);
         QCOMPARE(mainWindowActionListCount(freshAction), 1);
 
+        activateTestWindow();
+        mainWindow->setFocus(Qt::OtherFocusReason);
+        QTRY_VERIFY(mainWindow->hasFocus());
+
         QTest::keyClick(mainWindow.get(), Qt::Key_Y, Qt::ControlModifier);
         processPendingEvents();
         QTest::keyClick(mainWindow.get(), Qt::Key_U, Qt::ControlModifier);
@@ -585,6 +592,10 @@ private Q_SLOTS:
         QCOMPARE(mainWindowActionAssociationCount(hostedAction, mainWindow.get()), 0);
         QCOMPARE(mainWindowActionListCount(hostedAction), 0);
 
+        activateTestWindow();
+        mainWindow->setFocus(Qt::OtherFocusReason);
+        QTRY_VERIFY(mainWindow->hasFocus());
+
         QTest::keyClick(mainWindow.get(), Qt::Key_X, Qt::ControlModifier);
         processPendingEvents();
         QTest::keyClick(mainWindow.get(), Qt::Key_Y, Qt::ControlModifier);
@@ -616,6 +627,14 @@ private Q_SLOTS:
     }
 
 private:
+    void activateTestWindow() const
+    {
+        QT_WARNING_PUSH
+        QT_WARNING_DISABLE_DEPRECATED
+        QApplication::setActiveWindow(mainWindow.get());
+        QT_WARNING_POP
+    }
+
     void processPendingEvents() const
     {
         QCoreApplication::processEvents();
