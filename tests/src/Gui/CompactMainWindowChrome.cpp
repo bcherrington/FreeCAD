@@ -373,24 +373,6 @@ private Q_SLOTS:
         QVERIFY(currentDocumentButton());
     }
 
-    void compactDocumentButtonQueuedUpdateIsSafeOnMainWindowDestroy()  // NOLINT
-    {
-        createMainWindow();
-
-        QPointer<Gui::CompactMainWindowChrome> chrome = compactChrome();
-        QVERIFY(chrome);
-
-        auto* document = App::GetApplication().newDocument("DestroyQueued");
-        QVERIFY(document);
-        document->Label.setValue("Destroy Queued");
-        QVERIFY(chrome->property("_fc_compact_document_button_update_queued").toBool());
-
-        mainWindow.reset();
-        processEvents(2);
-
-        QVERIFY(chrome.isNull());
-    }
-
     void compactShortcutDispatchesExactlyOnceWithOriginalActionsHiddenBars()  // NOLINT
     {
         preferences->SetBool("CompactJetBrainsLayout", false);
@@ -613,6 +595,24 @@ private Q_SLOTS:
 
         delete directMenu;
         delete hostedMenu;
+    }
+
+    void compactDocumentButtonQueuedUpdateIsSafeOnMainWindowDestroy()  // NOLINT
+    {
+        createMainWindow();
+
+        QPointer<Gui::CompactMainWindowChrome> chrome = compactChrome();
+        QVERIFY(chrome);
+
+        auto* document = App::GetApplication().newDocument("DestroyQueued");
+        QVERIFY(document);
+        document->Label.setValue("Destroy Queued");
+        QVERIFY(chrome->property("_fc_compact_document_button_update_queued").toBool());
+
+        mainWindow.reset();
+        processEvents(2);
+
+        QVERIFY(chrome.isNull());
     }
 
 private:
