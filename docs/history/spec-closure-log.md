@@ -8,7 +8,7 @@
 - **Title:** JetBrains-style panel rails and placement Requirements
 - **Final legacy spec commit:** `838de8f6ea2`
 - **Implementation commit:** `d84e85757e7`
-- **Closure cleanup commit:** pending reconciliation after the cleanup commit
+- **Closure cleanup commit:** `beefdc44ee5`
 - **Closure action:** removed
 - **Durable docs updated:**
   - `docs/design/jetbrains-style-compact-ui.md`

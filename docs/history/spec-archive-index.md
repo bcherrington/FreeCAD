@@ -4,7 +4,7 @@
 
 | Spec ID | Title | Package path | Status | Final spec commit | Cleanup commit | Closure action | Durable destinations | Verification |
 |---------|-------|--------------|--------|-------------------|----------------|----------------|----------------------|--------------|
-| 015-compact-view-rails-rework | JetBrains-style panel rails and placement Requirements | `docs/specs/compact-view-rails-rework/spec.md` | removed | 838de8f6ea2 | pending | removed | `docs/design/jetbrains-style-compact-ui.md` | `docs/history/spec-closure-log.md` |
+| 015-compact-view-rails-rework | JetBrains-style panel rails and placement Requirements | `docs/specs/compact-view-rails-rework/spec.md` | removed | 838de8f6ea2 | beefdc44ee5 | removed | `docs/design/jetbrains-style-compact-ui.md` | `docs/history/spec-closure-log.md` |
 | 013-compact-ui-shortcut-preservation | Compact UI Shortcut Preservation Requirements | `docs/specs/013-compact-ui-shortcut-preservation/` | removed | not retained | not retained | removed | `docs/design/jetbrains-style-compact-ui.md` | `docs/history/spec-closure-log.md` |
 | 001-freecad-performance-optimization | FreeCAD Performance Optimization Requirements | `docs/specs/freecad-performance-optimization/` | removed | not retained | 6ca5cd9de9e | removed | `docs/performance-optimization-findings.md`; `docs/specs/002-upstream-pr-readiness/`; `docs/specs/004-performance-investigation/` | `docs/history/spec-closure-log.md` |
 | 003-splashscreen-startup | Splashscreen Startup Requirements | `docs/specs/003-splashscreen-startup/` | removed | not retained | 6963fb3dcaa | removed | `docs/startup-splash.md` | `docs/history/spec-closure-log.md` |
