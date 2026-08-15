@@ -30,6 +30,7 @@
 #include <QPoint>
 #include <QPointer>
 #include <QRect>
+#include <QString>
 #include <QVector>
 #include <QWidget>
 #include <fastsignals/signal.h>
@@ -263,6 +264,7 @@ private:
     bool shuttingDown = false;
     int mdiTabBarMinimumHeightBefore = 0;
     int mdiTabBarMaximumHeightBefore = QWIDGETSIZE_MAX;
+    QString mdiTabBarStyleSheetBefore;
     Qt::Edges manualResizeEdges;
     QPoint titleDragGlobalPosition;
     QPoint titleDragWindowPosition;

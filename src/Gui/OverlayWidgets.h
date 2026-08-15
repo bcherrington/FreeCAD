@@ -246,6 +246,8 @@ public:
     QDockWidget* dockWidget(int index) const;
     /// Obtain the index of a given dock widget
     int dockWidgetIndex(QDockWidget*) const;
+    /// Move one dock and its splitter surface to a canonical tab index.
+    bool moveDockWidgetToIndex(QDockWidget*, int index);
 
     /// Set the title bar for this tab widget
     void setTitleBar(QWidget*);
@@ -365,7 +367,11 @@ public:
     /// Helper function to create title bar for a dock widget
     static QWidget* createTitleButton(QAction* action, int size);
     /// Helper function to prepare a widget as a title widget
-    static QLayoutItem* prepareTitleWidget(QWidget* widget, const QList<QAction*>& actions);
+    static QLayoutItem* prepareTitleWidget(
+        QWidget* widget,
+        const QList<QAction*>& actions,
+        int maximumVisibleActions = -1
+    );
 
 protected:
 #if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)

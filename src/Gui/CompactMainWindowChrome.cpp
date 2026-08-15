@@ -42,6 +42,7 @@
 #include <QKeyEvent>
 #include <QLayoutItem>
 #include <QMainWindow>
+#include <QMdiArea>
 #include <QMenu>
 #include <QMenuBar>
 #include <QMimeData>
@@ -105,10 +106,13 @@ constexpr auto CompactLeftInnerLaneObjectName = "_fc_compact_left_panel_overlay_
 constexpr auto CompactRightOuterLaneObjectName = "_fc_compact_right_panel_dock_lane";
 constexpr auto CompactRightInnerLaneObjectName = "_fc_compact_right_panel_overlay_lane";
 constexpr auto CompactLeftOuterOverflowObjectName = "_fc_compact_left_panel_dock_overflow";
-constexpr auto CompactLeftInnerOverflowObjectName = "_fc_compact_left_panel_overlay_overflow";
 constexpr auto CompactRightOuterOverflowObjectName = "_fc_compact_right_panel_dock_overflow";
-constexpr auto CompactRightInnerOverflowObjectName = "_fc_compact_right_panel_overlay_overflow";
 constexpr int CompactResizeBorderWidth = 6;
+constexpr auto CompactHiddenMdiTabBarStyle
+    = "QTabBar#mdiAreaTabBar { height: 0px; min-height: 0px; max-height: 0px; padding: 0px; "
+      "margin: 0px; border: 0px; }"
+      "QTabBar#mdiAreaTabBar::tab { height: 0px; min-height: 0px; max-height: 0px; "
+      "padding: 0px; margin: 0px; border: 0px; }";
 
 QString trText(const char* text)
 {
@@ -341,6 +345,22 @@ Gui::PanelPlacement::Edge panelEdgeForArea(Qt::DockWidgetArea area)
     }
 }
 
+void refreshMdiViewportGeometry(QMdiArea* mdiArea)
+{
+    if (!mdiArea) {
+        return;
+    }
+
+    // QMdiArea caches the south tab row in its private viewport margins. A tab-bar style
+    // change alone does not invalidate those margins until the widget is actually resized.
+    // Nudge the layout-managed widget synchronously; the final geometry is unchanged.
+    const QSize currentSize = mdiArea->size();
+    if (currentSize.height() > 0) {
+        mdiArea->resize(currentSize.width(), currentSize.height() - 1);
+        mdiArea->resize(currentSize);
+    }
+}
+
 QToolBar* createButtonToolBar(QWidget* parent, Qt::Orientation orientation)
 {
     auto toolbar = new QToolBar(parent);
@@ -370,6 +390,11 @@ QToolBar* createShellToolBar(
     host->setOrientation(orientation);
     host->setContentsMargins(0, 0, 0, 0);
     host->layout()->setContentsMargins(0, 0, 0, 0);
+    if (orientation == Qt::Vertical) {
+        // FreeCAD.qss gives vertical toolbars a left inset. Compact panel rails manage their
+        // own symmetric padding, so inheriting that inset shifts the complete rail contents.
+        host->setStyleSheet(QStringLiteral("QToolBar { padding: 0px; }"));
+    }
     host->hide();
     window->addToolBar(area, host);
     return host;
@@ -863,6 +888,11 @@ void clearStrip(QWidget* content)
     QLayoutItem* item = nullptr;
     while ((item = content->layout()->takeAt(0)) != nullptr) {
         if (QWidget* widget = item->widget()) {
+            widget->hide();
+            for (QWidget* child : widget->findChildren<QWidget*>()) {
+                child->setObjectName(QString());
+            }
+            widget->setObjectName(QString());
             widget->deleteLater();
         }
         delete item;
@@ -878,7 +908,7 @@ QWidget* createStrip(QWidget* parent, QWidget** content, const QString& objectNa
     container->setAutoFillBackground(true);
     container->setAcceptDrops(true);
 
-    auto layout = new QHBoxLayout(container);
+    auto layout = new QVBoxLayout(container);
     layout->setContentsMargins(
         CompactTitleBarStyle::panelOuterPadding(),
         CompactTitleBarStyle::panelOuterPadding(),
@@ -1381,6 +1411,7 @@ void CompactMainWindowChrome::setActive(bool enabled)
             mdiTabBarVisibleBefore = tabBar->isVisible();
             mdiTabBarMinimumHeightBefore = tabBar->minimumHeight();
             mdiTabBarMaximumHeightBefore = tabBar->maximumHeight();
+            mdiTabBarStyleSheetBefore = tabBar->styleSheet();
             mdiTabBarVisibilitySaved = true;
         }
         mainWindow->menuBar()->hide();
@@ -1413,11 +1444,13 @@ void CompactMainWindowChrome::setActive(bool enabled)
         }
         if (auto tabBar
             = mainWindow->getMdiArea()->findChild<QTabBar*>(QStringLiteral("mdiAreaTabBar"))) {
+            tabBar->setStyleSheet(mdiTabBarStyleSheetBefore);
             tabBar->setMinimumHeight(mdiTabBarMinimumHeightBefore);
             tabBar->setMaximumHeight(mdiTabBarMaximumHeightBefore);
             tabBar->setVisible(!mdiTabBarVisibilitySaved || mdiTabBarVisibleBefore);
             tabBar->updateGeometry();
             mainWindow->getMdiArea()->updateGeometry();
+            refreshMdiViewportGeometry(mainWindow->getMdiArea());
         }
         mdiTabBarVisibilitySaved = false;
         finishManualResize();
@@ -1764,13 +1797,16 @@ void CompactMainWindowChrome::updateMdiTabBarVisibility()
             mdiTabBarVisibleBefore = tabBar->isVisible();
             mdiTabBarMinimumHeightBefore = tabBar->minimumHeight();
             mdiTabBarMaximumHeightBefore = tabBar->maximumHeight();
+            mdiTabBarStyleSheetBefore = tabBar->styleSheet();
             mdiTabBarVisibilitySaved = true;
         }
+        tabBar->setStyleSheet(QLatin1String(CompactHiddenMdiTabBarStyle));
         tabBar->setMinimumHeight(0);
         tabBar->setMaximumHeight(0);
         tabBar->hide();
         tabBar->updateGeometry();
         mainWindow->getMdiArea()->updateGeometry();
+        refreshMdiViewportGeometry(mainWindow->getMdiArea());
     }
 }
 
@@ -1976,14 +2012,11 @@ void CompactMainWindowChrome::layoutTopBar()
 
 void CompactMainWindowChrome::layoutPanelStrips()
 {
-    if (!active || !leftStrip || !rightStrip) {
+    if (!leftStrip || !rightStrip) {
         return;
     }
 
-    const int laneCount = usesPanelPlacementManager() ? 2 : 1;
-    const int panelStripWidth = CompactTitleBarStyle::panelRailWidth() * laneCount
-        + (laneCount > 1 ? CompactTitleBarStyle::panelItemGap() : 0)
-        + (2 * CompactTitleBarStyle::panelOuterPadding());
+    const int panelStripWidth = compactPanelStripWidth();
     const QList<QWidget*> railWidgets {leftStripHost, rightStripHost, leftStrip, rightStrip};
     for (QWidget* widget : railWidgets) {
         if (widget->minimumWidth() != panelStripWidth || widget->maximumWidth() != panelStripWidth) {
@@ -2015,7 +2048,12 @@ void CompactMainWindowChrome::refreshPanelStrips()
         widget->setProperty(CompactPanelLaneProperty, static_cast<int>(lane));
         widget->setAcceptDrops(true);
         widget->installEventFilter(this);
-        widget->setFixedWidth(CompactTitleBarStyle::panelRailWidth());
+        widget->setFixedWidth(CompactTitleBarStyle::panelButtonSize().width());
+        widget->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Expanding);
+        widget->setMinimumHeight(
+            CompactTitleBarStyle::panelButtonSize().height()
+            + (2 * CompactTitleBarStyle::panelOuterPadding())
+        );
         auto* layout = new QVBoxLayout(widget);
         layout->setContentsMargins(0, 0, 0, 0);
         layout->setSpacing(CompactTitleBarStyle::panelItemGap());
@@ -2029,31 +2067,30 @@ void CompactMainWindowChrome::refreshPanelStrips()
         PanelLane::Outer
     );
     leftStripContent->layout()->addWidget(leftOuterLane);
-    QWidget* leftInnerLane = nullptr;
-    if (managerEnabled) {
-        leftInnerLane = createLaneWidget(
-            leftStripContent,
-            QLatin1String(CompactLeftInnerLaneObjectName),
-            PanelLane::Inner
-        );
-        leftStripContent->layout()->addWidget(leftInnerLane);
-    }
-
-    QWidget* rightInnerLane = nullptr;
-    if (managerEnabled) {
-        rightInnerLane = createLaneWidget(
-            rightStripContent,
-            QLatin1String(CompactRightInnerLaneObjectName),
-            PanelLane::Inner
-        );
-        rightStripContent->layout()->addWidget(rightInnerLane);
-    }
+    leftStripContent->layout()->setAlignment(leftOuterLane, Qt::AlignHCenter);
     QWidget* rightOuterLane = createLaneWidget(
         rightStripContent,
         QLatin1String(CompactRightOuterLaneObjectName),
         PanelLane::Outer
     );
     rightStripContent->layout()->addWidget(rightOuterLane);
+    rightStripContent->layout()->setAlignment(rightOuterLane, Qt::AlignHCenter);
+    QWidget* leftInnerLane = nullptr;
+    QWidget* rightInnerLane = nullptr;
+    if (managerEnabled) {
+        leftInnerLane = createLaneWidget(
+            leftOuterLane,
+            QLatin1String(CompactLeftInnerLaneObjectName),
+            PanelLane::Inner
+        );
+        leftInnerLane->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Minimum);
+        rightInnerLane = createLaneWidget(
+            rightOuterLane,
+            QLatin1String(CompactRightInnerLaneObjectName),
+            PanelLane::Inner
+        );
+        rightInnerLane->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Minimum);
+    }
 
     auto createPanelButton =
         [this](QDockWidget* dock, QWidget* laneWidget, PanelLane lane, PanelSlot slot) {
@@ -2084,20 +2121,6 @@ void CompactMainWindowChrome::refreshPanelStrips()
             if (action->icon().isNull()) {
                 button->setIcon(dockIcon(dock, slot));
             }
-
-            const bool rightRail = slot == PanelSlot::RightTop || slot == PanelSlot::RightLower
-                || slot == PanelSlot::BottomRight;
-            button->setStyleSheet(
-                QStringLiteral(
-                    "QToolButton { border: 0; border-radius: 2px; }"
-                    "QToolButton:hover { background: palette(midlight); }"
-                    "QToolButton:pressed { background: palette(button); }"
-                    "QToolButton:checked { border-%1: %2px solid palette(highlight); }"
-                    "QToolButton:focus { border: %2px solid palette(highlight); }"
-                )
-                    .arg(rightRail ? QStringLiteral("left") : QStringLiteral("right"))
-                    .arg(CompactTitleBarStyle::panelActiveIndicatorThickness())
-            );
             button->installEventFilter(this);
             CompactTitleBarStyle::applyPanelButtonMetrics(button);
             if (auto* boxLayout = qobject_cast<QBoxLayout*>(laneWidget->layout())) {
@@ -2149,13 +2172,6 @@ void CompactMainWindowChrome::refreshPanelStrips()
     const QList<QDockWidget*> docks = managedDockContainers();
     for (auto dock : docks) {
         syncPanelPlacementRegistration(dock);
-        connect(
-            dock,
-            &QDockWidget::visibilityChanged,
-            this,
-            &CompactMainWindowChrome::schedulePanelStripRefresh,
-            Qt::UniqueConnection
-        );
         connect(
             dock,
             &QDockWidget::dockLocationChanged,
@@ -2221,7 +2237,7 @@ void CompactMainWindowChrome::refreshPanelStrips()
             / std::max(1, buttonHeight + laneSpacing)
     );
 
-    const auto populateLane = [this, &createPanelButton, &createOverflowButton, laneCapacity](
+    const auto populateLane = [&createPanelButton, &createOverflowButton, laneCapacity](
                                   QWidget* laneWidget,
                                   const QString& overflowObjectName,
                                   PanelLane lane,
@@ -2266,6 +2282,23 @@ void CompactMainWindowChrome::refreshPanelStrips()
             }
         };
 
+        if (lane == PanelLane::Inner) {
+            // Overlay launchers share one centered rail region. The logical slot still controls
+            // ordering and drop placement, but must not anchor the button group to the top or
+            // bottom like docked panels.
+            laneWidget->layout()->addItem(
+                new QSpacerItem(0, 0, QSizePolicy::Minimum, QSizePolicy::Expanding)
+            );
+            addGroup(topVisible);
+            addGroup(lowerVisible);
+            addGroup(bottomVisible);
+            createOverflowButton(laneWidget, overflowObjectName, overflowEntries);
+            laneWidget->layout()->addItem(
+                new QSpacerItem(0, 0, QSizePolicy::Minimum, QSizePolicy::Expanding)
+            );
+            return;
+        }
+
         addGroup(topVisible);
         if (!topVisible.isEmpty() && !lowerVisible.isEmpty()) {
             auto* spacer = new QWidget(laneWidget);
@@ -2283,6 +2316,117 @@ void CompactMainWindowChrome::refreshPanelStrips()
         }
         addGroup(bottomVisible);
         createOverflowButton(laneWidget, overflowObjectName, overflowEntries);
+    };
+
+    const auto populateUnifiedLane = [this, &createPanelButton, &createOverflowButton, laneCapacity](
+                                         QWidget* outerLane,
+                                         QWidget* overlayGroup,
+                                         const QString& outerOverflowObjectName,
+                                         const QList<PanelEntry>& outerTop,
+                                         const QList<PanelEntry>& outerLower,
+                                         const QList<PanelEntry>& outerBottom,
+                                         const QList<PanelEntry>& overlays,
+                                         const QList<PanelEntry>& floating
+                                     ) {
+        if (!outerLane || !outerLane->layout() || !overlayGroup || !overlayGroup->layout()) {
+            return;
+        }
+
+        QList<PanelEntry> visibleTop = outerTop;
+        QList<PanelEntry> visibleLower = outerLower;
+        QList<PanelEntry> visibleBottom = outerBottom;
+        QList<PanelEntry> visibleOverlays = overlays;
+        QList<PanelEntry> overflowEntries = floating;
+        int visibleCount = visibleTop.size() + visibleLower.size() + visibleBottom.size()
+            + visibleOverlays.size();
+        int visibleCapacity = std::max(0, laneCapacity - (overflowEntries.isEmpty() ? 0 : 1));
+        if (visibleCount > visibleCapacity) {
+            // Reserve one native overflow control. Keep the centred overlay controls available
+            // as long as possible and trim the less discoverable lower/bottom anchors first.
+            visibleCapacity = std::max(0, laneCapacity - 1);
+            const auto trimToBudget =
+                [&overflowEntries, &visibleCount, visibleCapacity](QList<PanelEntry>* group) {
+                    while (group && !group->isEmpty() && visibleCount > visibleCapacity) {
+                        overflowEntries.prepend(group->takeLast());
+                        --visibleCount;
+                    }
+                };
+            trimToBudget(&visibleBottom);
+            trimToBudget(&visibleLower);
+            trimToBudget(&visibleTop);
+            trimToBudget(&visibleOverlays);
+        }
+
+        const auto addEntries = [&createPanelButton](QWidget* parent, const QList<PanelEntry>& group) {
+            for (const auto& entry : group) {
+                createPanelButton(entry.dock, parent, entry.lane, entry.slot);
+            }
+        };
+        const auto addGroupGap = [](QWidget* parent) {
+            auto* spacer = new QWidget(parent);
+            spacer->setFixedHeight(CompactTitleBarStyle::panelGroupGap());
+            parent->layout()->addWidget(spacer);
+        };
+
+        const auto makeOuterGroup = [this, outerLane]() {
+            auto* group = new QWidget(outerLane);
+            group->setAcceptDrops(true);
+            group->installEventFilter(this);
+            auto* layout = new QVBoxLayout(group);
+            layout->setContentsMargins(0, 0, 0, 0);
+            layout->setSpacing(CompactTitleBarStyle::panelItemGap());
+            return group;
+        };
+        QWidget* topGroup = makeOuterGroup();
+        QWidget* bottomGroup = makeOuterGroup();
+
+        addEntries(topGroup, visibleTop);
+        if (!visibleTop.isEmpty() && !visibleLower.isEmpty()) {
+            addGroupGap(topGroup);
+        }
+        addEntries(topGroup, visibleLower);
+        bottomGroup->layout()->addItem(
+            new QSpacerItem(0, 0, QSizePolicy::Minimum, QSizePolicy::Expanding)
+        );
+        addEntries(bottomGroup, visibleBottom);
+        createOverflowButton(bottomGroup, outerOverflowObjectName, overflowEntries);
+
+        // Equal top/bottom group extents keep the overlay group geometrically centred even when
+        // the docked anchors contain different numbers of buttons.
+        const int anchorExtent
+            = std::max(topGroup->sizeHint().height(), bottomGroup->sizeHint().height());
+        topGroup->setFixedHeight(anchorExtent);
+        bottomGroup->setFixedHeight(anchorExtent);
+        if (auto* boxLayout = qobject_cast<QBoxLayout*>(outerLane->layout())) {
+            boxLayout->addWidget(topGroup, 0, Qt::AlignHCenter | Qt::AlignTop);
+        }
+        else {
+            outerLane->layout()->addWidget(topGroup);
+        }
+
+        // A single physical rail owns pointer input. The nested overlay group occupies one
+        // non-overlapping, vertically centred position instead of being a masked full-height
+        // lane stacked above the docked controls.
+        outerLane->layout()->addItem(
+            new QSpacerItem(0, 0, QSizePolicy::Minimum, QSizePolicy::Expanding)
+        );
+        addEntries(overlayGroup, visibleOverlays);
+        if (auto* boxLayout = qobject_cast<QBoxLayout*>(outerLane->layout())) {
+            boxLayout->addWidget(overlayGroup, 0, Qt::AlignHCenter);
+        }
+        else {
+            outerLane->layout()->addWidget(overlayGroup);
+        }
+        outerLane->layout()->addItem(
+            new QSpacerItem(0, 0, QSizePolicy::Minimum, QSizePolicy::Expanding)
+        );
+
+        if (auto* boxLayout = qobject_cast<QBoxLayout*>(outerLane->layout())) {
+            boxLayout->addWidget(bottomGroup, 0, Qt::AlignHCenter | Qt::AlignBottom);
+        }
+        else {
+            outerLane->layout()->addWidget(bottomGroup);
+        }
     };
 
     if (!managerEnabled) {
@@ -2318,40 +2462,33 @@ void CompactMainWindowChrome::refreshPanelStrips()
             }
         }
 
-        populateLane(
+        QList<PanelEntry> leftOverlays;
+        leftOverlays.append(entriesFor(PanelLane::Inner, PanelSlot::LeftTop));
+        leftOverlays.append(entriesFor(PanelLane::Inner, PanelSlot::LeftLower));
+        leftOverlays.append(entriesFor(PanelLane::Inner, PanelSlot::BottomLeft));
+        QList<PanelEntry> rightOverlays;
+        rightOverlays.append(entriesFor(PanelLane::Inner, PanelSlot::RightTop));
+        rightOverlays.append(entriesFor(PanelLane::Inner, PanelSlot::RightLower));
+        rightOverlays.append(entriesFor(PanelLane::Inner, PanelSlot::BottomRight));
+
+        populateUnifiedLane(
             leftOuterLane,
+            leftInnerLane,
             QLatin1String(CompactLeftOuterOverflowObjectName),
-            PanelLane::Outer,
             entriesFor(PanelLane::Outer, PanelSlot::LeftTop),
             entriesFor(PanelLane::Outer, PanelSlot::LeftLower),
             entriesFor(PanelLane::Outer, PanelSlot::BottomLeft),
+            leftOverlays,
             leftFloating
         );
-        populateLane(
-            leftInnerLane,
-            QLatin1String(CompactLeftInnerOverflowObjectName),
-            PanelLane::Inner,
-            entriesFor(PanelLane::Inner, PanelSlot::LeftTop),
-            entriesFor(PanelLane::Inner, PanelSlot::LeftLower),
-            entriesFor(PanelLane::Inner, PanelSlot::BottomLeft),
-            {}
-        );
-        populateLane(
-            rightInnerLane,
-            QLatin1String(CompactRightInnerOverflowObjectName),
-            PanelLane::Inner,
-            entriesFor(PanelLane::Inner, PanelSlot::RightTop),
-            entriesFor(PanelLane::Inner, PanelSlot::RightLower),
-            entriesFor(PanelLane::Inner, PanelSlot::BottomRight),
-            {}
-        );
-        populateLane(
+        populateUnifiedLane(
             rightOuterLane,
+            rightInnerLane,
             QLatin1String(CompactRightOuterOverflowObjectName),
-            PanelLane::Outer,
             entriesFor(PanelLane::Outer, PanelSlot::RightTop),
             entriesFor(PanelLane::Outer, PanelSlot::RightLower),
             entriesFor(PanelLane::Outer, PanelSlot::BottomRight),
+            rightOverlays,
             rightFloating
         );
     }
@@ -2567,6 +2704,7 @@ bool CompactMainWindowChrome::eventFilter(QObject* watched, QEvent* event)
 
                 if (usesPanelPlacementManager() && panelPlacementManager->isRegistered(assignmentId)) {
                     const PanelSlot currentSlot = panelSlotForDock(dock);
+                    const PanelPlacement currentPlacement = panelPlacementForDock(dock);
                     auto moveMenu = menu->addMenu(trText("Move To"));
                     const auto addPlacement =
                         [this, moveMenu, dock](const QString& label, PanelLane lane, PanelSlot slot) {
@@ -2625,6 +2763,37 @@ bool CompactMainWindowChrome::eventFilter(QObject* watched, QEvent* event)
                             schedulePanelStripRefresh();
                         }
                     });
+
+                    auto* areaModeMenu = menu->addMenu(trText("Area Mode"));
+                    auto* areaModeGroup = new QActionGroup(areaModeMenu);
+                    areaModeGroup->setExclusive(true);
+                    const auto addAreaModeAction =
+                        [this, areaModeMenu, areaModeGroup, assignmentId, currentPlacement](
+                            const QString& label,
+                            PanelPlacement::VisibilityPolicy policy
+                        ) {
+                            QAction* action = areaModeMenu->addAction(label);
+                            action->setCheckable(true);
+                            action->setChecked(currentPlacement.visibilityPolicy == policy);
+                            areaModeGroup->addAction(action);
+                            connect(action, &QAction::triggered, this, [this, assignmentId, policy]() {
+                                const auto result = panelPlacementManager->requestAreaVisibilityPolicy(
+                                    assignmentId,
+                                    policy
+                                );
+                                if (result.success) {
+                                    schedulePanelStripRefresh();
+                                }
+                            });
+                        };
+                    addAreaModeAction(
+                        trText("One Panel at a Time"),
+                        PanelPlacement::VisibilityPolicy::Exclusive
+                    );
+                    addAreaModeAction(
+                        trText("Multiple Panels"),
+                        PanelPlacement::VisibilityPolicy::Multiple
+                    );
                 }
 
                 auto contextEvent = static_cast<QContextMenuEvent*>(event);
@@ -2951,7 +3120,9 @@ bool CompactMainWindowChrome::panelSlotFromName(const QString& name, PanelSlot* 
 QWidget* CompactMainWindowChrome::panelDropLaneForTarget(QWidget* target) const
 {
     QWidget* laneWidget = target;
-    while (laneWidget && !laneWidget->property(CompactPanelLaneProperty).isValid()
+    while (laneWidget
+           && (qobject_cast<QToolButton*>(laneWidget)
+               || !laneWidget->property(CompactPanelLaneProperty).isValid())
            && laneWidget != leftStripContent && laneWidget != rightStripContent) {
         laneWidget = laneWidget->parentWidget();
     }
@@ -3275,11 +3446,6 @@ bool CompactMainWindowChrome::requestPanelMoveToPresentation(
         return false;
     }
 
-    const PanelPlacement currentPlacement = panelPlacementForDock(dock);
-    const PanelLane currentLane = panelLaneForPlacement(currentPlacement);
-    const PanelSlot currentSlot = panelSlotForPlacement(currentPlacement, dock);
-
-    QList<PanelEntry> sourceEntries;
     QList<PanelEntry> targetEntries;
     for (QDockWidget* candidate : managedDockContainers()) {
         const QString candidateId = panelAssignmentId(candidate);
@@ -3297,9 +3463,6 @@ bool CompactMainWindowChrome::requestPanelMoveToPresentation(
             candidateLane,
             panelOrderForDock(candidate, candidateSlot)
         };
-        if (candidateLane == currentLane && candidateSlot == currentSlot) {
-            sourceEntries.push_back(entry);
-        }
         if (candidateLane == lane && candidateSlot == slot) {
             targetEntries.push_back(entry);
         }
@@ -3316,42 +3479,16 @@ bool CompactMainWindowChrome::requestPanelMoveToPresentation(
             return dockTitle(left.dock).localeAwareCompare(dockTitle(right.dock)) < 0;
         });
     };
-    sortEntries(&sourceEntries);
     sortEntries(&targetEntries);
 
-    const PanelEntry movedEntry {dock, slot, lane, 0};
-    if (currentLane == lane && currentSlot == slot) {
-        const int insertIndex = std::clamp(targetIndex, 0, static_cast<int>(targetEntries.size()));
-        targetEntries.insert(insertIndex, movedEntry);
-    }
-    else {
-        const int insertIndex = targetIndex < 0
-            ? static_cast<int>(targetEntries.size())
-            : std::clamp(targetIndex, 0, static_cast<int>(targetEntries.size()));
-        targetEntries.insert(insertIndex, movedEntry);
-    }
+    const int insertIndex = targetIndex < 0
+        ? static_cast<int>(targetEntries.size())
+        : std::clamp(targetIndex, 0, static_cast<int>(targetEntries.size()));
+    const PanelPlacement placement = placementForPresentation(dock, lane, slot, insertIndex);
 
-    const auto applySequence = [this](const QList<PanelEntry>& list) {
-        for (int index = 0; index < list.size(); ++index) {
-            const PanelEntry& entry = list.at(index);
-            PanelPlacement placement
-                = placementForPresentation(entry.dock, entry.lane, entry.slot, index);
-            const QString panelId = panelAssignmentId(entry.dock);
-            const auto result = panelPlacementManager->requestPlacement(panelId, placement);
-            if (!result.success) {
-                return false;
-            }
-        }
-        return true;
-    };
-
-    if (currentLane != PanelLane::None && (currentLane != lane || currentSlot != slot)) {
-        if (!applySequence(sourceEntries)) {
-            return false;
-        }
-    }
-
-    return applySequence(targetEntries);
+    // PanelPlacementManager owns the whole area order and persists/reindexes source and target
+    // peers transactionally. Sending one request avoids the former partially-applied sequence.
+    return panelPlacementManager->requestPlacement(assignmentId, placement).success;
 }
 
 CompactMainWindowChrome::PanelSlot CompactMainWindowChrome::dropPanelSlotForPosition(
@@ -3372,6 +3509,13 @@ CompactMainWindowChrome::PanelSlot CompactMainWindowChrome::dropPanelSlotForPosi
     const PanelSlot topSlot = leftSide ? PanelSlot::LeftTop : PanelSlot::RightTop;
     const PanelSlot lowerSlot = leftSide ? PanelSlot::LeftLower : PanelSlot::RightLower;
     const PanelSlot bottomSlot = leftSide ? PanelSlot::BottomLeft : PanelSlot::BottomRight;
+
+    if (lane == PanelLane::Inner) {
+        // The overlay group has one centred position on each side rail. Its side is therefore
+        // the drop location; subdividing the group's small button-sized rectangle into thirds
+        // previously turned a centre drop into an arbitrary bottom overlay placement.
+        return lowerSlot;
+    }
 
     const auto topButtons = panelButtonGeometries(laneWidget, topSlot, lane);
     const auto lowerButtons = panelButtonGeometries(laneWidget, lowerSlot, lane);
@@ -3492,12 +3636,10 @@ QRect CompactMainWindowChrome::panelDropInsertionGeometry(
     const QSize size = CompactTitleBarStyle::panelButtonSize();
     QVector<QRect> slotButtonRects = panelButtonGeometries(laneWidget, slot, lane);
 
-    const QRect bounds = laneWidget->rect().adjusted(
-        CompactTitleBarStyle::panelOuterPadding(),
-        CompactTitleBarStyle::panelOuterPadding(),
-        -CompactTitleBarStyle::panelOuterPadding(),
-        -CompactTitleBarStyle::panelOuterPadding()
-    );
+    // The physical rail container already supplies the outer padding. Keep the
+    // logical lane bounds unpadded so a full-size toggle target remains wholly
+    // inside an empty one-column lane.
+    const QRect bounds = laneWidget->rect();
     const int x = bounds.left() + std::max(0, (bounds.width() - size.width()) / 2);
     const bool bottomSlot = slot == PanelSlot::BottomLeft || slot == PanelSlot::BottomRight;
     int y = panelDropZoneGeometry(laneWidget, slot).top() + CompactTitleBarStyle::panelOuterPadding();

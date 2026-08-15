@@ -41,6 +41,7 @@
 #include <QPainterPath>
 #include <QPropertyAnimation>
 
+#include <algorithm>
 #include <array>
 #include <unordered_map>
 
@@ -53,6 +54,7 @@
 #include "Application.h"
 #include "BitmapFactory.h"
 #include "Control.h"
+#include "CompactTitleBarStyle.h"
 #include "MainWindow.h"
 #include "MDIView.h"
 #include "NaviCube.h"
@@ -76,13 +78,6 @@ static constexpr auto OverlayTitleRoleOverlayHost = "overlay-host";
 static constexpr auto OverlayTitleRolePlaceholder = "placeholder";
 static constexpr auto OverlayHeaderOwnerDock = "dock";
 static constexpr auto OverlayHeaderOwnerOverlay = "overlay";
-
-static bool compactPanelPlacementEnabled()
-{
-    return App::GetApplication()
-        .GetParameterGroupByPath("User parameter:BaseApp/Preferences/MainWindow")
-        ->GetBool("CompactJetBrainsPanelPlacementEnabled", false);
-}
 
 static inline OverlayTabWidget* findTabWidget(QWidget* widget = nullptr, bool filterDialog = false)
 {
@@ -974,7 +969,17 @@ public:
             tabWidget->onCurrentChanged(tabWidget->dockWidgetIndex(dock));
         }
         else if (!checked) {
-            if (sizes[index] > 0 && sizes.size() > 1) {
+            if (sizes[index] > 0 && sizes.size() == 1) {
+                // A one-panel overlay still has to honour the shared dock toggle action. The
+                // legacy code only collapsed splitters with peers, leaving the sole panel
+                // permanently open and its rail/View action unable to toggle it back.
+                auto newsizes = sizes;
+                newsizes[index] = 0;
+                tabWidget->splitter->setSizes(newsizes);
+                tabWidget->setState(OverlayTabWidget::State::Hidden);
+                tabWidget->saveTabs();
+            }
+            else if (sizes[index] > 0 && sizes.size() > 1) {
                 int newtotal = 0;
                 auto newsizes = sizes;
                 newsizes[index] = 0;
@@ -1031,6 +1036,11 @@ public:
             }
         }
         if (checked) {
+            // QDockWidget's own toggle action hides the child on close. Reopening an overlay must
+            // remap that same dock after the splitter state is restored; otherwise the action is
+            // checked and the rail looks active while the panel surface remains absent.
+            dock->show();
+            tabWidget->startShow();
             tabWidget->setRevealTime(
                 QTime::currentTime().addMSecs(OverlayParams::getDockOverlayRevealDelay())
             );
@@ -1045,7 +1055,7 @@ public:
 
     bool usesCanonicalHeaderOwnership() const
     {
-        return compactPanelPlacementEnabled();
+        return compactRailTabOwnershipEnabled;
     }
 
     static bool hasTitleRole(const QWidget* widget, const char* role)
@@ -1149,6 +1159,16 @@ public:
             OverlayTitleRoleProperty,
             qobject_cast<OverlayTabWidget*>(parent) ? OverlayTitleRoleOverlayHost : OverlayTitleRoleDock
         );
+        if (usesCanonicalHeaderOwnership()) {
+            if (auto* tabWidget = qobject_cast<OverlayTabWidget*>(parent); tabWidget
+                && (tabWidget->getDockArea() == Qt::TopDockWidgetArea
+                    || tabWidget->getDockArea() == Qt::BottomDockWidgetArea)) {
+                widget->setFixedWidth(CompactTitleBarStyle::panelHeaderHeight());
+            }
+            else {
+                widget->setFixedHeight(CompactTitleBarStyle::panelHeaderHeight());
+            }
+        }
 
         QList<QAction*> actions;
         if (auto tabWidget = qobject_cast<OverlayTabWidget*>(parent)) {
@@ -1166,7 +1186,9 @@ public:
             actions = _actions;
         }
 
-        widget->setTitleItem(OverlayTabWidget::prepareTitleWidget(widget, actions));
+        widget->setTitleItem(
+            OverlayTabWidget::prepareTitleWidget(widget, actions, usesCanonicalHeaderOwnership() ? 3 : -1)
+        );
         return widget;
     }
 
@@ -1833,9 +1855,59 @@ bool OverlayManager::moveDockWidgetToOverlayOnly(QDockWidget* dw, Qt::DockWidget
     return true;
 }
 
+bool OverlayManager::moveDockWidgetInOverlay(QDockWidget* dock, int order)
+{
+    auto it = d->_overlayMap.find(dock);
+    return it != d->_overlayMap.end() && it->second
+        && it->second->tabWidget->moveDockWidgetToIndex(dock, order);
+}
+
 Qt::DockWidgetArea OverlayManager::dockWidgetOverlayArea(QDockWidget* dw) const
 {
     return d->dockWidgetOverlayArea(dw);
+}
+
+bool OverlayManager::setDockWidgetOverlayExtent(QDockWidget* dock, int extent)
+{
+    auto it = d->_overlayMap.find(dock);
+    if (it == d->_overlayMap.end() || !it->second || extent <= 0) {
+        return false;
+    }
+
+    OverlayTabWidget* tabWidget = it->second->tabWidget;
+    QRect rect = tabWidget->getRect();
+    switch (it->second->dockArea) {
+        case Qt::LeftDockWidgetArea:
+            rect.setWidth(extent);
+            break;
+        case Qt::RightDockWidgetArea:
+            rect.setLeft(rect.right() - extent + 1);
+            break;
+        case Qt::TopDockWidgetArea:
+            rect.setHeight(extent);
+            break;
+        case Qt::BottomDockWidgetArea:
+            rect.setTop(rect.bottom() - extent + 1);
+            break;
+        default:
+            return false;
+    }
+    tabWidget->setRect(rect);
+    d->refresh();
+    return true;
+}
+
+int OverlayManager::dockWidgetOverlayExtent(QDockWidget* dock) const
+{
+    auto it = d->_overlayMap.find(dock);
+    if (it == d->_overlayMap.end() || !it->second) {
+        return 0;
+    }
+    const QRect rect = it->second->tabWidget->getRect();
+    return it->second->dockArea == Qt::LeftDockWidgetArea
+            || it->second->dockArea == Qt::RightDockWidgetArea
+        ? rect.width()
+        : rect.height();
 }
 
 bool OverlayManager::usesCanonicalHeaderOwnership() const
@@ -2491,6 +2563,36 @@ void OverlayManager::setCompactRailTabOwnershipEnabled(bool enabled)
 bool OverlayManager::isCompactRailTabOwnershipEnabled() const
 {
     return _compactRailTabOwnershipEnabled;
+}
+
+bool OverlayManager::dockWidgetOverlayVisible(QDockWidget* dock) const
+{
+    if (dock && d->usesCanonicalHeaderOwnership()) {
+        if (QAction* toggleAction = dock->toggleViewAction();
+            toggleAction && toggleAction->isCheckable()) {
+            // Compact placement defines QAction as the visibility source of truth so the View
+            // menu, rail, and placement policy cannot disagree about an overlay's open state.
+            return toggleAction->isChecked();
+        }
+    }
+
+    auto it = d->_overlayMap.find(dock);
+    if (it == d->_overlayMap.end() || !it->second) {
+        return false;
+    }
+
+    OverlayTabWidget* tabWidget = it->second->tabWidget;
+    const int index = tabWidget->dockWidgetIndex(dock);
+    const QList<int> sizes = tabWidget->getSplitter()->sizes();
+    if (index < 0 || index >= sizes.size() || sizes.at(index) <= 0) {
+        return false;
+    }
+
+    // Logical openness is host state, not whether an ancestor/window is currently mapped. The
+    // latter is false during startup, workbench changes, and headless tests even for an expanded
+    // overlay, and previously made a collapsed overlay impossible to toggle back on reliably.
+    return tabWidget->getState() != OverlayTabWidget::State::Hidden
+        && tabWidget->getState() != OverlayTabWidget::State::HintHidden;
 }
 
 bool OverlayManager::compactRailTabOwnershipEnabled()

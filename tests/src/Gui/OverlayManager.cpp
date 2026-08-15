@@ -203,6 +203,7 @@ private Q_SLOTS:
         preferences->SetBool("CompactJetBrainsPanelPlacementEnabled", true);
         auto* dock = addDock(QStringLiteral("OverlayCanonicalHeaderDock"));
         auto* manager = Gui::OverlayManager::instance();
+        manager->setCompactRailTabOwnershipEnabled(true);
         manager->setupTitleBar(dock);
         QCoreApplication::processEvents();
         QVERIFY(dock);
@@ -258,6 +259,7 @@ private Q_SLOTS:
         first->addAction(firstAction);
 
         auto* manager = Gui::OverlayManager::instance();
+        manager->setCompactRailTabOwnershipEnabled(true);
         manager->moveDockWidgetToOverlay(first, Qt::LeftDockWidgetArea);
 
         auto* leftOverlay = overlay(QStringLiteral("OverlayLeft"));
@@ -302,12 +304,34 @@ private Q_SLOTS:
         QVERIFY(dock);
 
         auto* manager = Gui::OverlayManager::instance();
+        manager->setCompactRailTabOwnershipEnabled(true);
         QVERIFY(manager->moveDockWidgetToOverlayOnly(dock, Qt::LeftDockWidgetArea));
         QVERIFY(!manager->dockWidgetOverlayAutoHide(dock));
         QVERIFY(manager->setDockWidgetOverlayAutoHide(dock, true));
         QVERIFY(manager->dockWidgetOverlayAutoHide(dock));
         QVERIFY(manager->setDockWidgetOverlayAutoHide(dock, false));
         QVERIFY(!manager->dockWidgetOverlayAutoHide(dock));
+    }
+
+    void compactOverlayOrderMovesTabAndSurfaceTogether()  // NOLINT
+    {
+        auto* first = addDock(QStringLiteral("OverlayOrderFirst"));
+        auto* second = addDock(QStringLiteral("OverlayOrderSecond"));
+        auto* manager = Gui::OverlayManager::instance();
+        manager->setCompactRailTabOwnershipEnabled(true);
+        QVERIFY(manager->moveDockWidgetToOverlayOnly(first, Qt::LeftDockWidgetArea));
+        QVERIFY(manager->moveDockWidgetToOverlayOnly(second, Qt::LeftDockWidgetArea));
+
+        auto* leftOverlay = overlay(QStringLiteral("OverlayLeft"));
+        QVERIFY(leftOverlay);
+        QCOMPARE(leftOverlay->dockWidget(0), first);
+        QCOMPARE(leftOverlay->getSplitter()->widget(0), first);
+
+        QVERIFY(manager->moveDockWidgetInOverlay(second, 0));
+        QCOMPARE(leftOverlay->dockWidget(0), second);
+        QCOMPARE(leftOverlay->getSplitter()->widget(0), second);
+        QCOMPARE(leftOverlay->dockWidget(1), first);
+        QCOMPARE(leftOverlay->getSplitter()->widget(1), first);
     }
 
     void invalidAreaIsRejectedWithoutMutation()  // NOLINT
@@ -336,6 +360,7 @@ private Q_SLOTS:
         fallback.edge = Gui::PanelPlacement::Edge::Left;
 
         Gui::PanelPlacementManager placementManager(mainWindow.get());
+        Gui::OverlayManager::instance()->setCompactRailTabOwnershipEnabled(true);
         placementManager.setActive(true);
         QVERIFY(placementManager.registerPanel(first->objectName(), first, fallback));
         QVERIFY(placementManager.registerPanel(second->objectName(), second, fallback));

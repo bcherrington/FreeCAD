@@ -109,6 +109,20 @@ public:
         return step.result;
     }
 
+    Result applyAreaOrder(MainWindow*, const QList<QDockWidget*>& dockWidgets, const PanelPlacement&) override
+    {
+        ++orderApplyCount;
+        QStringList ids;
+        for (QDockWidget* dock : dockWidgets) {
+            ids.push_back(dock ? dock->objectName() : QString());
+        }
+        appliedOrders.push_back(ids);
+        Result result;
+        result.success = true;
+        result.mutated = dockWidgets.size() > 1;
+        return result;
+    }
+
     bool queryPlacement(MainWindow*, QDockWidget*, PanelPlacement* placement) const override
     {
         if (!placement || !queriedPlacement) {
@@ -165,8 +179,10 @@ public:
     }
 
     int applyCount = 0;
+    int orderApplyCount = 0;
     int visibilityApplyCount = 0;
     std::vector<PanelPlacement> appliedPlacements;
+    std::vector<QStringList> appliedOrders;
     std::vector<std::pair<QString, bool>> appliedVisibility;
     std::vector<PlacementStep> placementSteps;
     std::vector<VisibilityStep> visibilitySteps;
@@ -379,6 +395,8 @@ private Q_SLOTS:
         const auto result = manager.requestPlacement(leftA, target);
         QVERIFY(result.success);
         QCOMPARE(hostPtr->applyCount, 1);
+        QCOMPARE(hostPtr->orderApplyCount, 1);
+        QCOMPARE(hostPtr->appliedOrders.back(), (QStringList {leftA, rightA}));
 
         QCOMPARE(
             manager.orderedPanelIds(
@@ -451,12 +469,61 @@ private Q_SLOTS:
 
         QVERIFY(manager.registerPanel(panelA, dockA, placementA));
         QVERIFY(manager.registerPanel(panelB, dockB, placementB));
+        hostPtr->visibilityApplyCount = 0;
 
         const auto result = manager.requestVisibility(panelB, true);
         QVERIFY(result.success);
-        QCOMPARE(hostPtr->visibilityApplyCount, 1);
+        QCOMPARE(hostPtr->visibilityApplyCount, 2);
+        QCOMPARE(hostPtr->appliedVisibility.back(), std::make_pair(panelA, false));
         QVERIFY(!dockA->isVisible());
         QVERIFY(dockB->isVisible());
+    }
+
+    void registerPanelExclusiveNormalizesVisiblePeers()  // NOLINT
+    {
+        mainWindowPrefs->SetBool(PanelPlacementStore::featureFlagKey(), true);
+
+        auto host = std::make_unique<FakeHost>();
+        PanelPlacementManager manager(nullptr, std::move(host));
+        manager.setActive(true);
+
+        const QString panelA = QStringLiteral("CodexTestPanelPlacementManagerRegisterExclusiveA");
+        const QString panelB = QStringLiteral("CodexTestPanelPlacementManagerRegisterExclusiveB");
+        const PanelPlacement placementA = makePlacement(panelA);
+        const PanelPlacement placementB = makePlacement(
+            panelB,
+            PanelPlacement::Mode::Docked,
+            PanelPlacement::Edge::Left,
+            PanelPlacement::Region::Start,
+            1
+        );
+        QVERIFY(PanelPlacementStore::savePlacement(placementA));
+        QVERIFY(PanelPlacementStore::savePlacement(placementB));
+
+        QMainWindow hostWindow;
+        QDockWidget* dockA = makeDock(panelA);
+        QDockWidget* dockB = makeDock(panelB);
+        hostWindow.addDockWidget(Qt::LeftDockWidgetArea, dockA);
+        hostWindow.addDockWidget(Qt::LeftDockWidgetArea, dockB);
+        // Match application startup: docks have been explicitly shown, but
+        // their main window has not appeared yet.
+        dockA->show();
+        dockB->show();
+
+        // Register in reverse order to prove that normalization follows the
+        // persisted rail order rather than registration order.
+        QVERIFY(manager.registerPanel(panelB, dockB, placementB));
+        QVERIFY(manager.registerPanel(panelA, dockA, placementA));
+        QVERIFY(!dockA->isHidden());
+        QVERIFY(dockB->isHidden());
+        QCOMPARE(
+            manager.persistedPlacement(panelA).visibilityPolicy,
+            PanelPlacement::VisibilityPolicy::Exclusive
+        );
+        QCOMPARE(
+            manager.persistedPlacement(panelB).visibilityPolicy,
+            PanelPlacement::VisibilityPolicy::Exclusive
+        );
     }
 
     void requestAreaVisibilityPolicyMultipleKeepsPeersVisible()  // NOLINT
@@ -504,6 +571,59 @@ private Q_SLOTS:
 
         const auto visibilityResult = manager.requestVisibility(panelB, true);
         QVERIFY(visibilityResult.success);
+        QVERIFY(dockA->isVisible());
+        QVERIFY(dockB->isVisible());
+        QCOMPARE(
+            manager.persistedPlacement(panelA).visibilityPolicy,
+            PanelPlacement::VisibilityPolicy::Multiple
+        );
+        QCOMPARE(
+            manager.persistedPlacement(panelB).visibilityPolicy,
+            PanelPlacement::VisibilityPolicy::Multiple
+        );
+    }
+
+    void registerPanelMultiplePreservesVisiblePeers()  // NOLINT
+    {
+        mainWindowPrefs->SetBool(PanelPlacementStore::featureFlagKey(), true);
+
+        auto host = std::make_unique<FakeHost>();
+        PanelPlacementManager manager(nullptr, std::move(host));
+        manager.setActive(true);
+
+        const QString panelA = QStringLiteral("CodexTestPanelPlacementManagerRegisterMultipleA");
+        const QString panelB = QStringLiteral("CodexTestPanelPlacementManagerRegisterMultipleB");
+        const PanelPlacement placementA = makePlacement(
+            panelA,
+            PanelPlacement::Mode::Docked,
+            PanelPlacement::Edge::Left,
+            PanelPlacement::Region::Start,
+            0,
+            PanelPlacement::VisibilityPolicy::Multiple
+        );
+        const PanelPlacement placementB = makePlacement(
+            panelB,
+            PanelPlacement::Mode::Docked,
+            PanelPlacement::Edge::Left,
+            PanelPlacement::Region::Start,
+            1,
+            PanelPlacement::VisibilityPolicy::Multiple
+        );
+        QVERIFY(PanelPlacementStore::savePlacement(placementA));
+        QVERIFY(PanelPlacementStore::savePlacement(placementB));
+
+        QMainWindow hostWindow;
+        QDockWidget* dockA = makeDock(panelA);
+        QDockWidget* dockB = makeDock(panelB);
+        hostWindow.addDockWidget(Qt::LeftDockWidgetArea, dockA);
+        hostWindow.addDockWidget(Qt::LeftDockWidgetArea, dockB);
+        hostWindow.show();
+        QApplication::processEvents();
+        dockA->show();
+        dockB->show();
+
+        QVERIFY(manager.registerPanel(panelA, dockA, placementA));
+        QVERIFY(manager.registerPanel(panelB, dockB, placementB));
         QVERIFY(dockA->isVisible());
         QVERIFY(dockB->isVisible());
         QCOMPARE(
@@ -772,7 +892,7 @@ private Q_SLOTS:
 private:
     void clearTestState()
     {
-        const std::array<QString, 17> panelIds {{
+        const std::array<QString, 21> panelIds {{
             QStringLiteral("CodexTestPanelPlacementManagerA"),
             QStringLiteral("CodexTestPanelPlacementManagerActivation"),
             QStringLiteral("CodexTestPanelPlacementManagerB"),
@@ -781,8 +901,12 @@ private:
             QStringLiteral("CodexTestPanelPlacementManagerMoveRightA"),
             QStringLiteral("CodexTestPanelPlacementManagerVisibleA"),
             QStringLiteral("CodexTestPanelPlacementManagerVisibleB"),
+            QStringLiteral("CodexTestPanelPlacementManagerRegisterExclusiveA"),
+            QStringLiteral("CodexTestPanelPlacementManagerRegisterExclusiveB"),
             QStringLiteral("CodexTestPanelPlacementManagerMultipleA"),
             QStringLiteral("CodexTestPanelPlacementManagerMultipleB"),
+            QStringLiteral("CodexTestPanelPlacementManagerRegisterMultipleA"),
+            QStringLiteral("CodexTestPanelPlacementManagerRegisterMultipleB"),
             QStringLiteral("CodexTestPanelPlacementManagerPolicyA"),
             QStringLiteral("CodexTestPanelPlacementManagerPolicyB"),
             QStringLiteral("CodexTestPanelPlacementManagerPolicyC"),

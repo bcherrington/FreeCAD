@@ -9,12 +9,19 @@
 #include <QContextMenuEvent>
 #include <QCoreApplication>
 #include <QDockWidget>
+#include <QDragEnterEvent>
+#include <QDragMoveEvent>
+#include <QDropEvent>
 #include <QKeySequence>
 #include <QLayout>
 #include <QLineEdit>
 #include <QMenuBar>
 #include <QMenu>
+#include <QMimeData>
+#include <QMdiArea>
+#include <QMdiSubWindow>
 #include <QPointer>
+#include <QTabBar>
 #include <QTest>
 #include <QToolBar>
 #include <QToolButton>
@@ -136,6 +143,40 @@ private Q_SLOTS:
         QVERIFY(compactTopBarHost()->isHidden());
         QVERIFY(!menuBar->isHidden());
         QCOMPARE(mainWindow->contentsMargins(), margins);
+    }
+
+    void compactModeCollapsesAndRestoresMdiDocumentTabRow()  // NOLINT
+    {
+        preferences->SetBool("CompactJetBrainsLayout", false);
+        createMainWindow();
+
+        auto* mdiArea = mainWindow->getMdiArea();
+        QVERIFY(mdiArea);
+        auto* document = new QWidget();
+        document->setWindowTitle(QStringLiteral("Compact tab row geometry"));
+        mdiArea->addSubWindow(document);
+        document->show();
+        mainWindow->show();
+        processPendingEvents();
+
+        auto* tabBar = mdiArea->findChild<QTabBar*>(QStringLiteral("mdiAreaTabBar"));
+        QVERIFY(tabBar);
+        const QString originalStyleSheet = tabBar->styleSheet();
+        QVERIFY(tabBar->sizeHint().height() > 0);
+        QVERIFY(mdiArea->viewport()->height() < mdiArea->height());
+
+        preferences->SetBool("CompactJetBrainsLayout", true);
+        processPendingEvents();
+
+        QCOMPARE(tabBar->sizeHint().height(), 0);
+        QCOMPARE(mdiArea->viewport()->geometry(), mdiArea->rect());
+
+        preferences->SetBool("CompactJetBrainsLayout", false);
+        processPendingEvents();
+
+        QCOMPARE(tabBar->styleSheet(), originalStyleSheet);
+        QVERIFY(tabBar->sizeHint().height() > 0);
+        QVERIFY(mdiArea->viewport()->height() < mdiArea->height());
     }
 
     void experimentalPlacementOwnsLegacyOverlayTabsOnlyWhileEnabled()  // NOLINT
@@ -349,14 +390,21 @@ private Q_SLOTS:
         preferences->SetBool("CompactJetBrainsLayout", true);
         QCoreApplication::processEvents();
 
-        const QStringList stripNames {
-            QStringLiteral("_fc_compact_left_panel_railContent"),
-            QStringLiteral("_fc_compact_right_panel_railContent"),
+        const QList<QPair<QString, QString>> railNames {
+            {QStringLiteral("_fc_compact_left_panel_rail_host"),
+             QStringLiteral("_fc_compact_left_panel_railContent")},
+            {QStringLiteral("_fc_compact_right_panel_rail_host"),
+             QStringLiteral("_fc_compact_right_panel_railContent")},
         };
 
-        for (const auto& stripName : stripNames) {
+        for (const auto& [hostName, stripName] : railNames) {
+            auto host = mainWindow->findChild<QToolBar*>(hostName);
             auto strip = mainWindow->findChild<QWidget*>(stripName);
+            QVERIFY2(host, qPrintable(QStringLiteral("Missing rail host: %1").arg(hostName)));
             QVERIFY2(strip, qPrintable(QStringLiteral("Missing strip: %1").arg(stripName)));
+            const QRect stripRectInHost(strip->mapTo(host, QPoint(0, 0)), strip->size());
+            QCOMPARE(stripRectInHost.left(), host->contentsRect().left());
+            QCOMPARE(stripRectInHost.center().x(), host->contentsRect().center().x());
             const auto buttons = strip->findChildren<QToolButton*>();
             for (auto button : buttons) {
                 if (button->isHidden()) {
@@ -375,6 +423,7 @@ private Q_SLOTS:
                                    .arg(strip->width())
                                    .arg(strip->height()))
                 );
+                QCOMPARE(buttonRect.center().x(), strip->rect().center().x());
             }
         }
     }
@@ -531,7 +580,7 @@ private Q_SLOTS:
         Gui::DockWindowManager::instance()->removeDockWindow("CompactSlotTestDock");
     }
 
-    void panelLauncherUsesLiveDockActionAndTriggersExactlyOnce()  // NOLINT
+    void managedPanelLauncherUsesLiveMetadataWithoutBypassingManager()  // NOLINT
     {
         preferences->SetBool("CompactJetBrainsLayout", false);
         createMainWindow();
@@ -564,8 +613,7 @@ private Q_SLOTS:
         QCOMPARE(button->statusTip(), QStringLiteral("Live panel status"));
         QCOMPARE(button->isChecked(), action->isChecked());
         QCOMPARE(button->defaultAction()->shortcut(), QKeySequence(QStringLiteral("Ctrl+Alt+9")));
-        QVERIFY(button->styleSheet().contains(QStringLiteral("background-color")));
-        QVERIFY(button->styleSheet().contains(QStringLiteral("border-right")));
+        QVERIFY(button->styleSheet().isEmpty());
 
         action->setText(QStringLiteral("Renamed live panel"));
         action->setToolTip(QStringLiteral("Open the renamed live panel"));
@@ -577,11 +625,83 @@ private Q_SLOTS:
         action->setEnabled(true);
         int triggerCount = 0;
         connect(action, &QAction::triggered, this, [&triggerCount]() { ++triggerCount; });
+
+        auto* mdiArea = mainWindow->getMdiArea();
+        QVERIFY(mdiArea);
+        auto* firstDocument = mdiArea->addSubWindow(new QWidget());
+        auto* activeDocument = mdiArea->addSubWindow(new QWidget());
+        firstDocument->show();
+        activeDocument->show();
+        mdiArea->setActiveSubWindow(activeDocument);
+        QCOMPARE(mdiArea->activeSubWindow(), activeDocument);
+
         QTest::mouseClick(button, Qt::LeftButton);
         QCOMPARE(triggerCount, 1);
+        QCOMPARE(button->isChecked(), action->isChecked());
+        QCOMPARE(mdiArea->activeSubWindow(), activeDocument);
 
         Gui::PanelPlacementStore::removePlacement(QStringLiteral("CompactLiveActionDock"));
         Gui::DockWindowManager::instance()->removeDockWindow("CompactLiveActionDock");
+    }
+
+    void managedPanelButtonsEnforceExclusiveArea()  // NOLINT
+    {
+        preferences->SetBool("CompactJetBrainsLayout", false);
+        createMainWindow();
+
+        auto addPanel = [](const char* name) {
+            auto* panel = new QWidget();
+            panel->setWindowTitle(QString::fromLatin1(name));
+            auto* dock = Gui::DockWindowManager::instance()
+                             ->addDockWindow(name, panel, Qt::LeftDockWidgetArea);
+            if (dock) {
+                dock->toggleViewAction()->setData(QByteArray(name));
+                dock->toggleViewAction()->setVisible(true);
+                dock->show();
+            }
+            return dock;
+        };
+
+        auto* firstDock = addPanel("CompactExclusiveFirstDock");
+        auto* secondDock = addPanel("CompactExclusiveSecondDock");
+        QVERIFY(firstDock);
+        QVERIFY(secondDock);
+
+        Gui::PanelPlacement firstPlacement;
+        firstPlacement.panelId = QStringLiteral("CompactExclusiveFirstDock");
+        firstPlacement.mode = Gui::PanelPlacement::Mode::Docked;
+        firstPlacement.edge = Gui::PanelPlacement::Edge::Left;
+        firstPlacement.region = Gui::PanelPlacement::Region::Start;
+        firstPlacement.order = 0;
+        firstPlacement.visibilityPolicy = Gui::PanelPlacement::VisibilityPolicy::Exclusive;
+        Gui::PanelPlacement secondPlacement = firstPlacement;
+        secondPlacement.panelId = QStringLiteral("CompactExclusiveSecondDock");
+        secondPlacement.order = 1;
+        QVERIFY(Gui::PanelPlacementStore::savePlacement(firstPlacement));
+        QVERIFY(Gui::PanelPlacementStore::savePlacement(secondPlacement));
+
+        preferences->SetBool("CompactJetBrainsPanelPlacementEnabled", true);
+        preferences->SetBool("CompactJetBrainsLayout", true);
+        mainWindow->show();
+        processPendingEvents();
+
+        auto* manager = mainWindow->findChild<Gui::PanelPlacementManager*>();
+        QVERIFY(manager);
+        QTRY_VERIFY(manager->isRegistered(QStringLiteral("CompactExclusiveFirstDock")));
+        QTRY_VERIFY(manager->isRegistered(QStringLiteral("CompactExclusiveSecondDock")));
+        QTRY_VERIFY(!firstDock->isHidden());
+        QTRY_VERIFY(secondDock->isHidden());
+
+        auto* secondButton = panelButtonForAssignment(QStringLiteral("CompactExclusiveSecondDock"));
+        QVERIFY(secondButton);
+        QTest::mouseClick(secondButton, Qt::LeftButton);
+        QTRY_VERIFY(firstDock->isHidden());
+        QTRY_VERIFY(!secondDock->isHidden());
+
+        Gui::PanelPlacementStore::removePlacement(QStringLiteral("CompactExclusiveFirstDock"));
+        Gui::PanelPlacementStore::removePlacement(QStringLiteral("CompactExclusiveSecondDock"));
+        Gui::DockWindowManager::instance()->removeDockWindow("CompactExclusiveSecondDock");
+        Gui::DockWindowManager::instance()->removeDockWindow("CompactExclusiveFirstDock");
     }
 
     void panelContextMenuMovesDockAndToggleTogether()  // NOLINT
@@ -962,6 +1082,385 @@ private Q_SLOTS:
             menu->close();
         }
         QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+        processPendingEvents();
+    }
+
+    void panelPlacementUsesSingleRailWithCenteredOverlayGroup()  // NOLINT
+    {
+        preferences->SetBool("CompactJetBrainsLayout", false);
+        createMainWindow();
+
+        auto dockedPanel = new QWidget();
+        dockedPanel->setWindowTitle(QStringLiteral("Compact stacked docked"));
+        auto dockedDock = Gui::DockWindowManager::instance()->addDockWindow(
+            "CompactStackedDockedDock",
+            dockedPanel,
+            Qt::LeftDockWidgetArea
+        );
+        QVERIFY(dockedDock);
+        dockedDock->toggleViewAction()->setData(QByteArray("CompactStackedDockedDock"));
+        dockedDock->toggleViewAction()->setVisible(true);
+
+        auto overlayPanel = new QWidget();
+        overlayPanel->setWindowTitle(QStringLiteral("Compact stacked overlay"));
+        auto overlayDock = Gui::DockWindowManager::instance()->addDockWindow(
+            "CompactStackedOverlayDock",
+            overlayPanel,
+            Qt::LeftDockWidgetArea
+        );
+        QVERIFY(overlayDock);
+        overlayDock->toggleViewAction()->setData(QByteArray("CompactStackedOverlayDock"));
+        overlayDock->toggleViewAction()->setVisible(true);
+        for (const QString& label :
+             {QStringLiteral("Panel action one"), QStringLiteral("Panel action two")}) {
+            auto* panelAction = new QAction(label, overlayDock);
+            panelAction->setProperty("DockTitleBarAction", true);
+            overlayDock->addAction(panelAction);
+        }
+
+        preferences->SetBool("CompactJetBrainsPanelPlacementEnabled", true);
+        preferences->SetBool("CompactJetBrainsLayout", true);
+        mainWindow->show();
+        processPendingEvents();
+
+        auto* manager = mainWindow->findChild<Gui::PanelPlacementManager*>();
+        QVERIFY(manager);
+        QTRY_VERIFY(manager->isRegistered(QStringLiteral("CompactStackedOverlayDock")));
+
+        Gui::PanelPlacement overlayPlacement = manager->persistedPlacement(
+            QStringLiteral("CompactStackedOverlayDock")
+        );
+        overlayPlacement.mode = Gui::PanelPlacement::Mode::Overlay;
+        overlayPlacement.edge = Gui::PanelPlacement::Edge::Right;
+        overlayPlacement.region = Gui::PanelPlacement::Region::Center;
+        QVERIFY(
+            manager->requestPlacement(QStringLiteral("CompactStackedOverlayDock"), overlayPlacement).success
+        );
+        processPendingEvents();
+        QCOMPARE(Gui::OverlayManager::instance()->dockWidgetOverlayExtent(overlayDock), 300);
+        QTRY_VERIFY(mainWindow->findChild<QToolButton*>(QStringLiteral("OverlayTitleOverflow")));
+
+        auto* leftRailHost = mainWindow->findChild<QToolBar*>(
+            QStringLiteral("_fc_compact_left_panel_rail_host")
+        );
+        auto* leftStripContent = panelRail(QStringLiteral("_fc_compact_left_panel_railContent"));
+        auto* leftOuterLane = panelLaneWidget(QStringLiteral("_fc_compact_left_panel_dock_lane"));
+        auto* rightInnerLane = panelLaneWidget(QStringLiteral("_fc_compact_right_panel_overlay_lane"));
+        QVERIFY(leftRailHost);
+        QVERIFY(leftStripContent);
+        QVERIFY(leftOuterLane);
+        QVERIFY(rightInnerLane);
+
+        const int expectedRailWidth = Gui::CompactTitleBarStyle::panelRailWidth();
+        const int expectedLaneWidth = Gui::CompactTitleBarStyle::panelButtonSize().width();
+        QCOMPARE(leftRailHost->width(), expectedRailWidth);
+        QCOMPARE(leftStripContent->width(), expectedRailWidth);
+        QCOMPARE(leftOuterLane->width(), expectedLaneWidth);
+        QCOMPARE(rightInnerLane->width(), expectedLaneWidth);
+
+        const QRect stripRect = widgetRectInMainWindow(leftStripContent);
+        const QRect outerRect = widgetRectInMainWindow(leftOuterLane);
+        const QRect innerRect = widgetRectInMainWindow(rightInnerLane);
+        QVERIFY(stripRect.contains(outerRect));
+        QCOMPARE(innerRect.width(), expectedLaneWidth);
+        QVERIFY(rightInnerLane->mask().isEmpty());
+
+        auto* rightOuterLane = panelLaneWidget(QStringLiteral("_fc_compact_right_panel_dock_lane"));
+        QVERIFY(rightOuterLane);
+        QVERIFY(rightOuterLane->isAncestorOf(rightInnerLane));
+
+        QTRY_VERIFY(panelButtonForAssignment(QStringLiteral("CompactStackedOverlayDock")));
+        auto* overlayButton = panelButtonForAssignment(QStringLiteral("CompactStackedOverlayDock"));
+        QVERIFY(rightInnerLane->isAncestorOf(overlayButton));
+        const QRect overlayButtonRect = widgetRectInMainWindow(overlayButton);
+        QVERIFY(innerRect.contains(overlayButtonRect));
+        QVERIFY(std::abs(overlayButtonRect.center().y() - innerRect.center().y()) <= 1);
+        QWidget* overlayHit = mainWindow->childAt(overlayButtonRect.center());
+        QVERIFY(overlayHit == overlayButton || overlayButton->isAncestorOf(overlayHit));
+
+        auto* dockedButton = panelButtonForAssignment(QStringLiteral("CompactStackedDockedDock"));
+        QVERIFY(dockedButton);
+        const QRect dockedButtonRect = widgetRectInMainWindow(dockedButton);
+        QWidget* dockedHit = mainWindow->childAt(dockedButtonRect.center());
+        QVERIFY(dockedHit == dockedButton || dockedButton->isAncestorOf(dockedHit));
+
+        QVERIFY(manager->requestVisibility(QStringLiteral("CompactStackedOverlayDock"), true).success);
+        processPendingEvents();
+        overlayButton = panelButtonForAssignment(QStringLiteral("CompactStackedOverlayDock"));
+        QVERIFY(overlayButton);
+        QTest::mouseClick(overlayButton, Qt::LeftButton);
+        QTRY_VERIFY(!manager->isPanelVisible(QStringLiteral("CompactStackedOverlayDock")));
+        QTRY_VERIFY(!overlayDock->isVisibleTo(mainWindow.get()));
+        overlayButton = panelButtonForAssignment(QStringLiteral("CompactStackedOverlayDock"));
+        QVERIFY(overlayButton);
+        const QRect collapsedOverlayButtonRect = widgetRectInMainWindow(overlayButton);
+        QWidget* collapsedOverlayHit = mainWindow->childAt(collapsedOverlayButtonRect.center());
+        QVERIFY(
+            collapsedOverlayHit == overlayButton || overlayButton->isAncestorOf(collapsedOverlayHit)
+        );
+        QTest::mouseClick(overlayButton, Qt::LeftButton);
+        QTRY_VERIFY(manager->isPanelVisible(QStringLiteral("CompactStackedOverlayDock")));
+        QTRY_VERIFY(overlayDock->isVisibleTo(mainWindow.get()));
+
+        auto* leftInnerLane = panelLaneWidget(QStringLiteral("_fc_compact_left_panel_overlay_lane"));
+        QVERIFY(leftInnerLane);
+        QMimeData mimeData;
+        mimeData.setData("application/x-freecad-compact-panel", QByteArray("CompactStackedOverlayDock"));
+        const QPoint dropPosition = leftInnerLane->rect().center();
+        QDragEnterEvent dragEnter(dropPosition, Qt::MoveAction, &mimeData, Qt::LeftButton, Qt::NoModifier);
+        QApplication::sendEvent(leftInnerLane, &dragEnter);
+        QVERIFY(dragEnter.isAccepted());
+        QDragMoveEvent dragMove(dropPosition, Qt::MoveAction, &mimeData, Qt::LeftButton, Qt::NoModifier);
+        QApplication::sendEvent(leftInnerLane, &dragMove);
+        QVERIFY(dragMove.isAccepted());
+        QDropEvent dropEvent(
+            QPointF(dropPosition),
+            Qt::MoveAction,
+            &mimeData,
+            Qt::LeftButton,
+            Qt::NoModifier
+        );
+        QApplication::sendEvent(leftInnerLane, &dropEvent);
+        QVERIFY(dropEvent.isAccepted());
+        processPendingEvents();
+
+        QTRY_COMPARE(
+            manager->persistedPlacement(QStringLiteral("CompactStackedOverlayDock")).edge,
+            Gui::PanelPlacement::Edge::Left
+        );
+        overlayButton = panelButtonForAssignment(QStringLiteral("CompactStackedOverlayDock"));
+        QVERIFY(overlayButton);
+        leftInnerLane = panelLaneWidget(QStringLiteral("_fc_compact_left_panel_overlay_lane"));
+        QVERIFY(leftInnerLane);
+        QVERIFY(leftInnerLane->isAncestorOf(overlayButton));
+
+        Gui::PanelPlacementStore::removePlacement(QStringLiteral("CompactStackedDockedDock"));
+        Gui::PanelPlacementStore::removePlacement(QStringLiteral("CompactStackedOverlayDock"));
+        Gui::DockWindowManager::instance()->removeDockWindow("CompactStackedOverlayDock");
+        Gui::DockWindowManager::instance()->removeDockWindow("CompactStackedDockedDock");
+    }
+
+    void emptyOverlayTopLaneStillShowsDropTarget()  // NOLINT
+    {
+        preferences->SetBool("CompactJetBrainsLayout", false);
+        createMainWindow();
+
+        auto sourcePanel = new QWidget();
+        sourcePanel->setWindowTitle(QStringLiteral("Compact drop source"));
+        auto sourceDock = Gui::DockWindowManager::instance()->addDockWindow(
+            "CompactDropSourceDock",
+            sourcePanel,
+            Qt::LeftDockWidgetArea
+        );
+        QVERIFY(sourceDock);
+        sourceDock->toggleViewAction()->setData(QByteArray("CompactDropSourceDock"));
+        sourceDock->toggleViewAction()->setVisible(true);
+
+        auto overlayPanel = new QWidget();
+        overlayPanel->setWindowTitle(QStringLiteral("Compact drop target lane"));
+        auto overlayDock = Gui::DockWindowManager::instance()->addDockWindow(
+            "CompactDropOverlayDock",
+            overlayPanel,
+            Qt::LeftDockWidgetArea
+        );
+        QVERIFY(overlayDock);
+        overlayDock->toggleViewAction()->setData(QByteArray("CompactDropOverlayDock"));
+        overlayDock->toggleViewAction()->setVisible(true);
+
+        preferences->SetBool("CompactJetBrainsPanelPlacementEnabled", true);
+        preferences->SetBool("CompactJetBrainsLayout", true);
+        mainWindow->show();
+        processPendingEvents();
+
+        auto* manager = mainWindow->findChild<Gui::PanelPlacementManager*>();
+        QVERIFY(manager);
+        QTRY_VERIFY(manager->isRegistered(QStringLiteral("CompactDropOverlayDock")));
+
+        Gui::PanelPlacement overlayPlacement = manager->persistedPlacement(
+            QStringLiteral("CompactDropOverlayDock")
+        );
+        overlayPlacement.mode = Gui::PanelPlacement::Mode::Overlay;
+        overlayPlacement.edge = Gui::PanelPlacement::Edge::Left;
+        overlayPlacement.region = Gui::PanelPlacement::Region::Center;
+        QVERIFY(
+            manager->requestPlacement(QStringLiteral("CompactDropOverlayDock"), overlayPlacement).success
+        );
+        processPendingEvents();
+
+        auto* leftInnerLane = panelLaneWidget(QStringLiteral("_fc_compact_left_panel_overlay_lane"));
+        auto* overlayButton = panelButtonForAssignment(QStringLiteral("CompactDropOverlayDock"));
+        QVERIFY(leftInnerLane);
+        QVERIFY(overlayButton);
+        QCOMPARE(
+            overlayButton->property("_fc_compact_panel_slot").toString(),
+            QStringLiteral("left-lower")
+        );
+
+        QMimeData mimeData;
+        mimeData.setData("application/x-freecad-compact-panel", QByteArray("CompactDropSourceDock"));
+        const QPoint targetPos(leftInnerLane->width() / 2, 4);
+        QDragEnterEvent dragEnter(targetPos, Qt::MoveAction, &mimeData, Qt::LeftButton, Qt::NoModifier);
+        QApplication::sendEvent(leftInnerLane, &dragEnter);
+        QDragMoveEvent dragMove(targetPos, Qt::MoveAction, &mimeData, Qt::LeftButton, Qt::NoModifier);
+        QApplication::sendEvent(leftInnerLane, &dragMove);
+        processPendingEvents();
+
+        auto* dropGroup = mainWindow->findChild<QWidget*>(
+            QStringLiteral("_fc_compact_panel_drop_indicator")
+        );
+        auto* dropInsertion = mainWindow->findChild<QWidget*>(
+            QStringLiteral("_fc_compact_panel_drop_insert_indicator")
+        );
+        QVERIFY(dropGroup);
+        QVERIFY(dropInsertion);
+        QVERIFY(dropGroup->isVisible());
+        QVERIFY(dropInsertion->isVisible());
+
+        const QRect laneRect = widgetRectInMainWindow(leftInnerLane);
+        const QRect groupRect = widgetRectInMainWindow(dropGroup);
+        const QRect insertionRect = widgetRectInMainWindow(dropInsertion);
+        QVERIFY(groupRect.width() > 0);
+        QVERIFY(groupRect.height() > 0);
+        QVERIFY(insertionRect.width() > 0);
+        QVERIFY(insertionRect.height() > 0);
+        QVERIFY2(
+            laneRect.contains(groupRect),
+            qPrintable(QStringLiteral("Drop group escapes lane: lane=%1 group=%2")
+                           .arg(rectString(laneRect), rectString(groupRect)))
+        );
+        QVERIFY2(
+            laneRect.contains(insertionRect),
+            qPrintable(QStringLiteral("Drop insertion escapes lane: lane=%1 insertion=%2")
+                           .arg(rectString(laneRect), rectString(insertionRect)))
+        );
+        QVERIFY2(
+            insertionRect.center().y() < laneRect.center().y(),
+            qPrintable(QStringLiteral("Top drop target not visible near lane top: lane=%1 insertion=%2")
+                           .arg(rectString(laneRect), rectString(insertionRect)))
+        );
+
+        Gui::PanelPlacementStore::removePlacement(QStringLiteral("CompactDropSourceDock"));
+        Gui::PanelPlacementStore::removePlacement(QStringLiteral("CompactDropOverlayDock"));
+        Gui::DockWindowManager::instance()->removeDockWindow("CompactDropOverlayDock");
+        Gui::DockWindowManager::instance()->removeDockWindow("CompactDropSourceDock");
+    }
+
+    void panelContextMenuAreaModeReflectsAndUpdatesPolicy()  // NOLINT
+    {
+        preferences->SetBool("CompactJetBrainsLayout", false);
+        createMainWindow();
+
+        auto firstPanel = new QWidget();
+        firstPanel->setWindowTitle(QStringLiteral("Compact mode first"));
+        auto firstDock = Gui::DockWindowManager::instance()->addDockWindow(
+            "CompactAreaModeFirstDock",
+            firstPanel,
+            Qt::LeftDockWidgetArea
+        );
+        QVERIFY(firstDock);
+        firstDock->toggleViewAction()->setData(QByteArray("CompactAreaModeFirstDock"));
+        firstDock->toggleViewAction()->setVisible(true);
+
+        auto secondPanel = new QWidget();
+        secondPanel->setWindowTitle(QStringLiteral("Compact mode second"));
+        auto secondDock = Gui::DockWindowManager::instance()->addDockWindow(
+            "CompactAreaModeSecondDock",
+            secondPanel,
+            Qt::LeftDockWidgetArea
+        );
+        QVERIFY(secondDock);
+        secondDock->toggleViewAction()->setData(QByteArray("CompactAreaModeSecondDock"));
+        secondDock->toggleViewAction()->setVisible(true);
+
+        preferences->SetBool("CompactJetBrainsPanelPlacementEnabled", true);
+        preferences->SetBool("CompactJetBrainsLayout", true);
+        mainWindow->show();
+        processPendingEvents();
+
+        auto* manager = mainWindow->findChild<Gui::PanelPlacementManager*>();
+        QVERIFY(manager);
+        QTRY_VERIFY(panelButtonForAssignment(QStringLiteral("CompactAreaModeFirstDock")));
+
+        auto openContextMenu = [this](QToolButton* button) {
+            const QPoint localPosition = button->rect().center();
+            QContextMenuEvent contextEvent(
+                QContextMenuEvent::Keyboard,
+                localPosition,
+                button->mapToGlobal(localPosition)
+            );
+            QApplication::sendEvent(button, &contextEvent);
+            return mainWindow->findChild<QMenu*>(QStringLiteral("_fc_compact_panel_context_menu"));
+        };
+        auto areaModeMenu = [](QMenu* menu) {
+            if (!menu) {
+                return static_cast<QMenu*>(nullptr);
+            }
+            for (QAction* action : menu->actions()) {
+                if (action->text() == QStringLiteral("Area Mode")) {
+                    return action->menu();
+                }
+            }
+            return static_cast<QMenu*>(nullptr);
+        };
+        auto findAction = [](QMenu* menu, const QString& text) {
+            if (!menu) {
+                return static_cast<QAction*>(nullptr);
+            }
+            for (QAction* action : menu->actions()) {
+                if (action->text() == text) {
+                    return action;
+                }
+            }
+            return static_cast<QAction*>(nullptr);
+        };
+
+        QToolButton* button = panelButtonForAssignment(QStringLiteral("CompactAreaModeFirstDock"));
+        QPointer<QMenu> menu = openContextMenu(button);
+        QVERIFY(menu);
+        QMenu* modeMenu = areaModeMenu(menu);
+        QVERIFY(modeMenu);
+        QAction* exclusiveAction = findAction(modeMenu, QStringLiteral("One Panel at a Time"));
+        QAction* multipleAction = findAction(modeMenu, QStringLiteral("Multiple Panels"));
+        QVERIFY(exclusiveAction);
+        QVERIFY(multipleAction);
+        QVERIFY(exclusiveAction->isChecked());
+        QVERIFY(!multipleAction->isChecked());
+
+        multipleAction->trigger();
+        processPendingEvents();
+        QCOMPARE(
+            manager->persistedPlacement(QStringLiteral("CompactAreaModeFirstDock")).visibilityPolicy,
+            Gui::PanelPlacement::VisibilityPolicy::Multiple
+        );
+        QCOMPARE(
+            manager->persistedPlacement(QStringLiteral("CompactAreaModeSecondDock")).visibilityPolicy,
+            Gui::PanelPlacement::VisibilityPolicy::Multiple
+        );
+
+        if (menu) {
+            menu->close();
+        }
+        processPendingEvents();
+
+        button = panelButtonForAssignment(QStringLiteral("CompactAreaModeFirstDock"));
+        menu = openContextMenu(button);
+        QVERIFY(menu);
+        modeMenu = areaModeMenu(menu);
+        QVERIFY(modeMenu);
+        exclusiveAction = findAction(modeMenu, QStringLiteral("One Panel at a Time"));
+        multipleAction = findAction(modeMenu, QStringLiteral("Multiple Panels"));
+        QVERIFY(exclusiveAction);
+        QVERIFY(multipleAction);
+        QVERIFY(!exclusiveAction->isChecked());
+        QVERIFY(multipleAction->isChecked());
+
+        Gui::PanelPlacementStore::removePlacement(QStringLiteral("CompactAreaModeFirstDock"));
+        Gui::PanelPlacementStore::removePlacement(QStringLiteral("CompactAreaModeSecondDock"));
+        Gui::DockWindowManager::instance()->removeDockWindow("CompactAreaModeSecondDock");
+        Gui::DockWindowManager::instance()->removeDockWindow("CompactAreaModeFirstDock");
+        if (menu) {
+            menu->close();
+        }
         processPendingEvents();
     }
 

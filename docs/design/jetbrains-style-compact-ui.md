@@ -1,9 +1,9 @@
 ---
 title: JetBrains-style compact UI
 doc_type: design
-status: draft
+status: active
 owner: local-developer
-last_reviewed: 2026-05-21
+last_reviewed: 2026-08-14
 ---
 
 # JetBrains-Style Compact UI
@@ -12,6 +12,14 @@ last_reviewed: 2026-05-21
 
 This branch explores a JetBrains-style compact UI shell for FreeCAD. The goal is
 to make panels easier to reach while keeping the central CAD viewport dominant.
+
+## Authority And Status
+
+This is the durable compact-UI design for the current branch. Descriptions of
+implemented compact chrome are current-state guidance; sections labeled
+planned, proposed, or limited remain design direction until their owning spec
+is implemented and verified. Active delivery details live in numbered packages
+under `docs/specs/` and are promoted back here when accepted.
 
 ## Scope
 
@@ -29,24 +37,30 @@ panels. That is important because the JetBrains-style "side buttons open
 panels" model may fit better as an evolution of overlay tabs than as a rewrite
 of every dock widget.
 
-The safest direction is:
+The implemented experimental direction is:
 
 1. Keep FreeCAD's existing `QDockWidget` panels.
 2. Add a JetBrains-like compact shell mode.
-3. Reuse or extend the existing overlay dock system for side icon bars.
-4. Add a logical panel-slot model over Qt docks.
+3. Use one 32 px physical rail per edge. Keep docked toggles at their established
+   upper/lower/bottom anchors and center the compact overlay/auto-hide toggle group
+   vertically in the same rail.
+4. Put panel location, toggle location, visibility policy, and canonical order in one
+   schema-v2 placement record.
+5. Adapt the existing overlay host behind a default-off feature flag while preserving
+   the legacy path when the flag is disabled.
 
 ## Components And Responsibilities
 
 | Component | Responsibility | Owned Inputs | Owned Outputs |
 | --- | --- | --- | --- |
 | `Gui::MainWindow` | Own the compact shell preference, instantiate compact chrome, and forward relevant resize/theme/preference events. | User preference, normal main-window lifecycle | Compact chrome activation, minimal bridge into existing main-window behavior |
-| `Gui::CompactMainWindowChrome` | Own compact header, frameless window behavior, side rails, menu/tool switch, document/macro/workbench controls, and compact layout reservation. | Existing menu bar, dock widgets, status bar, MDI area, workbench/menu actions | Compact titlebar, rail buttons, restored normal menu visibility, panel activation requests |
-| `Gui::CompactTitleBarStyle` | Centralize compact titlebar button sizing, dropdown metrics, icon-menu metrics, and group spacing. | Toolbar icon-size preference and Qt toolbar metrics | Consistent titlebar button sizing and dropdown arrow placement |
+| `Gui::CompactMainWindowChrome` | Own compact header, one-column edge rails with anchored docked toggles and a vertically centered overlay group, menu/tool switch, placement drag/drop, overflow, and shell layout reservation. | Existing menu bar, registered placements, dock toggle actions, status bar, MDI area | Compact chrome, location-bound toggles, unified placement requests, restored normal UI |
+| `Gui::CompactTitleBarStyle` | Centralize compact titlebar and panel-specific rail metrics while allowing panel toggles to inherit FreeCAD's native tool-button appearance. | Qt style and compact density | 32 px rails and horizontally centered 28 px native-styled toggles |
+| `Gui::PanelPlacementManager` | Own transactional panel placement, area order/policy, visibility, persistence, and rollback. | Stable panel IDs, schema-v2 records, host adapters | Atomic dock/overlay/floating moves and `Exclusive`/`Multiple` behavior |
 | `DockWindowManager` | Continue creating, registering, showing, hiding, and persisting dock widgets. | Registered panel widgets and dock toggle actions | Existing `QDockWidget` hosts and View menu behavior |
-| Overlay dock system | Keep existing overlay tabs and title bars available for docked panels. | Dock widgets and overlay preferences | Overlay panel activation and title-bar controls |
+| Overlay dock system | Host only the requested overlay panel and transfer canonical header ownership while the experimental flag is active. | Per-panel overlay/auto-hide placements | Central-workspace overlay surface without peer absorption or duplicate headers |
 | Workbenches | Continue defining menus, toolbars, command bars, and dock windows. | Workbench activation and command definitions | Menus, toolbars, and registered panels |
-| Compact rail buttons | Provide deterministic side access to registered dock windows. | Dock registry, slot mapping, panel icons | Show/hide requests through existing dock toggle actions |
+| Compact rail buttons | Provide deterministic side access to registered dock windows. | Dock registry, slot mapping, panel icons | Show/hide requests routed through `PanelPlacementManager` so area visibility policy is enforced |
 
 ## Data And Control Flow
 
@@ -54,15 +68,20 @@ The safest direction is:
    compact mode.
 2. `MainWindow` creates `CompactMainWindowChrome` once and toggles it from the
    preference.
-3. When compact mode is enabled, compact chrome creates or shows the compact
-   top bar, hides the normal menu bar, hides the MDI tab-bar container, reserves
-   left/right workspace margins, and shows narrow left/right rail widgets.
-4. The rail code lists current dock windows in deterministic slot order and
-   assigns known panels to explicit defaults.
+3. When compact mode and `CompactJetBrainsPanelPlacementEnabled` are enabled, compact
+   chrome creates one physical column inside each Qt-owned left/right shell host. Each
+   column contains a docked section followed by an overlay/auto-hide section; separating
+   placement modes vertically avoids doubling the rail width.
+4. The rail code lists registered panels in canonical placement order. A toggle's section
+   and order are derived from the same placement record as its panel surface. Empty
+   sections retain drop geometry during drag so every logical position remains targetable.
 5. Clicking a rail button uses the existing dock toggle action path so normal
    dock handling and overlay mode see the same activation request as the View
    menu.
-6. Disabling compact mode removes the extra chrome, restores the previous menu
+6. `Exclusive` areas show at most one panel by default, including immediately after Qt
+   layout restoration and panel registration; `Multiple` areas retain exact
+   toggle/surface order. Moving or reordering a toggle commits the unified placement.
+7. Disabling compact mode removes the extra chrome, restores the previous menu
    bar visibility, and returns `MainWindow` margins to normal.
 
 ## Contracts And Schemas
@@ -79,6 +98,8 @@ The safest direction is:
 | Config Source | Key Or Parameter | Applied By | Effect | Failure Mode |
 | --- | --- | --- | --- | --- |
 | User preferences | `BaseApp/Preferences/MainWindow/CompactJetBrainsLayout` | `Gui::MainWindow` | Enables or disables the compact shell prototype. | Defaults to normal FreeCAD UI when absent or false. |
+| User preferences | `BaseApp/Preferences/MainWindow/CompactJetBrainsPanelPlacementEnabled` | `Gui::PanelPlacementManager` and compact chrome | Enables schema-v2 location-bound panel placement and canonical overlay headers. | Defaults to `false`; legacy panel behavior is retained. |
+| User preferences | `BaseApp/Preferences/MainWindow/PanelPlacements/<panel-id>` | `Gui::PanelPlacementStore` | Persists mode, edge, region, order, visibility policy, grouping, extent, and floating geometry. | Schema-v1 launcher/slot values are migration input; invalid data falls back safely. |
 | User preferences | `BaseApp/Preferences/MainWindow/CompactJetBrainsPanelSlots/<panel-id>` | `Gui::CompactMainWindowChrome` | Overrides the logical rail slot for a dock panel. Values are `left-upper`, `left-lower`, `right-upper`, `right-lower`, `bottom-left`, and `bottom-right`. | Falls back to known-panel defaults or current Qt dock area when absent or invalid. |
 
 ## JetBrains UI Model
@@ -196,6 +217,11 @@ Manual validation should check dock visibility, overlay mode, workbench
 switching, menu restoration, saved layout behavior, and compact-mode preference
 changes across restart.
 
+Focused GUI regression coverage now also proves compact shortcut preservation
+for single-step and multi-step menu shortcuts, stale workbench-action cleanup,
+pre-existing direct-action preservation, and local editor precedence for
+`Ctrl+Z`.
+
 ## First Prototype
 
 Build a preference-gated mode, for example:
@@ -251,6 +277,10 @@ Current behavior:
   vertically centered rather than stretched.
 - Hides the normal menu bar while compact mode is active, then restores its
   previous visibility when compact mode is disabled.
+- While both the native menu bar and the compact replacement menu bar are
+  hidden, compact chrome temporarily hosts the original visible
+  shortcut-bearing leaf `QAction`s directly on `MainWindow` so Qt keeps routing
+  their existing shortcuts without duplicating shortcut definitions.
 - Hides the active MDI document tab-bar container while compact mode is active.
 - The document menu lists New, Open, Import, Export, Save, Save All, Close,
   Close All, open document views with close affordances, and recent files.
@@ -274,16 +304,29 @@ Current behavior:
 - The compact rail slot model now supports persisted `left-upper`,
   `left-lower`, `right-upper`, `right-lower`, `bottom-left`, and
   `bottom-right` assignments over the existing Qt dock widgets.
-- All compact slots behave identically: a slot can contain multiple rail
-  buttons, but only one panel in that slot is expanded at a time. Clicking the
-  active panel hides it; clicking another panel in the same slot hides the
-  previous panel and shows the selected one.
+- Each placement area defaults to `Exclusive`, so opening one panel closes its
+  visible peer in that area. Users can opt an area into `Multiple`; the surface
+  order then follows the persisted rail-button order.
 - Clicking a rail button drives the existing dock toggle action so overlay mode
-  sees the same path as the View menu. The compact rail code no longer calls
-  `splitDockWidget()` on each click.
+  sees exactly the same `QAction` path as the View menu. Visibility changes
+  update the existing button in place rather than rebuilding the rail or
+  changing the active MDI document.
+- The experimental placement mode uses one non-overlapping 32 px rail per side:
+  docked controls retain top/bottom anchors and overlay controls occupy a real,
+  vertically centred group in that same rail. Buttons are 28 px and inherit the
+  active FreeCAD `QStyle`.
+- Dragging a button submits one placement transaction. `PanelPlacementManager`
+  reindexes and persists source/target peers atomically; compact chrome does not
+  issue a partial sequence of peer moves.
+- Compact overlay surfaces use one canonical 32 px header, a 300 px default
+  extent, and an overflow menu after three persistent header actions. A sole
+  overlay can be closed and reopened through either its rail toggle or View menu.
 - Compact rail activation is isolated behind a compact chrome helper so the
   current dock-backed path can be replaced with an overlay-backed path later
   without changing button construction or slot persistence.
+- Compact-owned direct action hosting refreshes when the native menu tree is
+  synchronized or the active workbench changes, and cleanup removes only the
+  associations added by compact chrome on disable, close, or destruction.
 - Default slots currently map tree/model to upper left, selection/properties
   below the left separator, tasks to the right, Python console to bottom left,
   and report view to bottom right. Bottom-left and bottom-right buttons are
@@ -298,24 +341,21 @@ Current behavior:
 
 Current limitations:
 
-- Panel content still uses existing Qt dock widgets. Compact rail activation is
-  isolated behind a helper, but it does not yet present panels through
-  FreeCAD's overlay widgets.
-- The current rail drag feedback is a transitional implementation. It still
-  uses one vertical toolbar per side and derives logical drop zones from pointer
-  position. That makes the lower and bottom targets feel implicit rather than
-  visible, and it should not be treated as the final interaction model.
+- Panel content still uses existing Qt dock widgets and adapts FreeCAD's legacy
+  overlay host rather than replacing the dock subsystem. This remains the main
+  cross-platform integration risk.
+- Empty logical drop positions are exposed during drag, but final drop-guide
+  styling and platform/theme screenshot conformance still need manual review.
 - Frameless mode is implemented but remains parameter-gated and
   restart-required. Platform-specific behavior still needs wider manual
   validation.
 - Toolbar alignment/drop-zone experiments were moved out of this compact UI
   branch and should remain separate until the desired Qt architecture is clear.
 
-## Planned Rail Drag-and-Drop Replacement
+## Rail Drag-and-Drop Design
 
-The rail drag-and-drop replacement is tracked as a feature spec in
-`docs/specs/compact-view-rails-rework/spec.md`. This section captures the
-design context that led to that spec.
+Spec 015's accepted design is promoted into this durable document. This section
+retains the design context and the remaining visual-validation contract.
 
 The compact rail should move away from inferred drop zones and toward explicit
 slot containers with real insertion placeholders. The target model is:
@@ -472,8 +512,19 @@ be validated without screenshot comparison:
 - The hamburger menu bar is vertically centered in the toolbar/menu switch
   area.
 - Left/right rail buttons fit inside their rail content and are not clipped.
+- Managed rail buttons retain their dock `QAction`; clicking them dispatches the
+  action exactly once and preserves the active MDI document.
+- Experimental placement proves exclusive-area behavior, one non-overlapping
+  physical rail with a centred overlay group, overlay close/reopen, drag/drop,
+  atomic order persistence, canonical header overflow, and default extent.
 - Persisted compact panel slot overrides move rail buttons and their associated
   dock panels away from their default rail/dock area.
+- Original single-step and nested multi-step menu shortcuts dispatch exactly
+  once while both menu bars are hidden.
+- Workbench refresh removes stale hosted actions without duplicating current
+  actions, and compact cleanup preserves associations owned by other code.
+- A focused line edit retains local `Ctrl+Z` precedence over hosted menu
+  actions.
 
 Manual validation is still required for final visual alignment, theme
 appearance, frameless window drag/resize behavior, and workbench-specific menu
@@ -499,15 +550,15 @@ Keep upstream patching safe by limiting mainline file changes:
   `src/Gui/OverlayManager.cpp`, `src/Gui/ComboView.cpp`,
   `src/Gui/TaskView/TaskView.cpp`
 - Config: `BaseApp/Preferences/MainWindow/CompactJetBrainsLayout`
-- Tests: manual UI validation required
+- Tests: `CompactMainWindowChrome_Tests_run`, `PanelPlacementManager_Tests_run`;
+  manual visual validation remains required
 - Runbooks: none
 - Requirements: none
 
 ## Related Docs
 
 - `docs/checklists/contribution-overview.md`
-- `docs/specs/compact-view-rails-rework/spec.md`
-- `docs/specs/freecad-performance-optimization/research.md`
+- `docs/performance-optimization-findings.md`
 
 ## Research Commands Used
 

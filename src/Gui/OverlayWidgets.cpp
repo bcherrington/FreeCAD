@@ -1918,6 +1918,21 @@ int OverlayTabWidget::dockWidgetIndex(QDockWidget* dock) const
     return splitter->indexOf(dock);
 }
 
+bool OverlayTabWidget::moveDockWidgetToIndex(QDockWidget* dock, int index)
+{
+    const int from = dockWidgetIndex(dock);
+    if (from < 0 || count() <= 0) {
+        return false;
+    }
+    const int to = std::clamp(index, 0, count() - 1);
+    if (from != to) {
+        // QTabBar::tabMoved is already connected to onTabMoved(), which reorders the matching
+        // splitter widget and persists the legacy overlay host state.
+        tabBar()->moveTab(from, to);
+    }
+    return dockWidgetIndex(dock) == to;
+}
+
 void OverlayTabWidget::removeWidget(QDockWidget* dock, QDockWidget* lastDock)
 {
     int index = dockWidgetIndex(dock);
@@ -2163,7 +2178,11 @@ void OverlayTabWidget::onSizeGripMove(const QPoint& p)
     OverlayManager::instance()->refresh();
 }
 
-QLayoutItem* OverlayTabWidget::prepareTitleWidget(QWidget* widget, const QList<QAction*>& actions)
+QLayoutItem* OverlayTabWidget::prepareTitleWidget(
+    QWidget* widget,
+    const QList<QAction*>& actions,
+    int maximumVisibleActions
+)
 {
     bool vertical = false;
     QBoxLayout* layout = nullptr;
@@ -2203,8 +2222,30 @@ QLayoutItem* OverlayTabWidget::prepareTitleWidget(QWidget* widget, const QList<Q
     );
     layout->addSpacerItem(spacer);
 
-    for (auto action : actions) {
-        layout->addWidget(OverlayTabWidget::createTitleButton(action, buttonSize));
+    const int visibleActionCount = maximumVisibleActions < 0
+        ? actions.size()
+        : std::min(maximumVisibleActions, static_cast<int>(actions.size()));
+    for (int index = 0; index < visibleActionCount; ++index) {
+        layout->addWidget(OverlayTabWidget::createTitleButton(actions.at(index), buttonSize));
+    }
+
+    if (visibleActionCount < actions.size()) {
+        auto* overflowButton = new QToolButton(widget);
+        overflowButton->setObjectName(QStringLiteral("OverlayTitleOverflow"));
+        overflowButton->setAutoRaise(true);
+        overflowButton->setPopupMode(QToolButton::InstantPopup);
+        overflowButton->setFixedSize(buttonSize, buttonSize);
+        overflowButton->setIcon(widget->style()->standardIcon(QStyle::SP_ArrowDown));
+        overflowButton->setToolTip(
+            QCoreApplication::translate("Gui::OverlayTitleBar", "More panel actions")
+        );
+        overflowButton->setAccessibleName(overflowButton->toolTip());
+        auto* overflowMenu = new QMenu(overflowButton);
+        for (int index = visibleActionCount; index < actions.size(); ++index) {
+            overflowMenu->addAction(actions.at(index));
+        }
+        overflowButton->setMenu(overflowMenu);
+        layout->addWidget(overflowButton);
     }
 
     if (tabWidget) {

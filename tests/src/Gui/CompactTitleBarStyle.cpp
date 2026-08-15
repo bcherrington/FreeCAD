@@ -52,10 +52,10 @@ private Q_SLOTS:
     {
         general->SetInt("ToolbarIconSize", 12);
         QCOMPARE(Gui::CompactTitleBarStyle::iconSize(), 12);
-        QCOMPARE(Gui::CompactTitleBarStyle::panelRailWidth(), 36);
+        QCOMPARE(Gui::CompactTitleBarStyle::panelRailWidth(), 32);
         QCOMPARE(Gui::CompactTitleBarStyle::panelRailIconSize(), 18);
         QCOMPARE(Gui::CompactTitleBarStyle::panelButtonSize(), QSize(28, 28));
-        QCOMPARE(Gui::CompactTitleBarStyle::panelOuterPadding(), 4);
+        QCOMPARE(Gui::CompactTitleBarStyle::panelOuterPadding(), 2);
         QCOMPARE(Gui::CompactTitleBarStyle::panelItemGap(), 2);
         QCOMPARE(Gui::CompactTitleBarStyle::panelGroupGap(), 8);
         QCOMPARE(Gui::CompactTitleBarStyle::panelActiveIndicatorThickness(), 2);
@@ -68,7 +68,7 @@ private Q_SLOTS:
 
         general->SetInt("ToolbarIconSize", 40);
         QCOMPARE(Gui::CompactTitleBarStyle::iconSize(), 40);
-        QCOMPARE(Gui::CompactTitleBarStyle::panelRailWidth(), 36);
+        QCOMPARE(Gui::CompactTitleBarStyle::panelRailWidth(), 32);
         QCOMPARE(Gui::CompactTitleBarStyle::panelRailIconSize(), 18);
         QCOMPARE(Gui::CompactTitleBarStyle::panelButtonSize(), QSize(28, 28));
     }
@@ -84,7 +84,7 @@ private Q_SLOTS:
                 - Gui::CompactTitleBarStyle::panelButtonSize().width(),
             2 * Gui::CompactTitleBarStyle::panelOuterPadding()
         );
-        QCOMPARE(Gui::CompactTitleBarStyle::panelOuterPadding(), 4);
+        QCOMPARE(Gui::CompactTitleBarStyle::panelOuterPadding(), 2);
         QVERIFY(Gui::CompactTitleBarStyle::panelOverlayElevation() >= 8);
         QVERIFY(Gui::CompactTitleBarStyle::panelOverlayElevation() <= 12);
         QVERIFY(
@@ -137,7 +137,7 @@ private Q_SLOTS:
         QVERIFY(!rightStyle.contains(QStringLiteral("background-color: #555555")));
     }
 
-    void applyPanelButtonMetricsIgnoresToolbarIconSizeAndAppliesStyle()  // NOLINT
+    void applyPanelButtonMetricsIgnoresToolbarIconSizeAndClearsInlineStyle()  // NOLINT
     {
         general->SetInt("ToolbarIconSize", 48);
 
@@ -148,6 +148,7 @@ private Q_SLOTS:
         button.setParent(&toolbar);
         button.setMinimumSize(QSize(1, 1));
         button.setMaximumSize(QSize(QWIDGETSIZE_MAX, QWIDGETSIZE_MAX));
+        button.setStyleSheet(QStringLiteral("QToolButton { background: magenta; }"));
         button.setProperty("compactPanelIndicatorEdge", QStringLiteral("left"));
 
         Gui::CompactTitleBarStyle::applyPanelButtonMetrics(&button);
@@ -158,8 +159,7 @@ private Q_SLOTS:
         QCOMPARE(button.sizePolicy().horizontalPolicy(), QSizePolicy::Fixed);
         QCOMPARE(button.sizePolicy().verticalPolicy(), QSizePolicy::Fixed);
         QVERIFY(button.autoRaise());
-        QVERIFY(button.styleSheet().contains(QStringLiteral("border-left: 2px solid")));
-        QVERIFY(button.styleSheet().contains(QStringLiteral("QToolButton:focus")));
+        QVERIFY(button.styleSheet().isEmpty());
     }
 
 private:

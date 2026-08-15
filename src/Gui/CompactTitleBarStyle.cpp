@@ -44,10 +44,10 @@ constexpr int CompactTightGap = 8;
 constexpr int CompactDropdownRightPadding = 12;
 constexpr int CompactDropdownIndicatorRight = 2;
 constexpr int CompactDropdownIndicatorWidth = 8;
-constexpr int CompactPanelRailWidth = 36;
+constexpr int CompactPanelRailWidth = 32;
 constexpr int CompactPanelRailIconSize = 18;
 constexpr int CompactPanelButtonSize = 28;
-constexpr int CompactPanelOuterPadding = 4;
+constexpr int CompactPanelOuterPadding = 2;
 constexpr int CompactPanelItemGap = 2;
 constexpr int CompactPanelGroupGap = 8;
 constexpr int CompactPanelActiveIndicatorThickness = 2;
@@ -88,25 +88,6 @@ QString indicatorBorderProperty(PanelIndicatorEdge indicatorEdge)
     return QStringLiteral("border-right");
 }
 
-PanelIndicatorEdge indicatorEdgeForButton(const QToolButton* button)
-{
-    if (!button) {
-        return PanelIndicatorEdge::Right;
-    }
-
-    const QString edge = button->property("compactPanelIndicatorEdge").toString().toLower();
-    if (edge == QStringLiteral("left")) {
-        return PanelIndicatorEdge::Left;
-    }
-    if (edge == QStringLiteral("top")) {
-        return PanelIndicatorEdge::Top;
-    }
-    if (edge == QStringLiteral("bottom")) {
-        return PanelIndicatorEdge::Bottom;
-    }
-
-    return PanelIndicatorEdge::Right;
-}
 }  // namespace
 
 int iconSize()
@@ -332,7 +313,7 @@ void applyPanelButtonMetrics(QToolButton* button)
     button->setMaximumSize(size);
     button->setSizePolicy(QSizePolicy::Fixed, QSizePolicy::Fixed);
     button->setAutoRaise(true);
-    button->setStyleSheet(panelButtonStyleSheet(button->palette(), indicatorEdgeForButton(button)));
+    button->setStyleSheet(QString());
 }
 
 }  // namespace Gui::CompactTitleBarStyle

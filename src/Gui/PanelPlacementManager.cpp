@@ -30,7 +30,9 @@
 
 #include <QApplication>
 #include <QDockWidget>
+#include <QLayout>
 #include <QScopedValueRollback>
+#include <QTimer>
 #include <QWidget>
 
 #include "Application.h"
@@ -41,6 +43,8 @@ using namespace Gui;
 
 namespace
 {
+
+constexpr int CompactDefaultOverlayExtent = 300;
 
 Qt::DockWidgetArea dockAreaForEdge(PanelPlacement::Edge edge)
 {
@@ -123,6 +127,13 @@ QStringList insertionOrderedIds(QStringList ids, const QString& panelId, int req
     ids.removeAll(panelId);
     ids.insert(normalizedInsertionOrder(requestedOrder, ids.size()), panelId);
     return ids;
+}
+
+bool panelIsShown(const QDockWidget* dockWidget)
+{
+    // isVisible() also depends on ancestor visibility. During startup the main
+    // window is still hidden, so use the dock's explicit show/hide state.
+    return dockWidget && !dockWidget->isHidden();
 }
 
 bool savePlacementMap(const QMap<QString, PanelPlacement>& placements, QString* failedPanelId = nullptr)
@@ -240,6 +251,25 @@ bool applyVisibilityTransaction(
 class DefaultPanelPlacementHost final: public PanelPlacementHost
 {
 public:
+    bool queryVisibility(
+        MainWindow*,
+        QDockWidget* dockWidget,
+        const PanelPlacement& placement,
+        bool* visible
+    ) const override
+    {
+        if (!dockWidget || !visible) {
+            return false;
+        }
+        if (placement.mode != PanelPlacement::Mode::Overlay
+            && placement.mode != PanelPlacement::Mode::AutoHide) {
+            return false;
+        }
+
+        *visible = OverlayManager::instance()->dockWidgetOverlayVisible(dockWidget);
+        return true;
+    }
+
     bool queryPlacement(MainWindow* mainWindow, QDockWidget* dockWidget, PanelPlacement* placement) const override
     {
         if (!mainWindow || !Gui::Application::Instance || !dockWidget || !placement) {
@@ -256,6 +286,7 @@ public:
             ? PanelPlacement::Mode::AutoHide
             : PanelPlacement::Mode::Overlay;
         placement->edge = edgeForDockArea(overlayArea, PanelPlacement::Edge::Left);
+        placement->extent = overlayManager->dockWidgetOverlayExtent(dockWidget);
         placement->floatingGeometry = QRect();
         placement->normalize();
         return true;
@@ -294,6 +325,7 @@ public:
 
             const Qt::DockWidgetArea previousArea = overlayManager->dockWidgetOverlayArea(dockWidget);
             const bool previousAutoHide = overlayManager->dockWidgetOverlayAutoHide(dockWidget);
+            const int previousExtent = overlayManager->dockWidgetOverlayExtent(dockWidget);
             Result result;
             result.success = overlayManager->moveDockWidgetToOverlayOnly(dockWidget, area);
             if (!result.success) {
@@ -301,16 +333,37 @@ public:
                 result.message = QStringLiteral("The overlay host rejected the panel.");
                 return result;
             }
+            if (!overlayManager->moveDockWidgetInOverlay(dockWidget, placement.order)) {
+                result.success = false;
+                result.mutated = true;
+                result.error = Error::ApplyFailed;
+                result.message = QStringLiteral("The overlay host rejected the panel order.");
+                return result;
+            }
 
             const bool autoHideEnabled = placement.mode == PanelPlacement::Mode::AutoHide;
             if (!overlayManager->setDockWidgetOverlayAutoHide(dockWidget, autoHideEnabled)) {
                 result.success = false;
+                result.mutated = true;
                 result.error = Error::Unsupported;
                 result.message = QStringLiteral("The overlay auto-hide host rejected the panel.");
                 return result;
             }
+            if (!overlayManager->setDockWidgetOverlayExtent(
+                    dockWidget,
+                    placement.extent > 0 ? placement.extent : CompactDefaultOverlayExtent
+                )) {
+                result.success = false;
+                result.mutated = true;
+                result.error = Error::ApplyFailed;
+                result.message = QStringLiteral("The overlay host rejected the panel extent.");
+                return result;
+            }
 
-            result.mutated = previousArea != area || previousAutoHide != autoHideEnabled;
+            const int requestedExtent = placement.extent > 0 ? placement.extent
+                                                             : CompactDefaultOverlayExtent;
+            result.mutated = previousArea != area || previousAutoHide != autoHideEnabled
+                || previousExtent != requestedExtent;
             return result;
         }
 
@@ -353,6 +406,123 @@ public:
         result.mutated = true;
         return result;
     }
+
+    Result applyVisibility(
+        MainWindow* mainWindow,
+        QDockWidget* dockWidget,
+        const PanelPlacement& placement,
+        bool visible
+    ) override
+    {
+        Result result;
+        if (!dockWidget) {
+            result.error = Error::InvalidTarget;
+            result.message = QStringLiteral("Dock widget is unavailable.");
+            return result;
+        }
+
+        bool previousVisibility = false;
+        if (!queryVisibility(mainWindow, dockWidget, placement, &previousVisibility)) {
+            previousVisibility = panelIsShown(dockWidget);
+        }
+        if (previousVisibility == visible) {
+            result.success = true;
+            return result;
+        }
+
+        QAction* toggleAction = dockWidget->toggleViewAction();
+        if (!toggleAction || !toggleAction->isEnabled()) {
+            result.error = Error::ApplyFailed;
+            result.message = QStringLiteral("The dock toggle action is unavailable.");
+            return result;
+        }
+
+        // Use the same activation path as the View menu and compact rail. OverlayManager is
+        // already connected to this QAction and remains responsible for the surface itself.
+        toggleAction->trigger();
+
+        bool resultingVisibility = false;
+        if (!queryVisibility(mainWindow, dockWidget, placement, &resultingVisibility)) {
+            resultingVisibility = panelIsShown(dockWidget);
+        }
+        result.success = resultingVisibility == visible;
+        result.mutated = previousVisibility != resultingVisibility;
+        if (!result.success) {
+            result.error = Error::ApplyFailed;
+            result.message = QStringLiteral(
+                "The dock toggle action did not reach the requested state."
+            );
+        }
+        return result;
+    }
+
+    Result applyAreaOrder(
+        MainWindow* mainWindow,
+        const QList<QDockWidget*>& dockWidgets,
+        const PanelPlacement& area
+    ) override
+    {
+        Result result;
+        result.success = true;
+        if (dockWidgets.size() < 2) {
+            return result;
+        }
+
+        if (area.mode == PanelPlacement::Mode::Overlay
+            || area.mode == PanelPlacement::Mode::AutoHide) {
+            OverlayManager* overlayManager = OverlayManager::instance();
+            for (int index = 0; index < dockWidgets.size(); ++index) {
+                if (overlayManager->dockWidgetOverlayArea(dockWidgets.at(index))
+                        != dockAreaForEdge(area.edge)
+                    || !overlayManager->moveDockWidgetInOverlay(dockWidgets.at(index), index)) {
+                    result.success = false;
+                    result.error = Error::ApplyFailed;
+                    result.message = QStringLiteral("The overlay host rejected the area order.");
+                    return result;
+                }
+            }
+            result.mutated = true;
+            return result;
+        }
+
+        if (area.mode == PanelPlacement::Mode::Docked && mainWindow) {
+            const Qt::DockWidgetArea dockArea = dockAreaForEdge(area.edge);
+            const Qt::Orientation orientation = area.edge == PanelPlacement::Edge::Left
+                    || area.edge == PanelPlacement::Edge::Right
+                ? Qt::Vertical
+                : Qt::Horizontal;
+            for (QDockWidget* dock : dockWidgets) {
+                if (!dock || dockArea == Qt::NoDockWidgetArea) {
+                    result.success = false;
+                    result.error = Error::InvalidTarget;
+                    result.message = QStringLiteral("The docked area order is invalid.");
+                    return result;
+                }
+            }
+
+            QLayout* windowLayout = mainWindow->layout();
+            const bool layoutWasEnabled = windowLayout && windowLayout->isEnabled();
+            if (layoutWasEnabled) {
+                windowLayout->setEnabled(false);
+            }
+            for (QDockWidget* dock : dockWidgets) {
+                if (dock->isFloating()) {
+                    dock->setFloating(false);
+                }
+                mainWindow->addDockWidget(dockArea, dock);
+            }
+            for (int index = 1; index < dockWidgets.size(); ++index) {
+                mainWindow->splitDockWidget(dockWidgets.at(index - 1), dockWidgets.at(index), orientation);
+            }
+            if (layoutWasEnabled) {
+                windowLayout->setEnabled(true);
+                windowLayout->invalidate();
+                windowLayout->activate();
+            }
+            result.mutated = true;
+        }
+        return result;
+    }
 };
 
 }  // namespace
@@ -378,7 +548,7 @@ PanelPlacementHost::Result PanelPlacementHost::applyVisibility(
         return result;
     }
 
-    const bool previousVisibility = dockWidget->isVisible();
+    const bool previousVisibility = panelIsShown(dockWidget);
     if (visible) {
         dockWidget->show();
         dockWidget->raise();
@@ -393,9 +563,34 @@ PanelPlacementHost::Result PanelPlacementHost::applyVisibility(
     return result;
 }
 
+PanelPlacementHost::Result PanelPlacementHost::applyAreaOrder(
+    MainWindow*,
+    const QList<QDockWidget*>&,
+    const PanelPlacement&
+)
+{
+    Result result;
+    result.success = true;
+    return result;
+}
+
 bool PanelPlacementHost::queryPlacement(MainWindow*, QDockWidget*, PanelPlacement*) const
 {
     return false;
+}
+
+bool PanelPlacementHost::queryVisibility(
+    MainWindow*,
+    QDockWidget* dockWidget,
+    const PanelPlacement&,
+    bool* visible
+) const
+{
+    if (!dockWidget || !visible) {
+        return false;
+    }
+    *visible = panelIsShown(dockWidget);
+    return true;
 }
 
 PanelPlacementManager::PanelPlacementManager(MainWindow* mainWindow, QObject* parent)
@@ -501,8 +696,38 @@ bool PanelPlacementManager::registerPanel(
     registration.destroyedConnection = connect(dockWidget, &QObject::destroyed, this, [this, panelId]() {
         unregisterPanel(panelId);
     });
+    if (QAction* toggleAction = dockWidget->toggleViewAction()) {
+        registration.toggleConnection
+            = connect(toggleAction, &QAction::triggered, this, [this, panelId]() {
+                  // QAction is the shared View-menu/rail source of truth. Let QDockWidget and the
+                  // overlay host consume it first, then enforce the area's visibility policy.
+                  QTimer::singleShot(0, this, [this, panelId]() {
+                      Registration* current = findRegistration(panelId);
+                      if (!current || current->transitionInProgress || !isEnabled()) {
+                          return;
+                      }
+                      requestVisibility(panelId, isPanelVisible(panelId));
+                  });
+              });
+    }
 
     registrations.insert(panelId, registration);
+    if (active && isFeatureEnabled() && isPanelVisible(panelId)
+        && supportsArea(registration.persistedPlacement)
+        && registration.persistedPlacement.visibilityPolicy
+            == PanelPlacement::VisibilityPolicy::Exclusive) {
+        QString survivorId;
+        for (const QString& orderedId : orderedPanelIdsInternal(registration.persistedPlacement)) {
+            const Registration* orderedRegistration = findRegistration(orderedId);
+            if (orderedRegistration && isPanelVisible(orderedId)) {
+                survivorId = orderedId;
+                break;
+            }
+        }
+        if (!survivorId.isEmpty()) {
+            requestVisibility(survivorId, true);
+        }
+    }
     Q_EMIT panelRegistered(panelId);
     return true;
 }
@@ -516,6 +741,9 @@ bool PanelPlacementManager::unregisterPanel(const QString& panelId)
 
     if (it->destroyedConnection) {
         disconnect(it->destroyedConnection);
+    }
+    if (it->toggleConnection) {
+        disconnect(it->toggleConnection);
     }
 
     registrations.erase(it);
@@ -563,6 +791,26 @@ PanelPlacement PanelPlacementManager::runtimePlacement(const QString& panelId) c
     placement.panelId = panelId;
     placement.normalize();
     return placement;
+}
+
+bool PanelPlacementManager::isPanelVisible(const QString& panelId) const
+{
+    const Registration* registration = findRegistration(panelId);
+    if (!registration || !registration->dockWidget) {
+        return false;
+    }
+
+    bool visible = false;
+    if (placementHost
+        && placementHost->queryVisibility(
+            mainWindow,
+            registration->dockWidget,
+            registration->runtimePlacement,
+            &visible
+        )) {
+        return visible;
+    }
+    return panelIsShown(registration->dockWidget);
 }
 
 PanelPlacementManager::RequestResult PanelPlacementManager::requestPlacement(
@@ -643,6 +891,7 @@ PanelPlacementManager::RequestResult PanelPlacementManager::requestPlacement(
     if (targetHasArea) {
         targetOrder = sameArea ? sourceOrder : orderedPanelIdsInternal(targetPlacement, panelId);
     }
+    const QStringList previousTargetOrder = targetOrder;
 
     QStringList affectedPanelIds;
     if (sourceHasArea) {
@@ -678,7 +927,7 @@ PanelPlacementManager::RequestResult PanelPlacementManager::requestPlacement(
                 affectedRegistration->runtimePlacement
             )
         );
-        previousVisibility.insert(affectedId, affectedRegistration->dockWidget->isVisible());
+        previousVisibility.insert(affectedId, isPanelVisible(affectedId));
         docks.insert(affectedId, affectedRegistration->dockWidget);
     }
 
@@ -758,10 +1007,65 @@ PanelPlacementManager::RequestResult PanelPlacementManager::requestPlacement(
         );
     }
 
+    if (targetHasArea) {
+        QList<QDockWidget*> orderedDocks;
+        orderedDocks.reserve(targetOrder.size());
+        for (const QString& orderedId : std::as_const(targetOrder)) {
+            if (QDockWidget* orderedDock = docks.value(orderedId)) {
+                orderedDocks.push_back(orderedDock);
+            }
+        }
+        const PanelPlacementHost::Result orderResult = placementHost->applyAreaOrder(
+            mainWindow,
+            orderedDocks,
+            desiredPersisted.value(panelId, targetPlacement)
+        );
+        if (!orderResult.success) {
+            const PanelPlacementHost::Result rollbackResult
+                = placementHost->applyPlacement(mainWindow, targetDock, previousTargetRuntime);
+            restoreFocus(previousFocus.data());
+            return makeEntryResult(
+                *registration,
+                false,
+                rollbackResult.success ? requestErrorForHostError(orderResult.error)
+                                       : RequestError::RollbackFailed,
+                rollbackResult.success
+                    ? (orderResult.message.isEmpty()
+                           ? QStringLiteral("Panel surface order request failed.")
+                           : orderResult.message)
+                    : (rollbackResult.message.isEmpty()
+                           ? QStringLiteral("Panel placement rollback failed after ordering error.")
+                           : rollbackResult.message)
+            );
+        }
+    }
+
     QString failedPanelId;
     if (!savePlacementMap(desiredPersisted, &failedPanelId)) {
         const PanelPlacementHost::Result rollbackResult
             = placementHost->applyPlacement(mainWindow, targetDock, previousTargetRuntime);
+        if (sameArea && !previousTargetOrder.isEmpty()) {
+            QList<QDockWidget*> previousOrderedDocks;
+            previousOrderedDocks.reserve(previousTargetOrder.size());
+            for (const QString& orderedId : previousTargetOrder) {
+                if (QDockWidget* orderedDock = docks.value(orderedId)) {
+                    previousOrderedDocks.push_back(orderedDock);
+                }
+            }
+            placementHost
+                ->applyAreaOrder(mainWindow, previousOrderedDocks, registration->persistedPlacement);
+        }
+        else if (sourceHasArea && !sourceOrder.isEmpty()) {
+            QList<QDockWidget*> previousSourceDocks;
+            previousSourceDocks.reserve(sourceOrder.size());
+            for (const QString& orderedId : sourceOrder) {
+                if (QDockWidget* orderedDock = docks.value(orderedId)) {
+                    previousSourceDocks.push_back(orderedDock);
+                }
+            }
+            placementHost
+                ->applyAreaOrder(mainWindow, previousSourceDocks, registration->persistedPlacement);
+        }
         savePlacementMap(previousPersisted);
         if (!rollbackResult.success) {
             registration->runtimePlacement = mergedRuntimePlacement(
@@ -811,7 +1115,7 @@ PanelPlacementManager::RequestResult PanelPlacementManager::requestPlacement(
         && desiredPersisted.value(panelId).visibilityPolicy
             == PanelPlacement::VisibilityPolicy::Exclusive) {
         QString survivorId;
-        if (targetDock->isVisible()) {
+        if (previousVisibility.value(panelId, isPanelVisible(panelId))) {
             survivorId = panelId;
         }
         else {
@@ -828,7 +1132,7 @@ PanelPlacementManager::RequestResult PanelPlacementManager::requestPlacement(
         }
     }
     else {
-        desiredVisibility.insert(panelId, previousVisibility.value(panelId, targetDock->isVisible()));
+        desiredVisibility.insert(panelId, previousVisibility.value(panelId, isPanelVisible(panelId)));
     }
 
     QStringList visibilityOrder = targetOrder;
@@ -983,7 +1287,7 @@ PanelPlacementManager::RequestResult PanelPlacementManager::requestVisibility(
         }
         docks.insert(orderedId, affectedRegistration->dockWidget);
         placements.insert(orderedId, affectedRegistration->runtimePlacement);
-        previousVisibility.insert(orderedId, affectedRegistration->dockWidget->isVisible());
+        previousVisibility.insert(orderedId, isPanelVisible(orderedId));
     }
 
     QMap<QString, bool> desiredVisibility = previousVisibility;
@@ -1112,7 +1416,7 @@ PanelPlacementManager::RequestResult PanelPlacementManager::requestAreaVisibilit
 
         previousPersisted.insert(areaId, areaRegistration->persistedPlacement);
         previousRuntime.insert(areaId, areaRegistration->runtimePlacement);
-        previousVisibility.insert(areaId, areaRegistration->dockWidget->isVisible());
+        previousVisibility.insert(areaId, isPanelVisible(areaId));
         docks.insert(areaId, areaRegistration->dockWidget);
     }
 

@@ -75,6 +75,20 @@ public:
         bool visible
     );
 
+    /// Apply the canonical surface order for one placement area.
+    virtual Result applyAreaOrder(
+        MainWindow* mainWindow,
+        const QList<QDockWidget*>& dockWidgets,
+        const PanelPlacement& area
+    );
+
+    virtual bool queryVisibility(
+        MainWindow* mainWindow,
+        QDockWidget* dockWidget,
+        const PanelPlacement& placement,
+        bool* visible
+    ) const;
+
     /// Query semantic host state that cannot be inferred from QDockWidget alone.
     /// Return false to let the manager fall back to normal dock/floating inspection.
     virtual bool queryPlacement(
@@ -141,6 +155,7 @@ public:
     QDockWidget* dockWidget(const QString& panelId) const;
     PanelPlacement persistedPlacement(const QString& panelId) const;
     PanelPlacement runtimePlacement(const QString& panelId) const;
+    bool isPanelVisible(const QString& panelId) const;
 
     RequestResult requestPlacement(const QString& panelId, const PanelPlacement& placement);
     RequestResult requestVisibility(const QString& panelId, bool visible);
@@ -168,6 +183,7 @@ private:
         PanelPlacement runtimePlacement;
         bool transitionInProgress = false;
         QMetaObject::Connection destroyedConnection;
+        QMetaObject::Connection toggleConnection;
     };
 
     Registration* findRegistration(const QString& panelId);

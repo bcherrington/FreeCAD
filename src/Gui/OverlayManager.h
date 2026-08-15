@@ -138,8 +138,15 @@ public:
     void moveDockWidgetToOverlay(QDockWidget*, Qt::DockWidgetArea dockArea);
     /// Move exactly one dock widget into the requested overlay group without absorbing peers
     bool moveDockWidgetToOverlayOnly(QDockWidget*, Qt::DockWidgetArea dockArea);
+    /// Reorder one panel within its existing overlay surface.
+    bool moveDockWidgetInOverlay(QDockWidget*, int order);
     /// Report the active overlay area for a dock widget, or Qt::NoDockWidgetArea when not overlaid
     Qt::DockWidgetArea dockWidgetOverlayArea(QDockWidget*) const;
+    /// Set/query the logical panel extent in its overlay host.
+    bool setDockWidgetOverlayExtent(QDockWidget*, int extent);
+    int dockWidgetOverlayExtent(QDockWidget*) const;
+    /// Report whether one dock widget's overlay surface is currently expanded.
+    bool dockWidgetOverlayVisible(QDockWidget*) const;
     /// Let the experimental compact rail own overlay tab selectors at runtime
     void setCompactRailTabOwnershipEnabled(bool enabled);
     /// Report whether the experimental compact rail currently owns overlay tab selectors
