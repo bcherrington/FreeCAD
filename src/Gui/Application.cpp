@@ -431,6 +431,20 @@ void qtInvokeOnMain(std::function<void()>&& fn, bool blocking)
     );
 }
 
+bool qtInvokeOnMainSync(App::MainThreadSignalConfig::TaskFn task, void* context)
+{
+    if (!qApp) {
+        task(context);
+        return true;
+    }
+
+    return QMetaObject::invokeMethod(
+        MainThreadInvoker::instance(),
+        [task, context] { task(context); },
+        Qt::BlockingQueuedConnection
+    );
+}
+
 void qtPumpMainThreadEvents()
 {
     if (!qApp || QThread::currentThread() != qApp->thread()) {
@@ -527,8 +541,9 @@ Application::Application(bool GUIenabled)
 {
     // App::GetApplication().Attach(this);
     if (GUIenabled) {
-        App::MainThreadSignalConfig::setHooks(
+        App::MainThreadSignalConfig::installHooks(
             &qtIsMainThread,
+            &qtInvokeOnMainSync,
             &qtInvokeOnMain,
             &qtPumpMainThreadEvents
         );
