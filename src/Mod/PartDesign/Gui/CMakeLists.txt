@@ -128,6 +128,7 @@ SET(PartDesignGuiTaskDlgs_SRCS
     TaskFeaturePick.h
     ReferenceSelection.cpp
     ReferenceSelection.h
+    DeferredDialogRejectUtils.h
     TaskFeatureParameters.cpp
     TaskFeatureParameters.h
     TaskSketchBasedParameters.cpp

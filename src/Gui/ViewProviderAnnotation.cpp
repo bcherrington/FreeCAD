@@ -452,9 +452,9 @@ void ViewProviderAnnotationLabel::attach(App::DocumentObject* f)
     SoPath* imagePath = sa.getPath();
     if (imagePath) {
         SoDragger* dragger = pTextTranslation->getDragger();
-        dragger->addStartCallback(dragStartCallback, this);
-        dragger->addFinishCallback(dragFinishCallback, this);
-        dragger->addMotionCallback(dragMotionCallback, this);
+        Gui::installDraggerInteractionCallbacks<
+            ViewProviderAnnotationLabel,
+            &ViewProviderAnnotationLabel::onDraggerInteraction>(dragger, this);
 
         dragger->setPartAsPath("translator", imagePath);
 
@@ -484,59 +484,60 @@ void ViewProviderAnnotationLabel::updateData(const App::Property* prop)
 }
 
 
-void ViewProviderAnnotationLabel::dragStartCallback(void* data, SoDragger* drag)
+void ViewProviderAnnotationLabel::onDraggerInteraction(
+    Gui::DraggerInteraction interaction,
+    SoDragger* dragger
+)
 {
-    auto that = static_cast<ViewProviderAnnotationLabel*>(data);
-    that->dragState.reset();
-    if (auto* obj = that->getObject<App::AnnotationLabel>()) {
-        const Base::Vector3d basePosition = obj->BasePosition.getValue();
-        const Base::Vector3d startTextPosition = obj->TextPosition.getValue();
-        const Base::Vector3d pickedPoint = Base::convertTo<Base::Vector3d>(
-            drag->getWorldStartingPoint()
-        );
+    switch (interaction) {
+        case Gui::DraggerInteraction::Start: {
+            dragState.reset();
+            if (auto* obj = getObject<App::AnnotationLabel>()) {
+                const Base::Vector3d basePosition = obj->BasePosition.getValue();
+                const Base::Vector3d startTextPosition = obj->TextPosition.getValue();
+                const Base::Vector3d pickedPoint = Base::convertTo<Base::Vector3d>(
+                    dragger->getWorldStartingPoint()
+                );
 
-        DragState state;
-        state.basePosition = basePosition;
-        state.currentTextPosition = startTextPosition;
-        state.pickOffset = pickedPoint - (basePosition + startTextPosition);
-        state.planePoint = pickedPoint;
-        state.planeNormal = Base::convertTo<Base::Vector3d>(
-            drag->getViewVolume().getProjectionDirection()
-        );
-        that->dragState = state;
-    }
-
-    // This is called when a manipulator is about to manipulating
-    Gui::Application::Instance->activeDocument()->openCommand(
-        QT_TRANSLATE_NOOP("Command", "Transform")
-    );
-}
-
-void ViewProviderAnnotationLabel::dragFinishCallback(void* data, SoDragger*)
-{
-    auto that = static_cast<ViewProviderAnnotationLabel*>(data);
-    if (that->dragState) {
-        if (auto* obj = that->getObject<App::AnnotationLabel>()) {
-            obj->TextPosition.setValue(that->dragState->currentTextPosition);
+                DragState state;
+                state.basePosition = basePosition;
+                state.currentTextPosition = startTextPosition;
+                state.pickOffset = pickedPoint - (basePosition + startTextPosition);
+                state.planePoint = pickedPoint;
+                state.planeNormal = Base::convertTo<Base::Vector3d>(
+                    dragger->getViewVolume().getProjectionDirection()
+                );
+                dragState = state;
+            }
+            Gui::Application::Instance->activeDocument()->openCommand(
+                QT_TRANSLATE_NOOP("Command", "Transform")
+            );
+            return;
         }
-        that->dragState.reset();
-    }
 
-    // This is called when a manipulator has done manipulating
-    Gui::Application::Instance->activeDocument()->commitCommand();
-}
+        case Gui::DraggerInteraction::Finish: {
+            if (dragState) {
+                if (auto* obj = getObject<App::AnnotationLabel>()) {
+                    obj->TextPosition.setValue(dragState->currentTextPosition);
+                }
+                dragState.reset();
+            }
+            Gui::Application::Instance->activeDocument()->commitCommand();
+            return;
+        }
 
-void ViewProviderAnnotationLabel::dragMotionCallback(void* data, SoDragger* drag)
-{
-    auto that = static_cast<ViewProviderAnnotationLabel*>(data);
-    if (!that->dragState) {
-        return;
-    }
+        case Gui::DraggerInteraction::Motion: {
+            if (!dragState) {
+                return;
+            }
 
-    DragState& state = *that->dragState;
-    Base::Vector3d pointerPosition;
-    if (projectPointerToPlane(*drag, state.planePoint, state.planeNormal, pointerPosition)) {
-        that->previewTextPosition(state, pointerPosition - state.pickOffset - state.basePosition);
+            DragState& state = *dragState;
+            Base::Vector3d pointerPosition;
+            if (projectPointerToPlane(*dragger, state.planePoint, state.planeNormal, pointerPosition)) {
+                previewTextPosition(state, pointerPosition - state.pickOffset - state.basePosition);
+            }
+            return;
+        }
     }
 }
 

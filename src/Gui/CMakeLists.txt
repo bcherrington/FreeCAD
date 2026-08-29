@@ -1052,6 +1052,7 @@ SET(Viewprovider_SRCS
     ViewProviderGeoFeatureGroupExtension.h
     ViewProviderOriginGroupExtension.h
     ViewProviderAnnotation.h
+    DraggerInteraction.h
     ViewProviderDocumentObject.h
     ViewProviderDocumentObjectGroup.h
     ViewProviderDragger.h
@@ -1342,6 +1343,7 @@ SOURCE_GROUP("Selection" FILES ${Selection_SRCS})
 SET(FreeCADGui_CPP_SRCS
     ${FreeCADGui_MODULE_GENERATED_SRCS}
     ${PySideUic_MODULE_GENERATED_SRCS}
+    AsyncPreviewController.cpp
     Application.cpp
     ApplicationPy.cpp
     AutoSaver.cpp
@@ -1387,6 +1389,10 @@ SET(FreeCADGui_CPP_SRCS
     StyleParameters/ParameterManager.cpp
 )
 SET(FreeCADGui_SRCS
+    AsyncRecomputeProgressDialog.h
+    AsyncPreviewController.h
+    AsyncPreviewSession.h
+    AsyncPreviewWidgetUtils.h
     Application.h
     AutoSaver.h
     BitmapFactory.h
@@ -1394,6 +1400,7 @@ SET(FreeCADGui_SRCS
     DocumentModel.h
     DocumentObserver.h
     DocumentObserverPython.h
+    DeferredDialogRejectUtils.h
     EditableDatumLabel.h
     ExpressionBinding.h
     ExpressionBindingPy.h

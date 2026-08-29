@@ -258,6 +258,9 @@ SequencerLauncher::~SequencerLauncher()
 void SequencerLauncher::setText(const char* pszTxt)
 {
     std::lock_guard<std::recursive_mutex> locker(SequencerP::mutex);
+    if (SequencerP::_topLauncher != this) {
+        return;
+    }
     SequencerBase::Instance().setText(pszTxt);
 }
 
@@ -273,6 +276,9 @@ bool SequencerLauncher::next(bool canAbort)
 void SequencerLauncher::setProgress(size_t pos)
 {
     std::lock_guard<std::recursive_mutex> locker(SequencerP::mutex);
+    if (SequencerP::_topLauncher != this) {
+        return;
+    }
     SequencerBase::Instance().setProgress(pos);
 }
 
@@ -290,5 +296,8 @@ bool SequencerLauncher::wasCanceled() const
 void SequencerLauncher::stop()
 {
     std::lock_guard<std::recursive_mutex> locker(SequencerP::mutex);
-    SequencerBase::Instance().stop();
+    if (SequencerP::_topLauncher == this) {
+        SequencerBase::Instance().stop();
+        SequencerP::_topLauncher = nullptr;
+    }
 }

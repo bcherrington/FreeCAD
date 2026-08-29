@@ -36,7 +36,6 @@
 
 
 class SoBase;
-class SoDragger;
 class SoMaterialBinding;
 class SoPickStyle;
 
@@ -357,6 +356,7 @@ protected:
     bool setEdit(int ModNum) override;
     void setEditViewer(View3DInventorViewer*, int ModNum) override;
     void unsetEditViewer(View3DInventorViewer*) override;
+    void onDraggerInteraction(Gui::DraggerInteraction interaction) override;
     bool linkEdit(const App::LinkBaseExtension* ext = nullptr) const;
     void _setupContextMenu(App::LinkBaseExtension* ext, QMenu*, QObject*, const char*);
 
@@ -397,11 +397,6 @@ protected:
     ) override;
 
 private:
-    static void dragStartCallback(void* data, SoDragger* d);
-    static void dragFinishCallback(void* data, SoDragger* d);
-    static void dragMotionCallback(void* data, SoDragger* d);
-
-protected:
     LinkView* linkView;
     LinkType linkType;
     bool hasSubName;

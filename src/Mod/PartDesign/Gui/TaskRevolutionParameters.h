@@ -24,6 +24,11 @@
 
 #pragma once
 
+#include <memory>
+#include <string>
+
+#include <QMetaObject>
+
 #include <Mod/PartDesign/App/FeatureRevolution.h>
 #include <Mod/PartDesign/App/FeatureGroove.h>
 #include "TaskSketchBasedParameters.h"
@@ -47,6 +52,7 @@ class RadialGizmo;
 class Gizmo;
 class ViewProvider;
 class ViewProviderCoordinateSystem;
+class AsyncPreviewSession;
 }  // namespace Gui
 
 namespace PartDesignGui
@@ -54,7 +60,7 @@ namespace PartDesignGui
 class ViewProviderRevolution;
 class ViewProviderGroove;
 
-class TaskRevolutionParameters: public TaskSketchBasedParameters
+class PartDesignGuiExport TaskRevolutionParameters: public TaskSketchBasedParameters
 {
     Q_OBJECT
 
@@ -82,8 +88,18 @@ public:
         const std::string& linkSubname,
         const QString& itemText
     );
+    void flushPendingRecompute() override;
+    void stopPendingRecompute() override;
+    bool hasOutstandingRecompute() const override;
+    void setDeferredClosePending(bool pending) override;
+    Gui::AsyncPreviewSession* getAcceptedRecomputeProgressSession() override;
+    void clearInteractiveSelection();
+
+Q_SIGNALS:
+    void recomputeSettled();
 
 private Q_SLOTS:
+    void onUpdateView(bool);
     void onAngleChanged(double);
     void onAngle2Changed(double);
     void onAxisChanged(int);
@@ -95,6 +111,7 @@ private Q_SLOTS:
 protected:
     void onSelectionChanged(const Gui::SelectionChanges& msg) override;
     void changeEvent(QEvent* event) override;
+    void triggerPreviewRecompute() override;
     void getReferenceAxis(App::DocumentObject*& obj, std::vector<std::string>& sub) const;
     bool getReversed() const;
     int getMode() const;
@@ -166,6 +183,10 @@ private:
     void updateSideUI(const SideController& side, Mode mode, bool isParentVisible, bool setFocus);
     void translateModeList(QComboBox* box, int index);
     void translateSidesList(int index);
+    void schedulePendingRecompute();
+    void runImmediateRecompute();
+    void requestRecompute(bool waitForCompletion);
+    void updateRecomputeUi();
     // TODO: This is common with extrude. Maybe send to superclass.
     void translateFaceName(QLineEdit* lineEdit);
     void handleLineFaceNameClick(QLineEdit* lineEdit);
@@ -194,6 +215,8 @@ private:
      */
     std::vector<std::unique_ptr<App::PropertyLinkSub>> axesInList;
 
+    std::unique_ptr<Gui::AsyncPreviewSession> asyncPreviewSession;
+
     std::unique_ptr<Gui::GizmoContainer> gizmoContainer;
     Gui::RadialGizmo* rotationGizmo = nullptr;
     Gui::RadialGizmo* rotationGizmo2 = nullptr;
@@ -201,7 +224,23 @@ private:
     void setGizmoPositions();
 };
 
-class TaskDlgRevolutionParameters: public TaskDlgSketchBasedParameters
+class PartDesignGuiExport TaskDlgRevolutionBase: public TaskDlgSketchBasedParameters
+{
+    Q_OBJECT
+
+public:
+    explicit TaskDlgRevolutionBase(PartDesignGui::ViewProvider* vp);
+    bool accept() override;
+    bool reject() override;
+
+protected:
+    TaskRevolutionParameters* parameter = nullptr;
+
+private Q_SLOTS:
+    void onParameterRecomputeSettled();
+};
+
+class PartDesignGuiExport TaskDlgRevolutionParameters: public TaskDlgRevolutionBase
 {
     Q_OBJECT
 
@@ -209,7 +248,7 @@ public:
     explicit TaskDlgRevolutionParameters(PartDesignGui::ViewProviderRevolution* RevolutionView);
 };
 
-class TaskDlgGrooveParameters: public TaskDlgSketchBasedParameters
+class PartDesignGuiExport TaskDlgGrooveParameters: public TaskDlgRevolutionBase
 {
     Q_OBJECT
 

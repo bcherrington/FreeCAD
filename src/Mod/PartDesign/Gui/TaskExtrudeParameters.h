@@ -26,6 +26,11 @@
 
 #include <QLabel>
 
+#include <cstdint>
+#include <memory>
+#include <string>
+
+#include <QMetaObject>
 #include <Gui/Inventor/Draggers/Gizmo.h>
 
 #include "TaskSketchBasedParameters.h"
@@ -47,7 +52,8 @@ class PropertyLinkSubList;
 namespace Gui
 {
 class PrefQuantitySpinBox;
-}
+class AsyncPreviewSession;
+}  // namespace Gui
 
 namespace Gui
 {
@@ -65,7 +71,7 @@ namespace PartDesignGui
 {
 
 
-class TaskExtrudeParameters: public TaskSketchBasedParameters
+class PartDesignGuiExport TaskExtrudeParameters: public TaskSketchBasedParameters
 {
     Q_OBJECT
 
@@ -130,7 +136,7 @@ public:
         const std::string& pixmapname,
         const QString& parname
     );
-    ~TaskExtrudeParameters() override = default;
+    ~TaskExtrudeParameters() override;
 
     void saveHistory() override;
 
@@ -144,6 +150,14 @@ public:
     void applyParameters();
 
     void setSelectionMode(SelectionMode mode, Side side = Side::First);
+    void flushPendingRecompute() override;
+    void stopPendingRecompute() override;
+    bool hasOutstandingRecompute() const override;
+    void setDeferredClosePending(bool pending) override;
+    Gui::AsyncPreviewSession* getAcceptedRecomputeProgressSession() override;
+
+Q_SIGNALS:
+    void recomputeSettled();
 
 protected:
     // This struct holds all pointers for one side's UI and properties
@@ -190,6 +204,7 @@ protected Q_SLOTS:
     virtual void onModeChanged(int index, Side side) = 0;
 
 private Q_SLOTS:
+    void onUpdateView(bool on);
     void onDirectionCBChanged(int);
     void onAlongSketchNormalChanged(bool);
     void onXDirectionEditChanged(double);
@@ -250,6 +265,9 @@ protected:
     void setDirectionMode(int index);
     void handleLineFaceNameClick(QLineEdit*);
     void handleLineFaceNameNo(QLineEdit*);
+    void triggerPreviewRecompute() override;
+    void schedulePendingRecompute();
+    void runInteractiveRecompute();
 
 private:
     void setupSideDialog(SideController& side);
@@ -261,6 +279,8 @@ private:
     void selectedShapeFace(const Gui::SelectionChanges& msg, SideController& side);
 
     void tryRecomputeFeature();
+    void requestRecompute(bool waitForCompletion);
+    void updateRecomputeUi();
     void translateFaceName(QLineEdit*);
     void connectSlots();
     bool hasProfileFace(PartDesign::ProfileBased*) const;
@@ -279,6 +299,7 @@ private:
 
     std::unique_ptr<Gui::GizmoContainer> gizmoContainer;
     Gui::LinearGizmo* startOffsetGizmo = nullptr;
+    std::unique_ptr<Gui::AsyncPreviewSession> asyncPreviewSession;
     Gui::LinearGizmo* lengthGizmo1 = nullptr;
     Gui::LinearGizmo* lengthGizmo2 = nullptr;
     Gui::RotationGizmo* taperAngleGizmo1 = nullptr;
@@ -298,7 +319,7 @@ protected:
     Side activeSelectionSide = Side::First;
 };
 
-class TaskDlgExtrudeParameters: public TaskDlgSketchBasedParameters
+class PartDesignGuiExport TaskDlgExtrudeParameters: public TaskDlgSketchBasedParameters
 {
     Q_OBJECT
 
@@ -308,6 +329,9 @@ public:
 
     bool accept() override;
     bool reject() override;
+
+private Q_SLOTS:
+    void onParameterRecomputeSettled();
 
 protected:
     virtual TaskExtrudeParameters* getTaskParameters() = 0;

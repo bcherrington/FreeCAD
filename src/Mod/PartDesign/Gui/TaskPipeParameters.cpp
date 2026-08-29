@@ -25,13 +25,16 @@
 
 #include <QAction>
 #include <QMessageBox>
-#include <QMetaObject>
-
+#include <QSignalBlocker>
 
 #include <App/Application.h>
+#include <App/Document.h>
 #include <App/DocumentObject.h>
 #include <App/Origin.h>
+#include <Gui/AsyncRecomputeProgressDialog.h>
+#include <Gui/AsyncPreviewSession.h>
 #include <Gui/CommandT.h>
+#include <Gui/Control.h>
 #include <Gui/Document.h>
 #include <Gui/MainWindow.h>
 #include <Gui/Selection/Selection.h>
@@ -47,6 +50,7 @@
 #include <ui_DlgReference.h>
 
 #include "TaskPipeParameters.h"
+#include "DeferredDialogRejectUtils.h"
 #include "TaskFeaturePick.h"
 #include "TaskSketchBasedParameters.h"
 #include "Utils.h"
@@ -88,6 +92,13 @@ QString pipeScalingTitle(ViewProviderPipe* view)
 {
     return isSubtractivePipe(view) ? TaskPipeScaling::tr("Subtractive Pipe Section Transformation")
                                    : TaskPipeScaling::tr("Additive Pipe Section Transformation");
+}
+
+constexpr int AsyncInteractivePreviewDebounceMs = 150;
+
+TaskPipeParameters* getPipePreviewOwner(const StateHandlerTaskPipe* stateHandler)
+{
+    return stateHandler ? stateHandler->getPreviewOwner() : nullptr;
 }
 }  // namespace
 
@@ -187,10 +198,46 @@ TaskPipeParameters::TaskPipeParameters(ViewProviderPipe* PipeView, bool /*newObj
 
     updateUI();
     this->blockSelection(false);
+
+    AsyncPreviewController::Callbacks callbacks;
+    callbacks.makeRequest = [this]() {
+        auto* object = getObject<PartDesign::Pipe>();
+        return object ? App::RecomputeRequest::fromDocumentObject(*object) : App::RecomputeRequest {};
+    };
+    callbacks.runSync = [this]() {
+        if (auto* pipe = getObject<PartDesign::Pipe>()) {
+            pipe->recomputeFeature();
+            pipe->recomputePreview();
+        }
+    };
+    callbacks.onAppliedResult = [](bool, bool) {
+    };
+    asyncPreviewSession = std::make_unique<Gui::AsyncPreviewSession>(std::move(callbacks), this);
+    connect(
+        asyncPreviewSession->controller(),
+        &AsyncPreviewController::recomputeSettled,
+        this,
+        &TaskPipeParameters::recomputeSettled
+    );
+    asyncPreviewSession->bindWidgets(
+        {
+            ui->previewStatusWidget,
+            ui->progressBarPreview,
+            ui->labelPreviewStatus,
+            ui->buttonCancelPreview,
+        },
+        [](const char* text) { return TaskPipeParameters::tr(text); },
+        proxy
+    );
+    asyncPreviewSession->setSchedulerInterval(
+        App::GetApplication().isAsyncRecomputeEnabled() ? AsyncInteractivePreviewDebounceMs : 0
+    );
 }
 
 TaskPipeParameters::~TaskPipeParameters()
 {
+    stopPendingRecompute();
+
     try {
         if (auto pipe = getObject<PartDesign::Pipe>()) {
             // setting visibility to true is needed when preselecting profile and path prior to
@@ -209,6 +256,78 @@ TaskPipeParameters::~TaskPipeParameters()
     catch (const Py::Exception&) {
         Base::PyException e;  // extract the Python error text
         e.reportException();
+    }
+}
+
+void TaskPipeParameters::updateRecomputeUi()
+{
+    if (!ui || !asyncPreviewSession) {
+        return;
+    }
+    asyncPreviewSession->updateUi();
+}
+
+void TaskPipeParameters::schedulePendingRecompute()
+{
+    if (!isUpdateBlocked() && asyncPreviewSession) {
+        asyncPreviewSession->scheduleRecompute();
+    }
+}
+
+void TaskPipeParameters::runImmediateRecompute()
+{
+    if (asyncPreviewSession) {
+        asyncPreviewSession->stopScheduledRecompute();
+    }
+
+    try {
+        requestRecompute(/*waitForCompletion=*/false);
+    }
+    catch (const Base::Exception& e) {
+        e.reportException();
+    }
+}
+
+void TaskPipeParameters::flushPendingRecompute()
+{
+    if (asyncPreviewSession) {
+        asyncPreviewSession->flushPendingRecompute();
+    }
+}
+
+void TaskPipeParameters::stopPendingRecompute()
+{
+    if (asyncPreviewSession) {
+        asyncPreviewSession->stopPendingRecompute();
+    }
+}
+
+bool TaskPipeParameters::hasOutstandingRecompute() const
+{
+    return asyncPreviewSession && asyncPreviewSession->hasOutstandingRecompute();
+}
+
+bool TaskPipeParameters::canReuseAcceptedPreviewResult() const
+{
+    return asyncPreviewSession && asyncPreviewSession->didLastRecomputeSucceed();
+}
+
+void TaskPipeParameters::setDeferredClosePending(bool pending)
+{
+    if (asyncPreviewSession) {
+        asyncPreviewSession->setDeferredClosePending(pending);
+    }
+}
+
+Gui::AsyncPreviewSession* TaskPipeParameters::getAcceptedRecomputeProgressSession()
+{
+    return asyncPreviewSession.get();
+}
+
+void TaskPipeParameters::requestRecompute(bool waitForCompletion)
+{
+    if (!isUpdateBlocked() && asyncPreviewSession) {
+        asyncPreviewSession->requestRecompute(waitForCompletion);
     }
 }
 
@@ -278,7 +397,7 @@ void TaskPipeParameters::onSelectionChanged(const Gui::SelectionChanges& msg)
             }
 
             clearButtons();
-            recomputeFeature();
+            schedulePendingRecompute();
         }
 
         clearButtons();
@@ -290,7 +409,7 @@ void TaskPipeParameters::onTransitionChanged(int idx)
 {
     if (auto pipe = getObject<PartDesign::Pipe>()) {
         pipe->Transition.setValue(idx);
-        recomputeFeature();
+        schedulePendingRecompute();
     }
 }
 
@@ -312,7 +431,7 @@ void TaskPipeParameters::onTangentChanged(bool checked)
 {
     if (auto pipe = getObject<PartDesign::Pipe>()) {
         pipe->SpineTangent.setValue(checked);
-        recomputeFeature();
+        schedulePendingRecompute();
     }
 }
 
@@ -350,7 +469,7 @@ void TaskPipeParameters::onDeleteEdge()
 
     pipe->Spine.setValue(pipe->Spine.getValue(), refs);
     clearButtons();
-    recomputeFeature();
+    schedulePendingRecompute();
 }
 
 bool TaskPipeParameters::referenceSelected(const SelectionChanges& msg) const
@@ -484,7 +603,15 @@ void TaskPipeParameters::setVisibilityOfSpineAndProfile()
     }
 }
 
-bool TaskPipeParameters::accept()
+bool TaskPipeParameters::accept(bool previewSettled)
+{
+    return accept(previewSettled, Gui::AsyncInlineRecomputeProgressTarget {});
+}
+
+bool TaskPipeParameters::accept(
+    bool previewSettled,
+    const Gui::AsyncInlineRecomputeProgressTarget& inlineProgressTarget
+)
 {
     // see what to do with external references
     // check the prerequisites for the selected objects
@@ -598,10 +725,29 @@ bool TaskPipeParameters::accept()
         App::PropertyLinkT propT(spine, subNames);
         Gui::cmdAppObjectArgs(pipe, "Spine = %s", propT.getPropertyPython());
 
-        Gui::cmdAppDocument(pipe, "recompute()");
+        if (previewSettled) {
+            Gui::cmdAppDocument(pipe, "purgeTouched()");
+            if (!getObject()->isValid()) {
+                throw Base::RuntimeError(getObject()->getStatusString());
+            }
+
+            for (auto obj : pipe->getInList()) {
+                obj->touch();
+            }
+        }
+        Gui::AsyncRecomputeDialogOptions options;
+        options.cancelable = false;
+        options.dynamicLabel = false;
+        options.forceIndeterminate = true;
+        options.inlineProgressTarget = inlineProgressTarget;
+        if (!runAsyncAcceptDocumentRecompute(pipe->getDocument(), options)) {
+            return false;
+        }
+
         if (!getObject()->isValid()) {
             throw Base::RuntimeError(getObject()->getStatusString());
         }
+
         Gui::cmdGuiDocument(pipe, "resetEdit()");
         pipe->getDocument()->commitTransaction();
 
@@ -710,7 +856,9 @@ void TaskPipeOrientation::onOrientationChanged(int idx)
 {
     if (auto pipe = getObject<PartDesign::Pipe>()) {
         pipe->Mode.setValue(idx);
-        recomputeFeature();
+        if (auto* preview = getPipePreviewOwner(stateHandler)) {
+            preview->schedulePendingRecompute();
+        }
     }
 }
 
@@ -733,6 +881,9 @@ void TaskPipeOrientation::onClearButton()
     if (auto view = getViewObject<ViewProviderPipe>()) {
         view->highlightReferences(ViewProviderPipe::AuxiliarySpine, false);
         getObject<PartDesign::Pipe>()->AuxiliarySpine.setValue(nullptr);
+        if (auto* preview = getPipePreviewOwner(stateHandler)) {
+            preview->schedulePendingRecompute();
+        }
     }
 }
 
@@ -740,7 +891,9 @@ void TaskPipeOrientation::onCurvilinearChanged(bool checked)
 {
     if (auto pipe = getObject<PartDesign::Pipe>()) {
         pipe->AuxiliaryCurvilinear.setValue(checked);
-        recomputeFeature();
+        if (auto* preview = getPipePreviewOwner(stateHandler)) {
+            preview->schedulePendingRecompute();
+        }
     }
 }
 
@@ -754,7 +907,9 @@ void TaskPipeOrientation::onBinormalChanged(double)
         );
 
         pipe->Binormal.setValue(vec);
-        recomputeFeature();
+        if (auto* preview = getPipePreviewOwner(stateHandler)) {
+            preview->schedulePendingRecompute();
+        }
     }
 }
 
@@ -813,7 +968,9 @@ void TaskPipeOrientation::onSelectionChanged(const SelectionChanges& msg)
             clearButtons();
             auto view = getViewObject<ViewProviderPipe>();
             view->highlightReferences(ViewProviderPipe::AuxiliarySpine, false);
-            recomputeFeature();
+            if (auto* preview = getPipePreviewOwner(stateHandler)) {
+                preview->schedulePendingRecompute();
+            }
         }
 
         clearButtons();
@@ -902,7 +1059,9 @@ void TaskPipeOrientation::onDeleteItem()
                 refs.erase(f);
                 pipe->AuxiliarySpine.setValue(pipe->AuxiliarySpine.getValue(), refs);
                 clearButtons();
-                recomputeFeature();
+                if (auto* preview = getPipePreviewOwner(stateHandler)) {
+                    preview->schedulePendingRecompute();
+                }
             }
         }
     }
@@ -1015,7 +1174,9 @@ void TaskPipeScaling::indexesMoved()
         }
 
         pipe->Sections.setSubListValues(originals);
-        recomputeFeature();
+        if (auto* preview = getPipePreviewOwner(stateHandler)) {
+            preview->schedulePendingRecompute();
+        }
         updateUI(ui->stackedWidget->currentIndex());
     }
 }
@@ -1036,6 +1197,9 @@ void TaskPipeScaling::onScalingChanged(int idx)
     if (auto pipe = getObject<PartDesign::Pipe>()) {
         updateUI(idx);
         pipe->Transformation.setValue(idx);
+        if (auto* preview = getPipePreviewOwner(stateHandler)) {
+            preview->schedulePendingRecompute();
+        }
     }
 }
 
@@ -1072,7 +1236,9 @@ void TaskPipeScaling::onSelectionChanged(const SelectionChanges& msg)
             }
 
             clearButtons();
-            recomputeFeature();
+            if (auto* preview = getPipePreviewOwner(stateHandler)) {
+                preview->schedulePendingRecompute();
+            }
         }
         clearButtons();
         exitSelectionMode();
@@ -1155,7 +1321,9 @@ void TaskPipeScaling::onDeleteSection()
             if (const auto f = std::ranges::find(refs.begin(), refs.end(), obj); f != refs.end()) {
                 pipe->Sections.removeValue(obj);
                 clearButtons();
-                recomputeFeature();
+                if (auto* preview = getPipePreviewOwner(stateHandler)) {
+                    preview->schedulePendingRecompute();
+                }
             }
         }
     }
@@ -1197,6 +1365,7 @@ TaskDlgPipeParameters::TaskDlgPipeParameters(ViewProviderPipe* PipeView, bool ne
     parameter->stateHandler = stateHandler;
     orientation->stateHandler = stateHandler;
     scaling->stateHandler = stateHandler;
+    stateHandler->previewOwner = parameter;
 
     buttonGroup = new ButtonGroup(this);
     buttonGroup->setExclusive(true);
@@ -1271,10 +1440,101 @@ void TaskDlgPipeParameters::onButtonToggled(QAbstractButton* button, bool checke
 //==== calls from the TaskView ===============================================================
 
 
-bool TaskDlgPipeParameters::accept()
+void TaskDlgPipeParameters::clearInteractiveSelection()
 {
-    return parameter->accept();
+    if (buttonGroup) {
+        QSignalBlocker groupBlocker(buttonGroup);
+        const auto buttons = buttonGroup->buttons();
+        buttonGroup->setExclusive(false);
+        for (auto* button : buttons) {
+            if (!button) {
+                continue;
+            }
+            QSignalBlocker buttonBlocker(button);
+            button->setChecked(false);
+        }
+        buttonGroup->setExclusive(true);
+    }
+
+    if (stateHandler) {
+        stateHandler->selectionMode = StateHandlerTaskPipe::SelectionModes::none;
+    }
+    Gui::Selection().clearSelection();
+
+    if (auto* view = getViewObject<ViewProviderPipe>()) {
+        view->highlightReferences(ViewProviderPipe::Profile, false);
+        view->highlightReferences(ViewProviderPipe::Spine, false);
+        view->highlightReferences(ViewProviderPipe::AuxiliarySpine, false);
+        view->highlightReferences(ViewProviderPipe::Section, false);
+    }
 }
 
+bool TaskDlgPipeParameters::performReject()
+{
+    clearInteractiveSelection();
+    return TaskDlgSketchBasedParameters::reject();
+}
+
+bool TaskDlgPipeParameters::accept()
+{
+    if (!parameter || hasDeferredRejectPending()) {
+        return false;
+    }
+
+    prepareDeferredReject(
+        parameter,
+        &TaskPipeParameters::recomputeSettled,
+        [this]() { return performReject(); },
+        [this](bool pending) {
+            if (orientation) {
+                orientation->setEnabled(!pending);
+            }
+            if (scaling) {
+                scaling->setEnabled(!pending);
+            }
+        }
+    );
+    clearInteractiveSelection();
+    const bool previewSettled = !parameter->hasOutstandingRecompute()
+        && parameter->canReuseAcceptedPreviewResult();
+    if (previewSettled) {
+        parameter->flushPendingRecompute();
+    }
+    else {
+        parameter->stopPendingRecompute();
+    }
+    auto progressTarget
+        = parameter->makeAcceptedRecomputeProgressTarget(buttonBox, tr("Applying changes..."));
+    return parameter->accept(previewSettled, progressTarget);
+}
+
+bool TaskDlgPipeParameters::reject()
+{
+    if (!parameter) {
+        return false;
+    }
+
+    prepareDeferredReject(
+        parameter,
+        &TaskPipeParameters::recomputeSettled,
+        [this]() { return performReject(); },
+        [this](bool pending) {
+            if (orientation) {
+                orientation->setEnabled(!pending);
+            }
+            if (scaling) {
+                scaling->setEnabled(!pending);
+            }
+        }
+    );
+    clearInteractiveSelection();
+    parameter->stopPendingRecompute();
+    return finishRejectOrDefer(getObject<PartDesign::Pipe>());
+}
+
+void TaskDlgPipeParameters::onParameterRecomputeSettled()
+{
+    finishRejectOrDefer(getObject<PartDesign::Pipe>());
+}
 
 #include "moc_TaskPipeParameters.cpp"
