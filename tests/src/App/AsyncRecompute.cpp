@@ -152,11 +152,10 @@ TEST_F(AsyncRecomputeTest, CloseDocumentCancelsQueuedAsyncRecomputeCallback)
     EXPECT_EQ(callbackFuture.get(), App::RecomputeFailure::Canceled);
     EXPECT_EQ(callbackCount.load(), 1);
 
-    EXPECT_EQ(closeFuture.wait_for(50ms), std::future_status::timeout);
-    App::FeatureTestAsyncBlocker::releaseBlocker();
-
     ASSERT_EQ(closeFuture.wait_for(2s), std::future_status::ready);
     EXPECT_TRUE(closeFuture.get());
+
+    App::FeatureTestAsyncBlocker::releaseBlocker();
 }
 
 TEST_F(AsyncRecomputeTest, CancelQueuedAsyncRecomputeDoesNotWaitForOtherDocumentInFlight)
