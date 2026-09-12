@@ -849,7 +849,10 @@ void StdCmdSave::activated(int iMsg)
         }
     }
 
-    doCommand(Command::Gui, "Gui.activeView().sendMessage(\"Save\")");
+    if (!getMainWindow()->activeWindow()) {
+        return;
+    }
+    doCommand(Command::Gui, "Gui.getMainWindow().getActiveWindow().sendMessage(\"Save\")");
 }
 
 bool StdCmdSave::isActive()
@@ -878,7 +881,10 @@ StdCmdSaveAs::StdCmdSaveAs()
 void StdCmdSaveAs::activated(int iMsg)
 {
     Q_UNUSED(iMsg);
-    doCommand(Command::Gui, "Gui.activeView().sendMessage(\"SaveAs\")");
+    if (!getMainWindow()->activeWindow()) {
+        return;
+    }
+    doCommand(Command::Gui, "Gui.getMainWindow().getActiveWindow().sendMessage(\"SaveAs\")");
 }
 
 bool StdCmdSaveAs::isActive()
@@ -909,7 +915,10 @@ StdCmdSaveCopy::StdCmdSaveCopy()
 void StdCmdSaveCopy::activated(int iMsg)
 {
     Q_UNUSED(iMsg);
-    doCommand(Command::Gui, "Gui.activeView().sendMessage(\"SaveCopy\")");
+    if (!getMainWindow()->activeWindow()) {
+        return;
+    }
+    doCommand(Command::Gui, "Gui.getMainWindow().getActiveWindow().sendMessage(\"SaveCopy\")");
 }
 
 bool StdCmdSaveCopy::isActive()

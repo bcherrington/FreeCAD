@@ -25,6 +25,7 @@
 #include <limits>
 
 #include <QCoreApplication>
+#include <QGridLayout>
 #include <QMessageBox>
 
 #include <App/Application.h>
@@ -57,7 +58,7 @@ namespace
 {
 bool isSubtractivePrimitive(PartDesign::FeaturePrimitive* primitive)
 {
-    return primitive->getAddSubType() == PartDesign::FeatureAddSub::Subtractive;
+    return primitive->getAddSubType() == PartDesign::FeatureAddSub::Type::Subtractive;
 }
 
 const char* primitiveTypeName(PartDesign::FeaturePrimitive::Type type)
@@ -134,9 +135,8 @@ constexpr int AsyncInteractivePreviewDebounceMs = 150;
 
 // clang-format off
 TaskBoxPrimitives::TaskBoxPrimitives(ViewProviderPrimitive* vp, QWidget* parent)
-  : TaskBox(Gui::BitmapFactory().pixmap(primitiveTaskIconName(vp).c_str()), primitiveTaskTitle(vp), true, parent)
+  : TaskFeatureAddSubParameters(vp, parent, primitiveTaskIconName(vp), primitiveTaskTitle(vp))
   , ui(new Ui_DlgPrimitives)
-  , vp(vp)
 {
     vp->showPreview(true);
     vp->showPreviousFeature(true);
@@ -146,10 +146,12 @@ TaskBoxPrimitives::TaskBoxPrimitives(ViewProviderPrimitive* vp, QWidget* parent)
     this->groupLayout()->addWidget(proxy);
 
     int index = 0;
+    QGridLayout* operationGrid = nullptr;
     switch(getObject<PartDesign::FeaturePrimitive>()->getPrimitiveType()) {
 
         case PartDesign::FeaturePrimitive::Box:
             index = 1;
+            operationGrid = ui->boxParametersLayout;
             ui->boxLength->setValue(getObject<PartDesign::Box>()->Length.getValue());
             ui->boxLength->bind(getObject<PartDesign::Box>()->Length);
             ui->boxHeight->setValue(getObject<PartDesign::Box>()->Height.getValue());
@@ -165,6 +167,7 @@ TaskBoxPrimitives::TaskBoxPrimitives(ViewProviderPrimitive* vp, QWidget* parent)
             break;
         case PartDesign::FeaturePrimitive::Cylinder:
             index = 2;
+            operationGrid = ui->cylinderAngleLayout;
             ui->cylinderAngle->setValue(getObject<PartDesign::Cylinder>()->Angle.getValue());
             ui->cylinderAngle->bind(getObject<PartDesign::Cylinder>()->Angle);
             ui->cylinderHeight->setValue(getObject<PartDesign::Cylinder>()->Height.getValue());
@@ -184,6 +187,7 @@ TaskBoxPrimitives::TaskBoxPrimitives(ViewProviderPrimitive* vp, QWidget* parent)
             break;
         case PartDesign::FeaturePrimitive::Sphere:
             index = 4;
+            operationGrid = ui->sphereAnglesLayout;
             ui->sphereAngle1->setValue(getObject<PartDesign::Sphere>()->Angle1.getValue());
             ui->sphereAngle1->bind(getObject<PartDesign::Sphere>()->Angle1);
             ui->sphereAngle2->setValue(getObject<PartDesign::Sphere>()->Angle2.getValue());
@@ -203,6 +207,7 @@ TaskBoxPrimitives::TaskBoxPrimitives(ViewProviderPrimitive* vp, QWidget* parent)
             break;
         case PartDesign::FeaturePrimitive::Cone:
             index = 3;
+            operationGrid = ui->coneAngleLayout;
             ui->coneAngle->setValue(getObject<PartDesign::Cone>()->Angle.getValue());
             ui->coneAngle->bind(getObject<PartDesign::Cone>()->Angle);
             ui->coneHeight->setValue(getObject<PartDesign::Cone>()->Height.getValue());
@@ -222,6 +227,7 @@ TaskBoxPrimitives::TaskBoxPrimitives(ViewProviderPrimitive* vp, QWidget* parent)
             break;
         case PartDesign::FeaturePrimitive::Ellipsoid:
             index = 5;
+            operationGrid = ui->ellipsoidAnglesLayout;
             ui->ellipsoidAngle1->setValue(getObject<PartDesign::Ellipsoid>()->Angle1.getValue());
             ui->ellipsoidAngle1->bind(getObject<PartDesign::Ellipsoid>()->Angle1);
             ui->ellipsoidAngle2->setValue(getObject<PartDesign::Ellipsoid>()->Angle2.getValue());
@@ -249,6 +255,7 @@ TaskBoxPrimitives::TaskBoxPrimitives(ViewProviderPrimitive* vp, QWidget* parent)
             break;
         case PartDesign::FeaturePrimitive::Torus:
             index = 6;
+            operationGrid = ui->torusAnglesLayout;
             ui->torusAngle1->setValue(getObject<PartDesign::Torus>()->Angle1.getValue());
             ui->torusAngle1->bind(getObject<PartDesign::Torus>()->Angle1);
             ui->torusAngle2->setValue(getObject<PartDesign::Torus>()->Angle2.getValue());
@@ -275,6 +282,7 @@ TaskBoxPrimitives::TaskBoxPrimitives(ViewProviderPrimitive* vp, QWidget* parent)
             break;
         case PartDesign::FeaturePrimitive::Prism:
             index = 7;
+            operationGrid = ui->prismParametersLayout;
             ui->prismPolygon->setValue(getObject<PartDesign::Prism>()->Polygon.getValue());
             ui->prismCircumradius->setValue(getObject<PartDesign::Prism>()->Circumradius.getValue());
             ui->prismCircumradius->bind(getObject<PartDesign::Prism>()->Circumradius);
@@ -291,6 +299,7 @@ TaskBoxPrimitives::TaskBoxPrimitives(ViewProviderPrimitive* vp, QWidget* parent)
             break;
         case PartDesign::FeaturePrimitive::Wedge:
             index = 8;
+            operationGrid = ui->wedgeParametersLayout;
             ui->wedgeXmax->setValue(getObject<PartDesign::Wedge>()->Xmax.getValue());
             ui->wedgeXmax->bind(getObject<PartDesign::Wedge>()->Xmax);
             ui->wedgeXmin->setValue(getObject<PartDesign::Wedge>()->Xmin.getValue());
@@ -335,15 +344,13 @@ TaskBoxPrimitives::TaskBoxPrimitives(ViewProviderPrimitive* vp, QWidget* parent)
     }
 
     ui->widgetStack->setCurrentIndex(index);
+    setupOperation(operationGrid);
     ui->widgetStack->setMinimumSize(ui->widgetStack->widget(index)->minimumSize());
     for(int i=0; i<ui->widgetStack->count(); ++i) {
 
         if(i != index)
             ui->widgetStack->widget(i)->setSizePolicy(QSizePolicy(QSizePolicy::Ignored, QSizePolicy::Ignored));
     }
-
-    Gui::Document* doc = vp->getDocument();
-    this->attachDocument(doc);
 
     //show the parts coordinate system axis for selection
     if(PartDesign::Body * body = PartDesign::Body::findBodyOf(getObject())) {
@@ -498,7 +505,6 @@ TaskBoxPrimitives::TaskBoxPrimitives(ViewProviderPrimitive* vp, QWidget* parent)
 TaskBoxPrimitives::~TaskBoxPrimitives()
 {
     stopPendingRecompute();
-
     // hide the parts coordinate system axis for selection
     try {
         auto obj = getObject();
@@ -516,12 +522,18 @@ TaskBoxPrimitives::~TaskBoxPrimitives()
     }
 }
 
-void TaskBoxPrimitives::slotDeletedObject(const Gui::ViewProviderDocumentObject& Obj)
+void TaskBoxPrimitives::setupOperation(QGridLayout* grid)
 {
-    if (this->vp == &Obj) {
-        stopPendingRecompute();
-        this->vp = nullptr;
+    auto primitive = getObject<PartDesign::FeaturePrimitive>();
+    if (isSubtractivePrimitive(primitive)) {
+        assert(grid);
+        ui->operationLayout->removeWidget(ui->labelOperation);
+        ui->operationLayout->removeWidget(ui->comboOperation);
+        const int row = grid->rowCount();
+        grid->addWidget(ui->labelOperation, row, 0);
+        grid->addWidget(ui->comboOperation, row, grid->columnCount() - 1);
     }
+    TaskFeatureAddSubParameters::setupOperation(ui->labelOperation, ui->comboOperation);
 }
 
 void TaskBoxPrimitives::onBoxHeightChanged(double v)
@@ -851,6 +863,14 @@ void TaskBoxPrimitives::onWedgeZmaxChanged(double v)
     });
 }
 
+void TaskBoxPrimitives::changeEvent(QEvent* e)
+{
+    TaskBox::changeEvent(e);
+    if (e->type() == QEvent::LanguageChange) {
+        ui->retranslateUi(proxy);
+    }
+}
+
 void TaskBoxPrimitives::onPlacementChanged()
 {
     setGizmoPositions();
@@ -1093,6 +1113,7 @@ bool TaskBoxPrimitives::setPrimitive(App::DocumentObject* obj)
         // No need to open a transaction because this is already done in the command
         // class or when starting to edit a primitive.
         Gui::Command::runCommand(Gui::Command::Doc, cmd.c_str());
+        TaskFeatureAddSubParameters::apply();
     }
     catch (const Base::PyException& e) {
         QMessageBox::warning(

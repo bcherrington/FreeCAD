@@ -91,7 +91,7 @@ private:
     );
 };
 
-/// Convenience class to collect common methods for all SketchBased features
+/// Common functionality for feature parameter panels
 class PartDesignGuiExport TaskFeatureParameters: public Gui::TaskView::TaskBox,
                                                  public Gui::DocumentObserver
 {

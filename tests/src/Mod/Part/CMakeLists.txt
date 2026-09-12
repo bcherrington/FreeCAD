@@ -4,7 +4,11 @@ add_subdirectory(App)
 
 if(BUILD_GUI)
     add_subdirectory(Gui)
-endif(BUILD_GUI)
+    target_sources(Part_tests_run PRIVATE
+        Gui/SoBrepEdgeSet.cpp
+    )
+    target_link_libraries(Part_tests_run PartGui)
+endif()
 
 target_link_libraries(Part_tests_run
     GTest::gtest_main

@@ -33,6 +33,7 @@
 #include "ViewProviderDocumentObject.h"
 #include "ViewProviderExtension.h"
 #include "ViewProviderFeaturePython.h"
+#include "ViewProviderSuppressibleExtension.h"
 
 
 class SoBase;
@@ -418,6 +419,7 @@ private:
 
 private:
     SoPickStyle* pcPickStyle {nullptr};
+    Gui::ViewProviderSuppressibleExtension suppressibleExt;
 };
 
 using ViewProviderLinkPython = ViewProviderFeaturePythonT<ViewProviderLink>;

@@ -133,6 +133,7 @@ private Q_SLOTS:
     void onDeleteEdge();
 
 protected:
+    void changeEvent(QEvent* e) override;
     void removeFromListWidget(QListWidget* w, QString name);
     bool referenceSelected(const Gui::SelectionChanges& msg) const;
 

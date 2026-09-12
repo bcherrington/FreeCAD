@@ -68,7 +68,7 @@ namespace
 bool isSubtractivePipe(ViewProviderPipe* view)
 {
     auto* pipe = view->getObject<PartDesign::Pipe>();
-    return pipe->getAddSubType() == PartDesign::FeatureAddSub::Subtractive;
+    return pipe->getAddSubType() == PartDesign::FeatureAddSub::Type::Subtractive;
 }
 
 std::string pipeTaskIconName(ViewProviderPipe* view)
@@ -116,6 +116,7 @@ TaskPipeParameters::TaskPipeParameters(ViewProviderPipe* PipeView, bool /*newObj
     // we need a separate container widget to add all controls to
     proxy = new QWidget(this);
     ui->setupUi(proxy);
+    setupOperation(ui->labelOperation, ui->comboOperation);
     // Enable multi-selection in edges list
     ui->listWidgetReferences->setSelectionMode(QAbstractItemView::ExtendedSelection);
 
@@ -328,6 +329,14 @@ void TaskPipeParameters::requestRecompute(bool waitForCompletion)
 {
     if (!isUpdateBlocked() && asyncPreviewSession) {
         asyncPreviewSession->requestRecompute(waitForCompletion);
+    }
+}
+
+void TaskPipeParameters::changeEvent(QEvent* e)
+{
+    TaskBox::changeEvent(e);
+    if (e->type() == QEvent::LanguageChange) {
+        ui->retranslateUi(proxy);
     }
 }
 
@@ -718,6 +727,7 @@ bool TaskPipeParameters::accept(
     }
 
     try {
+        TaskSketchBasedParameters::apply();
         setVisibilityOfSpineAndProfile();
 
         App::DocumentObject* spine = pipe->Spine.getValue();

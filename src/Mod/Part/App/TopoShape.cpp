@@ -151,8 +151,6 @@
 #include <BOPAlgo_ArgumentAnalyzer.hxx>
 #include <BOPAlgo_ListOfCheckResult.hxx>
 
-#include <BRepAlgoAPI_Defeaturing.hxx>
-
 #if OCC_VERSION_HEX < 0x070600
 # include <BRepAdaptor_HCurve.hxx>
 # include <BRepAdaptor_HCompCurve.hxx>
@@ -4099,30 +4097,12 @@ TopoDS_Shape TopoShape::defeaturing(const std::vector<TopoDS_Shape>& s) const
     if (this->_Shape.IsNull()) {
         throw Standard_Failure("Base shape is null");
     }
-    constexpr std::size_t totalPhases = 2;
-    ScopedRecomputeProgress progressScope("Defeaturing");
-    auto prepareScope = progressScope.makeStepScope(0, totalPhases, "Preparing defeaturing...");
-    BRepAlgoAPI_Defeaturing defeat;
-    defeat.SetRunParallel(true);
-    defeat.SetShape(this->_Shape);
+    std::vector<TopoShape> faces;
+    faces.reserve(s.size());
     for (const auto& it : s) {
-        defeat.AddFaceToRemove(it);
+        faces.emplace_back(it);
     }
-    prepareScope.complete();
-
-    auto buildScope = progressScope.makeStepScope(1, totalPhases, "Building defeaturing...");
-    buildScope.throwIfCanceled();
-    Part::buildWithProgress(defeat);
-    buildScope.complete();
-    if (!defeat.IsDone()) {
-        // error treatment
-        Standard_SStream aSStream;
-        defeat.DumpErrors(aSStream);
-        const std::string& resultstr = aSStream.str();
-        const char* cstr2 = resultstr.c_str();
-        throw Base::RuntimeError(cstr2);
-    }
-    return defeat.Shape();
+    return makeElementDefeaturing(faces).getShape();
 }
 
 /**

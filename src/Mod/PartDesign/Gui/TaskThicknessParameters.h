@@ -80,6 +80,7 @@ private:
     void addContainerWidget();
     void initControls();
     void setupConnections();
+    void updateModeControls(int mode);
     PartDesign::Thickness* onBeforeChange();
     void onAfterChange();
 

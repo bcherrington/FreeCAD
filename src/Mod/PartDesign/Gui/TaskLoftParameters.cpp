@@ -24,6 +24,7 @@
 
 
 #include <QAction>
+#include <QEvent>
 
 #include <App/Application.h>
 #include <App/Document.h>
@@ -53,7 +54,7 @@ namespace
 bool isSubtractiveLoft(ViewProviderLoft* view)
 {
     auto* loft = view->getObject<PartDesign::Loft>();
-    return loft->getAddSubType() == PartDesign::FeatureAddSub::Subtractive;
+    return loft->getAddSubType() == PartDesign::FeatureAddSub::Type::Subtractive;
 }
 
 std::string loftTaskIconName(ViewProviderLoft* view)
@@ -75,6 +76,7 @@ TaskLoftParameters::TaskLoftParameters(ViewProviderLoft* LoftView, bool /*newObj
     // we need a separate container widget to add all controls to
     proxy = new QWidget(this);
     ui->setupUi(proxy);
+    setupOperation(ui->labelOperation, ui->comboOperation);
     QMetaObject::connectSlotsByName(this);
 
     // clang-format off
@@ -459,8 +461,13 @@ void TaskLoftParameters::clearInteractiveSelection()
     }
 }
 
-void TaskLoftParameters::changeEvent(QEvent* /*e*/)
-{}
+void TaskLoftParameters::changeEvent(QEvent* e)
+{
+    TaskBox::changeEvent(e);
+    if (e->type() == QEvent::LanguageChange) {
+        ui->retranslateUi(proxy);
+    }
+}
 
 void TaskLoftParameters::onUpdateView(bool on)
 {
