@@ -138,14 +138,12 @@ endif()
 if (WIN32)
     # In order to make menus and tooltips usable in fullscreen under Windows we need to call setHasBorderInFullScreen(),
     # defined in Qt's private Gui code. See issue #7563, and the calls to QNativeInterface::Private in MainWindow.cpp
-    if(FREECAD_QT_MAJOR_VERSION EQUAL 6)
-        if(Qt6_VERSION VERSION_GREATER_EQUAL "6.10.0")
-            find_package(Qt6 REQUIRED COMPONENTS GuiPrivate)
-        endif()
-        list(APPEND FreeCADGui_LIBS
-            Qt6::GuiPrivate
-        )
+    if(Qt6_VERSION VERSION_GREATER_EQUAL "6.10.0")
+        find_package(Qt6 REQUIRED COMPONENTS GuiPrivate)
     endif()
+    list(APPEND FreeCADGui_LIBS
+        Qt6::GuiPrivate
+    )
 endif()
 
 target_include_directories(
@@ -189,33 +187,10 @@ else()
     )
 endif()
 
-if(${Qt5WinExtras_FOUND})
-    target_include_directories(
-        FreeCADGui
-        SYSTEM
-        PUBLIC
-        ${Qt5WinExtras_INCLUDE_DIRS}
-    )
-    list(APPEND FreeCADGui_LIBS
-        ${Qt5WinExtras_LIBRARIES}
-    )
-endif()
-
 IF(SPNAV_FOUND AND FREECAD_USE_3DCONNEXION_LEGACY)
     add_definitions(-D_USE_3DCONNEXION_SDK)
     if(SPNAV_USE_X11)
         add_definitions(-DSPNAV_USE_X11)
-        if (FREECAD_QT_MAJOR_VERSION EQUAL 5 AND UNIX AND NOT APPLE)
-            find_package(Qt5X11Extras REQUIRED)
-            target_include_directories(
-                FreeCADGui
-                SYSTEM
-                PUBLIC
-                ${Qt5X11Extras_INCLUDE_DIRS}
-            )
-            list(APPEND FreeCADGui_LIBS ${Qt5X11Extras_LIBRARIES})
-            # Note that Qt6 has removed the QtX11Extras files
-        endif()
         find_package(X11 QUIET)
         if (X11_FOUND)
             list(APPEND FreeCADGui_LIBS
@@ -285,16 +260,10 @@ if(FREECAD_USE_SHIBOKEN)
         list(APPEND FreeCADGui_LIBS
             ${SHIBOKEN_LIBRARY}
         )
-    else (SHIBOKEN_LIBRARY)
-        if (TARGET Shiboken2::libshiboken)
-            list(APPEND FreeCADGui_LIBS
-                Shiboken2::libshiboken
-            )
-        elseif (TARGET Shiboken6::libshiboken)
-            list(APPEND FreeCADGui_LIBS
-                Shiboken6::libshiboken
-            )
-        endif (TARGET Shiboken2::libshiboken)
+    elseif (TARGET Shiboken6::libshiboken)
+        list(APPEND FreeCADGui_LIBS
+            Shiboken6::libshiboken
+        )
     endif (SHIBOKEN_LIBRARY)
 endif(FREECAD_USE_SHIBOKEN)
 
@@ -313,15 +282,9 @@ if(FREECAD_USE_PYSIDE)
             ${PYSIDE_LIBRARY}
         )
     else (PYSIDE_LIBRARY)
-        if (TARGET PySide2::pyside2)
-            list(APPEND FreeCADGui_LIBS
-                PySide2::pyside2
-            )
-        elseif (TARGET PySide6::pyside6)
-            list(APPEND FreeCADGui_LIBS
-                PySide6::pyside6
-            )
-        endif ()
+        list(APPEND FreeCADGui_LIBS
+            PySide6::pyside6
+        )
     endif (PYSIDE_LIBRARY)
 
     add_definitions(-DHAVE_PYSIDE${PYSIDE_MAJOR_VERSION})
@@ -437,18 +400,6 @@ if(FREECAD_USE_3DCONNEXION_NAVLIB AND (MSVC OR APPLE))
         ${FreeCADGui_SDK_MOC_HDRS}
     )
 endif(FREECAD_USE_3DCONNEXION_NAVLIB AND (MSVC OR APPLE))
-
-set_property(SOURCE GraphvizView.h GraphvizView.cpp PROPERTY SKIP_AUTOMOC ON)
-add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/moc_GraphvizView-internal.cpp
-    COMMAND ${QtCore_MOC_EXECUTABLE} -o ${CMAKE_CURRENT_BINARY_DIR}/moc_GraphvizView-internal.cpp ${CMAKE_CURRENT_SOURCE_DIR}/GraphvizView.cpp
-    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/GraphvizView.cpp)
-
-add_custom_command(OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/moc_GraphvizView.cpp
-    COMMAND ${QtCore_MOC_EXECUTABLE} -o ${CMAKE_CURRENT_BINARY_DIR}/moc_GraphvizView.cpp ${CMAKE_CURRENT_SOURCE_DIR}/GraphvizView.h
-    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/GraphvizView.h)
-
-set_property(SOURCE GraphvizView.cpp APPEND PROPERTY OBJECT_DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/moc_GraphvizView-internal.cpp)
-set_property(SOURCE GraphvizView.h APPEND PROPERTY OBJECT_DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/moc_GraphvizView.cpp)
 
 set (FreeCAD_TR_QRC ${CMAKE_CURRENT_BINARY_DIR}/Language/FreeCAD_translation.qrc)
 qt_find_and_add_translation(QM_SRCS "Language/FreeCAD_*.ts"
@@ -1174,6 +1125,7 @@ SET(Widget_CPP_SRCS
     NotificationArea.cpp
     PrefWidgets.cpp
     InputField.cpp
+    NumericLocale.cpp
     ProgressBar.cpp
     ProgressDialog.cpp
     QuantitySpinBox.cpp
@@ -1237,14 +1189,16 @@ SET(Params_CPP_SRCS
     ParamHandler.cpp
     ViewParams.cpp
     SpaceMouseParameter.cpp
+    GeneralParameter.cpp
 )
 
 SET(Params_HPP_SRCS
     TreeParams.h
     OverlayParams.h
-    ParamHandler.cpp
+    ParamHandler.h
     ViewParams.h
     SpaceMouseParameter.h
+    GeneralParameter.h
 )
 
 SET(Params_SRCS
@@ -1379,6 +1333,8 @@ SET(FreeCADGui_CPP_SRCS
     StyleParameters/Value.cpp
     StyleParameters/Parser.cpp
     StyleParameters/ParameterManager.cpp
+    StyleParameters/Diagnostics.cpp
+    StyleParameters/ColorShading.cpp
 )
 SET(FreeCADGui_SRCS
     AsyncRecomputeProgressDialog.h
@@ -1397,6 +1353,8 @@ SET(FreeCADGui_SRCS
     ExpressionBinding.h
     ExpressionBindingPy.h
     ExpressionCompleter.h
+    FuzzyMatcher.cpp
+    FuzzyMatcher.h
     FreeCADGuiInit.py
     FreeCADGuiTest.py
     FreeCADStyle.h
@@ -1432,6 +1390,12 @@ SET(FreeCADGui_SRCS
     StyleParameters/Value.h
     StyleParameters/Parser.h
     StyleParameters/ParameterManager.h
+    StyleParameters/Diagnostics.h
+    StyleParameters/Edges.h
+    StyleParameters/Insets.h
+    StyleParameters/Corners.h
+    StyleParameters/Gradient.h
+    StyleParameters/ColorShading.h
 )
 
 if(FREECAD_USE_EARLY_SPLASH)

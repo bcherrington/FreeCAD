@@ -107,7 +107,7 @@ void reportTransformAsyncRecomputeFailure(const App::RecomputeResult& result)
 
     const std::string message = result.exception->what();
     auto report = [message]() {
-        Base::Console().error("%s\n", message.c_str());
+        Base::Console().error("{}\n", message.c_str());
     };
     if (auto* app = QCoreApplication::instance()) {
         QMetaObject::invokeMethod(app, report, Qt::QueuedConnection);

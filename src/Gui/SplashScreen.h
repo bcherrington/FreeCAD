@@ -65,6 +65,7 @@ public:
     void raiseSplash();
     void waitForPaint();
 
+    static QPixmap defaultSplashImage();
     static QPixmap splashImage();
 
 protected:

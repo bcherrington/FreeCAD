@@ -662,7 +662,7 @@ void PatternParametersWidget::updateSpacingLabels(
         }
     }
     catch (const Base::Exception& e) {
-        Base::Console().warning("Could not update on-view spacing labels: %s\n", e.what());
+        Base::Console().warning("Could not update on-view spacing labels: {}\n", e.what());
         clearAllSpacingLabels();
     }
 }
@@ -774,7 +774,7 @@ void PatternParametersWidget::updateSpacingLabels(
         }
     }
     catch (const Base::Exception& e) {
-        Base::Console().warning("Could not update on-view polar spacing labels: %s\n", e.what());
+        Base::Console().warning("Could not update on-view polar spacing labels: {}\n", e.what());
         clearAllSpacingLabels();
     }
 }

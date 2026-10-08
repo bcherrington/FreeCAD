@@ -462,7 +462,7 @@ bool TaskDlgFeatureParameters::reportAcceptException(const Base::Exception& e) c
             );
         }
     }
-    Base::Console().error("%s\n", errorText.toUtf8().constData());
+    Base::Console().error("{}\n", errorText.toStdString());
     return false;
 }
 

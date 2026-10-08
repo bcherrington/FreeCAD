@@ -335,6 +335,10 @@ void PropertyView::slotDeletedObject(const App::DocumentObject& obj)
 
 void PropertyView::slotActiveDocument(const Gui::Document& doc)
 {
+    timer->stop();
+    propertyEditorData->buildUp();
+    propertyEditorView->buildUp();
+    clearPropertyItemSelection();
     checkEnable(doc.getDocument()->getName());
 }
 

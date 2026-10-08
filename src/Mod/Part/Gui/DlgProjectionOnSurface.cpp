@@ -193,7 +193,7 @@ DlgProjectionOnSurface::~DlgProjectionOnSurface()
         }
         catch (Standard_NoSuchObject& e) {
             Base::Console().warning(
-                "DlgProjectionOnSurface::~DlgProjectionOnSurface: %s",
+                "DlgProjectionOnSurface::~DlgProjectionOnSurface: {}",
                 e.GetMessageString()
             );
         }
@@ -211,7 +211,7 @@ DlgProjectionOnSurface::~DlgProjectionOnSurface()
         }
         catch (Standard_NoSuchObject& e) {
             Base::Console().warning(
-                "DlgProjectionOnSurface::~DlgProjectionOnSurface: %s",
+                "DlgProjectionOnSurface::~DlgProjectionOnSurface: {}",
                 e.GetMessageString()
             );
         }

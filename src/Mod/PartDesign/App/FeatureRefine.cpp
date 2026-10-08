@@ -108,7 +108,7 @@ TopoShape FeatureRefine::refineShapeIfActive(
             throw;
         }
         if (onError == RefineErrorPolicy::Warn) {
-            Base::Console().warning(fmt::format("Refine failed: {}", err.GetMessageString()).c_str());
+            Base::Console().warning("Refine failed: {}", err.GetMessageString());
         }
         else {
             throw;

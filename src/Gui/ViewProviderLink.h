@@ -287,6 +287,7 @@ public:
 
     ViewProvider* startEditing(int ModNum) override;
     bool doubleClicked() override;
+    std::optional<bool> doubleClickedOccurrence(const App::SubObjectT& reference) override;
 
     PyObject* getPyObject() override;
     PyObject* getPyLinkView();

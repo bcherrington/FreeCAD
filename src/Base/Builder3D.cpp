@@ -24,6 +24,7 @@
 
 
 #include <algorithm>
+#include <format>
 #include <string>
 #include <boost/algorithm/string.hpp>
 #include <boost/algorithm/string/predicate.hpp>
@@ -1283,7 +1284,7 @@ BaseExport Vector3f stringToVector(const std::string& str)
 
 BaseExport std::string vectorToString(Vector3f vec)
 {
-    return fmt::format("({},{},{})", vec.x, vec.y, vec.z);
+    return std::format("({},{},{})", vec.x, vec.y, vec.z);
 }
 
 }  // namespace Base

@@ -1848,9 +1848,10 @@ void SectionCut::onCutXvalueChanged(double val)
     }
     auto pcBox = dynamic_cast<Part::Box*>(CutBox);
     if (!pcBox) {
-        Base::Console().error((std::string("Section cut error: ") + std::string(BoxXName)
-                               + std::string(" is no Part::Box object. Cannot proceed.\n"))
-                                  .c_str());
+        Base::Console().error(
+            "Section cut error: {} is no Part::Box object. Cannot proceed.\n",
+            BoxXName
+        );
         return;
     }
     // get its placement and size
@@ -1984,9 +1985,10 @@ void SectionCut::onCutYvalueChanged(double val)
     }
     auto pcBox = dynamic_cast<Part::Box*>(CutBox);
     if (!pcBox) {
-        Base::Console().error((std::string("Section cut error: ") + std::string(BoxYName)
-                               + std::string(" is no Part::Box object. Cannot proceed.\n"))
-                                  .c_str());
+        Base::Console().error(
+            "Section cut error: {} is no Part::Box object. Cannot proceed.\n",
+            BoxYName
+        );
         return;
     }
     Base::Placement placement = pcBox->Placement.getValue();
@@ -2008,9 +2010,7 @@ void SectionCut::onCutYvalueChanged(double val)
     if (hasBoxZ) {
         auto CutFeatureZ = findObject(CutZName);
         if (!CutFeatureZ) {
-            Base::Console().error((std::string("Section cut error: there is no ")
-                                   + std::string(CutZName) + std::string("\n"))
-                                      .c_str());
+            Base::Console().error("Section cut error: there is no {}\n", CutZName);
             return;
         }
         // refresh the Z cut limits according to the new bounding box of the cut result
@@ -2129,9 +2129,10 @@ void SectionCut::onCutZvalueChanged(double val)
     }
     auto pcBox = dynamic_cast<Part::Box*>(CutBox);
     if (!pcBox) {
-        Base::Console().error((std::string("Section cut error: ") + std::string(BoxZName)
-                               + std::string(" is no Part::Box object. Cannot proceed.\n"))
-                                  .c_str());
+        Base::Console().error(
+            "Section cut error: {} is no Part::Box object. Cannot proceed.\n",
+            BoxZName
+        );
         return;
     }
     Base::Placement placement = pcBox->Placement.getValue();
@@ -2246,9 +2247,7 @@ void SectionCut::FlipClickedHelper(const char* BoxName)
     }
     auto pcBox = dynamic_cast<Part::Box*>(CutBox);
     if (!pcBox) {
-        Base::Console().error((std::string("Section cut error: ") + std::string(BoxName)
-                               + std::string(" is no Part::Box object. Cannot proceed.\n"))
-                                  .c_str());
+        Base::Console().error("Section cut error: {} is no Part::Box object. Cannot proceed.\n", BoxName);
         return;
     }
     // get its placement and size
@@ -2346,9 +2345,7 @@ App::DocumentObject* SectionCut::findOrCreateObject(const char* objName)
 {
     auto object = findObject(objName);
     if (!object) {
-        Base::Console().warning((std::string("Section cut warning: there is no ")
-                                 + std::string(objName) + std::string(", trying to recreate it\n"))
-                                    .c_str());
+        Base::Console().warning("Section cut warning: there is no {}, trying to recreate it\n", objName);
         startCutting();
         return nullptr;
     }
@@ -2692,9 +2689,7 @@ App::DocumentObject* SectionCut::CreateBooleanFragments(App::Document* doc)
     // check for success
     App::DocumentObject* object = doc->getObject(CompoundName);
     if (!object) {
-        Base::Console().error((std::string("Section cut error: ") + std::string(CompoundName)
-                               + std::string(" could not be added\n"))
-                                  .c_str());
+        Base::Console().error("Section cut error: {} could not be added\n", CompoundName);
         return nullptr;
     }
     return object;

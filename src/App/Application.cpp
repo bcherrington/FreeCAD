@@ -40,6 +40,7 @@
 # include <boost/date_time/posix_time/posix_time.hpp>
 # include <boost/scope_exit.hpp>
 # include <chrono>
+#include <format>
 # include <optional>
 # include <memory>
 # include <utility>
@@ -52,8 +53,6 @@
 # include <map>
 # include <tuple>
 # include <vector>
-# include <fmt/format.h>
-# include <fmt/ranges.h>
 
 #ifdef FC_OS_WIN32
 # include <Shlobj.h>
@@ -88,8 +87,11 @@
 #include <Base/ExceptionFactory.h>
 #include <Base/FileInfo.h>
 #include <Base/GeometryPyCXX.h>
+#include <Base/CrashReporter/CrashFramePy.h>
+#include <Base/CrashReporter/CrashReportPy.h>
 #include <Base/Interpreter.h>
 #include <Base/MatrixPy.h>
+#include <Base/NumericFormatting.h>
 #include <Base/QuantityPy.h>
 #include <Base/ParameterPy.h>
 #include <Base/Persistence.h>
@@ -163,10 +165,7 @@
 #include "Transactions.h"
 #include "VRMLObject.h"
 
-// If you stumble here, run the target "BuildExtractRevision" on Windows systems
-// or the Python script "SubWCRev.py" on Linux based systems which builds
-// src/Build/Version.h. Or create your own from src/Build/Version.h.in!
-#include <Build/Version.h>
+#include <Base/Version.h>
 #include "Branding.h"
 
 
@@ -574,7 +573,7 @@ void App::RecomputeProgressHandle::activate()
 void App::RecomputeProgressHandle::cancel()
 {
     _canceled.store(true, std::memory_order_relaxed);
-    appendRecomputeDebugLog("progress_cancel", fmt::format("handle={}", fmt::ptr(this)));
+    appendRecomputeDebugLog("progress_cancel", std::format("handle={}", static_cast<const void*>(this)));
 }
 
 bool App::RecomputeProgressHandle::wasCanceled() const
@@ -709,7 +708,7 @@ void App::RecomputeProgressHandle::resetDisplayState()
 
     appendRecomputeDebugLog(
         "progress_reset",
-        fmt::format("handle={} {}", fmt::ptr(this), describeProgressDisplayState(state))
+        std::format("handle={} {}", static_cast<const void*>(this), describeProgressDisplayState(state))
     );
     if (observer) {
         observer(state);
@@ -772,9 +771,9 @@ void App::RecomputeProgressHandle::syncDisplay()
     if (notifyObserver) {
         appendRecomputeDebugLog(
             "progress_state",
-            fmt::format(
+            std::format(
                 "handle={} text_depth={} notify={} {}",
-                fmt::ptr(this),
+                static_cast<const void*>(this),
                 textDepth,
                 notifyObserver,
                 describeProgressDisplayState(publishedState)
@@ -1054,6 +1053,8 @@ void Application::setupPythonTypes()
     Base::InterpreterSingleton::addType(&Base::PlacementPy::Type, pAppModule, "Placement");
     Base::InterpreterSingleton::addType(&Base::RotationPy::Type, pAppModule, "Rotation");
     Base::InterpreterSingleton::addType(&Base::AxisPy::Type, pAppModule, "Axis");
+    Base::InterpreterSingleton::addType(&Base::CrashReportPy::Type, pAppModule, "CrashReport");
+    Base::InterpreterSingleton::addType(&Base::CrashFramePy::Type, pAppModule, "CrashFrame");
 
     // Note: Create an own module 'Base' which should provide the python
     // binding classes from the base module. At a later stage we should
@@ -1320,12 +1321,7 @@ Document* Application::getDocument(const char *Name) const
 }
 Document* Application::getDocumentOrActive(const char *Name) const
 {
-    if (!Base::Tools::isNullOrEmpty(Name)) {
-        return getDocument(Name);
-    }
-    else {
-        return getActiveDocument();
-    }
+    return !Base::Tools::isNullOrEmpty(Name) ? getDocument(Name) : getActiveDocument();
 }
 
 const char * Application::getDocumentName(const Document* doc) const
@@ -1543,7 +1539,7 @@ App::RecomputeCancellationResult Application::cancelRecomputeRequest(const Recom
     appendRecomputeDebugLog(
         "cancel_request",
         describeRecomputeRequest(req)
-            + fmt::format(
+            + std::format(
                 " canceled_in_progress={} removed_queued={}",
                 result.canceledInProgress,
                 result.removedQueued
@@ -1759,7 +1755,7 @@ std::vector<Document*> Application::openDocuments(const std::vector<std::string>
                 if (errs && isMainDoc)
                     (*errs)[count] = e.what();
                 else
-                    Base::Console().error("Exception opening file: %s [%s]\n", name.c_str(), e.what());
+                    Base::Console().error("Exception opening file: {} [{}]\n", name, e.what());
             }
             catch (const std::exception &e) {
                 if (!errs && isMainDoc)
@@ -1767,7 +1763,7 @@ std::vector<Document*> Application::openDocuments(const std::vector<std::string>
                 if (errs && isMainDoc)
                     (*errs)[count] = e.what();
                 else
-                    Base::Console().error("Exception opening file: %s [%s]\n", name.c_str(), e.what());
+                    Base::Console().error("Exception opening file: {} [{}]\n", name, e.what());
             }
             catch (...) {
                 if (errs) {
@@ -1884,10 +1880,10 @@ std::vector<Document*> Application::openDocuments(const std::vector<std::string>
 
     for (auto &doc : openedDocs) {
         auto &timing = timings[doc];
-        Base::Console().log("%s restore time: %f\n", doc.getDocumentName(), timing.d1.count());
-        Base::Console().log("%s postprocess time: %f\n", doc.getDocumentName(), timing.d2.count());
+        Base::Console().log("{} restore time: {}\n", doc.getDocumentName(), timing.d1.count());
+        Base::Console().log("{} postprocess time: {}\n", doc.getDocumentName(), timing.d2.count());
     }
-    PropertyLinkBase::updateAllElementReferences();
+    PropertyLinkBase::updateAllElementReferences(openedDocs);
     _isRestoring = false;
 
     signalFinishOpenDocument();
@@ -2104,15 +2100,12 @@ std::string Application::getNameWithVersion()
     auto minor = config["BuildVersionMinor"];
     auto point = config["BuildVersionPoint"];
     auto suffix = config["BuildVersionSuffix"];
-    return fmt::format("{} {}.{}.{}{}", appname, major, minor, point, suffix);
+    return std::format("{} {}.{}.{}{}", appname, major, minor, point, suffix);
 }
 
 bool Application::isDevelopmentVersion()
 {
-    static std::string suffix = []() constexpr {
-        return FCVersionSuffix;
-    }();
-    return suffix == "dev";
+    return Base::FCVersionInfo::IsDevelopmentVersion();
 }
 
 const std::unique_ptr<ApplicationDirectories>& Application::directories() {
@@ -2457,7 +2450,7 @@ namespace {
     // Given a description string and a list of extensions, construct a type string that Qt's file
     // dialogs will recognize
     void appendTypeString(std::string &description, const std::vector<std::string> &extensions) {
-        description = fmt::format("{} (*.{})", description, fmt::join(extensions, " *."));
+        description = std::format("{} (*.{})", description, Base::Tools::joinFormatted(extensions, " *."));
     }
 }
 
@@ -2750,9 +2743,9 @@ void Application::destruct()
     for (const auto &it : paramMgr) {
         if ((it.second != _pcSysParamMngr) && (it.second != _pcUserParamMngr)) {
             if (it.second->HasSerializer() && !it.second->IgnoreSave()) {
-                Base::Console().log("Saving %s...\n", it.first.c_str());
+                Base::Console().log("Saving {}...\n", it.first);
                 it.second->SaveDocument();
-                Base::Console().log("Saving %s...done\n", it.first.c_str());
+                Base::Console().log("Saving {}...done\n", it.first);
             }
         }
     }
@@ -2843,6 +2836,11 @@ void initExceptions()
 void Application::init(int argc, char ** argv)
 {
     try {
+        // Establish the initial Base snapshot before application or GUI preferences can override it.
+        Base::publishNumericLocaleContext(
+            Base::createNumericLocaleContext()
+        );
+
         Base::SystemHandler::installNewHandler();
         Base::SystemHandler::installSegfaultHandler();
 
@@ -2975,6 +2973,8 @@ void Application::initTypes()
     App::PropertyFrequency                  ::init();
     App::PropertyForce                      ::init();
     App::PropertyHeatFlux                   ::init();
+    App::PropertyMassMomentOfInertia        ::init();
+    App::PropertyAreaMomentOfInertia        ::init();
     App::PropertyInverseArea                ::init();
     App::PropertyInverseLength              ::init();
     App::PropertyInverseVolume              ::init();
@@ -3476,23 +3476,23 @@ void Application::initConfig(int argc, char ** argv)
     // only for 'BuildVersionMajor'.
     if (Application::Config().find("BuildVersionMajor") == Application::Config().end()) {
         std::stringstream str;
-        str << FCVersionMajor
-            << "." << FCVersionMinor
-            << "." << FCVersionPoint;
+        str << Base::FCVersionInfo::VersionMajor()
+            << "." << Base::FCVersionInfo::VersionMinor()
+            << "." << Base::FCVersionInfo::VersionPoint();
         Application::Config()["ExeVersion"         ] = str.str();
-        Application::Config()["BuildVersionMajor"  ] = FCVersionMajor;
-        Application::Config()["BuildVersionMinor"  ] = FCVersionMinor;
-        Application::Config()["BuildVersionPoint"  ] = FCVersionPoint;
-        Application::Config()["BuildVersionSuffix" ] = FCVersionSuffix;
-        Application::Config()["BuildRevision"      ] = FCRevision;
-        Application::Config()["BuildRepositoryURL" ] = FCRepositoryURL;
-        Application::Config()["BuildRevisionDate"  ] = FCRevisionDate;
-#if defined(FCRepositoryHash)
-        Application::Config()["BuildRevisionHash"  ] = FCRepositoryHash;
-#endif
-#if defined(FCRepositoryBranch)
-        Application::Config()["BuildRevisionBranch"] = FCRepositoryBranch;
-#endif
+        Application::Config()["BuildVersionMajor"  ] = Base::FCVersionInfo::VersionMajor();
+        Application::Config()["BuildVersionMinor"  ] = Base::FCVersionInfo::VersionMinor();
+        Application::Config()["BuildVersionPoint"  ] = Base::FCVersionInfo::VersionPoint();
+        Application::Config()["BuildVersionSuffix" ] = Base::FCVersionInfo::VersionSuffix();
+        Application::Config()["BuildRevision"      ] = Base::FCVersionInfo::Revision();
+        Application::Config()["BuildRepositoryURL" ] = Base::FCVersionInfo::RepositoryURL();
+        Application::Config()["BuildRevisionDate"  ] = Base::FCVersionInfo::RevisionDate();
+        if (auto hash = Base::FCVersionInfo::RepositoryHash(); !hash.empty()) {
+            Application::Config()["BuildRevisionHash"] = hash;
+        }
+        if (auto branch = Base::FCVersionInfo::RepositoryBranch(); !branch.empty()) {
+            Application::Config()["BuildRevisionBranch"] = branch;
+        }
     }
 
     _argc = argc;
@@ -3602,24 +3602,24 @@ void Application::initConfig(int argc, char ** argv)
         // Remove banner if FreeCAD is invoked via the -c command as regular
         // Python interpreter
         if (mConfig["Verbose"] != "Strict")
-            Base::Console().message("%s %s, Libs: %s.%s.%s%sR%s\n%s",
-                              mConfig["ExeName"].c_str(),
-                              mConfig["ExeVersion"].c_str(),
-                              mConfig["BuildVersionMajor"].c_str(),
-                              mConfig["BuildVersionMinor"].c_str(),
-                              mConfig["BuildVersionPoint"].c_str(),
-                              mConfig["BuildVersionSuffix"].c_str(),
-                              mConfig["BuildRevision"].c_str(),
-                              mConfig["CopyrightInfo"].c_str());
+            Base::Console().message("{} {}, Libs: {}.{}.{}{}R{}\n{}",
+                              mConfig["ExeName"],
+                              mConfig["ExeVersion"],
+                              mConfig["BuildVersionMajor"],
+                              mConfig["BuildVersionMinor"],
+                              mConfig["BuildVersionPoint"],
+                              mConfig["BuildVersionSuffix"],
+                              mConfig["BuildRevision"],
+                              mConfig["CopyrightInfo"]);
         else
-            Base::Console().message("%s %s, Libs: %s.%s.%s%sR%s\n",
-                              mConfig["ExeName"].c_str(),
-                              mConfig["ExeVersion"].c_str(),
-                              mConfig["BuildVersionMajor"].c_str(),
-                              mConfig["BuildVersionMinor"].c_str(),
-                              mConfig["BuildVersionPoint"].c_str(),
-                              mConfig["BuildVersionSuffix"].c_str(),
-                              mConfig["BuildRevision"].c_str());
+            Base::Console().message("{} {}, Libs: {}.{}.{}{}R{}\n",
+                              mConfig["ExeName"],
+                              mConfig["ExeVersion"],
+                              mConfig["BuildVersionMajor"],
+                              mConfig["BuildVersionMinor"],
+                              mConfig["BuildVersionPoint"],
+                              mConfig["BuildVersionSuffix"],
+                              mConfig["BuildRevision"]);
 
         if (SafeMode::SafeModeEnabled()) {
             Base::Console().message("FreeCAD is running in _SAFE_MODE_.\n"
@@ -3735,11 +3735,14 @@ void Application::initCrashReporter()
         const std::string crashReportsDirectory {getUserAppDataDir() + "CrashReports"};
         Base::CrashReporter::Writer::prewarm();
         Base::CrashReporter::Writer::install(crashReportsDirectory);
-        Base::CrashReporter::Manager::scan(crashReportsDirectory);
+        Base::CrashReporter::Manager::scan(
+            crashReportsDirectory,
+            {},
+            App::ProgramInformation::prettyProductInfoWrapper());
     } catch (Base::Exception &e) {
-        Base::Console().warning("Crash reporting failed during startup:\n%s\n", e.getMessage());
+        Base::Console().warning("Crash reporting failed during startup:\n{}\n", e.getMessage());
     } catch (std::exception &e) {
-        Base::Console().warning("Crash reporting failed during startup:\n%s\n", e.what());
+        Base::Console().warning("Crash reporting failed during startup:\n{}\n", e.what());
     } catch (...) {
         Base::Console().warning("Crash reporting failed during startup\n");
     }
@@ -3815,11 +3818,11 @@ std::list<std::string> Application::processFiles(const std::list<std::string>& f
             if (auto cannonicalPath = file.getCannonicalPath()) {
                 file = Base::FileInfo(*cannonicalPath);
             } else {
-                Base::Console().error("Failed to process symlink file: %s\n", file.filePath());
+                Base::Console().error("Failed to process symlink file: {}\n", file.filePath());
             }
         }
 
-        Base::Console().log("Init:     Processing file: %s\n",file.filePath().c_str());
+        Base::Console().log("Init:     Processing file: {}\n",file.filePath());
 
         try {
             if (file.hasExtension("fcstd") || file.hasExtension("fcbak")
@@ -3855,10 +3858,10 @@ std::list<std::string> Application::processFiles(const std::list<std::string>& f
                     Base::Interpreter().runStringArg("%s.open(u\"%s\")",mods.front().c_str(),
                             escapedstr.c_str());
                     processed.push_back(it);
-                    Base::Console().log("Command line open: %s.open(u\"%s\")\n",mods.front().c_str(),escapedstr.c_str());
+                    Base::Console().log("Command line open: {}.open(u\"{}\")\n",mods.front(),escapedstr);
                 }
                 else if (file.exists()) {
-                    Base::Console().warning("File format not supported: %s \n", file.filePath().c_str());
+                    Base::Console().warning("File format not supported: {} \n", file.filePath());
                 }
             }
         }
@@ -3866,10 +3869,10 @@ std::list<std::string> Application::processFiles(const std::list<std::string>& f
             throw; // re-throw to main() function
         }
         catch (const Base::Exception& e) {
-            Base::Console().error("Exception while processing file: %s [%s]\n", file.filePath().c_str(), e.what());
+            Base::Console().error("Exception while processing file: {} [{}]\n", file.filePath(), e.what());
         }
         catch (...) {
-            Base::Console().error("Unknown exception while processing file: %s \n", file.filePath().c_str());
+            Base::Console().error("Unknown exception while processing file: {} \n", file.filePath());
         }
     }
 
@@ -3911,14 +3914,14 @@ void Application::processCmdLineFiles()
                     ,mods.front().c_str(),output.c_str());
             }
             else {
-                Base::Console().warning("File format not supported: %s \n", output.c_str());
+                Base::Console().warning("File format not supported: {} \n", output);
             }
         }
         catch (const Base::Exception& e) {
-            Base::Console().error("Exception while saving to file: %s [%s]\n", output.c_str(), e.what());
+            Base::Console().error("Exception while saving to file: {} [{}]\n", output, e.what());
         }
         catch (...) {
-            Base::Console().error("Unknown exception while saving to file: %s \n", output.c_str());
+            Base::Console().error("Unknown exception while saving to file: {} \n", output);
         }
     }
 }
@@ -3942,7 +3945,7 @@ void Application::runApplication()
         Base::Console().log("Exiting on purpose\n");
     }
     else {
-        Base::Console().log("Unknown Run mode (%d) in main()?!?\n\n", mConfig["RunMode"].c_str());
+        Base::Console().log("Unknown Run mode ({}) in main()?!?\n\n", mConfig["RunMode"]);
     }
 }
 
@@ -4001,10 +4004,10 @@ void Application::logStatus()
 {
     const std::string time_str = boost::posix_time::to_simple_string(
         boost::posix_time::second_clock::local_time());
-    Base::Console().log("Time = %s\n", time_str.c_str());
+    Base::Console().log("Time = {}\n", time_str);
 
     for (const auto & It : mConfig) {
-        Base::Console().log("%s = %s\n", It.first.c_str(), It.second.c_str());
+        Base::Console().log("{} = {}\n", It.first, It.second);
     }
 }
 
@@ -4037,9 +4040,9 @@ void Application::LoadParameters()
     }
     catch (const Base::Exception& e) {
         // try to proceed with an empty XML document
-        Base::Console().error("%s in file %s.\n"
+        Base::Console().error("{} in file {}.\n"
                               "Continue with an empty configuration.\n",
-                              e.what(), mConfig["SystemParameter"].c_str());
+                              e.what(), mConfig["SystemParameter"]);
         _pcSysParamMngr->CreateDocument();
     }
 
@@ -4063,9 +4066,9 @@ void Application::LoadParameters()
     }
     catch (const Base::Exception& e) {
         // try to proceed with an empty XML document
-        Base::Console().error("%s in file %s.\n"
+        Base::Console().error("{} in file {}.\n"
                               "Continue with an empty configuration.\n",
-                              e.what(), mConfig["UserParameter"].c_str());
+                              e.what(), mConfig["UserParameter"]);
         _pcUserParamMngr->CreateDocument();
     }
 }

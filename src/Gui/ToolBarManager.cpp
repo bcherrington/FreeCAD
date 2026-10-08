@@ -339,11 +339,7 @@ void ToolBarGrip::mouseMoveEvent(QMouseEvent* me)
         return;
     }
 
-#if QT_VERSION < QT_VERSION_CHECK(6, 0, 0)
-    QPoint pos = me->globalPos();
-#else
     QPoint pos = me->globalPosition().toPoint();
-#endif
     QRect rect(toolbar->mapToGlobal(QPoint(0, 0)), toolbar->size());
 
     // if mouse did not leave the area of toolbar do not continue with undocking it
@@ -698,6 +694,13 @@ void ToolBarManager::setupToolBarIconSize()
 
 void ToolBarManager::setToolBarIconSize(QToolBar* toolbar)
 {
+    // Toolbars registered as status-bar items are direct children of QStatusBar,
+    // and own their icon size. Toolbars hosted in statusBarAreaWidget still use
+    // the StatusBarIconSize preference through toolBarIconSize().
+    if (toolbar->parentWidget() == getMainWindow()->statusBar()) {
+        return;
+    }
+
     int s = toolBarIconSize(toolbar);
     toolbar->setIconSize(QSize(s, s));
     if (toolbar->parentWidget() == menuBarLeftAreaWidget) {
@@ -1379,6 +1382,23 @@ void ToolBarManager::setState(const QString& name, State state)
             saveVisibility(show, policy);
         }
     }
+}
+bool ToolBarManager::isAnyVisible(const QList<QString>& names)
+{
+    for (auto& name : names) {
+        if (!isVisible(name)) {
+            return true;
+        }
+    }
+    return false;
+}
+bool ToolBarManager::isVisible(const QString& name)
+{
+    QToolBar* tb = findToolBar(toolBars(), name);
+    if (tb) {
+        return tb->isVisible();
+    }
+    return false;
 }
 
 #include "moc_ToolBarManager.cpp"
