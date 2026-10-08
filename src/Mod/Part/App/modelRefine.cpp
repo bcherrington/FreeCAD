@@ -92,14 +92,14 @@ namespace
 void throwIfUserBreak(const Message_ProgressRange& theRange)
 {
     if (theRange.UserBreak()) {
-        Standard_ConstructionError::Raise("User aborted");
+        throw Standard_ConstructionError("User aborted");
     }
 }
 
 void throwIfUserBreak(const Message_ProgressScope& theScope)
 {
     if (theScope.UserBreak()) {
-        Standard_ConstructionError::Raise("User aborted");
+        throw Standard_ConstructionError("User aborted");
     }
 }
 
