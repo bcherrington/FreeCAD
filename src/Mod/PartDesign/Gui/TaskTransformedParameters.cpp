@@ -55,6 +55,7 @@
 #include "DeferredDialogRejectUtils.h"
 #include "TaskMultiTransformParameters.h"
 #include "ReferenceSelection.h"
+#include "Mod/Part/Gui/PatternReferenceWidget.h"
 
 
 using namespace PartDesignGui;
@@ -251,7 +252,26 @@ void TaskTransformedParameters::setupUI()
     }
 
     setupParameterUI(ui->featureUI);  // create parameter UI widgets
+    updateTabOrder();
     this->groupLayout()->addWidget(proxy);
+}
+
+void TaskTransformedParameters::updateTabOrder()
+{
+    updateTabOrder(ui->featureUI, ui->checkBoxUpdateView);
+}
+
+void TaskTransformedParameters::updateTabOrder(QWidget* parameterWidget, QWidget* nextWidget)
+{
+    // Child controls are appended to the focus chain when the parameter panel is populated.
+    QWidget* lastWidget = parameterWidget;
+    for (auto* widget = parameterWidget->nextInFocusChain(); widget != parameterWidget;
+         widget = widget->nextInFocusChain()) {
+        if (parameterWidget->isAncestorOf(widget) && (widget->focusPolicy() & Qt::TabFocus)) {
+            lastWidget = widget;
+        }
+    }
+    QWidget::setTabOrder(lastWidget, nextWidget);
 }
 
 void TaskTransformedParameters::slotDeletedObject(const Gui::ViewProviderDocumentObject& Obj)
@@ -583,15 +603,44 @@ void TaskTransformedParameters::removeItemFromListWidget(QListWidget* widget, co
     }
 }
 
-void TaskTransformedParameters::fillAxisCombo(Gui::ComboLinks& combolinks, Part::Part2DObject* sketch)
+void TaskTransformedParameters::fillAxisCombo(
+    Gui::ComboLinks& combolinks,
+    Part::Part2DObject* sketch,
+    bool allowEmpty
+)
 {
     combolinks.clear();
 
+    // first so it'll select this if nothing else is selected
+    if (allowEmpty) {
+        combolinks.addLink(
+            nullptr,
+            std::string(),
+            tr("No reference"),
+            PartGui::PatternReferenceWidget::NoDirectionUserData
+        );
+    }
+
     // add sketch axes
     if (sketch) {
-        combolinks.addLink(sketch, "H_Axis", tr("Horizontal sketch axis"));
-        combolinks.addLink(sketch, "V_Axis", tr("Vertical sketch axis"));
-        combolinks.addLink(sketch, "N_Axis", tr("Normal sketch axis"));
+        combolinks.addLink(
+            sketch,
+            "H_Axis",
+            tr("Horizontal sketch axis"),
+            PartGui::PatternReferenceWidget::ObjectDirectionUserData
+        );
+        combolinks.addLink(
+            sketch,
+            "V_Axis",
+            tr("Vertical sketch axis"),
+            PartGui::PatternReferenceWidget::ObjectDirectionUserData
+        );
+        combolinks.addLink(
+            sketch,
+            "N_Axis",
+            tr("Normal sketch axis"),
+            PartGui::PatternReferenceWidget::ObjectDirectionUserData
+        );
         for (int i = 0; i < sketch->getAxisCount(); i++) {
             QString itemText = tr("Construction line %1").arg(i + 1);
             std::stringstream sub;
@@ -607,9 +656,24 @@ void TaskTransformedParameters::fillAxisCombo(Gui::ComboLinks& combolinks, Part:
     if (body) {
         try {
             App::Origin* orig = body->getOrigin();
-            combolinks.addLink(orig->getX(), "", tr("Base X-axis"));
-            combolinks.addLink(orig->getY(), "", tr("Base Y-axis"));
-            combolinks.addLink(orig->getZ(), "", tr("Base Z-axis"));
+            combolinks.addLink(
+                orig->getX(),
+                "",
+                tr("Base X-axis"),
+                PartGui::PatternReferenceWidget::ObjectDirectionUserData
+            );
+            combolinks.addLink(
+                orig->getY(),
+                "",
+                tr("Base Y-axis"),
+                PartGui::PatternReferenceWidget::ObjectDirectionUserData
+            );
+            combolinks.addLink(
+                orig->getZ(),
+                "",
+                tr("Base Z-axis"),
+                PartGui::PatternReferenceWidget::ObjectDirectionUserData
+            );
         }
         catch (const Base::Exception& ex) {
             Base::Console().error("{}\n", ex.what());
@@ -617,22 +681,56 @@ void TaskTransformedParameters::fillAxisCombo(Gui::ComboLinks& combolinks, Part:
     }
 
     // add "Select reference"
-    combolinks.addLink(nullptr, std::string(), tr("Select reference…"));
+    combolinks.addLink(
+        nullptr,
+        std::string(),
+        tr("Select reference…"),
+        PartGui::PatternReferenceWidget::SelectReferenceUserData
+    );
 }
 
-void TaskTransformedParameters::fillPlanesCombo(Gui::ComboLinks& combolinks, Part::Part2DObject* sketch)
+void TaskTransformedParameters::fillPlanesCombo(
+    Gui::ComboLinks& combolinks,
+    Part::Part2DObject* sketch,
+    bool allowEmpty
+)
 {
     combolinks.clear();
 
+    // first so it'll select this if nothing else is selected
+    if (allowEmpty) {
+        combolinks.addLink(
+            nullptr,
+            std::string(),
+            tr("No reference"),
+            PartGui::PatternReferenceWidget::NoDirectionUserData
+        );
+    }
+
     // add sketch axes
     if (sketch) {
-        combolinks.addLink(sketch, "V_Axis", QObject::tr("Vertical sketch axis"));
-        combolinks.addLink(sketch, "H_Axis", QObject::tr("Horizontal sketch axis"));
+        combolinks.addLink(
+            sketch,
+            "V_Axis",
+            QObject::tr("Vertical sketch axis"),
+            PartGui::PatternReferenceWidget::ObjectDirectionUserData
+        );
+        combolinks.addLink(
+            sketch,
+            "H_Axis",
+            QObject::tr("Horizontal sketch axis"),
+            PartGui::PatternReferenceWidget::ObjectDirectionUserData
+        );
         for (int i = 0; i < sketch->getAxisCount(); i++) {
             QString itemText = tr("Construction line %1").arg(i + 1);
             std::stringstream sub;
             sub << "Axis" << i;
-            combolinks.addLink(sketch, sub.str(), itemText);
+            combolinks.addLink(
+                sketch,
+                sub.str(),
+                itemText,
+                PartGui::PatternReferenceWidget::ObjectDirectionUserData
+            );
         }
     }
 
@@ -643,9 +741,24 @@ void TaskTransformedParameters::fillPlanesCombo(Gui::ComboLinks& combolinks, Par
     if (body) {
         try {
             App::Origin* orig = body->getOrigin();
-            combolinks.addLink(orig->getXY(), "", tr("Base XY-plane"));
-            combolinks.addLink(orig->getYZ(), "", tr("Base YZ-plane"));
-            combolinks.addLink(orig->getXZ(), "", tr("Base XZ-plane"));
+            combolinks.addLink(
+                orig->getXY(),
+                "",
+                tr("Base XY-plane"),
+                PartGui::PatternReferenceWidget::ObjectDirectionUserData
+            );
+            combolinks.addLink(
+                orig->getYZ(),
+                "",
+                tr("Base YZ-plane"),
+                PartGui::PatternReferenceWidget::ObjectDirectionUserData
+            );
+            combolinks.addLink(
+                orig->getXZ(),
+                "",
+                tr("Base XZ-plane"),
+                PartGui::PatternReferenceWidget::ObjectDirectionUserData
+            );
         }
         catch (const Base::Exception& ex) {
             Base::Console().error("{}\n", ex.what());
@@ -653,7 +766,12 @@ void TaskTransformedParameters::fillPlanesCombo(Gui::ComboLinks& combolinks, Par
     }
 
     // add "Select reference"
-    combolinks.addLink(nullptr, std::string(), tr("Select reference…"));
+    combolinks.addLink(
+        nullptr,
+        std::string(),
+        tr("Select reference…"),
+        PartGui::PatternReferenceWidget::SelectReferenceUserData
+    );
 }
 
 void TaskTransformedParameters::recomputeFeature()

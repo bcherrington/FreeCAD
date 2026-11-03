@@ -182,7 +182,7 @@ int CosmeticExtension::getCVIndex(const std::string& tag)
     i = 0;
     for (auto& cv : cVerts) {
         //        Base::Console().message("CE::getCVIndex - cv tag: {}\n",
-        //                                cv->getTagAsString().c_str());
+        //                                cv->getTagAsString());
         if (cv->getTagAsString() == tag) {
             return base + i;
         }
@@ -200,7 +200,7 @@ int CosmeticExtension::getCVIndex(const std::string& tag)
 std::string CosmeticExtension::addCosmeticVertex(const Base::Vector3d& pos, bool invert)
 {
 //    Base::Console().message("CEx::addCosmeticVertex({})\n",
-//                             DrawUtil::formatVector(pos).c_str());
+//                             DrawUtil::formatVector(pos));
     std::vector<CosmeticVertex*> verts = CosmeticVertexes.getValues();
     Base::Vector3d tempPos = pos;
     if (invert) {
@@ -261,7 +261,9 @@ void CosmeticExtension::removeCosmeticVertex(const std::string& delTag)
     for (auto& cv: cVerts) {
         if (cv->getTagAsString() != delTag)  {
             newVerts.push_back(cv);
+            continue;
         }
+        delete cv;
     }
     CosmeticVertexes.setValues(newVerts);
 }
@@ -405,9 +407,9 @@ void CosmeticExtension::removeCosmeticEdge(const std::string& delTag)
     for (auto& ce: cEdges) {
         if (ce->getTagAsString() != delTag)  {
             newEdges.push_back(ce);
+            continue;
         }
-        // delete ce; here leads to a crash.  https://github.com/FreeCAD/FreeCAD/issues/24196
-        // Something(?) is still accessing the edge.  Also applies to CosmeticVertex and CenterLine.
+        delete ce;
     }
     CosmeticEdges.setValues(newEdges);
 }
@@ -551,7 +553,9 @@ void CosmeticExtension::removeCenterLine(const std::string& delTag)
     for (auto& cl: cLines) {
         if (cl->getTagAsString() != delTag)  {
             newLines.push_back(cl);
+            continue;
         }
+        delete cl;
     }
     CenterLines.setValues(newLines);
 }
@@ -635,7 +639,9 @@ void CosmeticExtension::removeGeomFormat(const std::string& delTag)
     for (auto& gf: cFormats) {
         if (gf->getTagAsString() != delTag)  {
             newFormats.push_back(gf);
+            continue;
         }
+        delete gf;
     }
     GeomFormats.setValues(newFormats);
 }

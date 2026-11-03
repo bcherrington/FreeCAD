@@ -64,6 +64,8 @@
 #include <Mod/Part/Gui/PatternInstanceControls.h>
 #include <Mod/Part/Gui/PatternParametersWidget.h>
 #include <Mod/Part/App/Tools.h>
+#include <Mod/Part/Gui/PatternPathParametersWidget.h>
+#include <Mod/Part/Gui/PatternCircularParametersWidget.h>
 
 #include "ui_TaskPatternParameters.h"
 #include "TaskPatternParameters.h"
@@ -146,7 +148,14 @@ void TaskPatternParameters::setupParameterUI(QWidget* widget)
 
     if (auto* point = freecad_cast<PartDesign::PointPattern*>(getObject())) {
         ui->parametersWidgetPlaceholder2->hide();
-        setupPointPatternParameterUI(widget, ui->parametersWidgetPlaceholder, this, &point->PointObject);
+        setupPointPatternParameterUI(
+            widget,
+            ui->parametersWidgetPlaceholder,
+            this,
+            &point->PointObject,
+            &point->RelativeToFirst,
+            &point->OriginPointIndex
+        );
     }
     else if (auto* path = freecad_cast<PartDesign::PathPattern*>(getObject())) {
         ui->parametersWidgetPlaceholder2->hide();
@@ -160,8 +169,15 @@ void TaskPatternParameters::setupParameterUI(QWidget* widget)
             &path->Spacing,
             &path->StartOffset,
             &path->EndOffset,
+            &path->CyclicOffset,
             &path->ReversePath,
-            &path->Align
+            &path->Align,
+            &path->TangentAxis,
+            &path->FlipTangentAxis,
+            &path->VerticalAxis,
+            &path->FlipVerticalAxis,
+            &path->OriginPointIndex,
+            &path->RelativeToFirst
         );
     }
     else if (auto* circular = freecad_cast<PartDesign::CircularPattern*>(getObject())) {
@@ -174,7 +190,10 @@ void TaskPatternParameters::setupParameterUI(QWidget* widget)
             &circular->RadialDistance,
             &circular->TangentialDistance,
             &circular->NumberCircles,
-            &circular->Symmetry
+            &circular->Symmetry,
+            &circular->StartAtShape,
+            &circular->BinormalAxis,
+            &circular->FlipBinormalAxis
         );
     }
     else {
@@ -208,10 +227,14 @@ App::DocumentObject* TaskPatternParameters::getPatternObject() const
     return getObject();
 }
 
-void TaskPatternParameters::fillDirectionCombo(Gui::ComboLinks& combo, Part::LinearPatternDirection /*direction*/)
+void TaskPatternParameters::fillDirectionCombo(
+    Gui::ComboLinks& combo,
+    Part::LinearPatternDirection /*direction*/,
+    bool allowEmpty
+)
 {
     auto* sketch = freecad_cast<Part::Part2DObject*>(getSketchObject());
-    this->fillAxisCombo(combo, sketch);
+    this->fillAxisCombo(combo, sketch, allowEmpty);
 }
 
 void TaskPatternParameters::setupPatternTransaction()
@@ -533,10 +556,28 @@ void TaskPatternParameters::onSelectionChanged(const Gui::SelectionChanges& msg)
             }
         }
         else if (auto* circularPattern = freecad_cast<PartDesign::CircularPattern*>(patternObj)) {
-            circularPattern->Axis.setValue(selObj, directions);
+            if (getActiveDirectionWidget()->getSelectionIndex()
+                == PartGui::PatternCircularParametersWidget::BINORMAL_AXIS_INDEX) {
+                circularPattern->BinormalAxis.setValue(selObj, directions);
+            }
+            else {
+                circularPattern->Axis.setValue(selObj, directions);
+            }
         }
         else if (auto* pathPattern = freecad_cast<PartDesign::PathPattern*>(patternObj)) {
-            pathPattern->Path.setValue(selObj, directions);
+            if (getActiveDirectionWidget()->getSelectionIndex()
+                == PartGui::PatternPathParametersWidget::TANGENT_AXIS_INDEX) {
+                pathPattern->TangentAxis.setValue(selObj, directions);
+            }
+            else if (
+                getActiveDirectionWidget()->getSelectionIndex()
+                == PartGui::PatternPathParametersWidget::VERTICAL_AXIS_INDEX
+            ) {
+                pathPattern->VerticalAxis.setValue(selObj, directions);
+            }
+            else {
+                pathPattern->Path.setValue(selObj, directions);
+            }
         }
         else if (auto* pointPattern = freecad_cast<PartDesign::PointPattern*>(patternObj)) {
             pointPattern->PointObject.setValue(selObj);
