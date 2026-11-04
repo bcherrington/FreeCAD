@@ -673,9 +673,16 @@ bool Application::closeDocument(const char* name)
 {
     const std::string documentName(name);
 
+    if (const auto* doc = getDocument(documentName.c_str());
+        doc && doc->isRecomputingOnCurrentThread()) {
+        // Waiting here would deadlock a recompute on this call stack, and
+        // deleting the document would leave that recompute with dangling data.
+        return false;
+    }
+
     cancelRecomputeRequestsForDocument(documentName);
 
-    const auto pos = DocMap.find( name );
+    const auto pos = DocMap.find(documentName);
     if (pos == DocMap.end()) // no such document
         return false;
 
@@ -705,8 +712,11 @@ void Application::closeAllDocuments()
 {
     Base::FlagToggler<bool> flag(_isClosingAll);
     std::map<std::string,Document*>::iterator pos;
-    while((pos = DocMap.begin()) != DocMap.end())
-        closeDocument(pos->first.c_str());
+    while ((pos = DocMap.begin()) != DocMap.end()) {
+        if (!closeDocument(pos->first.c_str())) {
+            break;
+        }
+    }
 }
 
 Document* Application::getDocument(const char *Name) const
