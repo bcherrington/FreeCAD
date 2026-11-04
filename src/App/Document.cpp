@@ -110,6 +110,32 @@ namespace fs = std::filesystem;
 namespace
 {
 
+// Protect the full call, including callbacks and teardown after Recomputing
+// is cleared. A stack of guards also protects outer documents during nested
+// recomputes without allocating or changing a document's worker-close policy.
+class RecomputeLifetimeGuard
+{
+public:
+    explicit RecomputeLifetimeGuard(const Document* document)
+        : document(document)
+        , previous(active)
+    {
+        active = this;
+    }
+
+    ~RecomputeLifetimeGuard()
+    {
+        active = previous;
+    }
+
+    RecomputeLifetimeGuard(const RecomputeLifetimeGuard&) = delete;
+    RecomputeLifetimeGuard& operator=(const RecomputeLifetimeGuard&) = delete;
+
+    const Document* const document;
+    const RecomputeLifetimeGuard* const previous;
+    static inline thread_local const RecomputeLifetimeGuard* active = nullptr;
+};
+
 bool transactionStateBlocksRecoveryWrite(const DocumentP& documentPrivate)
 {
     return documentPrivate.bookedTransaction != NullTransaction
@@ -2457,7 +2483,17 @@ void Document::setClosable(bool c) // NOLINT
 
 bool Document::isClosable() const
 {
-    return testStatus(Document::Closable);
+    return testStatus(Document::Closable) && !isRecomputingOnCurrentThread();
+}
+
+bool Document::isRecomputingOnCurrentThread() const
+{
+    for (const auto* guard = RecomputeLifetimeGuard::active; guard; guard = guard->previous) {
+        if (guard->document == this) {
+            return true;
+        }
+    }
+    return false;
 }
 
 int Document::countObjects() const
@@ -2858,6 +2894,8 @@ int Document::recompute(const std::vector<DocumentObject*>& objs,
                         int options)
 {
     ZoneScoped;
+
+    RecomputeLifetimeGuard closeProtection(this);
 
     // Recompute can execute Python-backed features. Keep the GIL for the full
     // recompute so async recompute still serializes Python execution the same
@@ -3320,6 +3358,8 @@ int Document::_recomputeFeature(DocumentObject* Feat) // NOLINT
 
 bool Document::recomputeFeature(DocumentObject* feature, bool recursive)
 {
+    RecomputeLifetimeGuard closeProtection(this);
+
     // delete recompute log
     d->clearRecomputeLog(feature);
 
