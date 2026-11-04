@@ -5,11 +5,13 @@
 
 #include <cstdio>
 #include <fstream>
+#include <stdexcept>
 
 #include "App/Application.h"
 #include "App/Document.h"
 #include "App/MergeDocuments.h"
 #include "App/StringHasher.h"
+#include "Base/Tools.h"
 #include "Base/Writer.h"
 #include <src/App/InitApplication.h>
 
@@ -56,6 +58,180 @@ private:
     std::string _docName;
     App::Document* _doc {};
 };
+
+
+TEST_F(DocumentTest, RecomputeRejectsReentrantClose)
+{
+    auto& app = App::GetApplication();
+    const std::string name = doc()->getName();
+    bool called = false;
+    auto connection = doc()->signalBeforeRecompute.connect([&](const App::Document& changed) {
+        called = true;
+        EXPECT_TRUE(changed.testStatus(App::Document::Recomputing));
+        EXPECT_FALSE(changed.isClosable());
+        EXPECT_FALSE(app.closeDocument(name.c_str()));
+        EXPECT_EQ(app.getDocument(name.c_str()), doc());
+    });
+
+    doc()->recompute();
+
+    EXPECT_TRUE(called);
+    EXPECT_TRUE(doc()->isClosable());
+    connection.disconnect();
+    EXPECT_TRUE(app.closeDocument(name.c_str()));
+}
+
+TEST_F(DocumentTest, RecomputeRejectsCloseFromRecomputedObserver)
+{
+    auto& app = App::GetApplication();
+    const std::string name = doc()->getName();
+    bool called = false;
+    auto connection = doc()->signalRecomputed.connect([&](const App::Document& changed,
+                                                          const std::vector<App::DocumentObject*>&) {
+        called = true;
+        EXPECT_FALSE(changed.isClosable());
+        EXPECT_FALSE(app.closeDocument(name.c_str()));
+    });
+
+    doc()->recompute();
+
+    EXPECT_TRUE(called);
+    EXPECT_EQ(app.getDocument(name.c_str()), doc());
+    EXPECT_TRUE(doc()->isClosable());
+    connection.disconnect();
+}
+
+TEST_F(DocumentTest, RecomputeRejectsCloseFromStableObserver)
+{
+    auto& app = App::GetApplication();
+    const std::string name = doc()->getName();
+    bool called = false;
+    auto connection = doc()->signalBecameStable.connect([&](const App::Document& changed) {
+        called = true;
+        EXPECT_FALSE(changed.testStatus(App::Document::Recomputing));
+        EXPECT_FALSE(changed.isClosable());
+        EXPECT_FALSE(app.closeDocument(name.c_str()));
+    });
+
+    doc()->recompute();
+
+    EXPECT_TRUE(called);
+    EXPECT_EQ(app.getDocument(name.c_str()), doc());
+    EXPECT_TRUE(doc()->isClosable());
+    connection.disconnect();
+}
+
+TEST_F(DocumentTest, RecomputeProtectsOuterDocumentDuringNestedRecompute)
+{
+    auto& app = App::GetApplication();
+    const std::string name = doc()->getName();
+    const std::string nestedName = app.getUniqueDocumentName("nested_recompute");
+    auto* nested = app.newDocument(nestedName.c_str(), "testUser");
+    Base::ScopeGuard cleanup([&] { app.closeDocument(nestedName.c_str()); });
+    bool called = false;
+    auto nestedConnection = nested->signalBeforeRecompute.connect([&](const App::Document&) {
+        called = true;
+        EXPECT_FALSE(doc()->isClosable());
+        EXPECT_FALSE(app.closeDocument(name.c_str()));
+    });
+    auto connection = doc()->signalBeforeRecompute.connect([&](const App::Document&) {
+        nested->recompute();
+    });
+
+    doc()->recompute();
+
+    EXPECT_TRUE(called);
+    EXPECT_EQ(app.getDocument(name.c_str()), doc());
+    EXPECT_TRUE(doc()->isClosable());
+    EXPECT_TRUE(nested->isClosable());
+    connection.disconnect();
+    nestedConnection.disconnect();
+}
+
+TEST_F(DocumentTest, RecomputeCloseProtectionUnwindsAfterObserverException)
+{
+    auto connection = doc()->signalBeforeRecompute.connect([](const App::Document&) {
+        throw std::runtime_error("recompute observer failed");
+    });
+
+    EXPECT_THROW(doc()->recompute(), std::runtime_error);
+
+    EXPECT_FALSE(doc()->testStatus(App::Document::Recomputing));
+    EXPECT_TRUE(doc()->isClosable());
+    connection.disconnect();
+    EXPECT_TRUE(App::GetApplication().closeDocument(doc()->getName()));
+}
+
+TEST_F(DocumentTest, CloseAllDocumentsReturnsWhenRecomputeIsActive)
+{
+    auto& app = App::GetApplication();
+    const std::string name = doc()->getName();
+    bool called = false;
+    auto connection = doc()->signalBeforeRecompute.connect([&](const App::Document&) {
+        called = true;
+        app.closeAllDocuments();
+        EXPECT_EQ(app.getDocument(name.c_str()), doc());
+    });
+
+    doc()->recompute();
+
+    EXPECT_TRUE(called);
+    EXPECT_TRUE(doc()->isClosable());
+    connection.disconnect();
+}
+
+TEST_F(DocumentTest, SkippedRecomputeRejectsReentrantClose)
+{
+    auto& app = App::GetApplication();
+    const std::string name = doc()->getName();
+    doc()->setStatus(App::Document::SkipRecompute, true);
+    bool called = false;
+    auto connection = doc()->signalSkipRecompute.connect(
+        [&](const App::Document& changed, const std::vector<App::DocumentObject*>&) {
+            called = true;
+            EXPECT_FALSE(changed.isClosable());
+            EXPECT_FALSE(app.closeDocument(name.c_str()));
+        }
+    );
+
+    doc()->recompute();
+
+    EXPECT_TRUE(called);
+    EXPECT_EQ(app.getDocument(name.c_str()), doc());
+    EXPECT_TRUE(doc()->isClosable());
+    connection.disconnect();
+}
+
+TEST_F(DocumentTest, FeatureRecomputeRejectsReentrantClose)
+{
+    auto& app = App::GetApplication();
+    const std::string name = doc()->getName();
+    auto* feature = doc()->addObject("App::FeaturePython", "Feature");
+    bool called = false;
+    auto connection = doc()->signalRecomputedObject.connect([&](const App::DocumentObject&) {
+        called = true;
+        EXPECT_FALSE(doc()->isClosable());
+        EXPECT_FALSE(app.closeDocument(name.c_str()));
+    });
+
+    EXPECT_TRUE(doc()->recomputeFeature(feature));
+
+    EXPECT_TRUE(called);
+    EXPECT_EQ(app.getDocument(name.c_str()), doc());
+    EXPECT_TRUE(doc()->isClosable());
+    connection.disconnect();
+}
+
+TEST_F(DocumentTest, RecomputePreservesExplicitNonClosableStatus)
+{
+    doc()->setClosable(false);
+
+    doc()->recompute();
+
+    EXPECT_FALSE(doc()->isClosable());
+    doc()->setClosable(true);
+    EXPECT_TRUE(doc()->isClosable());
+}
 
 
 TEST_F(DocumentTest, addStringHasherIndicatesUnwrittenWhenNew)
