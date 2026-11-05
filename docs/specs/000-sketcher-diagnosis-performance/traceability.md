@@ -2,7 +2,7 @@
 title: Sketcher diagnosis performance traceability
 doc_type: spec
 artifact_type: traceability
-status: draft
+status: archived
 owner: local-developer
 last_reviewed: 2026-11-05
 ---

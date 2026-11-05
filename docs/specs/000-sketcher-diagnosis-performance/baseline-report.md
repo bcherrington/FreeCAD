@@ -2,7 +2,7 @@
 title: Sketcher diagnosis T001 baseline investigation
 doc_type: spec
 artifact_type: verification
-status: draft
+status: archived
 owner: local-developer
 last_reviewed: 2026-11-05
 ---

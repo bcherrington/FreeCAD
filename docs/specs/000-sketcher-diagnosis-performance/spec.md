@@ -2,7 +2,7 @@
 title: Sketcher diagnosis performance specification
 doc_type: spec
 artifact_type: spec
-status: draft
+status: archived
 owner: local-developer
 last_reviewed: 2026-11-05
 ---
