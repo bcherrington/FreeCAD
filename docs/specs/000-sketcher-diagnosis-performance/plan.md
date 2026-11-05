@@ -73,10 +73,15 @@ Only one implementation task should be in progress at a time.
 
 ## Risks
 
-- Lost notifications or diagnostic validation: retain events and test observers.
+- Lost index validation or diagnostic effects: block guard selection until T002
+  assigns validation ownership and a diagnostic-ID/touched/observer contract;
+  test invalid/repaired transitions and non-recompute solve/move workflows.
 - Undo/external-reference changes: compare native results, not process survival.
 - Logging distorts timings: collect tracing-on attribution and tracing-off latency.
 - Concurrent QR reporting races: collect safely, emit through a safe owner.
+- No-op samples, ambiguous caches or noisy acceptance: freeze executed/reset/cache
+  manifests, assert counts, alternate matched pairs, report MAD/paired intervals
+  and retain inconclusive gates after bounded extra batches.
 - Debug/release or preference mismatch: require complete baseline receipts.
 - Overfitting one model: use synthetic, master, plate and diagnostic-error cases.
 

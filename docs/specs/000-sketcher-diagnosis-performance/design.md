@@ -36,8 +36,32 @@ acceptance, if inspection proves it preserves validation and notifications.
 Do not bypass notifications globally or mark the whole operation as managed
 without examining all nested callbacks. Keep one explicit solve and its geometry
 writeback. Confirm execution outside normal recompute keeps required diagnosis.
-If an existing guard cannot meet those conditions, record a local alternative
-before implementation; a broad notification-system redesign is outside scope.
+The managed branch of `onConstraintsChanged()` returns after `checkGeometry()`;
+its unmanaged branch also calls `checkConstraintIndices()`. `acceptGeometry()`
+clears `invalidGeometry`, not the separate `invalidIndices` flag, and `getValues()`
+returns an empty list while either flag is set. A managed-operation guard is a
+candidate, not a validated solution. T002 must locate equivalent index validation
+before the authoritative solver consumes constraints, covering both newly invalid
+indices and repaired indices after internal/external geometry changes.
+
+The omitted `SketchObject::setUpSketch()` wrapper also conditionally touches
+`Constraints` for conflict, redundancy, malformed and partial-redundancy results.
+The later solve does not reproduce that conditional touch automatically. T002
+must state where required diagnostic IDs, touched state and observer effects
+are produced. Record a baseline observer sequence/count for each non-success
+case, identify effects that downstream consumers require, and enumerate any
+allowed intermediate differences with their justification and regression tests.
+Until this contract and the index-validation transition tests are defined,
+guard selection and T004 are blocked. Global notification suppression is excluded.
+If a local guard cannot satisfy the contract, record an alternative before coding.
+
+The one-setup invariant applies only to the targeted ordinary execute path.
+Preserve scalar Python insertion's pre-commit solve for undo, list insertion's
+existing deferred-solve behaviour, edit-mode `noRecomputes` refreshes and direct
+property-change handling. Test transaction undo plus undo/redo immediately
+followed by direct solve/move, with no intervening document recompute. These
+paths may legitimately perform additional setups; do not optimize them by
+applying the ordinary-execute invariant globally.
 
 ### D-002 - Optional scoped phase timings
 
@@ -48,7 +72,15 @@ in T002 and document it before coding; no setting name in this package is an
 implemented interface. Do not repurpose `lastSolveTime` to mean total operation.
 
 A record contains an operation identifier, optional parent identifier, phase,
-reason, document/sketch identity, elapsed duration and completion outcome.
+reason, document/sketch identity, elapsed duration and completion outcome. It also
+contains monotonic start/end offsets from the operation origin and an execution-
+lane identifier. Carry the same clock origin/context into QR workers. Capture
+worker execution, caller-side dispatch/copy and join/wait as distinct spans;
+worker spans may overlap the caller's dispatch/join spans, so never sum these as
+independent elapsed time. Preserve `std::async`'s existing launch policy and
+record enough lane/timestamp evidence to identify deferred work at the join.
+Include the outer `execute()` operation so timing contains geometry acceptance
+and the candidate redundant setup, not only the later explicit solve.
 Use RAII or equivalent exception-safe scope completion. When QR runs in parallel,
 collect durations on the worker and serialize reporting through a safe owner;
 do not add unsafe worker-thread console use. Never emit geometry coordinates,
@@ -61,6 +93,17 @@ Initial load and explicit solves need distinct reasons; nested phases must not
 be summed as independent wall time. Disabled tracing avoids per-event formatting,
 identifier strings and heap allocation. Thread-safe enablement/lifetime choices
 must be explicit in the implementation review.
+
+Once per diagnosis, capture small structural counters: driving constraints,
+expanded diagnostic equations, diagnostic unknowns, Jacobian rows/columns and
+estimated payload bytes (`rows * columns * sizeof(double)` for the current dense
+matrix), actual dense/sparse QR selection and resulting rank. Label counts as
+pre/post reduction where applicable, and record unavailable rank on failure.
+These are counts, not parameter values or geometry payloads. Reuse existing
+sizes/results rather than assembling or scanning matrices only for logging.
+Do not derive counters, format records or allocate trace state when tracing is off.
+T003's source boundary includes the SketchObject entry/shape scopes and the
+context handoff into `Sketch`/planegcs, in addition to the solver phase scopes.
 
 ### D-003 - Fixtures and comparative measurement
 
@@ -77,10 +120,20 @@ A timer-only change must not change any of those results.
 Use matching optimized builds for performance acceptance. Debug builds remain
 useful for call counts and correctness but cannot establish production budgets.
 Record machine, source commit, compiler/dependencies, build flags, preferences,
-fixture hashes, warmups, sample order, raw samples, median and spread. Alternate
-baseline/candidate ordering where feasible. Separate load, unchanged recompute,
-dimensional edit, scalar/list insertion and symmetry workloads. Preserve and
-restore each starting state; do not retry unknown bridge outcomes.
+fixture hashes, warmups, sample order, raw paired samples, median, median absolute
+deviation and paired bootstrap 95% intervals. Alternate baseline/candidate order
+within matched pairs. The normative workload/reset/cache definitions and bounded
+uncertainty escalation rule are in [verification.md](verification.md#measurement-matrix).
+
+T001 freezes separate clean no-op and forced unchanged-geometry execution cases,
+asserting actual execute/setup counts. Only the latter is eligible for diagnosis
+speedup acceptance. Distinguish fresh-process load from reopened warm load, and
+label filesystem cache state as uncontrolled unless independently established.
+Freeze each edit's precursor, reset method and measured boundary before collecting
+results; discard and explain any pair that did not perform the intended operation.
+Preserve originals and restore disposable starting states; do not retry unknown
+bridge outcomes. A result remains inconclusive when uncertainty spans a budget
+following the bounded additional batches; it cannot satisfy acceptance by fiat.
 
 ### D-004 - Evidence-led follow-up gate
 

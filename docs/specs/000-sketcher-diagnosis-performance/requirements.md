@@ -51,8 +51,10 @@ Add verified behaviour and interfaces to proposed
 
 **Priority:** must-have
 
-For ordinary valid document recompute, the affected execute path
-  MUST perform one authoritative full setup/diagnosis before numerical solving.
+For ordinary valid document recompute, the affected `SketchObject::execute()`
+  path MUST perform one authoritative full setup/diagnosis before numerical solving.
+  This invariant MUST NOT suppress required setups in scalar/list insertion,
+  edit-mode `noRecomputes`, direct property changes, undo/redo or movement paths.
   Paths that reject input before solving MAY perform none. Deliberately required
   block-constraint or augmented-solver analysis MUST be identified separately.
 
@@ -66,7 +68,11 @@ For ordinary valid document recompute, the affected execute path
 
 The optimization MUST preserve geometry, constraints, external
   references, shape validity, degrees of freedom, diagnostics and undo/redo.
-  It MUST retain property notifications and existing error/exception behavior.
+  It MUST retain constraint-index validation, required property notifications,
+  diagnostic constraint identities and existing error/exception behavior. Valid,
+  invalid and repaired index transitions MUST remain distinguishable. Before any
+  guard is selected, T002 MUST define validation ownership and observable touched/
+  observer invariants, including which intermediate notifications may differ.
 
 #### Acceptance Criteria
 
@@ -79,6 +85,9 @@ The optimization MUST preserve geometry, constraints, external
 Optional diagnostics MUST identify document, sketch, invocation
   reason, nested operation and phase. They MUST distinguish inclusive total time
   from child durations without presenting overlapping durations as additive.
+  Records MUST include operation-relative monotonic start/end offsets and an
+  execution-lane identifier; QR dispatch/copy and join/wait spans MUST distinguish
+  overlapping and deferred execution without changing the existing launch policy.
 
 #### Acceptance Criteria
 
@@ -92,7 +101,12 @@ Diagnostics MUST cover total sketch operation, setup construction,
   Jacobian assembly, both QR decompositions, diagnostic redundancy solving,
   numerical solving, geometry writeback and shape construction. The benchmark
   MUST separately capture downstream document recompute; bridge validation is
-  an external observation when that workload is measured.
+  an external observation when that workload is measured. Once per diagnosis,
+  enabled tracing MUST record driving constraint count, expanded diagnostic
+  equation count, diagnostic unknown count, Jacobian rows/columns and estimated
+  payload bytes, selected QR method, and resulting rank. Counts MUST identify
+  their stage so changes in equation reduction are not mistaken for speedups.
+  An unavailable rank on failure MUST be explicit rather than reported as zero.
 
 #### Acceptance Criteria
 
@@ -116,6 +130,11 @@ Detailed diagnostics MUST be disabled by default, preserve existing
 
 Performance evidence MUST compare equivalent fixtures, operations,
   settings and build configurations, including tracing-disabled results.
+  Workload execution/reset/cache protocols MUST be frozen in T001 and verified
+  with execute/setup counts. Clean no-op and forced unchanged-geometry recompute
+  MUST be separate cases; a skipped sketch MUST NOT satisfy the speedup target.
+  Acceptance MUST use the uncertainty and inconclusive-result protocol in
+  verification.md, not a median-only comparison.
 
 #### Acceptance Criteria
 
@@ -140,10 +159,18 @@ Further optimizations MUST be selected only after attributing
 2. **AC-002**: Given valid, underconstrained, conflicting, redundant and malformed
    fixtures, when recompute, external-link updates and undo/redo run, then their
    prior observable results match. Include driving/reference changes and
-   source-linked Pad/Pocket thickness propagation with restoration.
+   source-linked Pad/Pocket thickness propagation with restoration. Assert
+   valid-to-invalid and invalid-to-repaired indices after geometry/external-link
+   changes; compare diagnostic constraint IDs, required touched state and observer
+   sequence/count against the T002 contract. Include scalar/list insertion with
+   transaction undo, edit-mode `noRecomputes`, direct property changes, and undo/
+   redo immediately followed by solve/move, without an intervening full recompute.
 3. **AC-003**: Given tracing enabled, when an operation succeeds or fails, then
    phase records correlate to their sketch/reason and close without dangling
    scopes; diagnostic redundancy solves are distinct from the main solve.
+   Reconstruct overlapping and deferred QR timelines using offsets, lanes and
+   dispatch/join spans; record the structural counters required by FR-004 once
+   per diagnosis, with correct dimensions/method/rank on a known small fixture.
 4. **AC-004**: Given tracing disabled, when the same operations run, then no new
    detailed records are emitted and existing timing getters retain their meaning.
 5. **AC-005**: Given matched optimized builds, warmups and at least ten samples
@@ -152,10 +179,14 @@ Further optimizations MUST be selected only after attributing
    fixture, with no other selected workload regressing by more than the greater
    of 5% or 1 ms. These are proposed acceptance budgets, not measured savings.
    A missed budget requires investigation and explicit disposition, not a silent
-   reduction of the target or a correctness tradeoff.
+   reduction of the target or a correctness tradeoff. Use paired alternating
+   runs, median absolute deviation and a paired bootstrap 95% interval as defined
+   in verification.md. A threshold-overlapping interval is inconclusive, not a pass.
 6. **AC-006**: Given an equivalent instrumentation-only build with tracing off,
    then its median overhead versus baseline is no more than the greater of 2%
-   or 1 ms. Use the same repeated-run method and report noise/uncertainty.
+   or 1 ms. Apply the same paired-run uncertainty gate; an interval overlapping
+   the allowed overhead requires the bounded additional batches or an explicit
+   inconclusive disposition defined in verification.md.
 7. **AC-007**: Given the phase results, then publish a ranked follow-up decision
    covering unchanged metadata, matrix copies, structural reuse and sparse
    assembly, with measured justification and a destination for deferred work.

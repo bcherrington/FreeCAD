@@ -53,20 +53,23 @@ companion artifacts rather than duplicated normative text.
 
 A user changing a sketch or a dependent dimension avoids duplicate diagnosis
 while retaining identical geometry and recoverable diagnostic failures.
-Independent test: count setup calls on a small fixture and compare native
-geometry/DoF/diagnostics and undo behavior. Maps to FR-001/FR-002, AC-001/AC-002.
+Independent test: count setups on the targeted execute path, verify invalid/
+repaired index transitions and diagnostic IDs/touched/observer behaviour, and
+preserve scalar/list insertion, edit-mode and immediate post-undo solve/move. Maps to FR-001/FR-002, AC-001/AC-002.
 
 ### User Story 2 - Explain slow operations (Priority: P1)
 
 A developer can distinguish reconstruction, diagnosis and nonlinear convergence.
-Independent test: enable tracing on a small fixture, verify phase structure,
-then disable it and verify silence and unchanged getter semantics.
+Independent test: enable tracing on a small fixture, reconstruct concurrent and
+deferred QR spans and verify structural counters, then disable it and verify
+silence and unchanged getter semantics.
 Maps to FR-003/FR-004/FR-005, AC-003/AC-004/AC-006.
 
 ### User Story 3 - Select the next optimization (Priority: P2)
 
 A maintainer receives matched timing evidence and bounded follow-up proposals.
-Independent test: reproduce the benchmark receipt and inspect the decision table.
+Independent test: reproduce an executed/reset-checked paired benchmark receipt,
+apply uncertainty/inconclusive gates and inspect the decision table.
 Maps to FR-006/FR-007, AC-005/AC-007.
 
 ## Edge Cases

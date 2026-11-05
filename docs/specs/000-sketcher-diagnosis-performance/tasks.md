@@ -25,20 +25,28 @@ no performance source changes, new benchmarks or builds have been completed.
   - Inspect `src/Mod/Sketcher/App/SketchObject.cpp`, `SketchObjectConstraints.cpp`,
     `PropertyConstraintList.cpp`, native test registration and existing trace settings.
   - Create a minimal call-count fixture and identify external-link/undo test targets.
-  - Capture baseline raw samples and fixture/settings/build identity; keep originals private.
+  - Freeze each workload's execution, reset and cache protocol: separate clean no-op,
+    forced unchanged-geometry execution, fresh-process and reopened loads. Assert
+    execute/setup counts for every sample and reject skipped/mismatched pairs.
+  - Capture baseline raw paired samples and fixture/settings/build identity under
+    verification.md's measurement protocol; keep originals private.
   - Acceptance: reproduce two setups on the affected ordinary execute path; characterize
     exception paths and establish an executable test/benchmark command list.
   - Evidence: baseline receipts, call graph/counts, fixture hashes and exact commands.
 
 - [ ] T002 Finalize timing and invalidation boundaries
   - Depends on: T001
-  - Requirement: Requirement 3/Requirement 4/Requirement 5; AC-003/AC-004/AC-006; D-001/D-002.
+  - Requirement: Requirement 1/Requirement 2/Requirement 3/Requirement 4/Requirement 5; AC-001/AC-002/AC-003/AC-004/AC-006; D-001/D-002.
   - Files: `src/Mod/Sketcher/App/Sketch.cpp`, `src/Mod/Sketcher/App/Sketch.h`, `src/Mod/Sketcher/App/planegcs/GCS.cpp`, `src/Mod/Sketcher/App/planegcs/GCS.h`, `design.md`
   - Inspect `Sketch.cpp`, `Sketch.h`, `planegcs/GCS.cpp`, `GCS.h` and existing reporting.
-  - Record exact opt-in control, trace schema, reason/parent linkage, disabled fast path,
-    worker lifetime/output safety and scope nesting. Select the local recompute guard.
-  - Acceptance: resolve design open questions affecting T003/T004; define test seams
-    without adding a public modelling API or global notification bypass.
+  - Record opt-in control, operation-relative monotonic offsets, lane/parent linkage,
+    dispatch/join spans, structural counter stages, disabled fast path and worker safety.
+  - Before selecting a guard, assign explicit ownership of index validation and
+    required diagnostic-ID/touched/observer effects. Specify baseline sequences,
+    allowed intermediate differences and valid-invalid-repaired transition tests.
+  - Acceptance: resolve design open questions affecting T003/T004; approve the
+    validation/observer contract before guard selection. Define test seams without
+    a public modelling API, global notification bypass or async launch-policy change.
   - Evidence: updated design decisions and a requirements-linked validation plan.
 
 ## Phase 2 - First changes
@@ -46,11 +54,14 @@ no performance source changes, new benchmarks or builds have been completed.
 - [ ] T003 Add optional phase timings and regression coverage
   - Depends on: T002
   - Requirement: Requirement 3/Requirement 4/Requirement 5; AC-003/AC-004/AC-006; D-002.
-  - Files: `src/Mod/Sketcher/App/Sketch.cpp`, `src/Mod/Sketcher/App/planegcs/GCS.cpp`, `tests/src/Mod/Sketcher/App/`
+  - Files: `src/Mod/Sketcher/App/SketchObject.cpp`, `src/Mod/Sketcher/App/SketchObjectConstraints.cpp`, `src/Mod/Sketcher/App/Sketch.cpp`, `src/Mod/Sketcher/App/Sketch.h`, `src/Mod/Sketcher/App/planegcs/GCS.cpp`, `src/Mod/Sketcher/App/planegcs/GCS.h`, `tests/src/Mod/Sketcher/App/`
   - Implement scoped timing at the approved Sketcher/planegcs boundaries and native tests
     under `tests/src/Mod/Sketcher/App/`; update target wiring only if needed.
-  - Acceptance: success/failure scopes close, identity/reasons correlate, worker output is
-    safe, tracing off is silent, existing `lastSolveTime` meaning is unchanged.
+  - Acceptance: success/failure scopes close, identity/reasons correlate, overlapping
+    and deferred QR timelines reconstruct from offsets/lanes/dispatch/join spans;
+    known-fixture counters match equations, unknowns, matrix size, QR method and rank.
+    Worker output is safe, tracing off is silent with no counter-only work, and
+    existing `lastSolveTime` meaning and async launch policy remain unchanged.
   - Evidence: focused test results, example redacted trace and disabled-path inspection.
 
 - [ ] T004 Remove duplicate ordinary recompute diagnosis
@@ -59,8 +70,14 @@ no performance source changes, new benchmarks or builds have been completed.
   - Files: `src/Mod/Sketcher/App/SketchObject.cpp`, `tests/src/Mod/Sketcher/App/`
   - Make the bounded change in `SketchObject.cpp` using the approved scoped mechanism.
     Add call-count and behavioural regressions in the selected native test files.
-  - Acceptance: one authoritative setup in the affected valid path; unchanged errors,
-    notifications, geometry, DoF, diagnostics, external updates and undo/redo.
+  - Test valid-to-invalid and invalid-to-repaired indices after geometry/external
+    changes; assert diagnostic constraint IDs, touched state and observer sequence/
+    counts against T002's approved contract for non-success cases.
+  - Test scalar/list Python insertion with transaction undo, edit-mode `noRecomputes`,
+    direct property changes and undo/redo immediately followed by solve/move.
+  - Acceptance: one authoritative setup only in the targeted valid execute path;
+    preserve required additional setups elsewhere and the validation/observer
+    contract, geometry, DoF, recoverable diagnostics, external links and undo/redo.
   - Evidence: before/after deterministic counts, regression results and reviewed diff.
 
 ## Phase 3 - Measurement and follow-up
@@ -71,8 +88,11 @@ no performance source changes, new benchmarks or builds have been completed.
   - Files: `verification.md`, private benchmark receipts
   - Run build/focused and affected suites; compare synthetic/master/plate workloads
     in equivalent optimized builds. Use disposable GUI processes for GUI-only checks.
-  - Acceptance: correctness matrix passes; raw runs, median/spread and all budget
-    dispositions recorded, including tracing-off overhead. No gains inferred from logs alone.
+  - Acceptance: correctness matrix passes; workload execution/reset checks pass.
+    Record raw alternating pairs, medians, MAD, bootstrap intervals, rejected-pair
+    reasons and budget dispositions, including tracing-off overhead. Apply the
+    bounded additional-batch rule; unresolved threshold overlap is inconclusive
+    and cannot pass acceptance. No gains inferred from logs or medians alone.
   - Evidence: exact commands, output receipts, geometry/diagnostic comparisons and timing data.
 
 - [ ] T006 Attribute remaining costs and decide further work

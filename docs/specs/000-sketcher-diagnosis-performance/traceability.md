@@ -19,7 +19,7 @@ coverage is currently not-covered because implementation has not started.
 | Task ID | Requirements | Acceptance Criteria | Design Sections | Verification | Durable Targets | Open Decisions |
 | --- | --- | --- | --- | --- | --- | --- |
 | T001 | Requirement 1, Requirement 2, Requirement 6 | AC-001, AC-002, AC-005 | D-001, D-003 | verification.md correctness/measurement matrices | Diagnostics reference, investigation runbook | Source/fixture/target refresh |
-| T002 | Requirement 3, Requirement 4, Requirement 5 | AC-003, AC-004, AC-006 | D-001, D-002 | verification.md correctness matrix | Diagnostics reference | Trace control/schema and local guard |
+| T002 | Requirement 1, Requirement 2, Requirement 3, Requirement 4, Requirement 5 | AC-001, AC-002, AC-003, AC-004, AC-006 | D-001, D-002 | verification.md correctness matrix | Diagnostics reference | Trace control/schema and local guard |
 | T003 | Requirement 3, Requirement 4, Requirement 5 | AC-003, AC-004, AC-006 | D-002 | verification.md timing cases | Diagnostics reference | Resolved by T002 |
 | T004 | Requirement 1, Requirement 2 | AC-001, AC-002 | D-001 | verification.md correctness matrix | Diagnostics reference | Resolved by T002 |
 | T005 | Requirement 2, Requirement 6 | AC-002, AC-005, AC-006 | D-003 | verification.md measurement matrix | Investigation runbook | Budget dispositions |
@@ -30,8 +30,8 @@ coverage is currently not-covered because implementation has not started.
 
 | Requirement | Acceptance Criteria | Design Sections | Tasks | Coverage State | Residual Destination |
 | --- | --- | --- | --- | --- | --- |
-| Requirement 1 | AC-001 | D-001 | T001, T004 | not-covered | Planned work in this package |
-| Requirement 2 | AC-002 | D-001, D-003 | T001, T004, T005 | not-covered | Planned work in this package |
+| Requirement 1 | AC-001 | D-001 | T001, T002, T004 | not-covered | Planned work in this package |
+| Requirement 2 | AC-002 | D-001, D-003 | T001, T002, T004, T005 | not-covered | Planned work in this package |
 | Requirement 3 | AC-003 | D-002 | T002, T003 | not-covered | Planned work in this package |
 | Requirement 4 | AC-003 | D-002 | T002, T003 | not-covered | Planned work in this package |
 | Requirement 5 | AC-004, AC-006 | D-002 | T002, T003, T005 | not-covered | Planned work in this package |
@@ -42,9 +42,9 @@ coverage is currently not-covered because implementation has not started.
 
 | Property | Requirements | Tasks | Verification |
 | --- | --- | --- | --- |
-| CP-001 | Requirement 1, Requirement 2 | T001, T004, T005 | Call counts, native geometry/diagnostics, external links, undo/redo |
-| CP-002 | Requirement 3, Requirement 4, Requirement 5 | T002, T003, T005 | Scope closure, enabled/disabled records, timing-getter compatibility |
-| CP-003 | Requirement 6, Requirement 7 | T001, T005, T006 | Raw matched receipts and follow-up decision |
+| CP-001 | Requirement 1, Requirement 2 | T001, T002, T004, T005 | Index transitions, diagnostic IDs/touched/observer contract, non-recompute paths, native geometry and external links |
+| CP-002 | Requirement 3, Requirement 4, Requirement 5 | T002, T003, T005 | Reconstructable QR spans, structural counters, disabled records and timing-getter compatibility |
+| CP-003 | Requirement 6, Requirement 7 | T001, T005, T006 | Executed/reset manifests, alternating pairs/MAD/intervals, inconclusive disposition and follow-up decision |
 
 ## Durable Targets
 
@@ -73,3 +73,11 @@ The optional canonical-context advisory was reviewed during authoring. Current
 code, root AGENTS.md and repository templates remain their respective authorities;
 the research log is explicitly historical and the new behaviour explicitly proposed.
 No conflicting imported authority requires a separate canonical-context artifact.
+
+## Review Finding Coverage
+
+R-001/R-002 map to Requirement 1/Requirement 2, D-001 and T001/T002/T004/T005.
+R-003/R-005 map to Requirement 6, D-003 and T001/T005. R-004/R-006 map to
+Requirement 3/Requirement 4/Requirement 5, D-002 and T002/T003/T005.
+The finding-by-finding disposition is in
+[verification.md](verification.md#moe-review-disposition---2026-11-05).

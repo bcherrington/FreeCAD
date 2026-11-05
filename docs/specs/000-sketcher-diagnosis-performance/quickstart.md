@@ -29,11 +29,15 @@ This is a proposed implementation workflow, not an implemented diagnostic API.
    T001 - Reconcile source and establish the baseline. Recheck source freshness
    through Agent Workbench and direct reads; mark T001 in progress before work.
 2. Verify fixture hashes, create disposable copies and discover native tests.
-   Capture baseline builds/preferences and deterministic setup-call counts.
-3. Resolve the trace enablement/format and scoped guard in T002 before coding.
+   Freeze workload execution/reset/cache manifests and capture baseline builds,
+   preferences and execute/setup counts; separate no-op from actual recompute.
+3. Resolve trace enablement, offsets/lanes/dispatch/join spans and structural counters
+   in T002. Approve index-validation and diagnostic observer/touched invariants
+   before guard selection; include non-recompute paths in the regression plan.
 4. Implement T003 and T004 as separate reviewable slices, preserving notifications.
 5. Build with `pixi run build -j 2`, run the discovered focused/affected checks,
-   then use matched optimized builds for T005 measurement.
+   then use matched optimized builds for T005's alternating-pair/MAD/bootstrap
+   measurements and bounded inconclusive-result protocol.
 6. Record the follow-up decision in T006 and promote verified guidance in T007.
 
 ## Expected Results
