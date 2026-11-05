@@ -224,4 +224,4 @@ The [local backlog](../../backlog/README.md) owns B001–B007, with scope, cost 
 risks and exit checks in [the details](../../backlog/sketcher-performance.md).
 The historical starting checkpoint hash is recovered; immediate pre-mutation
 identity/phase attribution still require B006. T006 implements no solver rewrite,
-cache, threshold/default change or notification shortcut. T007 is next.
+cache, threshold/default change or notification shortcut. T007 promotion and review are complete; this package is retained as history.

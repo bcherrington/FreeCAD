@@ -73,7 +73,7 @@ tracing documented in [phase-tracing-report.md](phase-tracing-report.md).
 implementation, fallback rules and correctness evidence. T005 measurements and
 bounded GUI checks satisfy the revised indicative standard in
 performance-validation-report.md. T006 attribution is complete in
-remaining-cost-decisions.md with owned backlog destinations. T007 remains pending.
+remaining-cost-decisions.md with owned backlog destinations. T007 promotion and review are complete; this package is retained as history.
 
 ## Dependencies
 

@@ -26,6 +26,7 @@ Proposed/deferred items do not authorize an implementation or change a solver de
 | B005 | deferred | Consider sparse assembly after evidence of assembly or memory pressure | 7 | local-developer | docs/backlog/sketcher-performance.md#b005-sparse-assembly |
 | B006 | deferred | Recover exact mutation precursors for historical symmetry/equality stalls | 2 | local-developer | docs/backlog/sketcher-performance.md#b006-mutation-stall-replay |
 | B007 | proposed | Attribute shape construction and downstream propagation on smaller sketches | 3 | local-developer | docs/backlog/sketcher-performance.md#b007-shape-construction |
+| B008 | proposed | Add diagnostic-observer external-property edit regression before upstream preparation | PR prep | local-developer | docs/backlog/sketcher-performance.md#b008-external-observer-regression |
 
 ## Decision History
 
@@ -35,3 +36,7 @@ sketch profile. Copy/metadata opportunities are bounded by measured enclosing
 spans. Reuse and sparse assembly are deferred for correctness risk and limited
 current attribution. Mutation replay is deferred until immediate precursor
 identity is verified. Owner: local-developer; no new solver rewrite started.
+
+2026-11-05: T007 source review found no blocking defect and requested an additional
+external-property observer regression. B008 records this nonblocking test follow-up;
+it does not claim that case was executed in local delivery evidence.

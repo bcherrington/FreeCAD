@@ -28,15 +28,12 @@ Timing evidence now uses the user-approved indicative standard; review
 
 ## Steps
 
-1. T001 through T006 are complete. Read the
-   [baseline report](baseline-report.md), [manifest](workloads.json) and
-   [contract](timing-invalidation-contract.md). Use Spec Lifecycle Manager context
-   for T007, recheck source freshness through Agent Workbench and direct reads,
-   and mark T007 in progress before promotion/review/closure. Read
-   [remaining-cost-decisions.md](remaining-cost-decisions.md) and the
-   [owned backlog](../../backlog/README.md); proposals do not start automatically.
-   The existing data satisfies T005's revised indicative timing criteria; no
-   additional confidence-bound measurement is required.
+1. T001 through T007 are complete. This is a historical delivery package.
+   Use the [diagnostics reference](../../reference/sketcher-performance-diagnostics.md)
+   and [investigation runbook](../../runbooks/sketcher-performance-investigation.md)
+   for current guidance. Read [remaining-cost-decisions.md](remaining-cost-decisions.md)
+   and the [owned backlog](../../backlog/README.md) for evidence and proposed work;
+   proposals do not start automatically. T005 uses indicative timing acceptance.
 2. Verify fixture hashes and use disposable copies for further measurements.
    Preserve the frozen execution/reset/cache boundaries and verify counts on
    each new build; retain the distinction between no-op and actual recompute.
@@ -48,8 +45,7 @@ Timing evidence now uses the user-approved indicative standard; review
 5. If code changes in further work, build with `pixi run build -j 2` and run
    relevant checks. Use comparable optimized timings for indications of improvement;
    disclose variability and investigate apparent repeatable material slowdowns.
-6. T006 decisions are recorded; promote verified guidance and reconcile review/
-   delivery in T007. Preserve the historical replay gap and uncertainty limits.
+6. T006 decisions and T007 promotion/review are recorded. Preserve the historical replay gap and uncertainty limits.
 
 ## Expected Results
 

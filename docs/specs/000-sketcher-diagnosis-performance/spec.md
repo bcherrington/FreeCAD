@@ -14,10 +14,14 @@ last_reviewed: 2026-11-05
 Reduce repeated Sketcher setup and diagnosis during document recompute, add
 optional phase timings, and use comparable measurements to select further work.
 The user requested this package after discussing these two initial changes.
-T001 through T006 are complete, including optional phase tracing, one-setup
+T001 through T007 are complete, including optional phase tracing, one-setup
 ordinary recompute, correctness/indicative timing validation and ranked follow-up
 decisions. See [the validation report](performance-validation-report.md) and
-[remaining-cost-decisions.md](remaining-cost-decisions.md). T007 is next.
+[remaining-cost-decisions.md](remaining-cost-decisions.md). Current implemented
+behaviour is promoted to the [diagnostics reference](../../reference/sketcher-performance-diagnostics.md)
+and [investigation runbook](../../runbooks/sketcher-performance-investigation.md).
+This package is retained as historical evidence; local delivery does not authorize
+an integration merge or public submission. See [delivery review](../../reviews/sketcher-diagnosis-delivery-review.md).
 
 ## Problem
 

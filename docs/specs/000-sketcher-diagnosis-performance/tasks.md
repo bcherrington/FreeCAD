@@ -13,10 +13,11 @@ last_reviewed: 2026-11-05
 [Traceability](traceability.md), [Design](design.md), [Plan](plan.md),
 [Research](research.md), [Verification](verification.md).
 
-T001 through T006 are complete. Ordinary recompute uses one authoritative setup;
+T001 through T007 are complete. Ordinary recompute uses one authoritative setup;
 correctness and indicative timing evidence satisfy timing-evidence-decision.md.
 T006 attribution and ranked follow-ups are recorded in remaining-cost-decisions.md
-and the owned local backlog. T007 promotion/review/closure is next.
+and the owned local backlog. T007 promotes current guidance, records review and
+retains this package as history.
 
 ## Phase 1 - Baseline and contract
 
@@ -127,8 +128,8 @@ and the owned local backlog. T007 promotion/review/closure is next.
   - Evidence: Attributed retained and updated-model phases using actual root execute spans and clipped interval unions, avoiding nested-operation and overlapping QR double counting. Retained complex QR compute covers roughly64–85% of execute; explicit acceptance0.02–0.05%, dispatch0.4–1.2%. Frozen updated copy527589a0... qualifies all13 sketches:39 untraced plus13 traced samples, each one execute/setup with unchanged geometry/constraints/DoF, all sketch shapes valid and no initial Invalid objects. Updated heavy-sketch QR unions40–59%; wiring/auxiliary shape work about81%. Ranked B001–B007 backlog records measured opportunities/bounds, correctness risks, local owner, prerequisites and exit evidence for QR-method comparison, mutation replay, shape construction, copies, metadata, structural reuse and sparse assembly. Historical starting checkpoint recovered and hash5bb891ab... verified; immediate pre-symmetry/recent Equality precursors remain unverified and explicitly deferred to B006. No mutation replay or solver rewrite started. See remaining-cost-decisions.md, remaining-cost-attribution.json and docs/backlog/README.md.
 
   - Evidence mode: artifact
-  - Status: T006 complete; T007 ready for final review/promotion/closure. Follow-ups remain proposed/deferred and owned in the valid slm-planning/v1 backlog. T005 committed root27d524eaaa/docs43e66da. T006 changes are documentation/analysis only and uncommitted; no production defaults, tolerances, async policy, caches or operator models changed.
-- [ ] T007 Promote verified knowledge and reconcile delivery
+  - Status: T006 complete; T007 ready for final review/promotion/closure. Follow-ups remain proposed/deferred and owned in the valid slm-planning/v1 backlog. T005 committed root27d524eaaa/docs43e66da. T006 committed root dfd398f31c/docs79e9aa3; changes are documentation/analysis only; no production defaults, tolerances, async policy, caches or operator models changed.
+- [x] T007 Promote verified knowledge and reconcile delivery
   - Depends on: T006
   - Requirement: Requirement 1 through Requirement 7; AC-001 through AC-007; D-004.
   - Files: `docs/reference/sketcher-performance-diagnostics.md`, `docs/runbooks/sketcher-performance-investigation.md`, `verification.md`
@@ -136,8 +137,10 @@ and the owned local backlog. T007 promotion/review/closure is next.
     with implemented interfaces, measured limits, commands and recovery guidance.
   - Acceptance: traceability/verification states match evidence; source/docs commits,
     remaining work and integration disposition are recorded before closure.
-  - Evidence: durable docs, review disposition and lifecycle closure checks.
+  - Evidence: Promoted implemented recompute/trace contracts to docs/reference/sketcher-performance-diagnostics.md and safe investigation to docs/runbooks/sketcher-performance-investigation.md. Independent source/test and docs/operations expert reviews found no blocking implementation defect; unique-profile correction and optional prose improvement applied. External observer coverage follow-up owned B008. Delivery review records integration/no-merge, Linux/full-GUI/platform limits and public-preparation actions. Validated 193 Markdown file targets (closure history targets awaiting rendering), embedded Python/shell syntax, package JSON, 8-item backlog schema, unchanged src/tests/tools/profile versus dfd398f31c and CRLF-aware whitespace. Lint 0 errors/2 existing authoring advisories. All requirements covered; retain package as history for frozen manifest consumers; actual final/cleanup hashes resolved through closure log after commits.
 
+  - Evidence mode: artifact
+  - Status: T007 complete: durable promotion, expert review/disposition and local delivery reconciliation verified. Historical retention and final/cleanup commit recording follow; no integration merge or public submission.
 ## Dependencies And Execution Order
 
 T001 -> T002 -> T003 -> T004 -> T005 -> T006 -> T007.

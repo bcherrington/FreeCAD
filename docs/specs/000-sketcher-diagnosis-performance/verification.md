@@ -16,14 +16,16 @@ passed 109 tests in an isolated Release environment. The [workload manifest](wor
 freezes nine optimized baseline cases with per-sample native counts, resets and
 cache classes; [baseline-report.md](baseline-report.md) records raw evidence,
 medians/MAD and A/A uncertainty. Historical symmetry remains unverified, owned by
-T006. T002's design contract and native observer/index probes are complete;
+B006. T002's design contract and native observer/index probes are complete;
 T003 tracing is implemented and validated in
 [phase-tracing-report.md](phase-tracing-report.md). T004 setup deferral and native/
 Python/model correctness are verified in
 [diagnosis-deferral-report.md](diagnosis-deferral-report.md). Comparative performance
 acceptance satisfies the user-approved indicative standard; see
 [the T005 report](performance-validation-report.md). Bounded GUI checks pass.
-T005 is complete; historical strict-gate uncertainty remains disclosed.
+T001 through T007 are complete; historical strict-gate uncertainty remains disclosed.
+Current guidance is promoted to the [reference](../../reference/sketcher-performance-diagnostics.md)
+and [runbook](../../runbooks/sketcher-performance-investigation.md).
 
 ## Acceptance And Traceability
 
@@ -35,7 +37,7 @@ T005 is complete; historical strict-gate uncertainty remains disclosed.
 | FR-004 | D-002 | T002, T003 | AC-003 | Native/process verified in T003 |
 | FR-005 | D-002 | T002, T003, T005 | AC-004, AC-006 | AC-004 verified; indicative AC-006 satisfied with uncertainty disclosed |
 | FR-006 | D-003 | T001, T005 | AC-005, AC-006 | Indicative AC-005/AC-006 satisfied; former strict gates retained as historical |
-| FR-007 | D-004 | T006, T007 | AC-007 | T006 attribution/ranked owned backlog verified; final promotion T007 |
+| FR-007 | D-004 | T006, T007 | AC-007 | T006 attribution/ranked owned backlog verified; T007 promotion/review complete |
 
 ## Correctness Matrix
 
@@ -310,7 +312,7 @@ and 57% lower plate-profile median target recompute. Native/Python/model and bou
 GUI correctness checks pass. Other workloads and tracing-disabled results have
 been reviewed; their variable estimates do not establish a consistent material
 slowdown attributable to the change, nor prove its absence. AC-005/AC-006 are
-satisfied under the revised criteria; T005 is complete and T006 is ready.
+satisfied under the revised criteria; T005 and T006 are complete.
 The earlier strict confidence gates remain inconclusive historically. No raw data
 was changed, no regression-free guarantee is made and no new measurement is needed.
 
@@ -335,4 +337,47 @@ one execute/setup each. All sketch shapes are valid; no initial object is Invali
 The snapshot hash remains unchanged. The historical saved checkpoint hash matches
 its replay receipt, but immediate pre-symmetry authority is still unverified and
 assigned B006. No operator model/runtime was mutated and no saved mutation retried.
-T006 is complete. T007 still owns durable promotion, final review and closure.
+T006 attribution and T007 durable promotion/final review are complete.
+
+
+## T007 Promotion, Review And Delivery
+
+The [diagnostics reference](../../reference/sketcher-performance-diagnostics.md)
+promotes the implemented one-setup boundary, notification/fallback semantics,
+trace control/schema/counters, disabled behaviour, async/deferred lifetime and
+measurement limitations. The [investigation runbook](../../runbooks/sketcher-performance-investigation.md)
+promotes safe copied inputs, unique profiles, build/module identity, capture and
+interval-union analysis, repeated indicative timing, correctness checks and recovery.
+The [backlog](../../backlog/README.md) owns B001–B008; none starts automatically.
+
+Independent expert source/test and documentation/operations reviews found no
+blocking implementation defect. The documentation command/profile correction and
+optional wording improvement are applied. Additional external-property observer
+coverage is explicitly owned by B008; it is not represented as an executed test.
+[The private delivery review](../../reviews/sketcher-diagnosis-delivery-review.md)
+records findings, disposition, platform/GUI limits and public-preparation actions.
+These AI-assisted reviews are not human contributor or upstream maintainer approval.
+
+T007 validation checks document links, embedded Python/shell syntax, JSON,
+backlog schema, lint/traceability and CRLF-aware whitespace. Source/tests/profile
+helpers are unchanged from `dfd398f31c`; native/build/GUI evidence is retained
+from T003–T006 rather than rerun for prose changes. Existing lint authoring
+advisories do not establish an acceptance gap.
+
+Commit lineage: T001 `1efd3713a8` (baseline `b6141a373c`), T002 `6a17625f55`,
+T003 `9bc0eb91ff`, T004 `77ca0b6d94`, T005 root `27d524eaaa` / docs `43e66da`,
+T006 root `dfd398f31c` / docs `79e9aa3`. T007 final and cleanup commits are
+resolved in the [closure log](../../history/spec-closure-log.md) and
+[archive index](../../history/spec-archive-index.md), avoiding a self-referential
+commit hash in this document.
+
+Disposition: retain this package in place as explicitly archived historical
+requirements/evidence because profiling helpers consume `workloads.json` here.
+Current knowledge has durable destinations; it is not governed by this temporary
+package after closure. Feature changes remain on `perf/sketcher-diagnosis`; no
+integration merge, push, install or public submission occurs. The prior crash
+fix is already in integration base `36aa20c979`. Fresh full GUI/platform CI,
+upstream issue alignment, human review and source-commit AI disclosure are owned
+public-preparation work, not unclaimed local acceptance. Historical mutation replay
+is deferred to B006 until immediate precursor authority exists. Timing uncertainty
+and intermediate observer/addon compatibility limits remain disclosed.

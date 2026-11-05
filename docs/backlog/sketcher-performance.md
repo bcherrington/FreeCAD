@@ -9,7 +9,9 @@ last_reviewed: 2026-11-05
 # Sketcher Performance Follow-Ups
 
 The [backlog index](README.md) owns IDs/status/priority. This document defines
-bounded investigation scope, not approved implementation. Evidence comes from
+bounded investigation scope, not approved implementation. Current behaviour and
+capture guidance are in the [diagnostics reference](../reference/sketcher-performance-diagnostics.md)
+and [investigation runbook](../runbooks/sketcher-performance-investigation.md). Historical evidence comes from
 [T006](../specs/000-sketcher-diagnosis-performance/remaining-cost-decisions.md) and
 its aggregate [attribution](../specs/000-sketcher-diagnosis-performance/remaining-cost-attribution.json).
 Private fixtures and raw geometry remain outside Git. Use immutable copies of
@@ -149,3 +151,23 @@ placement, dependent Pad/Pocket output and edit/undo/external/reference behaviou
 The observed shape span is an opportunity window, not an expected whole-document
 saving. Any caching/elision proposal needs its own invalidation and compatibility
 spec. No shape shortcut is implemented here.
+
+## B008 External observer regression
+
+**Owner:** local-developer. **Next action:** design a diagnostic-notification
+observer that edits ExternalGeo or ExternalGeometry through a normal property/API
+notification and compare legacy/candidate post-operation behaviour.
+
+T007's independent source review found no blocking defect. It noted that the
+refresh branch names external properties but observer-driven regressions directly
+cover Constraints and Geometry only; the external-index repair test occurs outside
+this notification. This is a nonblocking local coverage request, not an observed
+model failure or a claim of universal addon compatibility.
+
+**Exit evidence:** verify the proper external projection/index state, preserved
+constraint identity/diagnostics, required fresh setup and absence of stale deferral
+on the following normal execute. Include a normal external-link update and
+appropriate cache rebuilding; a diagnostic touch alone is not a property setter.
+If the test finds a divergence, route a bounded correctness fix before upstream
+submission. Existing Linux/private-model/GUI evidence is retained as bounded,
+not advertised as this missing regression. No production change is started here.
