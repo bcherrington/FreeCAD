@@ -36,6 +36,8 @@
 
 #include "GeoEnum.h"
 #include "SketchObject.h"
+#include "SketcherTrace.h"
+#include <App/Document.h>
 
 
 using namespace Sketcher;
@@ -48,6 +50,11 @@ SketchSolveStatus SketchObject::moveGeometries(
     bool updateGeoBeforeMoving
 )
 {
+    Trace::Operation trace("move", "geometry_move", getDocument(), this);
+    if (trace) {
+        trace.identify(getDocument() ? getDocument()->getName() : "", getNameInDocument());
+        trace.inputConstraints(Constraints.getValues());
+    }
 
     // no need to check input data validity as this is an sketchobject managed operation.
     Base::StateLocker lock(managedoperation, true);
@@ -73,9 +80,11 @@ SketchSolveStatus SketchObject::moveGeometries(
     }
 
     if (lastDoF < 0) {  // over-constrained sketch
+        trace.result(Trace::Outcome::Rejected);
         return SketchSolveStatus::SolverError;
     }
     if (lastHasConflict) {  // conflicting constraints
+        trace.result(Trace::Outcome::Rejected);
         return SketchSolveStatus::SolverError;
     }
 
@@ -86,6 +95,7 @@ SketchSolveStatus SketchObject::moveGeometries(
     // or a redundancy that we did not have before, or a change of DoF
 
     if (lastSolverStatus == GCS::SolveStatus::Success) {
+        Trace::Span writeback(Trace::Phase::GeometryWriteback);
         std::vector<Part::Geometry*> geomlist = solvedSketch.extractGeometry();
         Geometry.setValues(geomlist);
         for (auto* geo : geomlist) {
@@ -95,6 +105,11 @@ SketchSolveStatus SketchObject::moveGeometries(
 
     solvedSketch.resetInitMove();  // reset solver point moving mechanism
 
+    trace.result(
+        lastSolverStatus == GCS::SolveStatus::Success ? Trace::Outcome::Success
+                                                      : Trace::Outcome::RecoverableError,
+        static_cast<int>(lastSolverStatus)
+    );
     return lastSolverStatus == GCS::SolveStatus::Success ? SketchSolveStatus::Success
                                                          : SketchSolveStatus::SolverError;
 }

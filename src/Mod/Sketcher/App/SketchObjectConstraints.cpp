@@ -42,6 +42,7 @@
 
 #include "GeoEnum.h"
 #include "SketchObject.h"
+#include "SketcherTrace.h"
 
 
 #undef DEBUG
@@ -77,6 +78,16 @@ void SketchObject::retrieveSolverDiagnostics()
 
 SketchSolveStatus SketchObject::solve(bool updateGeoAfterSolving /*=true*/)
 {
+    return solveInternal(updateGeoAfterSolving, false);
+}
+
+SketchSolveStatus SketchObject::solveInternal(bool updateGeoAfterSolving, bool notifyDeferredDiagnosis)
+{
+    Trace::Operation trace("solve", "explicit_solve", getDocument(), this);
+    if (trace) {
+        trace.identify(getDocument() ? getDocument()->getName() : "", getNameInDocument());
+        trace.inputConstraints(Constraints.getValues());
+    }
     // no need to check input data validity as this is an sketchobject managed operation.
     Base::StateLocker lock(managedoperation, true);
 
@@ -91,8 +102,24 @@ SketchSolveStatus SketchObject::solve(bool updateGeoAfterSolving /*=true*/)
     // happened therefore we update our sketch solver geometry with the SketchObject one.
     //
     // set up a sketch (including dofs counting and diagnosing of conflicts)
-    lastDoF = solvedSketch.setUpSketch(
-        getCompleteGeometry(), Constraints.getValues(), getExternalGeometryCount());
+    auto setup = [&] {
+        lastDoF = solvedSketch.setUpSketch(
+            getCompleteGeometry(), Constraints.getValues(), getExternalGeometryCount());
+        solverNeedsUpdate = false;
+        retrieveSolverDiagnostics();
+    };
+    try {
+        setup();
+    }
+    catch (const Base::Exception&) {
+        if (!notifyDeferredDiagnosis) {
+            throw;
+        }
+        // A Base exception from the legacy callback setup was caught by execute
+        // before its explicit solve tried setup again.
+        notifyDeferredDiagnosis = false;
+        setup();
+    }
 
     // At this point we have the solver information about conflicting/redundant/over-constrained,
     // but the sketch is NOT solved. Some examples: Redundant: a vertical line, a horizontal line
@@ -101,9 +128,38 @@ SketchSolveStatus SketchObject::solve(bool updateGeoAfterSolving /*=true*/)
     // line OverConstrained: a conflicting constraint when all other DoF are already constrained (it
     // has more constraints than parameters and the extra constraints are not redundant)
 
-    solverNeedsUpdate = false;
-
-    retrieveSolverDiagnostics();
+    if (notifyDeferredDiagnosis && (lastHasRedundancies || lastDoF < 0 || lastHasConflict
+        || lastHasMalformedConstraints || lastHasPartialRedundancies)) {
+        bool inputsChanged = false;
+        {
+            // Observers may edit inputs during this notification. The legacy
+            // explicit setup consumed those edits; retain that required refresh.
+            fastsignals::scoped_connection changes = signalBeforeChange.connect(
+                [&](const App::DocumentObject&, const App::Property& property) {
+                    if (&property == &Geometry || &property == &Constraints
+                        || &property == &ExternalGeo || &property == &ExternalGeometry) {
+                        inputsChanged = true;
+                    }
+                });
+            Base::StateLocker notification(internaltransaction, true);
+            try {
+                Constraints.touch();
+            }
+            catch (const Base::Exception&) {
+                // Preserve execute's legacy Base-exception recovery policy.
+                inputsChanged = true;
+            }
+        }
+        if (inputsChanged) {
+            Constraints.checkConstraintIndices(getHighestCurveIndex(), -getExternalGeometryCount());
+            if (Constraints.checkGeometry(getCompleteGeometry())) {
+                Base::StateLocker acceptance(internaltransaction, true);
+                Constraints.acceptGeometry(getCompleteGeometry());
+            }
+            Constraints.checkConstraintIndices(getHighestCurveIndex(), -getExternalGeometryCount());
+            setup();
+        }
+    }
 
     lastSolveTime = 0.0;
 
@@ -170,6 +226,7 @@ SketchSolveStatus SketchObject::solve(bool updateGeoAfterSolving /*=true*/)
         FullyConstrained.setValue(lastDoF == 0);
         if (updateGeoAfterSolving) {
             // set the newly solved geometry
+            Trace::Span writeback(Trace::Phase::GeometryWriteback);
             std::vector<Part::Geometry*> geomlist = solvedSketch.extractGeometry();
             Part::PropertyGeometryList tmp;
             tmp.setValues(std::move(geomlist));
@@ -179,6 +236,8 @@ SketchSolveStatus SketchObject::solve(bool updateGeoAfterSolving /*=true*/)
 
     signalSolverUpdate();
 
+    trace.result(status == SketchSolveStatus::Success ? Trace::Outcome::Success
+        : Trace::Outcome::RecoverableError, static_cast<int>(status));
     return status;
 }
 
@@ -772,6 +831,11 @@ int SketchObject::setVisibility(int ConstrId, bool isVisible)
 
 int SketchObject::setUpSketch()
 {
+    Trace::Operation trace("additional_setup", "diagnosis", getDocument(), this);
+    if (trace) {
+        trace.identify(getDocument() ? getDocument()->getName() : "", getNameInDocument());
+        trace.inputConstraints(Constraints.getValues());
+    }
     lastDoF = solvedSketch.setUpSketch(
         getCompleteGeometry(), Constraints.getValues(), getExternalGeometryCount());
 
@@ -781,12 +845,21 @@ int SketchObject::setUpSketch()
         || lastHasPartialRedundancies)
         Constraints.touch();
 
+    if (trace) {
+        trace.result(lastHasRedundancies || lastDoF < 0 || lastHasConflict || lastHasMalformedConstraints
+            ? Trace::Outcome::RecoverableError : Trace::Outcome::Success, lastDoF);
+    }
     return lastDoF;
 }
 
 int SketchObject::diagnoseAdditionalConstraints(
     std::vector<Sketcher::Constraint*> additionalconstraints)
 {
+    Trace::Operation trace("additional_setup", "additional_constraints", getDocument(), this);
+    if (trace) {
+        trace.identify(getDocument() ? getDocument()->getName() : "", getNameInDocument());
+        trace.inputConstraints(Constraints.getValues());
+    }
     auto objectconstraints = Constraints.getValues();
 
     std::vector<Sketcher::Constraint*> allconstraints;

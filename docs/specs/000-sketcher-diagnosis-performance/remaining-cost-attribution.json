@@ -1,0 +1,1083 @@
+{
+  "schema": "sketcher-remaining-cost-attribution-v1",
+  "task": "T006",
+  "source_parent": "27d524eaaa",
+  "candidate_module_sha256": "72a7a8131b781a20e2a13b7f057dff4ad183fc2a7e3288531964495ecfcaa270",
+  "retained": {
+    "instrumentation_master": {
+      "root_execute_ns": 99910429,
+      "phase_union_ns": {
+        "setup": 91787968,
+        "setup_construction": 2164251,
+        "diagnosis": 86167188,
+        "jacobian": 4311277,
+        "qr_compute": 63603752,
+        "qr_dispatch": 1199948,
+        "qr_join": 12871623,
+        "geometry_acceptance": 45981507,
+        "external_geometry": 47265,
+        "numerical_solve": 970889,
+        "shape": 6115520
+      },
+      "phase_percent_of_execute": {
+        "setup": 91.8702571079942,
+        "setup_construction": 2.166191279190684,
+        "diagnosis": 86.24443800556597,
+        "jacobian": 4.315142115944673,
+        "qr_compute": 63.66077359151365,
+        "qr_dispatch": 1.201023769000131,
+        "qr_join": 12.883162577552339,
+        "geometry_acceptance": 46.02273001950577,
+        "external_geometry": 0.0473073736876858,
+        "numerical_solve": 0.971759414625274,
+        "shape": 6.121002643277611
+      },
+      "diagnosis_percent_of_setup": 93.87634335689837,
+      "setup_spans": 2,
+      "diagnosis_counters": [
+        {
+          "allocated_columns": 481,
+          "allocated_payload_bytes": 1854736,
+          "allocated_rows": 482,
+          "diagnostic_equations": 481,
+          "diagnostic_unknowns": 481,
+          "effective_columns": 481,
+          "effective_rows": 481,
+          "input_active_driving_constraints": 246,
+          "qr_method": "dense",
+          "rank_j": 481,
+          "rank_j_status": "computed",
+          "rank_jt": 481,
+          "rank_jt_status": "computed",
+          "solver_equations_pre_filter": 482,
+          "unknowns_pre_driven_filter": 482
+        },
+        {
+          "allocated_columns": 481,
+          "allocated_payload_bytes": 1854736,
+          "allocated_rows": 482,
+          "diagnostic_equations": 481,
+          "diagnostic_unknowns": 481,
+          "effective_columns": 481,
+          "effective_rows": 481,
+          "input_active_driving_constraints": 246,
+          "qr_method": "dense",
+          "rank_j": 481,
+          "rank_j_status": "computed",
+          "rank_jt": 481,
+          "rank_jt_status": "computed",
+          "solver_equations_pre_filter": 482,
+          "unknowns_pre_driven_filter": 482
+        }
+      ],
+      "method": "union of operation-relative phase intervals, clipped to actual root execute; overlapping phases are not additive"
+    },
+    "instrumentation_profile": {
+      "root_execute_ns": 1648464537,
+      "phase_union_ns": {
+        "setup": 1591723821,
+        "setup_construction": 26606151,
+        "diagnosis": 1543069467,
+        "jacobian": 26704922,
+        "qr_compute": 1337181706,
+        "qr_dispatch": 16332687,
+        "qr_join": 135117537,
+        "geometry_acceptance": 862321180,
+        "external_geometry": 9200367,
+        "numerical_solve": 8530159,
+        "shape": 36106236
+      },
+      "phase_percent_of_execute": {
+        "setup": 96.55796562640886,
+        "setup_construction": 1.613995958227884,
+        "diagnosis": 93.60647028586942,
+        "jacobian": 1.6199876552151755,
+        "qr_compute": 81.11680148324598,
+        "qr_dispatch": 0.9907818235340055,
+        "qr_join": 8.19656922956299,
+        "geometry_acceptance": 52.31056905654258,
+        "external_geometry": 0.5581173748962487,
+        "numerical_solve": 0.5174608739550943,
+        "shape": 2.1902949799398685
+      },
+      "diagnosis_percent_of_setup": 96.94329170939761,
+      "setup_spans": 2,
+      "diagnosis_counters": [
+        {
+          "allocated_columns": 742,
+          "allocated_payload_bytes": 4125520,
+          "allocated_rows": 695,
+          "diagnostic_equations": 695,
+          "diagnostic_unknowns": 742,
+          "effective_columns": 742,
+          "effective_rows": 695,
+          "input_active_driving_constraints": 241,
+          "qr_method": "dense",
+          "rank_j": 695,
+          "rank_j_status": "computed",
+          "rank_jt": 695,
+          "rank_jt_status": "computed",
+          "solver_equations_pre_filter": 695,
+          "unknowns_pre_driven_filter": 742
+        },
+        {
+          "allocated_columns": 742,
+          "allocated_payload_bytes": 4125520,
+          "allocated_rows": 695,
+          "diagnostic_equations": 695,
+          "diagnostic_unknowns": 742,
+          "effective_columns": 742,
+          "effective_rows": 695,
+          "input_active_driving_constraints": 241,
+          "qr_method": "dense",
+          "rank_j": 695,
+          "rank_j_status": "computed",
+          "rank_jt": 695,
+          "rank_jt_status": "computed",
+          "solver_equations_pre_filter": 695,
+          "unknowns_pre_driven_filter": 742
+        }
+      ],
+      "method": "union of operation-relative phase intervals, clipped to actual root execute; overlapping phases are not additive"
+    },
+    "candidate_master": {
+      "root_execute_ns": 253276216,
+      "phase_union_ns": {
+        "setup": 221651095,
+        "setup_construction": 4031934,
+        "diagnosis": 210262129,
+        "jacobian": 5550548,
+        "qr_compute": 162352346,
+        "qr_dispatch": 966963,
+        "qr_join": 42467496,
+        "geometry_acceptance": 120758,
+        "external_geometry": 155794,
+        "numerical_solve": 4207326,
+        "shape": 24401582
+      },
+      "phase_percent_of_execute": {
+        "setup": 87.51358437856636,
+        "setup_construction": 1.5919118122011109,
+        "diagnosis": 83.01692607410085,
+        "jacobian": 2.1914998919598516,
+        "qr_compute": 64.10090476083234,
+        "qr_dispatch": 0.38178199882771463,
+        "qr_join": 16.76726566382372,
+        "geometry_acceptance": 0.04767838129735798,
+        "external_geometry": 0.06151150015601939,
+        "numerical_solve": 1.6611611095769057,
+        "shape": 9.634375617803766
+      },
+      "diagnosis_percent_of_setup": 94.8617596497775,
+      "setup_spans": 1,
+      "diagnosis_counters": [
+        {
+          "allocated_columns": 481,
+          "allocated_payload_bytes": 1854736,
+          "allocated_rows": 482,
+          "diagnostic_equations": 481,
+          "diagnostic_unknowns": 481,
+          "effective_columns": 481,
+          "effective_rows": 481,
+          "input_active_driving_constraints": 246,
+          "qr_method": "dense",
+          "rank_j": 481,
+          "rank_j_status": "computed",
+          "rank_jt": 481,
+          "rank_jt_status": "computed",
+          "solver_equations_pre_filter": 482,
+          "unknowns_pre_driven_filter": 482
+        }
+      ],
+      "method": "union of operation-relative phase intervals, clipped to actual root execute; overlapping phases are not additive"
+    },
+    "candidate_profile": {
+      "root_execute_ns": 789111919,
+      "phase_union_ns": {
+        "setup": 730356082,
+        "setup_construction": 13684824,
+        "diagnosis": 705990621,
+        "jacobian": 12692525,
+        "qr_compute": 670349787,
+        "qr_dispatch": 9610797,
+        "qr_join": 114641,
+        "geometry_acceptance": 162576,
+        "external_geometry": 14349991,
+        "numerical_solve": 8146099,
+        "shape": 33498916
+      },
+      "phase_percent_of_execute": {
+        "setup": 92.55418203865706,
+        "setup_construction": 1.7342057153745767,
+        "diagnosis": 89.46647541386332,
+        "jacobian": 1.6084568860757507,
+        "qr_compute": 84.94990011676659,
+        "qr_dispatch": 1.2179257173278104,
+        "qr_join": 0.014527850516474077,
+        "geometry_acceptance": 0.02060240076034132,
+        "external_geometry": 1.8184988281744607,
+        "numerical_solve": 1.0323122492336858,
+        "shape": 4.2451413029537575
+      },
+      "diagnosis_percent_of_setup": 96.66389291463449,
+      "setup_spans": 1,
+      "diagnosis_counters": [
+        {
+          "allocated_columns": 742,
+          "allocated_payload_bytes": 4125520,
+          "allocated_rows": 695,
+          "diagnostic_equations": 695,
+          "diagnostic_unknowns": 742,
+          "effective_columns": 742,
+          "effective_rows": 695,
+          "input_active_driving_constraints": 241,
+          "qr_method": "dense",
+          "rank_j": 695,
+          "rank_j_status": "computed",
+          "rank_jt": 695,
+          "rank_jt_status": "computed",
+          "solver_equations_pre_filter": 695,
+          "unknowns_pre_driven_filter": 742
+        }
+      ],
+      "method": "union of operation-relative phase intervals, clipped to actual root execute; overlapping phases are not additive"
+    }
+  },
+  "updated": {
+    "Sketch004": {
+      "geometry": 104,
+      "constraints": 247,
+      "dof": 0,
+      "samples": 3,
+      "untraced_median_ms": 56.88632,
+      "untraced_range_ms": [
+        53.617931,
+        57.179359
+      ],
+      "state_unchanged": true,
+      "shape_valid": true,
+      "attribution": {
+        "root_execute_ns": 52405416,
+        "phase_union_ns": {
+          "setup": 45387972,
+          "setup_construction": 1177841,
+          "diagnosis": 42211812,
+          "jacobian": 1302886,
+          "qr_compute": 30977858,
+          "qr_dispatch": 952144,
+          "qr_join": 6642996,
+          "geometry_acceptance": 17621,
+          "external_geometry": 58513,
+          "numerical_solve": 868908,
+          "shape": 5257050
+        },
+        "phase_percent_of_execute": {
+          "setup": 86.60931534252109,
+          "setup_construction": 2.247555863310006,
+          "diagnosis": 80.54856772819053,
+          "jacobian": 2.486166696968878,
+          "qr_compute": 59.11193988041236,
+          "qr_dispatch": 1.8168809116981344,
+          "qr_join": 12.676163089708133,
+          "geometry_acceptance": 0.03362438721982476,
+          "external_geometry": 0.11165449006263017,
+          "numerical_solve": 1.6580500000228984,
+          "shape": 10.031501324214275
+        },
+        "diagnosis_percent_of_setup": 93.00219890855665,
+        "setup_spans": 1,
+        "diagnosis_counters": [
+          {
+            "allocated_columns": 481,
+            "allocated_payload_bytes": 1854736,
+            "allocated_rows": 482,
+            "diagnostic_equations": 481,
+            "diagnostic_unknowns": 481,
+            "effective_columns": 481,
+            "effective_rows": 481,
+            "input_active_driving_constraints": 246,
+            "qr_method": "dense",
+            "rank_j": 481,
+            "rank_j_status": "computed",
+            "rank_jt": 481,
+            "rank_jt_status": "computed",
+            "solver_equations_pre_filter": 482,
+            "unknowns_pre_driven_filter": 482
+          }
+        ],
+        "method": "union of operation-relative phase intervals, clipped to actual root execute; overlapping phases are not additive"
+      }
+    },
+    "EffectorMountingHoleProfile": {
+      "geometry": 6,
+      "constraints": 12,
+      "dof": 0,
+      "samples": 3,
+      "untraced_median_ms": 1.742623,
+      "untraced_range_ms": [
+        1.584379,
+        1.750512
+      ],
+      "state_unchanged": true,
+      "shape_valid": true,
+      "attribution": {
+        "root_execute_ns": 1674206,
+        "phase_union_ns": {
+          "setup": 372046,
+          "setup_construction": 117118,
+          "diagnosis": 190065,
+          "jacobian": 13947,
+          "qr_compute": 16716,
+          "qr_dispatch": 40335,
+          "qr_join": 123945,
+          "geometry_acceptance": 24435,
+          "external_geometry": 191348,
+          "numerical_solve": 23047,
+          "shape": 830685
+        },
+        "phase_percent_of_execute": {
+          "setup": 22.2222354955125,
+          "setup_construction": 6.995435448206493,
+          "diagnosis": 11.352545624612503,
+          "jacobian": 0.8330516077471948,
+          "qr_compute": 0.9984434412491653,
+          "qr_dispatch": 2.409201735031412,
+          "qr_join": 7.403210835464692,
+          "geometry_acceptance": 1.4594978156809855,
+          "external_geometry": 11.42917896602927,
+          "numerical_solve": 1.3765928446081306,
+          "shape": 49.61665410349742
+        },
+        "diagnosis_percent_of_setup": 51.08642479693371,
+        "setup_spans": 1,
+        "diagnosis_counters": [
+          {
+            "allocated_columns": 18,
+            "allocated_payload_bytes": 2592,
+            "allocated_rows": 18,
+            "diagnostic_equations": 18,
+            "diagnostic_unknowns": 18,
+            "effective_columns": 18,
+            "effective_rows": 18,
+            "input_active_driving_constraints": 12,
+            "qr_method": "dense",
+            "rank_j": 18,
+            "rank_j_status": "computed",
+            "rank_jt": 18,
+            "rank_jt_status": "computed",
+            "solver_equations_pre_filter": 18,
+            "unknowns_pre_driven_filter": 18
+          }
+        ],
+        "method": "union of operation-relative phase intervals, clipped to actual root execute; overlapping phases are not additive"
+      }
+    },
+    "EffectorPlateHoleProfile": {
+      "geometry": 6,
+      "constraints": 12,
+      "dof": 0,
+      "samples": 3,
+      "untraced_median_ms": 1.858152,
+      "untraced_range_ms": [
+        1.844562,
+        2.038746
+      ],
+      "state_unchanged": true,
+      "shape_valid": true,
+      "attribution": {
+        "root_execute_ns": 7595623,
+        "phase_union_ns": {
+          "setup": 1197712,
+          "setup_construction": 500201,
+          "diagnosis": 490876,
+          "jacobian": 74157,
+          "qr_compute": 59976,
+          "qr_dispatch": 147106,
+          "qr_join": 216742,
+          "geometry_acceptance": 80799,
+          "external_geometry": 951013,
+          "numerical_solve": 148166,
+          "shape": 4138887
+        },
+        "phase_percent_of_execute": {
+          "setup": 15.768449803261694,
+          "setup_construction": 6.585384766990146,
+          "diagnosis": 6.462616693851182,
+          "jacobian": 0.9763122787953009,
+          "qr_compute": 0.7896126492849895,
+          "qr_dispatch": 1.9367206613598384,
+          "qr_join": 2.8535118185828865,
+          "geometry_acceptance": 1.0637573771104754,
+          "external_geometry": 12.520539789823692,
+          "numerical_solve": 1.9506760669927932,
+          "shape": 54.49042165468191
+        },
+        "diagnosis_percent_of_setup": 40.98447706961273,
+        "setup_spans": 1,
+        "diagnosis_counters": [
+          {
+            "allocated_columns": 18,
+            "allocated_payload_bytes": 2592,
+            "allocated_rows": 18,
+            "diagnostic_equations": 18,
+            "diagnostic_unknowns": 18,
+            "effective_columns": 18,
+            "effective_rows": 18,
+            "input_active_driving_constraints": 12,
+            "qr_method": "dense",
+            "rank_j": 18,
+            "rank_j_status": "computed",
+            "rank_jt": 18,
+            "rank_jt_status": "computed",
+            "solver_equations_pre_filter": 18,
+            "unknowns_pre_driven_filter": 18
+          }
+        ],
+        "method": "union of operation-relative phase intervals, clipped to actual root execute; overlapping phases are not additive"
+      }
+    },
+    "EffectorInnerBossHoleProfile": {
+      "geometry": 3,
+      "constraints": 6,
+      "dof": 0,
+      "samples": 3,
+      "untraced_median_ms": 4.972943,
+      "untraced_range_ms": [
+        3.20479,
+        5.30584
+      ],
+      "state_unchanged": true,
+      "shape_valid": true,
+      "attribution": {
+        "root_execute_ns": 1544688,
+        "phase_union_ns": {
+          "setup": 319538,
+          "setup_construction": 118045,
+          "diagnosis": 170328,
+          "jacobian": 6671,
+          "qr_compute": 14087,
+          "qr_dispatch": 58475,
+          "qr_join": 93428,
+          "geometry_acceptance": 25847,
+          "external_geometry": 181559,
+          "numerical_solve": 32011,
+          "shape": 689974
+        },
+        "phase_percent_of_execute": {
+          "setup": 20.686248614606964,
+          "setup_construction": 7.641996312523953,
+          "diagnosis": 11.026692769025201,
+          "jacobian": 0.4318671472815222,
+          "qr_compute": 0.9119640988989363,
+          "qr_dispatch": 3.785554105424526,
+          "qr_join": 6.048341153682815,
+          "geometry_acceptance": 1.6732828894896574,
+          "external_geometry": 11.75376516163782,
+          "numerical_solve": 2.0723278746258145,
+          "shape": 44.667531566245096
+        },
+        "diagnosis_percent_of_setup": 53.3044583116875,
+        "setup_spans": 1,
+        "diagnosis_counters": [
+          {
+            "allocated_columns": 9,
+            "allocated_payload_bytes": 648,
+            "allocated_rows": 9,
+            "diagnostic_equations": 9,
+            "diagnostic_unknowns": 9,
+            "effective_columns": 9,
+            "effective_rows": 9,
+            "input_active_driving_constraints": 6,
+            "qr_method": "dense",
+            "rank_j": 9,
+            "rank_j_status": "computed",
+            "rank_jt": 9,
+            "rank_jt_status": "computed",
+            "solver_equations_pre_filter": 9,
+            "unknowns_pre_driven_filter": 9
+          }
+        ],
+        "method": "union of operation-relative phase intervals, clipped to actual root execute; overlapping phases are not additive"
+      }
+    },
+    "EffectorLobeHoleProfile": {
+      "geometry": 2,
+      "constraints": 4,
+      "dof": 0,
+      "samples": 3,
+      "untraced_median_ms": 1.341898,
+      "untraced_range_ms": [
+        1.096878,
+        4.012806
+      ],
+      "state_unchanged": true,
+      "shape_valid": true,
+      "attribution": {
+        "root_execute_ns": 829803,
+        "phase_union_ns": {
+          "setup": 226195,
+          "setup_construction": 61415,
+          "diagnosis": 149999,
+          "jacobian": 2300,
+          "qr_compute": 6070,
+          "qr_dispatch": 45909,
+          "qr_join": 94183,
+          "geometry_acceptance": 16811,
+          "external_geometry": 95603,
+          "numerical_solve": 14989,
+          "shape": 298297
+        },
+        "phase_percent_of_execute": {
+          "setup": 27.25887951718661,
+          "setup_construction": 7.401154249864124,
+          "diagnosis": 18.07645911137945,
+          "jacobian": 0.27717422086929067,
+          "qr_compute": 0.7314989220333019,
+          "qr_dispatch": 5.532517959081854,
+          "qr_join": 11.350043323535827,
+          "geometry_acceptance": 2.0259025334928893,
+          "external_geometry": 11.521168277289911,
+          "numerical_solve": 1.806332346352086,
+          "shape": 35.947929809846435
+        },
+        "diagnosis_percent_of_setup": 66.3140210879993,
+        "setup_spans": 1,
+        "diagnosis_counters": [
+          {
+            "allocated_columns": 6,
+            "allocated_payload_bytes": 288,
+            "allocated_rows": 6,
+            "diagnostic_equations": 6,
+            "diagnostic_unknowns": 6,
+            "effective_columns": 6,
+            "effective_rows": 6,
+            "input_active_driving_constraints": 4,
+            "qr_method": "dense",
+            "rank_j": 6,
+            "rank_j_status": "computed",
+            "rank_jt": 6,
+            "rank_jt_status": "computed",
+            "solver_equations_pre_filter": 6,
+            "unknowns_pre_driven_filter": 6
+          }
+        ],
+        "method": "union of operation-relative phase intervals, clipped to actual root execute; overlapping phases are not additive"
+      }
+    },
+    "EffectorReliefProfile": {
+      "geometry": 6,
+      "constraints": 15,
+      "dof": 0,
+      "samples": 3,
+      "untraced_median_ms": 2.387242,
+      "untraced_range_ms": [
+        2.236347,
+        2.853896
+      ],
+      "state_unchanged": true,
+      "shape_valid": true,
+      "attribution": {
+        "root_execute_ns": 1888450,
+        "phase_union_ns": {
+          "setup": 603278,
+          "setup_construction": 176344,
+          "diagnosis": 286445,
+          "jacobian": 38347,
+          "qr_compute": 70015,
+          "qr_dispatch": 49729,
+          "qr_join": 156969,
+          "geometry_acceptance": 18455,
+          "external_geometry": 237775,
+          "numerical_solve": 35437,
+          "shape": 767315
+        },
+        "phase_percent_of_execute": {
+          "setup": 31.94566972914295,
+          "setup_construction": 9.338028541925919,
+          "diagnosis": 15.168259683867722,
+          "jacobian": 2.0306071116524134,
+          "qr_compute": 3.7075379279303133,
+          "qr_dispatch": 2.633323625195266,
+          "qr_join": 8.312054859805661,
+          "geometry_acceptance": 0.9772564801821599,
+          "external_geometry": 12.591013794381636,
+          "numerical_solve": 1.8765124837829967,
+          "shape": 40.63199978818608
+        },
+        "diagnosis_percent_of_setup": 47.48142647336717,
+        "setup_spans": 1,
+        "diagnosis_counters": [
+          {
+            "allocated_columns": 39,
+            "allocated_payload_bytes": 12168,
+            "allocated_rows": 39,
+            "diagnostic_equations": 39,
+            "diagnostic_unknowns": 39,
+            "effective_columns": 39,
+            "effective_rows": 39,
+            "input_active_driving_constraints": 15,
+            "qr_method": "dense",
+            "rank_j": 39,
+            "rank_j_status": "computed",
+            "rank_jt": 39,
+            "rank_jt_status": "computed",
+            "solver_equations_pre_filter": 39,
+            "unknowns_pre_driven_filter": 39
+          }
+        ],
+        "method": "union of operation-relative phase intervals, clipped to actual root execute; overlapping phases are not additive"
+      }
+    },
+    "WiringPlateOutline": {
+      "geometry": 17,
+      "constraints": 41,
+      "dof": 0,
+      "samples": 3,
+      "untraced_median_ms": 15.469328,
+      "untraced_range_ms": [
+        15.366393,
+        18.992849
+      ],
+      "state_unchanged": true,
+      "shape_valid": true,
+      "attribution": {
+        "root_execute_ns": 9770682,
+        "phase_union_ns": {
+          "setup": 1355826,
+          "setup_construction": 379923,
+          "diagnosis": 637834,
+          "jacobian": 88016,
+          "qr_compute": 296347,
+          "qr_dispatch": 113701,
+          "qr_join": 125449,
+          "geometry_acceptance": 17682,
+          "external_geometry": 147293,
+          "numerical_solve": 118778,
+          "shape": 7885128
+        },
+        "phase_percent_of_execute": {
+          "setup": 13.876472491889512,
+          "setup_construction": 3.8883979644409674,
+          "diagnosis": 6.528039700811059,
+          "jacobian": 0.9008173636190391,
+          "qr_compute": 3.03302266924663,
+          "qr_dispatch": 1.1636956355758994,
+          "qr_join": 1.283932892299637,
+          "geometry_acceptance": 0.1809699670913453,
+          "external_geometry": 1.507499681189092,
+          "numerical_solve": 1.2156572079615322,
+          "shape": 80.70192029584015
+        },
+        "diagnosis_percent_of_setup": 47.04394221677413,
+        "setup_spans": 1,
+        "diagnosis_counters": [
+          {
+            "allocated_columns": 94,
+            "allocated_payload_bytes": 70688,
+            "allocated_rows": 94,
+            "diagnostic_equations": 94,
+            "diagnostic_unknowns": 94,
+            "effective_columns": 94,
+            "effective_rows": 94,
+            "input_active_driving_constraints": 41,
+            "qr_method": "dense",
+            "rank_j": 94,
+            "rank_j_status": "computed",
+            "rank_jt": 94,
+            "rank_jt_status": "computed",
+            "solver_equations_pre_filter": 94,
+            "unknowns_pre_driven_filter": 94
+          }
+        ],
+        "method": "union of operation-relative phase intervals, clipped to actual root execute; overlapping phases are not additive"
+      }
+    },
+    "AuxiliaryPlateProfile": {
+      "geometry": 15,
+      "constraints": 36,
+      "dof": 0,
+      "samples": 3,
+      "untraced_median_ms": 13.254848,
+      "untraced_range_ms": [
+        12.491016,
+        13.871458
+      ],
+      "state_unchanged": true,
+      "shape_valid": true,
+      "attribution": {
+        "root_execute_ns": 7961328,
+        "phase_union_ns": {
+          "setup": 1033381,
+          "setup_construction": 310773,
+          "diagnosis": 438927,
+          "jacobian": 79264,
+          "qr_compute": 238702,
+          "qr_dispatch": 53879,
+          "qr_join": 65619,
+          "geometry_acceptance": 15725,
+          "external_geometry": 101377,
+          "numerical_solve": 105014,
+          "shape": 6488902
+        },
+        "phase_percent_of_execute": {
+          "setup": 12.980007857985502,
+          "setup_construction": 3.903532174531686,
+          "diagnosis": 5.513238494884271,
+          "jacobian": 0.995612792237677,
+          "qr_compute": 2.9982686305601276,
+          "qr_dispatch": 0.6767589527777276,
+          "qr_join": 0.8242217881237904,
+          "geometry_acceptance": 0.1975172986215365,
+          "external_geometry": 1.2733679607221309,
+          "numerical_solve": 1.3190512939549783,
+          "shape": 81.50527148234566
+        },
+        "diagnosis_percent_of_setup": 42.474847128019576,
+        "setup_spans": 1,
+        "diagnosis_counters": [
+          {
+            "allocated_columns": 87,
+            "allocated_payload_bytes": 60552,
+            "allocated_rows": 87,
+            "diagnostic_equations": 87,
+            "diagnostic_unknowns": 87,
+            "effective_columns": 87,
+            "effective_rows": 87,
+            "input_active_driving_constraints": 36,
+            "qr_method": "dense",
+            "rank_j": 87,
+            "rank_j_status": "computed",
+            "rank_jt": 87,
+            "rank_jt_status": "computed",
+            "solver_equations_pre_filter": 87,
+            "unknowns_pre_driven_filter": 87
+          }
+        ],
+        "method": "union of operation-relative phase intervals, clipped to actual root execute; overlapping phases are not additive"
+      }
+    },
+    "BottomPlateHoleLayout": {
+      "geometry": 20,
+      "constraints": 45,
+      "dof": 0,
+      "samples": 3,
+      "untraced_median_ms": 4.115209,
+      "untraced_range_ms": [
+        3.769197,
+        4.130449
+      ],
+      "state_unchanged": true,
+      "shape_valid": true,
+      "attribution": {
+        "root_execute_ns": 3210817,
+        "phase_union_ns": {
+          "setup": 626030,
+          "setup_construction": 274149,
+          "diagnosis": 206238,
+          "jacobian": 45677,
+          "qr_compute": 79373,
+          "qr_dispatch": 41776,
+          "qr_join": 65420,
+          "geometry_acceptance": 23618,
+          "external_geometry": 401327,
+          "numerical_solve": 36480,
+          "shape": 1806371
+        },
+        "phase_percent_of_execute": {
+          "setup": 19.497529756445168,
+          "setup_construction": 8.538294147564311,
+          "diagnosis": 6.423224992268323,
+          "jacobian": 1.4225974261379581,
+          "qr_compute": 2.472049948657927,
+          "qr_dispatch": 1.301101869088148,
+          "qr_join": 2.0374876550111702,
+          "geometry_acceptance": 0.735576023174164,
+          "external_geometry": 12.499217488882113,
+          "numerical_solve": 1.1361594260899952,
+          "shape": 56.25892101605292
+        },
+        "diagnosis_percent_of_setup": 32.943788636327334,
+        "setup_spans": 1,
+        "diagnosis_counters": [
+          {
+            "allocated_columns": 61,
+            "allocated_payload_bytes": 30256,
+            "allocated_rows": 62,
+            "diagnostic_equations": 61,
+            "diagnostic_unknowns": 61,
+            "effective_columns": 61,
+            "effective_rows": 61,
+            "input_active_driving_constraints": 44,
+            "qr_method": "dense",
+            "rank_j": 61,
+            "rank_j_status": "computed",
+            "rank_jt": 61,
+            "rank_jt_status": "computed",
+            "solver_equations_pre_filter": 62,
+            "unknowns_pre_driven_filter": 62
+          }
+        ],
+        "method": "union of operation-relative phase intervals, clipped to actual root execute; overlapping phases are not additive"
+      }
+    },
+    "BottomPlateProfile": {
+      "geometry": 72,
+      "constraints": 158,
+      "dof": 14,
+      "samples": 3,
+      "untraced_median_ms": 61.336517,
+      "untraced_range_ms": [
+        49.496361,
+        63.342491
+      ],
+      "state_unchanged": true,
+      "shape_valid": true,
+      "attribution": {
+        "root_execute_ns": 44861697,
+        "phase_union_ns": {
+          "setup": 36809525,
+          "setup_construction": 2443305,
+          "diagnosis": 31558814,
+          "jacobian": 1157213,
+          "qr_compute": 22307498,
+          "qr_dispatch": 686655,
+          "qr_join": 6299320,
+          "geometry_acceptance": 20175,
+          "external_geometry": 348650,
+          "numerical_solve": 1484188,
+          "shape": 5576460
+        },
+        "phase_percent_of_execute": {
+          "setup": 82.05112035775196,
+          "setup_construction": 5.446305341503242,
+          "diagnosis": 70.34690194621929,
+          "jacobian": 2.5795123176013606,
+          "qr_compute": 49.72504272408598,
+          "qr_dispatch": 1.5306041588217227,
+          "qr_join": 14.041644479030742,
+          "geometry_acceptance": 0.04497154889169708,
+          "external_geometry": 0.7771663207479645,
+          "numerical_solve": 3.308363479874602,
+          "shape": 12.430336730240054
+        },
+        "diagnosis_percent_of_setup": 85.73545570066443,
+        "setup_spans": 1,
+        "diagnosis_counters": [
+          {
+            "allocated_columns": 438,
+            "allocated_payload_bytes": 1485696,
+            "allocated_rows": 424,
+            "diagnostic_equations": 424,
+            "diagnostic_unknowns": 438,
+            "effective_columns": 438,
+            "effective_rows": 424,
+            "input_active_driving_constraints": 158,
+            "qr_method": "dense",
+            "rank_j": 424,
+            "rank_j_status": "computed",
+            "rank_jt": 424,
+            "rank_jt_status": "computed",
+            "solver_equations_pre_filter": 424,
+            "unknowns_pre_driven_filter": 438
+          }
+        ],
+        "method": "union of operation-relative phase intervals, clipped to actual root execute; overlapping phases are not additive"
+      }
+    },
+    "BottomPlateInnerOpeningSketch": {
+      "geometry": 58,
+      "constraints": 132,
+      "dof": 6,
+      "samples": 3,
+      "untraced_median_ms": 34.832713,
+      "untraced_range_ms": [
+        33.578473,
+        42.563981
+      ],
+      "state_unchanged": true,
+      "shape_valid": true,
+      "attribution": {
+        "root_execute_ns": 26250779,
+        "phase_union_ns": {
+          "setup": 19062555,
+          "setup_construction": 1576290,
+          "diagnosis": 15190668,
+          "jacobian": 896618,
+          "qr_compute": 10585312,
+          "qr_dispatch": 495586,
+          "qr_join": 2083624,
+          "geometry_acceptance": 16034,
+          "external_geometry": 148339,
+          "numerical_solve": 1198023,
+          "shape": 5195295
+        },
+        "phase_percent_of_execute": {
+          "setup": 72.61710214390209,
+          "setup_construction": 6.004736088022378,
+          "diagnosis": 57.867494141792896,
+          "jacobian": 3.415586257459255,
+          "qr_compute": 40.32380143842588,
+          "qr_dispatch": 1.8878906412643983,
+          "qr_join": 7.937379686903768,
+          "geometry_acceptance": 0.06108009213745619,
+          "external_geometry": 0.5650841828351075,
+          "numerical_solve": 4.563761707795415,
+          "shape": 19.791012678138046
+        },
+        "diagnosis_percent_of_setup": 79.68852024295799,
+        "setup_spans": 1,
+        "diagnosis_counters": [
+          {
+            "allocated_columns": 336,
+            "allocated_payload_bytes": 887040,
+            "allocated_rows": 330,
+            "diagnostic_equations": 330,
+            "diagnostic_unknowns": 336,
+            "effective_columns": 336,
+            "effective_rows": 330,
+            "input_active_driving_constraints": 132,
+            "qr_method": "dense",
+            "rank_j": 330,
+            "rank_j_status": "computed",
+            "rank_jt": 330,
+            "rank_jt_status": "computed",
+            "solver_equations_pre_filter": 330,
+            "unknowns_pre_driven_filter": 336
+          }
+        ],
+        "method": "union of operation-relative phase intervals, clipped to actual root execute; overlapping phases are not additive"
+      }
+    },
+    "ArmBracketOutline": {
+      "geometry": 13,
+      "constraints": 32,
+      "dof": 0,
+      "samples": 3,
+      "untraced_median_ms": 2.973648,
+      "untraced_range_ms": [
+        2.586167,
+        3.352934
+      ],
+      "state_unchanged": true,
+      "shape_valid": true,
+      "attribution": {
+        "root_execute_ns": 2628007,
+        "phase_union_ns": {
+          "setup": 1004332,
+          "setup_construction": 317355,
+          "diagnosis": 425193,
+          "jacobian": 57233,
+          "qr_compute": 145042,
+          "qr_dispatch": 84422,
+          "qr_join": 116017,
+          "geometry_acceptance": 25166,
+          "external_geometry": 239438,
+          "numerical_solve": 86454,
+          "shape": 1001433
+        },
+        "phase_percent_of_execute": {
+          "setup": 38.21648876886553,
+          "setup_construction": 12.075881076420268,
+          "diagnosis": 16.179294804009274,
+          "jacobian": 2.1778100286643074,
+          "qr_compute": 5.51908727792582,
+          "qr_dispatch": 3.2123963140128624,
+          "qr_join": 4.414638164966836,
+          "geometry_acceptance": 0.9576077993703974,
+          "external_geometry": 9.111010739316905,
+          "numerical_solve": 3.2897172648322472,
+          "shape": 38.10617703834122
+        },
+        "diagnosis_percent_of_setup": 42.335900877399105,
+        "setup_spans": 1,
+        "diagnosis_counters": [
+          {
+            "allocated_columns": 67,
+            "allocated_payload_bytes": 35912,
+            "allocated_rows": 67,
+            "diagnostic_equations": 67,
+            "diagnostic_unknowns": 67,
+            "effective_columns": 67,
+            "effective_rows": 67,
+            "input_active_driving_constraints": 32,
+            "qr_method": "dense",
+            "rank_j": 67,
+            "rank_j_status": "computed",
+            "rank_jt": 67,
+            "rank_jt_status": "computed",
+            "solver_equations_pre_filter": 67,
+            "unknowns_pre_driven_filter": 67
+          }
+        ],
+        "method": "union of operation-relative phase intervals, clipped to actual root execute; overlapping phases are not additive"
+      }
+    },
+    "ArmBracketHoleLayout": {
+      "geometry": 2,
+      "constraints": 4,
+      "dof": 0,
+      "samples": 3,
+      "untraced_median_ms": 1.205745,
+      "untraced_range_ms": [
+        1.152383,
+        1.337806
+      ],
+      "state_unchanged": true,
+      "shape_valid": true,
+      "attribution": {
+        "root_execute_ns": 827002,
+        "phase_union_ns": {
+          "setup": 200015,
+          "setup_construction": 90698,
+          "diagnosis": 95004,
+          "jacobian": 2685,
+          "qr_compute": 7354,
+          "qr_dispatch": 56926,
+          "qr_join": 28645,
+          "geometry_acceptance": 21896,
+          "external_geometry": 120968,
+          "numerical_solve": 12429,
+          "shape": 302532
+        },
+        "phase_percent_of_execute": {
+          "setup": 24.18555215102261,
+          "setup_construction": 10.967083513703715,
+          "diagnosis": 11.487759400823698,
+          "jacobian": 0.3246666876259066,
+          "qr_compute": 0.8892360598886097,
+          "qr_dispatch": 6.883417452436633,
+          "qr_join": 3.463715928135603,
+          "geometry_acceptance": 2.647635676818194,
+          "external_geometry": 14.627292316100808,
+          "numerical_solve": 1.5028984210437217,
+          "shape": 36.58177368373958
+        },
+        "diagnosis_percent_of_setup": 47.49843761717871,
+        "setup_spans": 1,
+        "diagnosis_counters": [
+          {
+            "allocated_columns": 6,
+            "allocated_payload_bytes": 288,
+            "allocated_rows": 6,
+            "diagnostic_equations": 6,
+            "diagnostic_unknowns": 6,
+            "effective_columns": 6,
+            "effective_rows": 6,
+            "input_active_driving_constraints": 4,
+            "qr_method": "dense",
+            "rank_j": 6,
+            "rank_j_status": "computed",
+            "rank_jt": 6,
+            "rank_jt_status": "computed",
+            "solver_equations_pre_filter": 6,
+            "unknowns_pre_driven_filter": 6
+          }
+        ],
+        "method": "union of operation-relative phase intervals, clipped to actual root execute; overlapping phases are not additive"
+      }
+    }
+  },
+  "limits": "Tracing-on attribution and separate indicative untraced repeats; no strict timing gate or numerical rewrite.",
+  "updated_fixture_sha256": "527589a077dcdc27330cb1cac8a54ce14d10e47f2c5c33f7b2cef6e6bc5a5075",
+  "updated_invalid_objects": []
+}

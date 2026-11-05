@@ -54,6 +54,7 @@
 #include "Constraint.h"
 #include "GeometryFacade.h"
 #include "Sketch.h"
+#include "SketcherTrace.h"
 #include "SolverGeometryExtension.h"
 
 
@@ -257,6 +258,16 @@ int Sketch::setUpSketch(
     int extGeoCount
 )
 {
+    Trace::Operation operation("setup", "additional_setup");
+    Trace::Span setup(Trace::Phase::Setup);
+    if (setup) {
+        setup.inputDriving(
+            std::count_if(ConstraintList.begin(), ConstraintList.end(), [](const auto* constraint) {
+                return constraint->isActive && constraint->isDriving;
+            })
+        );
+    }
+    Trace::Span construction(Trace::Phase::Construction);
     Base::TimeElapsed start_time;
 
     clear();
@@ -354,6 +365,7 @@ int Sketch::setUpSketch(
     clearTemporaryConstraints();
     GCSsys.declareUnknowns(Parameters);
     GCSsys.declareDrivenParams(DrivenParameters);
+    construction.finish();
     GCSsys.initSolution(defaultSolverRedundant);
 
     // Post-analysis
@@ -413,6 +425,7 @@ int Sketch::setUpSketch(
 #endif  // DEBUG_BLOCK_CONSTRAINT
     }
 
+    Trace::Span finalization(Trace::Phase::Construction, "finalize");
     // Now we set the Sketch status with the latest solver information
     GCSsys.getConflicting(Conflicting);
     GCSsys.getRedundant(Redundant);
@@ -430,7 +443,16 @@ int Sketch::setUpSketch(
         );
     }
 
-    return GCSsys.dofsNumber();
+    const int dof = GCSsys.dofsNumber();
+    if (setup) {
+        const auto outcome = dof < 0 || hasConflicts() || hasRedundancies()
+                || hasMalformedConstraints()
+            ? Trace::Outcome::RecoverableError
+            : Trace::Outcome::Success;
+        setup.result(outcome, dof);
+        operation.result(outcome, dof);
+    }
+    return dof;
 }
 
 void Sketch::buildInternalAlignmentGeometryMap(const std::vector<Constraint*>& constraintList)
@@ -444,6 +466,7 @@ void Sketch::buildInternalAlignmentGeometryMap(const std::vector<Constraint*>& c
 
 void Sketch::fixParametersAndDiagnose(std::vector<double*>& params_to_block)
 {
+    Trace::Span block(Trace::Phase::Construction, "block_post_analysis");
     if (!params_to_block.empty()) {  // only there are parameters to fix
         for (auto p : params_to_block) {
             if (auto findparam = std::ranges::find(Parameters, p); findparam != Parameters.end()) {
@@ -4963,6 +4986,8 @@ bool Sketch::updateNonDrivingConstraints()
 
 GCS::SolveStatus Sketch::solve()
 {
+    Trace::Operation operation("solve", "explicit_solve");
+    Trace::Span trace(Trace::Phase::NumericalSolve);
     captureGroupStates();
 
     Base::TimeElapsed start_time;
@@ -4987,6 +5012,11 @@ GCS::SolveStatus Sketch::solve()
         applyGroupTransformations();
     }
 
+    trace.result(
+        result == GCS::SolveStatus::Success ? Trace::Outcome::Success
+                                            : Trace::Outcome::RecoverableError,
+        static_cast<int>(result)
+    );
     return result;
 }
 
@@ -5078,7 +5108,10 @@ GCS::SolveStatus Sketch::internalSolve(std::string& solvername, int level)
                             GCS::DefaultTemporaryConstraint
                         );
                     }
-                    GCSsys.initSolution();
+                    {
+                        Trace::Span augmented(Trace::Phase::Construction, "augmented_system");
+                        GCSsys.initSolution();
+                    }
                     status = GCSsys.solve();
                     break;
             }

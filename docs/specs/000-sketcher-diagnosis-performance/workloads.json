@@ -1,0 +1,273 @@
+{
+  "schema_version": 1,
+  "status": "verified-optimized-baseline",
+  "purpose": "T001 frozen workload protocols and observed counts; candidate performance acceptance remains T005",
+  "baseline_source": "b6141a373c451fcb70dd36481d86d6e882b40a94",
+  "production_source_change": false,
+  "fixtures": {
+    "synthetic_circle": {
+      "construction": "new App document, one nonconstruction circle at (1,2,0), radius 3; no constraints",
+      "native_fixture": "tests/src/Mod/Sketcher/App/SketchObjectRecompute.cpp"
+    },
+    "frozen_plate": {
+      "sha256": "55a0b21e57c979fe9e53dd89c073c47b2718257e7e7b10298375379094e3d4eb",
+      "sketch": "BottomPlateProfile",
+      "geometry": 118,
+      "constraints": 241,
+      "availability": "private disposable copy; do not commit FCStd"
+    },
+    "staged_plate": {
+      "expected_sha256": "7699ee464e73822cffc8d0538fef5f3ef82e3d8f5e74ae2220a0e96ad970839d",
+      "status": "excluded-source-file-hash-changed",
+      "observed_sha256": "b5ac698dc89d1f959d21432f31d05d1821529ec6ba9bc9c5f92b7ed90af69457"
+    }
+  },
+  "workloads": [
+    {
+      "id": "clean_noop",
+      "reset": "recompute synthetic document to clean state outside timing",
+      "operation": "doc.recompute([doc.Profile])",
+      "expected_sketch_executes": 0,
+      "expected_setups": 0,
+      "speedup_eligible": false,
+      "runner_case": "clean_noop",
+      "baseline_execution_vector": {},
+      "count_status": "verified on all 22 baseline samples including warmups, with deterministic per-sketch vector"
+    },
+    {
+      "id": "forced_unchanged_synthetic",
+      "reset": "same clean synthetic geometry; touch target outside timing",
+      "operation": "doc.recompute([doc.Profile])",
+      "expected_sketch_executes": 1,
+      "baseline_expected_setups": 2,
+      "candidate_expected_setups": 1,
+      "speedup_eligible": true,
+      "runner_case": "forced_synthetic",
+      "baseline_execution_vector": {
+        "Profile": {
+          "executes": 1,
+          "setups": 2
+        }
+      },
+      "count_status": "verified on all 22 baseline samples including warmups, with deterministic per-sketch vector"
+    },
+    {
+      "id": "forced_unchanged_master",
+      "runner_case": "forced_master",
+      "reset": "open frozen fixture; clean whole document outside each timer; touch Sketch004 outside timer",
+      "operation": "doc.recompute([doc.Sketch004])",
+      "scope": "target and prerequisites, not whole-document propagation",
+      "baseline_execution_vector": {
+        "Sketch004": {
+          "executes": 1,
+          "setups": 2
+        }
+      },
+      "candidate_expected_target_setups": 1,
+      "speedup_eligible": true,
+      "count_status": "verified on all 22 baseline samples including warmups"
+    },
+    {
+      "id": "forced_unchanged_frozen_profile",
+      "reset": "open verified disposable frozen fixture; clean once outside timing; touch BottomPlateProfile outside timing",
+      "operation": "doc.recompute([doc.BottomPlateProfile])",
+      "expected_target_executes": 1,
+      "baseline_expected_target_setups": 2,
+      "candidate_expected_target_setups": 1,
+      "scope": "target and prerequisites, not whole-document propagation",
+      "speedup_eligible": true,
+      "runner_case": "forced_profile",
+      "baseline_execution_vector": {
+        "BottomPlateProfile": {
+          "executes": 1,
+          "setups": 2
+        }
+      },
+      "count_status": "verified on all 22 baseline samples including warmups, with deterministic per-sketch vector"
+    },
+    {
+      "id": "thickness_edit_whole_document",
+      "reset": "reopen immutable frozen fixture per sample; recompute clean and snapshot sketches outside timing; start thickness 0.8",
+      "operation": "set Dimensions.BottomPlateThickness=0.81; doc.recompute()",
+      "scope": "mutation plus whole-document recompute; validation and discard outside timing",
+      "status": "verified-isolated-perturbation-and-restoration",
+      "runner_case": "thickness",
+      "baseline_execution_vector": {},
+      "count_status": "verified on all 22 baseline samples including warmups, with deterministic per-sketch vector",
+      "validation": "unchanged sketch geometry/constraint counts, DoF and diagnostic IDs; BottomPlate valid one solid, Pad/Pocket lengths and Z extents 0.81; restore 0.8 and validate outside timing; close without saving"
+    },
+    {
+      "id": "scalar_insertion",
+      "reset": "fresh synthetic sketch with16 independent horizontal lines, line i from (10*i,0) to (10*i+4,0); one active transaction per sample",
+      "operation": "add Horizontal(i) for i=0..15 through16 scalar calls; doc.recompute(); commit outside timing",
+      "baseline_expected_setups": 18,
+      "scope": "scalar immediate solve plus ordinary execute; verify count before acceptance; constraint construction and mutation/recompute timed; commit/undo and zero-constraint check outside timing",
+      "count_status": "verified on all 22 baseline samples including warmups, with deterministic per-sketch vector",
+      "runner_case": "scalar_insertion",
+      "baseline_execution_vector": {
+        "Profile": {
+          "executes": 1,
+          "setups": 18
+        }
+      }
+    },
+    {
+      "id": "list_insertion",
+      "reset": "fresh synthetic sketch with16 independent horizontal lines, line i from (10*i,0) to (10*i+4,0); one active transaction per sample",
+      "operation": "add [Horizontal(i) for i=0..15] as one list; explicit sketch.solve(); doc.recompute(); commit outside timing",
+      "baseline_expected_setups": 3,
+      "scope": "matched requested checked-solve plus recompute; list wrapper itself remains deferred; constraint construction and mutation/recompute timed; commit/undo and zero-constraint check outside timing",
+      "note": "do not infer a list-wrapper solve from the explicit checked solve",
+      "count_status": "verified on all 22 baseline samples including warmups, with deterministic per-sketch vector",
+      "runner_case": "list_insertion",
+      "baseline_execution_vector": {
+        "Profile": {
+          "executes": 1,
+          "setups": 3
+        }
+      }
+    },
+    {
+      "id": "fresh_process_load",
+      "reset": "new isolated process/profile for each sample; same immutable fixture",
+      "operation": "time App.openDocument(copy) only; startup outside boundary",
+      "cache_state": "fixture hash read before open; OS page cache uncontrolled and potentially warmed; no cold filesystem claim",
+      "runner_case": "fresh_load",
+      "baseline_execution_vector": {
+        "Sketch004": {
+          "executes": 0,
+          "setups": 1
+        },
+        "EffectorReliefProfile": {
+          "executes": 0,
+          "setups": 2
+        },
+        "EffectorLobeHoleProfile": {
+          "executes": 0,
+          "setups": 2
+        },
+        "EffectorInnerBossHoleProfile": {
+          "executes": 0,
+          "setups": 2
+        },
+        "EffectorPlateHoleProfile": {
+          "executes": 0,
+          "setups": 2
+        },
+        "EffectorMountingHoleProfile": {
+          "executes": 0,
+          "setups": 2
+        },
+        "WiringPlateOutline": {
+          "executes": 0,
+          "setups": 2
+        },
+        "AuxiliaryPlateProfile": {
+          "executes": 0,
+          "setups": 2
+        },
+        "BottomPlateHoleLayout": {
+          "executes": 0,
+          "setups": 2
+        },
+        "BottomPlateProfile": {
+          "executes": 0,
+          "setups": 2
+        }
+      },
+      "count_status": "verified on all 22 baseline samples including warmups, with deterministic per-sketch vector"
+    },
+    {
+      "id": "reopened_warm_load",
+      "reset": "same initialized isolated process after two warmups; close/discard previous copy",
+      "operation": "time App.openDocument(copy) only",
+      "cache_state": "fixture hash read before open; OS page cache uncontrolled and potentially warmed; no cold filesystem claim",
+      "runner_case": "warm_load",
+      "baseline_execution_vector": {
+        "Sketch004": {
+          "executes": 0,
+          "setups": 1
+        },
+        "EffectorReliefProfile": {
+          "executes": 0,
+          "setups": 2
+        },
+        "EffectorLobeHoleProfile": {
+          "executes": 0,
+          "setups": 2
+        },
+        "EffectorInnerBossHoleProfile": {
+          "executes": 0,
+          "setups": 2
+        },
+        "EffectorPlateHoleProfile": {
+          "executes": 0,
+          "setups": 2
+        },
+        "EffectorMountingHoleProfile": {
+          "executes": 0,
+          "setups": 2
+        },
+        "WiringPlateOutline": {
+          "executes": 0,
+          "setups": 2
+        },
+        "AuxiliaryPlateProfile": {
+          "executes": 0,
+          "setups": 2
+        },
+        "BottomPlateHoleLayout": {
+          "executes": 0,
+          "setups": 2
+        },
+        "BottomPlateProfile": {
+          "executes": 0,
+          "setups": 2
+        }
+      },
+      "count_status": "verified on all 22 baseline samples including warmups, with deterministic per-sketch vector"
+    },
+    {
+      "id": "historical_symmetry",
+      "status": "unverified-routed-to-T006",
+      "operation": "no surrogate permitted",
+      "reason": "Replay receipts/recipe exist, but exact saved checkpoint/hash immediately before the symmetry request is not established; no surrogate used",
+      "owner": "T006"
+    }
+  ],
+  "measurement": {
+    "warmups_per_configuration": 2,
+    "pairs_per_batch": 10,
+    "order": "AB,BA alternating",
+    "baseline_stage": "completed one optimized baseline A/A batch per runnable case, not a baseline/candidate comparison",
+    "dispersion": "MAD",
+    "bootstrap_resamples": 10000,
+    "bootstrap_seed": 576001,
+    "interval": "paired percentile95",
+    "maximum_batches": 3,
+    "overlap_disposition": "inconclusive; cannot pass",
+    "count_method_now": "Linux ELF LD_PRELOAD native execute/setup interposer, active only for operation; counter snapshot and validation outside timer; existing console Log sinks disabled",
+    "count_method_acceptance": "verify same bounded count seam on both matched configurations and include its cost; T003/T005 own tracing semantics and overhead acceptance",
+    "timing_limit": "Debug/concurrent-build pilot samples excluded. Current baseline has substantial A/A dispersion; no candidate budget is evaluated. T005 must collect fresh matched comparisons and apply unchanged uncertainty/inconclusive gates.",
+    "samples_per_case": {
+      "warmups": 2,
+      "timed": 20,
+      "matched_AA_pairs": 10
+    },
+    "raw_artifact": "T001-completion/release-final/run.json and child raw.json",
+    "summary_artifact": "T001-completion/release-final/summary.json",
+    "pair_rejections": 0
+  },
+  "build": {
+    "type": "Release",
+    "cxx_flags": "-O3 -DNDEBUG",
+    "compiler": "Clang 21.1.8",
+    "identity_artifact": "T001-completion/release-final/build-identity.json",
+    "identity_sha256": "8ab0c88e8234689bcf92adf4eb7a844ee46f2824a52bf0ad5c8234f13ed87486",
+    "source_diff": "no production src/ changes from baseline commit",
+    "settings": "isolated user/system configs and XDG config/data/cache; no Sketcher preference overrides; compiled defaults from pinned source",
+    "platform": "Linux x86_64, Intel Core i7-11850H; no CPU/thermal pinning"
+  },
+  "runner": "tools/profile/run_sketcher_baseline.py",
+  "evidence_root": "/home/bcherrington/Projects/ie/skunk-works/freecad-modelling-mcp/artifacts/freecad-crash-coordination/sketch-performance-static-analysis/T001-completion"
+}

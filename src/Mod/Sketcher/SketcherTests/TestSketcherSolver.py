@@ -274,6 +274,86 @@ class TestSketcherSolver(unittest.TestCase):
     def setUp(self):
         self.Doc = FreeCAD.newDocument("SketchSolverTest")
 
+    def testRecomputeScalarAndListTransactions(self):
+        for bulk in (False, True):
+            with self.subTest(bulk=bulk):
+                sketch = self.Doc.addObject("Sketcher::SketchObject", "Insertion")
+                lines = [
+                    Part.LineSegment(App.Vector(10 * i, 0, 0), App.Vector(10 * i + 4, 0, 0))
+                    for i in range(16)
+                ]
+                sketch.addGeometry(lines, False)
+                self.Doc.recompute()
+                self.assertEqual(sketch.DoF, 64)
+                self.Doc.openTransaction("checked insertion")
+                constraints = [Sketcher.Constraint("Horizontal", i) for i in range(16)]
+                if bulk:
+                    sketch.addConstraint(constraints)
+                    self.assertEqual(sketch.DoF, 64)  # The list wrapper remains deferred.
+                    self.assertEqual(sketch.solve(), 0)
+                else:
+                    for constraint in constraints:
+                        sketch.addConstraint(constraint)
+                    self.assertEqual(sketch.DoF, 48)  # Scalar calls solve before commit.
+                self.Doc.recompute()
+                self.Doc.commitTransaction()
+                self.assertEqual(sketch.ConstraintCount, 16)
+                self.assertEqual(sketch.DoF, 48)
+                self.Doc.undo()
+                self.assertEqual(sketch.ConstraintCount, 0)
+                self.assertEqual(sketch.solve(), 0)
+                self.assertEqual(sketch.DoF, 64)
+                self.assertEqual(len(sketch.Geometry), len(lines))
+                for expected, actual in zip(lines, sketch.Geometry):
+                    self.assertLess((expected.StartPoint - actual.StartPoint).Length, 1e-7)
+                    self.assertLess((expected.EndPoint - actual.EndPoint).Length, 1e-7)
+                self.Doc.removeObject(sketch.Name)
+                self.Doc.recompute()
+
+    def testRecomputeUndoRedoImmediateSolveAndMove(self):
+        sketch = self.Doc.addObject("Sketcher::SketchObject", "UndoMove")
+        sketch.addGeometry(Part.LineSegment(App.Vector(0, 0, 0), App.Vector(4, 0, 0)), False)
+        self.Doc.recompute()
+        self.Doc.openTransaction("horizontal")
+        sketch.addConstraint(Sketcher.Constraint("Horizontal", 0))
+        self.Doc.commitTransaction()
+        for redo in (False, True):
+            with self.subTest(redo=redo):
+                if redo:
+                    self.Doc.redo()
+                else:
+                    self.Doc.undo()
+                # No document recompute between transaction replay and these calls.
+                self.assertEqual(sketch.ConstraintCount, int(redo))
+                self.assertEqual(sketch.solve(), 0)
+                self.assertEqual(sketch.DoF, 3 if redo else 4)
+                sketch.moveGeometry(0, 2, App.Vector(5, 0, 0))
+                self.assertLess((sketch.Geometry[0].EndPoint - App.Vector(5, 0, 0)).Length, 1e-7)
+                self.assertEqual(sketch.DoF, 3 if redo else 4)
+                self.assertEqual(sketch.ConstraintCount, int(redo))
+                if redo:
+                    self.assertAlmostEqual(
+                        sketch.Geometry[0].StartPoint.y, sketch.Geometry[0].EndPoint.y, places=7
+                    )
+
+    def testRecomputeDrivingReferenceTransitions(self):
+        sketch = self.Doc.addObject("Sketcher::SketchObject", "Driving")
+        sketch.addGeometry(Part.Circle(App.Vector(1, 2, 0), App.Vector(0, 0, 1), 3), False)
+        sketch.addConstraint(Sketcher.Constraint("Radius", 0, 3.0))
+        self.Doc.recompute()
+        self.assertEqual(sketch.DoF, 2)
+        sketch.setDriving(0, False)
+        self.Doc.recompute()
+        self.assertFalse(sketch.getDriving(0))
+        self.assertEqual(sketch.DoF, 3)
+        sketch.setDriving(0, True)
+        sketch.setDatum(0, App.Units.Quantity("5 mm"))
+        self.Doc.recompute()
+        self.assertTrue(sketch.getDriving(0))
+        self.assertEqual(sketch.DoF, 2)
+        self.assertAlmostEqual(sketch.Geometry[0].Radius, 5.0, places=7)
+        self.assertTrue(sketch.Shape.isValid())
+
     def testBoxCase(self):
         self.Box = self.Doc.addObject("Sketcher::SketchObject", "SketchBox")
         CreateBoxSketchSet(self.Box)
