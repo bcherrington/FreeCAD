@@ -212,3 +212,16 @@ Promote implemented behavior, trace fields, enablement and limitations to propos
 workflow to proposed `docs/runbooks/sketcher-performance-investigation.md`.
 Those paths do not exist yet and must describe verified behavior when created.
 The unrelated restore/image performance spec retains its existing ownership.
+
+## T006 Attribution And Follow-Up Selection
+
+[remaining-cost-decisions.md](remaining-cost-decisions.md) resolves D-004's ranking.
+QR compute covers much of the complex-sketch execute; shape construction dominates
+some smaller outlines. Async dispatch and explicit geometry acceptance have small
+measured envelopes, so they do not justify an assumed large copy/metadata saving.
+Reuse and sparse assembly remain deferred until their prerequisites are met.
+The [local backlog](../../backlog/README.md) owns B001–B007, with scope, cost bounds,
+risks and exit checks in [the details](../../backlog/sketcher-performance.md).
+The historical starting checkpoint hash is recovered; immediate pre-mutation
+identity/phase attribution still require B006. T006 implements no solver rewrite,
+cache, threshold/default change or notification shortcut. T007 is next.

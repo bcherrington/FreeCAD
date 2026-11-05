@@ -15,8 +15,8 @@ Reduce duplicate native sketch diagnosis, provide optional phase timings and
 measure remaining cost while preserving modelling behaviour. See [spec](spec.md)
 for scenarios and scope. T003/T004 implement tracing and setup deferral. T005
 correctness and bounded measurements are recorded in performance-validation-report.md;
-indicative timing acceptance is satisfied under timing-evidence-decision.md; final
-attribution and promotion remain pending.
+indicative timing acceptance is satisfied under timing-evidence-decision.md.
+T006 attribution is complete; final review and promotion remain pending.
 
 ## Goals
 
@@ -47,7 +47,7 @@ Add verified behaviour and interfaces to proposed
   is in baseline-report.md and timing-invalidation-contract.md.
 - T003 tracing and T004 setup deferral are implemented and validated. T005 bounded
   measurements and correctness checks satisfy the revised indicative AC-005/AC-006.
-  T005 is complete; T006 attribution and T007 promotion/closure remain pending.
+  T005/T006 are complete; T007 promotion/review/closure remains pending.
 - Code changes require the task dependencies and design decisions to be satisfied.
 - No design-first exception; measurable requirements precede implementation.
 

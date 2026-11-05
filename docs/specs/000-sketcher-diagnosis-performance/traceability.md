@@ -12,8 +12,8 @@ last_reviewed: 2026-11-05
 ## Purpose
 
 Map each task to the full requirements/design/evidence context. All delivery
-coverage distinguishes completed T001 through T005 from pending T006 attribution
-and T007 promotion/closure. Timing acceptance uses the user-approved indicative
+coverage distinguishes completed T001 through T006 from pending T007
+promotion/review/closure. Timing acceptance uses the user-approved indicative
 standard; original strict-gate outcomes remain historical evidence.
 
 ## Task To Context Matrix
@@ -25,7 +25,7 @@ standard; original strict-gate outcomes remain historical evidence.
 | T003 | Requirement 3, Requirement 4, Requirement 5 | AC-003, AC-004, AC-006 | D-002; C-003 through C-006 | phase-tracing-report.md; native SketcherTrace tests | Diagnostics reference | Implemented; indicative overhead review complete T005 |
 | T004 | Requirement 1, Requirement 2 | AC-001, AC-002 | D-001; C-001/C-002 | diagnosis-deferral-report.md; native/Python/model comparisons | Diagnostics reference | Implemented and tested; bounded GUI verified in T005 |
 | T005 | Requirement 2, Requirement 6 | AC-002, AC-005, AC-006 | D-003 | performance-validation-report.md; performance-results.json; comparison-protocol.md | Investigation runbook | Complete under user-approved indicative AC-005/AC-006; original strict outcomes retained |
-| T006 | Requirement 7 | AC-007 | D-004 | verification.md review/closure | Follow-up packages or backlog | Evidence-led selection |
+| T006 | Requirement 7 | AC-007 | D-004 | remaining-cost-decisions.md; remaining-cost-attribution.json; docs/backlog/README.md | Owned B001–B007 backlog | Complete; QR/shape investigations proposed, other work bounded/deferred |
 | T007 | Requirement 1, Requirement 2, Requirement 3, Requirement 4, Requirement 5, Requirement 6, Requirement 7 | AC-001, AC-002, AC-003, AC-004, AC-005, AC-006, AC-007 | D-004 | verification.md quality gates | Both proposed documents | Closure disposition |
 
 ## Requirement To Delivery Matrix
@@ -38,7 +38,7 @@ standard; original strict-gate outcomes remain historical evidence.
 | Requirement 4 | AC-003 | D-002 | T002, T003 | covered | Known counters, dense/sparse/block/redundancy tests; promotion T007 |
 | Requirement 5 | AC-004, AC-006 | D-002 | T002, T003, T005 | covered | Disabled behaviour verified; indicative overhead review satisfies revised AC-006 with uncertainty disclosed |
 | Requirement 6 | AC-005, AC-006 | D-003 | T001, T005 | covered | Comparable repeated evidence satisfies revised indicative criteria; strict historical outcomes unchanged |
-| Requirement 7 | AC-007 | D-004 | T006, T007 | not-covered | Planned work in this package |
+| Requirement 7 | AC-007 | D-004 | T006, T007 | covered | T006 measured attribution and ranked owned backlog; final promotion T007 |
 
 ## Correctness Property Coverage
 
@@ -70,7 +70,7 @@ contracts in implementation. T006 resolves deeper optimization choices after mea
 | D-001 | Requirement 1, Requirement 2 | T001, T002, T004 | SketchObject.cpp, SketchObjectConstraints.cpp, SketchObject.h | AC-001, AC-002 | covered | Native/Python/model and bounded Linux GUI verified T004/T005 |
 | D-002 | Requirement 3, Requirement 4, Requirement 5 | T002, T003 | SketcherTrace.h/.cpp, SketchObject entry scopes, Sketch.cpp, planegcs/GCS.cpp | AC-003, AC-004, AC-006 | partial | Tracing and indicative overhead review verified; promotion T007 |
 | D-003 | Requirement 2, Requirement 6 | T001, T005 | Native fixtures and private benchmark receipts | AC-002, AC-005, AC-006 | covered | Correctness and indicative timing evidence complete under timing-evidence-decision.md |
-| D-004 | Requirement 7 | T006, T007 | Proposed diagnostics reference and runbook | AC-007 | not-covered | Planned work in this package |
+| D-004 | Requirement 7 | T006, T007 | remaining-cost-decisions.md; docs/backlog/README.md | AC-007 | covered | T006 selection complete; promotion/review/closure T007 |
 
 ## Authority Review
 
@@ -141,3 +141,14 @@ revised AC-005/AC-006 to the unchanged samples, two-to-one setup counts, approxi
 47%/57% lower representative medians and passing correctness checks. Variability
 and the original inconclusive strict-gate results remain disclosed. T005 is
 complete; T006 is ready. T007 still requires attribution, review and promotion.
+
+## T006 Evidence Status
+
+[remaining-cost-decisions.md](remaining-cost-decisions.md) and
+[remaining-cost-attribution.json](remaining-cost-attribution.json) establish AC-007:
+ranked QR, shape, copy, metadata, reuse, sparse-assembly and historical-replay work
+has measured opportunity, uncertainty/risk, local owner and actual
+[backlog destinations](../../backlog/README.md). New snapshot qualification covers
+all 13 sketches without changing the input; old symmetry starting authority is
+partly recovered and the remaining precursor gap is explicitly deferred to B006.
+No new solver rewrite is started. T006 is complete and T007 is ready.

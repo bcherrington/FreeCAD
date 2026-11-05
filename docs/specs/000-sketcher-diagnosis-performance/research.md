@@ -164,3 +164,28 @@ can proceed. Formal percentage/confidence limits no longer block completion.
 All original samples and strict outcomes remain unchanged. Load/thickness/overhead
 variability remains a limitation, not evidence of guaranteed no regression. A new
 controlled-host cohort is optional unless a concrete repeatable slowdown warrants it.
+
+## T006 Attribution And Updated Snapshot - 2026-11-05
+
+T005 committed as root `27d524eaaa` and docs `43e66da`. T006 derives actual root-
+execute fractions from interval unions, without adding overlapping QR workers or
+nested operations. The retained candidate QR compute unions are about 64%/85%
+of master/plate execute; explicit acceptance is about 0.05%/0.02% and dispatch
+0.38%/1.22%. Diagnosis remains most of setup. This selects QR-method investigation
+before metadata/copy rewrites, with no claimed alternative-backend speedup.
+
+A disposable frozen copy of the newer model (`527589a0...`) qualifies all 13 sketches:
+39 untraced and 13 traced forced executes each perform one setup and retain geometry,
+constraints and DoF. Updated outer/inner profiles are 72/158 at 14 DoF and 58/132
+at 6 DoF. Their untraced medians are about 61.3/34.8 ms. Wiring/auxiliary outlines
+have a distinct shape-dominated profile (about 81% of traced execute, untraced
+medians about 15.5/13.3 ms). These are not comparisons to the different older model.
+
+The original saved before-repair checkpoint matches replay hash `5bb891ab...`;
+Sketch004 is 97/226, but immediate pre-symmetry state after intermediate edits
+is not verified. A separate later ~156-second Equality solve envelope also lacks
+phase attribution/immediate precursor. Both are retained unverified and owned by
+B006; no mutation was retried. [remaining-cost-decisions.md](remaining-cost-decisions.md)
+and [remaining-cost-attribution.json](remaining-cost-attribution.json) document the
+analysis. [The backlog](../../backlog/README.md) ranks B001–B007 with owners,
+validation boundaries and reasons for deferral. T006 is complete; T007 is ready.

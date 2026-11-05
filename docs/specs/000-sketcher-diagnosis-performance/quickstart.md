@@ -12,7 +12,7 @@ last_reviewed: 2026-11-05
 ## Purpose
 
 Resume the performance work without touching the operator's working CAD session.
-T003's optional tracing, T004's setup deferral and T005 validation are complete.
+T003 tracing, T004 setup deferral, T005 validation and T006 attribution are complete.
 Timing evidence now uses the user-approved indicative standard; review
 [the validation report](performance-validation-report.md) and
 [timing-evidence-decision.md](timing-evidence-decision.md).
@@ -28,11 +28,13 @@ Timing evidence now uses the user-approved indicative standard; review
 
 ## Steps
 
-1. T001 through T005 are complete. Read the
+1. T001 through T006 are complete. Read the
    [baseline report](baseline-report.md), [manifest](workloads.json) and
    [contract](timing-invalidation-contract.md). Use Spec Lifecycle Manager context
-   for T006, recheck source freshness through Agent Workbench and direct reads,
-   and mark T006 in progress before starting attribution/follow-up decisions.
+   for T007, recheck source freshness through Agent Workbench and direct reads,
+   and mark T007 in progress before promotion/review/closure. Read
+   [remaining-cost-decisions.md](remaining-cost-decisions.md) and the
+   [owned backlog](../../backlog/README.md); proposals do not start automatically.
    The existing data satisfies T005's revised indicative timing criteria; no
    additional confidence-bound measurement is required.
 2. Verify fixture hashes and use disposable copies for further measurements.
@@ -46,7 +48,8 @@ Timing evidence now uses the user-approved indicative standard; review
 5. If code changes in further work, build with `pixi run build -j 2` and run
    relevant checks. Use comparable optimized timings for indications of improvement;
    disclose variability and investigate apparent repeatable material slowdowns.
-6. Record the follow-up decision in T006 and promote verified guidance in T007.
+6. T006 decisions are recorded; promote verified guidance and reconcile review/
+   delivery in T007. Preserve the historical replay gap and uncertainty limits.
 
 ## Expected Results
 

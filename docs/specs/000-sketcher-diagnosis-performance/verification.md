@@ -35,7 +35,7 @@ T005 is complete; historical strict-gate uncertainty remains disclosed.
 | FR-004 | D-002 | T002, T003 | AC-003 | Native/process verified in T003 |
 | FR-005 | D-002 | T002, T003, T005 | AC-004, AC-006 | AC-004 verified; indicative AC-006 satisfied with uncertainty disclosed |
 | FR-006 | D-003 | T001, T005 | AC-005, AC-006 | Indicative AC-005/AC-006 satisfied; former strict gates retained as historical |
-| FR-007 | D-004 | T006, T007 | AC-007 | Pending |
+| FR-007 | D-004 | T006, T007 | AC-007 | T006 attribution/ranked owned backlog verified; final promotion T007 |
 
 ## Correctness Matrix
 
@@ -318,3 +318,21 @@ R-005's earlier recommendation for strict confidence gates is superseded for tim
 acceptance by the explicit user decision. Its uncertainty-disclosure concern remains:
 retain raw results/spread and avoid claiming no regression from noisy data. R-001
 through R-004 and R-006 correctness, execution and diagnostic requirements are unchanged.
+
+## T006 Attribution And Routing Evidence
+
+[remaining-cost-decisions.md](remaining-cost-decisions.md) records root-relative
+interval unions, measured phase opportunities, limits and B001–B007 dispositions.
+The [aggregate data](remaining-cost-attribution.json) retains calculations and
+stage-labelled counters; [backlog details](../../backlog/sketcher-performance.md)
+define owner, prerequisites, risks and exit checks. This satisfies AC-007 without
+starting a new solver rewrite. Shape-dominated small sketches and mutation-specific
+stalls remain distinct from unchanged complex-sketch recompute.
+
+The updated frozen copy qualifies 13 sketches in separate trace-off/on processes:
+39 untraced and 13 traced samples retain geometry/constraints/DoF and count exactly
+one execute/setup each. All sketch shapes are valid; no initial object is Invalid.
+The snapshot hash remains unchanged. The historical saved checkpoint hash matches
+its replay receipt, but immediate pre-symmetry authority is still unverified and
+assigned B006. No operator model/runtime was mutated and no saved mutation retried.
+T006 is complete. T007 still owns durable promotion, final review and closure.

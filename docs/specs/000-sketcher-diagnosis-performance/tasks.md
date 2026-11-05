@@ -13,9 +13,10 @@ last_reviewed: 2026-11-05
 [Traceability](traceability.md), [Design](design.md), [Plan](plan.md),
 [Research](research.md), [Verification](verification.md).
 
-T001 through T005 are complete. Ordinary recompute uses one authoritative setup;
-correctness/GUI checks and indicative timing evidence satisfy the revised standard
-in timing-evidence-decision.md. T006 attribution is next.
+T001 through T006 are complete. Ordinary recompute uses one authoritative setup;
+correctness and indicative timing evidence satisfy timing-evidence-decision.md.
+T006 attribution and ranked follow-ups are recorded in remaining-cost-decisions.md
+and the owned local backlog. T007 promotion/review/closure is next.
 
 ## Phase 1 - Baseline and contract
 
@@ -114,17 +115,19 @@ in timing-evidence-decision.md. T006 attribution is next.
   - Evidence: Reassessed on 2026-11-05 under the user's explicit request for an indication of improvement rather than strict performance measurements. Revised AC-005/AC-006 and timing-evidence-decision.md keep correctness, equivalent inputs/settings/builds and actual execution/setup validation strict, while making confidence/percentage gates diagnostic. Existing evidence suffices: setups two to one; representative master/profile medians approximately 47%/57% lower; 190 matched triples/570 timed samples retained; native 149/149, affected Python 97 run with one existing skip, full model comparisons and nine bounded GUI stages pass. Other workload and disabled-overhead observations reviewed with variability disclosed; no guaranteed absence of regression/overhead claimed. Original raw data, per-batch/pooled statistics and inconclusive strict-gate outcomes unchanged. No additional timing runs or model edits required.
 
   - Evidence mode: artifact
-  - Status: T005 complete under user-approved indicative timing criteria; T006 ready. The former strict AC-005/AC-006 results remain historical and are not relabelled passed. Controlled-host reruns are optional follow-up. Correctness/execution contracts unchanged; final attribution/promotion/review/closure remain T006/T007. Changes uncommitted.
-- [ ] T006 Attribute remaining costs and decide further work
+  - Status: T005 complete under user-approved indicative timing criteria; T006 ready. The former strict AC-005/AC-006 results remain historical and are not relabelled passed. Controlled-host reruns are optional follow-up. Correctness/execution contracts unchanged; final attribution/promotion/review/closure remain T006/T007. Committed as root 27d524eaaa and docs 43e66da.
+- [x] T006 Attribute remaining costs and decide further work
   - Depends on: T005
   - Requirement: Requirement 7; AC-007; D-004.
-  - Files: `research.md`, `design.md`, follow-up destinations
+  - Files: `research.md`, `design.md`, `remaining-cost-decisions.md`, `remaining-cost-attribution.json`, `docs/backlog/README.md`, `docs/backlog/sketcher-performance.md`, follow-up destinations
   - Use measured phases to evaluate metadata rebuilds, matrix copies, structural reuse
     and sparse assembly. Revisit the historical symmetry case with exact input authority.
   - Acceptance: ranked candidates identify measured cost, correctness risk, owner and
     destination; rejected/deferred work has a rationale. No unmeasured rewrite starts.
-  - Evidence: decision table and bounded follow-up spec/backlog references when needed.
+  - Evidence: Attributed retained and updated-model phases using actual root execute spans and clipped interval unions, avoiding nested-operation and overlapping QR double counting. Retained complex QR compute covers roughly64–85% of execute; explicit acceptance0.02–0.05%, dispatch0.4–1.2%. Frozen updated copy527589a0... qualifies all13 sketches:39 untraced plus13 traced samples, each one execute/setup with unchanged geometry/constraints/DoF, all sketch shapes valid and no initial Invalid objects. Updated heavy-sketch QR unions40–59%; wiring/auxiliary shape work about81%. Ranked B001–B007 backlog records measured opportunities/bounds, correctness risks, local owner, prerequisites and exit evidence for QR-method comparison, mutation replay, shape construction, copies, metadata, structural reuse and sparse assembly. Historical starting checkpoint recovered and hash5bb891ab... verified; immediate pre-symmetry/recent Equality precursors remain unverified and explicitly deferred to B006. No mutation replay or solver rewrite started. See remaining-cost-decisions.md, remaining-cost-attribution.json and docs/backlog/README.md.
 
+  - Evidence mode: artifact
+  - Status: T006 complete; T007 ready for final review/promotion/closure. Follow-ups remain proposed/deferred and owned in the valid slm-planning/v1 backlog. T005 committed root27d524eaaa/docs43e66da. T006 changes are documentation/analysis only and uncommitted; no production defaults, tolerances, async policy, caches or operator models changed.
 - [ ] T007 Promote verified knowledge and reconcile delivery
   - Depends on: T006
   - Requirement: Requirement 1 through Requirement 7; AC-001 through AC-007; D-004.

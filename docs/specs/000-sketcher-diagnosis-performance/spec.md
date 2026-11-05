@@ -14,10 +14,10 @@ last_reviewed: 2026-11-05
 Reduce repeated Sketcher setup and diagnosis during document recompute, add
 optional phase timings, and use comparable measurements to select further work.
 The user requested this package after discussing these two initial changes.
-T001 through T004 are complete, including optional phase tracing and one-setup
-ordinary recompute. T005 correctness and bounded measurements are finished, but
-the user-approved indicative timing requirement is satisfied; see
-[the validation report](performance-validation-report.md).
+T001 through T006 are complete, including optional phase tracing, one-setup
+ordinary recompute, correctness/indicative timing validation and ranked follow-up
+decisions. See [the validation report](performance-validation-report.md) and
+[remaining-cost-decisions.md](remaining-cost-decisions.md). T007 is next.
 
 ## Problem
 
