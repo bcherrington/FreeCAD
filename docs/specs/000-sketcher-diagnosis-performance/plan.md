@@ -64,6 +64,11 @@ Expected source boundaries:
 5. T006: rank and route remaining optimization candidates.
 6. T007: promote verified documentation and reconcile closure evidence.
 
+T001 and T002 are complete. T003/T004 follow the decisions and requirements-linked
+validation cases in [timing-invalidation-contract.md](timing-invalidation-contract.md).
+T002 adds native baseline observer/index probes; no production optimization or
+tracing is implemented at this stage.
+
 ## Dependencies
 
 The crash fix is already on this branch. Existing operator models remain

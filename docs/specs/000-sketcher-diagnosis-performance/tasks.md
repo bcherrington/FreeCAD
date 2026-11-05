@@ -13,7 +13,7 @@ last_reviewed: 2026-11-05
 [Traceability](traceability.md), [Design](design.md), [Plan](plan.md),
 [Research](research.md), [Verification](verification.md).
 
-T001 baseline establishment is complete. T002 is the next pending task.
+T001 baseline establishment and T002 contract definition are complete. T003 is next.
 Production performance changes and delivery acceptance remain pending.
 
 ## Phase 1 - Baseline and contract
@@ -38,10 +38,10 @@ Production performance changes and delivery acceptance remain pending.
 
   - Status: Baseline complete. T002 ready; historical symmetry explicitly unverified and owned by T006. A/A timing noise recorded for T005; candidate speedup/regression/overhead acceptance remains pending.
   - Evidence mode: artifact
-- [ ] T002 Finalize timing and invalidation boundaries
+- [x] T002 Finalize timing and invalidation boundaries
   - Depends on: T001
   - Requirement: Requirement 1/Requirement 2/Requirement 3/Requirement 4/Requirement 5; AC-001/AC-002/AC-003/AC-004/AC-006; D-001/D-002.
-  - Files: `src/Mod/Sketcher/App/Sketch.cpp`, `src/Mod/Sketcher/App/Sketch.h`, `src/Mod/Sketcher/App/planegcs/GCS.cpp`, `src/Mod/Sketcher/App/planegcs/GCS.h`, `design.md`
+  - Files: `src/Mod/Sketcher/App/Sketch.cpp`, `src/Mod/Sketcher/App/Sketch.h`, `src/Mod/Sketcher/App/planegcs/GCS.cpp`, `src/Mod/Sketcher/App/planegcs/GCS.h`, `design.md`, `timing-invalidation-contract.md`, `tests/src/Mod/Sketcher/App/SketchObjectDiagnosis.cpp`, adjacent test registration
   - Inspect `Sketch.cpp`, `Sketch.h`, `planegcs/GCS.cpp`, `GCS.h` and existing reporting.
   - Record opt-in control, operation-relative monotonic offsets, lane/parent linkage,
     dispatch/join spans, structural counter stages, disabled fast path and worker safety.
@@ -51,8 +51,10 @@ Production performance changes and delivery acceptance remain pending.
   - Acceptance: resolve design open questions affecting T003/T004; approve the
     validation/observer contract before guard selection. Define test seams without
     a public modelling API, global notification bypass or async launch-policy change.
-  - Evidence: updated design decisions and a requirements-linked validation plan.
+  - Evidence: C-001 through C-006 in timing-invalidation-contract.md resolve callback validation/deferral and diagnostic notification ownership, allowed intermediate differences, immutable trace opt-in/schema/disabled path, QR worker lifetime/dispatch/join with unchanged copies/policy/wait, and stage-labelled structural counters. Six native baseline probes record observer sequences/touched states/diagnostic IDs and invalid-index repair. Release Sketcher_tests_run build passed; isolated full suite 115/115 passed, native XML/receipts retained in private T002-contract artifacts. Focused pre-commit passed; local file/anchor links, JSON and whitespace checks passed; package lint zero errors and two previously documented advisories. Production src/ unchanged.
 
+  - Evidence mode: artifact
+  - Status: Design contract complete; T003 ready. Guard/tracing implementation and full non-target/exception/GUI proof remain T003/T004/T005; no production acceptance claimed.
 ## Phase 2 - First changes
 
 - [ ] T003 Add optional phase timings and regression coverage
@@ -61,6 +63,9 @@ Production performance changes and delivery acceptance remain pending.
   - Files: `src/Mod/Sketcher/App/SketchObject.cpp`, `src/Mod/Sketcher/App/SketchObjectConstraints.cpp`, `src/Mod/Sketcher/App/Sketch.cpp`, `src/Mod/Sketcher/App/Sketch.h`, `src/Mod/Sketcher/App/planegcs/GCS.cpp`, `src/Mod/Sketcher/App/planegcs/GCS.h`, `tests/src/Mod/Sketcher/App/`
   - Implement scoped timing at the approved Sketcher/planegcs boundaries and native tests
     under `tests/src/Mod/Sketcher/App/`; update target wiring only if needed.
+    Follow C-003 through C-006 in `timing-invalidation-contract.md`; source scope
+    includes the private SketcherTrace helper and movement entry in
+    `SketchObjectGeometry.cpp` when needed for reason correlation.
   - Acceptance: success/failure scopes close, identity/reasons correlate, overlapping
     and deferred QR timelines reconstruct from offsets/lanes/dispatch/join spans;
     known-fixture counters match equations, unknowns, matrix size, QR method and rank.
@@ -71,8 +76,10 @@ Production performance changes and delivery acceptance remain pending.
 - [ ] T004 Remove duplicate ordinary recompute diagnosis
   - Depends on: T003
   - Requirement: Requirement 1/Requirement 2; AC-001/AC-002; D-001.
-  - Files: `src/Mod/Sketcher/App/SketchObject.cpp`, `tests/src/Mod/Sketcher/App/`
-  - Make the bounded change in `SketchObject.cpp` using the approved scoped mechanism.
+  - Files: `src/Mod/Sketcher/App/SketchObject.cpp`, `src/Mod/Sketcher/App/SketchObjectConstraints.cpp`, `src/Mod/Sketcher/App/SketchObject.h`, `tests/src/Mod/Sketcher/App/`
+  - Implement C-001/C-002 in `timing-invalidation-contract.md`: one-shot deferral
+    after callback validation and private authoritative-solve notification handoff.
+    Retain legacy fallback/exception paths and all non-target solves.
     Add call-count and behavioural regressions in the selected native test files.
   - Test valid-to-invalid and invalid-to-repaired indices after geometry/external
     changes; assert diagnostic constraint IDs, touched state and observer sequence/

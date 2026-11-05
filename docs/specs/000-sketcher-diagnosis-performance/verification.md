@@ -16,7 +16,8 @@ passed 109 tests in an isolated Release environment. The [workload manifest](wor
 freezes nine optimized baseline cases with per-sample native counts, resets and
 cache classes; [baseline-report.md](baseline-report.md) records raw evidence,
 medians/MAD and A/A uncertainty. Historical symmetry remains unverified, owned by
-T006. T002 can proceed. Production optimization and all delivery acceptance rows
+T006. T002's design contract and native observer/index probes are complete;
+T003 is next. Production optimization and all delivery acceptance rows
 below remain pending; baseline A/A results do not satisfy candidate budgets.
 
 ## Acceptance And Traceability
@@ -139,6 +140,41 @@ async lifetimes, cross-platform build risk and meaningful regression coverage.
 Record each finding's disposition. T007 requires implemented diagnostic/reference
 and investigation guidance plus evidence for all criteria and deferred-work routing.
 Structural lint success alone does not make the package ready to implement or close.
+
+## T002 Contract Evidence
+
+For Requirement 1 through Requirement 5, T002 resolves the implementation
+decisions in [C-001 through C-006](timing-invalidation-contract.md). It selects
+deferral after normal index validation, preserves the diagnostic touch via a
+private solve handoff, and explicitly permits only its documented intermediate
+notification reordering. No managed-operation or global notification bypass is
+approved. The source review includes the GUI solver-update consumer.
+
+The native fixture `tests/src/Mod/Sketcher/App/SketchObjectDiagnosis.cpp` records
+object/property/solver notification order and property touched state for valid,
+redundant, conflicting, malformed and partially redundant cases. Its index probe
+proves that geometry acceptance alone cannot clear invalid indices and that a
+repaired constraint becomes visible to direct solve. These baseline assertions
+remain in place until T004 updates only the explicitly allowed ordering changes.
+
+Validation commands on 2026-11-05:
+
+- `pixi run build-release -j 2 --target Sketcher_tests_run`: passed.
+- With isolated XDG config/data/cache, `pixi run ./build/release/tests/Sketcher_tests_run --gtest_output=xml:/tmp/freecad-sketcher-T002/native-final.xml`: **115 tests passed**.
+- Exact focused selection: `--gtest_filter='SketchObjectTest.diagnosis*'` (six cases, included in the passing full suite).
+
+Private receipts are retained under the crash-coordination artifacts in
+`sketch-performance-static-analysis/T002-contract/`. Initial probe expectations
+omitted the managed acceptance during external-geometry rebuild; failures exposed
+the additional BCP notification group. Source review confirmed it, and the final
+contract/tests preserve the measured sequence. The initial compile also required
+explicit Base::Vector3d construction; corrected before the passing build.
+
+T003 must prove disabled-path behaviour, exception-safe spans, structural counts
+and QR lifetimes/overlap/deferred execution. T004 must prove callback consumers,
+exceptional handoff and all non-target paths. T005 still owns GUI checks and
+matched performance budgets. This design evidence does not pass AC-001 through
+AC-006 or claim the proposed guard is already implemented.
 
 ## Quality Gates
 

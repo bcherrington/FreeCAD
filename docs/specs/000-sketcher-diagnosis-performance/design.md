@@ -63,6 +63,14 @@ followed by direct solve/move, with no intervening document recompute. These
 paths may legitimately perform additional setups; do not optimize them by
 applying the ordinary-execute invariant globally.
 
+T002 resolved this candidate selection in
+[C-001/C-002](timing-invalidation-contract.md#c-001---validation-ownership-and-eligibility).
+Use the narrower one-shot recompute context after callback validation, rather
+than `managedoperation`. Preserve the conditional diagnostic touch through the
+private authoritative-solve handoff. The contract records measured observer
+sequences, the permitted intermediate reordering and legacy fallback conditions.
+T004 must implement and prove this contract; no guard is implemented by T002.
+
 ### D-002 - Optional scoped phase timings
 
 Reuse existing Sketcher logging/reporting and time facilities where appropriate.
@@ -104,6 +112,12 @@ sizes/results rather than assembling or scanning matrices only for logging.
 Do not derive counters, format records or allocate trace state when tracing is off.
 T003's source boundary includes the SketchObject entry/shape scopes and the
 context handoff into `Sketch`/planegcs, in addition to the solver phase scopes.
+
+T002's selected control, schema, lifetimes, QR boundaries and exact counter
+stages are defined in
+[C-003 through C-006](timing-invalidation-contract.md#c-003---trace-control-correlation-and-ownership).
+The proposed process-start control is `FREECAD_SKETCHER_TRACE=1`. T003 must add
+the private helper and tests before this becomes an implemented interface.
 
 ### D-003 - Fixtures and comparative measurement
 
@@ -164,14 +178,26 @@ branch until validated and explicitly merged. A standalone upstream submission
 must isolate the relevant source commits from unrelated integration history.
 `docs/` is a separate repository with a matching branch; preserve both histories.
 
+## Resolved Implementation Decisions
+
+T001 identified native and external-reference test targets in
+[baseline-report.md](baseline-report.md). T002 resolved the remaining decisions
+in [the timing/invalidation contract](timing-invalidation-contract.md): immutable
+environment opt-in outside edit mode, deferral after normal index validation,
+explicit diagnostic notification handoff, and a small worker trace handle with
+the original async payload copies/launch policy/wait semantics preserved.
+
+Implementation validation remains mandatory. An unexpected required observer,
+unsafe exceptional handoff or changed async payload lifetime blocks its affected
+implementation until the contract is met; it does not authorize a broad guard,
+notification suppression or altered launch policy.
+
 ## Open Questions
 
-- Which existing enablement surface best provides optional tracing outside edit mode?
-- Which scoped guard removes only redundant diagnosis without skipping validation?
-- What are the exact native test/fixture targets needed for external-link cases?
-- Can diagnostic QR worker durations be collected without extra matrix copies?
-
-T001/T002 resolve these before the affected implementation task starts.
+No unresolved design choice remains for T003/T004. The contract's exception,
+observer-consumer, async lifetime and disabled-cost assertions still need their
+declared implementation tests. Remaining phase attribution and performance
+decisions belong to T005/T006, not design completion in T002.
 
 ## Durable Documentation Impact
 

@@ -25,16 +25,17 @@ This is a proposed implementation workflow, not an implemented diagnostic API.
 
 ## Steps
 
-1. T001 - Reconcile source and establish the baseline is complete. Read its
-   [baseline report](baseline-report.md) and [manifest](workloads.json). Use Spec
-   Lifecycle Manager task context for T002 and recheck source freshness through
-   Agent Workbench and direct reads; mark T002 in progress before implementation.
+1. T001 baseline and T002 timing/invalidation contract are complete. Read the
+   [baseline report](baseline-report.md), [manifest](workloads.json) and
+   [contract](timing-invalidation-contract.md). Use Spec Lifecycle Manager context
+   for T003, recheck source freshness through Agent Workbench and direct reads,
+   and mark T003 in progress before implementation.
 2. Verify fixture hashes and use disposable copies for further measurements.
    Preserve the frozen execution/reset/cache boundaries and verify counts on
    each new build; retain the distinction between no-op and actual recompute.
-3. Resolve trace enablement, offsets/lanes/dispatch/join spans and structural counters
-   in T002. Approve index-validation and diagnostic observer/touched invariants
-   before guard selection; include non-recompute paths in the regression plan.
+3. Follow T002's C-001 through C-006 decisions for trace enablement, intervals,
+   counters, index validation and diagnostic notification handoff. The proposed
+   `FREECAD_SKETCHER_TRACE=1` control is not available until T003 implements it.
 4. Implement T003 and T004 as separate reviewable slices, preserving notifications.
 5. Build with `pixi run build -j 2`, run the discovered focused/affected checks,
    then use matched optimized builds for T005's alternating-pair/MAD/bootstrap

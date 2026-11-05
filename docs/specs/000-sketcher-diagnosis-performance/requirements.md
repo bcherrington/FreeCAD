@@ -40,8 +40,9 @@ Add verified behaviour and interfaces to proposed
 
 ## Staged Readiness
 
-- Current stage: tasks planned; baseline/design decisions pending T001/T002.
-- Ready to implement the first investigation task after source/fixture refresh.
+- T001 baseline and T002 timing/invalidation contract are complete; their evidence
+  is in baseline-report.md and timing-invalidation-contract.md.
+- T003 is the next implementation slice; production delivery acceptance is pending.
 - Code changes require the task dependencies and design decisions to be satisfied.
 - No design-first exception; measurable requirements precede implementation.
 

@@ -91,3 +91,20 @@ Baseline A/A intervals are wide on several workloads. T005 must investigate nois
 and collect fresh interleaved matched comparisons; these observations do not
 establish a speedup, regression or overhead budget. Old pilot elapsed values are
 ineligible, and all production acceptance requirements remain unchanged.
+
+## T002 Contract Reconciliation - 2026-11-05
+
+Source review rejects a broad managed-operation guard because it skips index
+validation. Native probes confirm acceptance alone cannot repair invalid indices.
+They also establish object/property/solver notification order for valid,
+redundant, conflicting, malformed and partially redundant fixtures. External
+geometry rebuild contributes a managed acceptance notification even with no
+external model links; it must remain outside the proposed deferral scope.
+
+[The T002 contract](timing-invalidation-contract.md) selects narrower deferral,
+explicit diagnostic-touch handoff and the tracing/counter/QR ownership plan.
+The source GUI consumer updates solver information through `signalSolverUpdate`;
+earlier acceptance observers may see the prior solver snapshot under the stated
+contract. Addon dependence on that intermediate snapshot remains a compatibility
+risk to check during implementation. All 115 isolated Release native tests pass;
+production behavior is unchanged and implementation proof remains T003/T004.

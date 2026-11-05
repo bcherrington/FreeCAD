@@ -13,14 +13,14 @@ last_reviewed: 2026-11-05
 
 Map each task to the full requirements/design/evidence context. All delivery
 coverage is currently not-covered because production optimization and tracing
-are not implemented. T001 baseline establishment is complete.
+are not implemented. T001 baseline and T002 design contract are complete.
 
 ## Task To Context Matrix
 
 | Task ID | Requirements | Acceptance Criteria | Design Sections | Verification | Durable Targets | Open Decisions |
 | --- | --- | --- | --- | --- | --- | --- |
 | T001 | Requirement 1, Requirement 2, Requirement 6 | AC-001, AC-002, AC-005 | D-001, D-003 | baseline-report.md; workloads.json; verification.md | Diagnostics reference, investigation runbook | Resolved baseline; historical symmetry owned by T006 |
-| T002 | Requirement 1, Requirement 2, Requirement 3, Requirement 4, Requirement 5 | AC-001, AC-002, AC-003, AC-004, AC-006 | D-001, D-002 | verification.md correctness matrix | Diagnostics reference | Trace control/schema and local guard |
+| T002 | Requirement 1, Requirement 2, Requirement 3, Requirement 4, Requirement 5 | AC-001, AC-002, AC-003, AC-004, AC-006 | D-001, D-002; C-001 through C-006 | timing-invalidation-contract.md; verification.md; native diagnosis probes | Diagnostics reference | Design resolved; implementation proof T003/T004 |
 | T003 | Requirement 3, Requirement 4, Requirement 5 | AC-003, AC-004, AC-006 | D-002 | verification.md timing cases | Diagnostics reference | Resolved by T002 |
 | T004 | Requirement 1, Requirement 2 | AC-001, AC-002 | D-001 | verification.md correctness matrix | Diagnostics reference | Resolved by T002 |
 | T005 | Requirement 2, Requirement 6 | AC-002, AC-005, AC-006 | D-003 | verification.md measurement matrix | Investigation runbook | Budget dispositions |
@@ -58,8 +58,9 @@ They are promotion targets, not current implemented authority.
 T001 resolved source freshness, frozen private fixture identity and exact test
 targets. The changed staged file is excluded; unverified historical symmetry
 belongs to T006. Baseline A/A noise is recorded for investigation in T005. T002
-resolves optional trace control/schema, worker-output safety and the scoped guard
-before T003/T004. T006 resolves the deeper optimization choice after measurements.
+resolved trace control/schema, worker lifetimes, counter stages and the scoped
+deferral/notification contract in C-001 through C-006. T003/T004 own proof of those
+contracts in implementation. T006 resolves deeper optimization choices after measurements.
 
 ## Design To Implementation Matrix
 
@@ -91,5 +92,13 @@ The finding-by-finding disposition is in
 two external-reference tests, native duplicate-setup reproduction, nine optimized
 baseline batches and private build/raw/analysis receipts. [workloads.json](workloads.json)
 freezes each runnable execution vector and reset/cache protocol. T001 is complete;
-T002 is the next pending task. T005 still owns matched candidate acceptance and
+T002's contract is complete; T003 is the next pending task. T005 still owns matched candidate acceptance and
 noise investigation; no delivery coverage or performance acceptance row is complete.
+
+## T002 Evidence Status
+
+[timing-invalidation-contract.md](timing-invalidation-contract.md) records the
+selected design and requirements-linked validation plan. Six native probes
+establish observer ordering/touched-state/diagnostic identities and independent
+index-flag repair; the isolated Release suite passes 115 tests. No production
+tracing or setup deferral is implemented, and no performance gate passes here.
