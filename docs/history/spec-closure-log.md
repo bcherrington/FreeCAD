@@ -15,7 +15,7 @@ last_reviewed: 2026-11-05
 - **Spec:** `docs/specs/000-sketcher-diagnosis-performance/`
 - **Title:** Sketcher diagnosis performance requirements
 - **Final spec commit:** `c0615282aa`
-- **Closure cleanup commit:** `pending-cleanup-commit`
+- **Closure cleanup commit:** `191ba1e08f`
 - **Closure action:** retained-as-history
 - **Durable docs updated:**
   - `docs/reference/sketcher-performance-diagnostics.md`
@@ -26,7 +26,7 @@ last_reviewed: 2026-11-05
   requirements covered, no blockers, lint zero errors/two existing authoring
   advisories. Source/test and independent docs/operations expert reviews found no
   blocking implementation defect; profile correction and optional prose applied.
-  T007 validates 193 Markdown targets, embedded Python/shell syntax, JSON, eight
+  T007 validates 195 Markdown file/anchor targets, embedded Python/shell syntax, JSON, eight
   valid backlog items and CRLF-aware whitespace. No new build or GUI run for
   documentation-only promotion. Retained Linux evidence: native 149/149, affected
   Python 97 run/one existing skip, full model comparisons, 190 matched triples,
@@ -34,8 +34,9 @@ last_reviewed: 2026-11-05
   Indicative timing acceptance is satisfied; earlier strict-gate uncertainty is
   unchanged. Current reference/runbook/backlog supersede temporary spec guidance.
   Docs repository promotion commit: `9bc3677`; root final spec: `c0615282aa`.
-  Cleanup hash is resolved after the actual archive commit, then consistency and
-  active-inventory checks confirm historical retention.
+  Docs repository archive commit: `8ba1733`; root archive: `191ba1e08f`.
+  Cleanup hashes are resolved from actual commits; archive-index consistency
+  has zero diagnostics and active inventory excludes this historical package.
 - **Residual risks:**
   - Indicative speedups do not guarantee regression-free or zero-overhead behaviour.
   - No fresh full GUI build or Windows/macOS CI certification; bounded GUI checks
