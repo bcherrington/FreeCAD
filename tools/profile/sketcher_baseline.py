@@ -134,6 +134,9 @@ def main():
     output.mkdir(parents=True, exist_ok=True)
     case = os.environ.get("SKETCH_PERF_CASE", "forced_synthetic")
     pairs = int(os.environ.get("SKETCH_PERF_PAIRS", "10"))
+    configuration = os.environ.get("SKETCH_PERF_CONFIGURATION", "baseline")
+    assert configuration in ("baseline", "candidate")
+    candidate = configuration == "candidate"
     assert case in {
         "clean_noop",
         "forced_synthetic",
@@ -232,7 +235,11 @@ def main():
                     document.recompute()
 
                 def validate_insertion(value, counts):
-                    wanted = 18 if case == "scalar_insertion" else 3
+                    wanted = (
+                        (17 if candidate else 18)
+                        if case == "scalar_insertion"
+                        else (2 if candidate else 3)
+                    )
                     assert counts == {"Profile": {"executes": 1, "setups": wanted}}
                     check_document(document)
                     assert sketch.ConstraintCount == 16 and sketch.DoF == 48
@@ -276,7 +283,11 @@ def main():
                 sketch.touch()  # Outside the measured/counting window.
 
             def validate_recompute(value, counts):
-                wanted = {} if case == "clean_noop" else {name: {"executes": 1, "setups": 2}}
+                wanted = (
+                    {}
+                    if case == "clean_noop"
+                    else {name: {"executes": 1, "setups": 1 if candidate else 2}}
+                )
                 assert counts == wanted, (case, counts)
                 assert sketch_state(document) == before
                 check_document(document)
@@ -291,6 +302,7 @@ def main():
             {
                 "status": "passed",
                 "case": case,
+                "configuration": configuration,
                 "version": App.Version(),
                 "samples": len(rows),
                 "run_id": os.environ.get("SKETCH_PERF_RUN_ID"),

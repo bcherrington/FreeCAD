@@ -124,3 +124,15 @@ tests in Release off/on and Debug, plus command-line opt-in/silence checks. The
 new control is not a performance optimization: duplicate diagnosis remains and
 no latency/overhead budget has been evaluated. T004 and T005 remain the owners
 of those changes and measurements respectively.
+
+## T004 Runtime Reconciliation - 2026-11-05
+
+The bounded deferral is implemented; see
+[diagnosis-deferral-report.md](diagnosis-deferral-report.md). Normal callback index
+and geometry validation remains before authoritative setup. Diagnostic notifications
+can edit solver inputs: the implementation detects notified input edits, repairs
+geometry keys/indices and retains the required second setup. This is a correctness
+fallback, not a candidate for blanket suppression. Ordinary unchanged recompute
+needs one setup. Native, Python and frozen-model checks establish behaviour; T005
+still owns elapsed speedup, regression/overhead budgets and disposable GUI checks.
+No matrix-copy, structural-reuse or sparse-assembly rewrite was started.

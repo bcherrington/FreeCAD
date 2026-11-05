@@ -1239,6 +1239,17 @@ private:
     std::unique_ptr<GeoHistory> geoHistory;
 
     mutable std::map<std::string, std::string> internalElementMap;
+
+    SketchSolveStatus solveInternal(bool updateGeoAfterSolving, bool notifyDeferredDiagnosis);
+
+    // Stack-owned and active only during execute's explicit geometry acceptance.
+    struct RecomputeDiagnosis
+    {
+        bool pending = true;
+        bool deferred = false;
+        bool cancelled = false;
+    };
+    RecomputeDiagnosis* recomputeDiagnosis = nullptr;
 };
 
 inline int SketchObject::initTemporaryMove(std::vector<GeoElementId> moved)

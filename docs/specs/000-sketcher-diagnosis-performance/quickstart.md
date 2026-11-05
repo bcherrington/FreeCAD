@@ -12,8 +12,8 @@ last_reviewed: 2026-11-05
 ## Purpose
 
 Resume the performance work without touching the operator's working CAD session.
-T003's optional tracing is implemented; setup deferral and performance acceptance
-remain later implementation work.
+T003's optional tracing and T004's setup deferral are implemented. T005 owns
+matched performance measurements and broader GUI acceptance.
 
 ## Prerequisites
 
@@ -26,18 +26,19 @@ remain later implementation work.
 
 ## Steps
 
-1. T001 through T003 are complete. Read the
+1. T001 through T004 are complete. Read the
    [baseline report](baseline-report.md), [manifest](workloads.json) and
    [contract](timing-invalidation-contract.md). Use Spec Lifecycle Manager context
-   for T004, recheck source freshness through Agent Workbench and direct reads,
-   and mark T004 in progress before implementation.
+   for T005, recheck source freshness through Agent Workbench and direct reads,
+   and mark T005 in progress before validation.
 2. Verify fixture hashes and use disposable copies for further measurements.
    Preserve the frozen execution/reset/cache boundaries and verify counts on
    each new build; retain the distinction between no-op and actual recompute.
 3. Follow T002's C-001 through C-006 decisions for trace enablement, intervals,
    counters, index validation and diagnostic notification handoff. T003 implements
    `FREECAD_SKETCHER_TRACE=1`; see [the tracing report](phase-tracing-report.md).
-4. Implement T004 against the retained two-setup baseline, preserving notifications.
+4. Read [the deferral report](diagnosis-deferral-report.md). Preserve the pinned
+   T003 two-setup baseline and compare it with the candidate in equivalent builds.
 5. Build with `pixi run build -j 2`, run the discovered focused/affected checks,
    then use matched optimized builds for T005's alternating-pair/MAD/bootstrap
    measurements and bounded inconclusive-result protocol.
@@ -77,8 +78,11 @@ The concrete Pixi build task preserves the job/target arguments in this checkout
 the composite `build` task did not forward them during T001. The runner rejects
 failed processes, missing/stale receipts, modules outside the selected build and
 changed execution vectors. It retains two warmups and ten alternating A/A pairs
-per case; exclude warmup rows from reported timing. A/A results describe baseline
-repeatability and cannot satisfy the candidate speedup or overhead gates.
+per case; exclude warmup rows from reported timing. A/A results describe one configuration's repeatability and cannot satisfy the candidate speedup or overhead gates.
+The default `--configuration baseline` asserts the original count vectors; select
+`--configuration candidate` for T004 binaries. This selects expected counts,
+not a matched baseline/candidate comparison. Candidate ordinary recompute expects
+one setup; scalar/list insertion expect 17/2 rather than baseline 18/3.
 
 For native tests, keep material libraries and configuration isolated too:
 

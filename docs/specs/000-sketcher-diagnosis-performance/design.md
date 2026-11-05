@@ -69,7 +69,9 @@ Use the narrower one-shot recompute context after callback validation, rather
 than `managedoperation`. Preserve the conditional diagnostic touch through the
 private authoritative-solve handoff. The contract records measured observer
 sequences, the permitted intermediate reordering and legacy fallback conditions.
-T004 must implement and prove this contract; no guard is implemented by T002.
+T004 implements and proves this contract in
+[diagnosis-deferral-report.md](diagnosis-deferral-report.md), including observer-input
+refresh and exception recovery. No guard was implemented by T002.
 
 ### D-002 - Optional scoped phase timings
 

@@ -445,7 +445,7 @@ TEST_F(SketchObjectTest, traceKnownLineCountersAndExistingObserverBehaviour)
             continue;
         }
         ++diagnoses;
-        EXPECT_STREQ(r.reason, diagnoses == 1 ? "constraint_change" : "document_recompute");
+        EXPECT_STREQ(r.reason, "document_recompute");
         const auto& c = r.counters;
         EXPECT_EQ(c.inputDriving, 1);
         EXPECT_EQ(c.equations, 1);
@@ -463,8 +463,8 @@ TEST_F(SketchObjectTest, traceKnownLineCountersAndExistingObserverBehaviour)
         EXPECT_EQ(c.stateJ, T::RankState::Computed);
         EXPECT_EQ(c.stateJT, T::RankState::Computed);
     }
-    EXPECT_EQ(diagnoses, 2);
-    EXPECT_EQ(setups, 2);
+    EXPECT_EQ(diagnoses, 1);
+    EXPECT_EQ(setups, 1);
     EXPECT_EQ(sketch->getLastDoF(), dof);
     EXPECT_GE(sketch->getLastSolveTime(), 0.0);
     EXPECT_FLOAT_EQ(sketch->getLastSolveTime(), sketch->getSolvedSketch().getSolveTime());
@@ -645,7 +645,7 @@ TEST_F(SketchObjectTest, traceBlockPostAnalysisKeepsDistinctDiagnosisOrdinals)
         EXPECT_EQ(r.diagnosisOrdinal, ++ordinal);
         blockReason = blockReason || std::string(r.reason) == "block_post_analysis";
     }
-    EXPECT_EQ(setups, 2);
+    EXPECT_EQ(setups, 1);
     EXPECT_GT(diagnoses, setups);
     EXPECT_TRUE(blockReason);
     EXPECT_EQ(sketch->getLastDoF(), 2);

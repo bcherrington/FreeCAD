@@ -17,7 +17,8 @@ AC-001/AC-002/AC-003/AC-004/AC-006 and D-001/D-002. It specifies proposed T003/T
 behaviour; no production tracing or setup deferral is implemented by T002.
 The T002 source inspection followed T001 commit `1efd3713a8`. T003 now implements
 C-003 through C-006; [phase-tracing-report.md](phase-tracing-report.md) records
-the implementation and tests. C-001/C-002 setup deferral remains T004 work.
+the implementation and tests. T004 implements C-001/C-002;
+[diagnosis-deferral-report.md](diagnosis-deferral-report.md) records proof and limits.
 Native baseline probes are in
 `tests/src/Mod/Sketcher/App/SketchObjectDiagnosis.cpp`. This contract supplements
 [design.md](design.md); requirements and acceptance budgets remain authoritative.
@@ -355,3 +356,26 @@ T003/T004 must include these tests in their own changes; T002's design completio
 is not evidence that those implementation tests pass. Use T001's Linux native
 counter seam for per-sample benchmark execution checks, verified on both builds;
 it does not replace portable native unit tests or establish trace overhead.
+
+## T004 Handoff Refinements
+
+The implemented private handoff retains a second setup when the diagnostic touch's
+observers edit Geometry, Constraints or external-geometry properties through normal
+property notifications. A scoped before-change observer detects these edits. Before
+refreshing, validate indices and repair geometry keys under the existing internal
+transaction guard. This preserves newly valid constraints instead of consuming a
+filtered empty list. The unchanged eligible path still performs one setup.
+
+A Base exception from the deferred setup retries once, matching the original
+execute callback catch followed by explicit solve. A Base exception from the
+moved diagnostic notification similarly refreshes; other exceptions retain their
+propagation policy. Acceptance failures restore the omitted setup without replacing
+the original exception. Late invalid solver preferences restore diagnosis before
+returning the existing error. Unexpected nested callbacks cancel only their own
+context. Tests verify the next execute does not inherit stale deferral state.
+
+The input-edit guarantee covers normal property/API changes with notifications;
+raw C++ mutation without notification is not a supported invalidation mechanism.
+The one-setup invariant is intentionally conditional, never a promise to suppress
+correctness-required refreshes. Tests retain the C-002 notification counts and
+approved ordering, including an additional negative-DoF overconstraint fixture.

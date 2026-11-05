@@ -18,16 +18,17 @@ cache classes; [baseline-report.md](baseline-report.md) records raw evidence,
 medians/MAD and A/A uncertainty. Historical symmetry remains unverified, owned by
 T006. T002's design contract and native observer/index probes are complete;
 T003 tracing is implemented and validated in
-[phase-tracing-report.md](phase-tracing-report.md); T004 is next. Diagnosis
-optimization and comparative performance acceptance remain pending. Baseline
-A/A results do not satisfy candidate budgets.
+[phase-tracing-report.md](phase-tracing-report.md). T004 setup deferral and native/
+Python/model correctness are verified in
+[diagnosis-deferral-report.md](diagnosis-deferral-report.md). Comparative performance
+and broader GUI acceptance remain T005. Baseline A/A results do not satisfy candidate budgets.
 
 ## Acceptance And Traceability
 
 | Requirement | Design | Tasks | Cases | State |
 | --- | --- | --- | --- | --- |
-| FR-001 | D-001 | T001, T002, T004 | AC-001 | Pending |
-| FR-002 | D-001, D-003 | T001, T002, T004, T005 | AC-002 | Pending |
+| FR-001 | D-001 | T001, T002, T004 | AC-001 | One-setup invariant verified in T004 |
+| FR-002 | D-001, D-003 | T001, T002, T004, T005 | AC-002 | Native/Python/model verified T004; broader GUI T005 |
 | FR-003 | D-002 | T002, T003 | AC-003 | Native/process verified in T003 |
 | FR-004 | D-002 | T002, T003 | AC-003 | Native/process verified in T003 |
 | FR-005 | D-002 | T002, T003, T005 | AC-004, AC-006 | AC-004 verified; AC-006 pending T005 |
@@ -278,3 +279,14 @@ Formatting/pre-commit, line endings, local links/anchors and CRLF-aware whitespa
 checks passed. Package lint reports zero errors and the same two authoring
 advisories. These checks do not pass AC-005/AC-006, T004's deferral contract or the
 remaining GUI/correctness matrix owned by T004/T005.
+
+## T004 Implementation Evidence
+
+[diagnosis-deferral-report.md](diagnosis-deferral-report.md) maps C-001/C-002 to
+private one-shot deferral, authoritative diagnostic notification, notified-input
+refresh and exception recovery. AC-001 is established by native setup spans plus
+independent tracing-off execution vectors. AC-002 has native/Python and frozen-model
+coverage for index repair, diagnostic IDs/touched/ordering, external references,
+scalar/list transactions, noRecomputes, direct changes, immediate post-undo/redo
+solve/move, driving/reference transitions and thickness propagation/restoration.
+Broader GUI panel/recovery checks and all matched elapsed budgets remain T005.

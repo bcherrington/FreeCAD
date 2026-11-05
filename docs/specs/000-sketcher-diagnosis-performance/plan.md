@@ -64,11 +64,12 @@ Expected source boundaries:
 5. T006: rank and route remaining optimization candidates.
 6. T007: promote verified documentation and reconcile closure evidence.
 
-T001 through T003 are complete. T004 follows the decisions and requirements-linked
+T001 through T004 are complete. T004 implements the decisions and requirements-linked
 validation cases in [timing-invalidation-contract.md](timing-invalidation-contract.md).
 T002 adds native baseline observer/index probes; T003 implements the optional
 tracing documented in [phase-tracing-report.md](phase-tracing-report.md).
-Production diagnosis optimization remains T004; performance gates remain T005.
+[diagnosis-deferral-report.md](diagnosis-deferral-report.md) records the one-setup
+implementation, fallback rules and correctness evidence. Performance gates remain T005.
 
 ## Dependencies
 

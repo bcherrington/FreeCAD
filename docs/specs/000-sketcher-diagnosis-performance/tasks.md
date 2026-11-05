@@ -13,8 +13,8 @@ last_reviewed: 2026-11-05
 [Traceability](traceability.md), [Design](design.md), [Plan](plan.md),
 [Research](research.md), [Verification](verification.md).
 
-T001 through T003 are complete. T004 is next; duplicate diagnosis is retained.
-Production performance gains and comparative acceptance remain pending.
+T001 through T004 are complete. Ordinary recompute now uses one authoritative
+setup. T005 comparative performance and broader GUI acceptance remain pending.
 
 ## Phase 1 - Baseline and contract
 
@@ -75,11 +75,11 @@ Production performance gains and comparative acceptance remain pending.
   - Evidence: Implemented C-003 through C-006 in private SketcherTrace helper and SketchObject/Sketch/planegcs entry/phase scopes. Twenty-one new tracing tests verify disabled work/output, exceptions/loss, context restoration, dense/sparse counters, block ordinals, actual invocation reasons, async/deferred intervals, unchanged payload copies and wait/deferred-discard semantics. Release full suite passes 136/136 with tracing off and on; Debug full suite passes 136/136. Five isolated FreeCADCmd control modes produce equal modelling state; on emits 194 complete validated JSON records, other modes none. Final pre-commit, line endings, local links/anchors/example JSON, CRLF-aware whitespace passed; package lint zero errors/two existing advisories. See phase-tracing-report.md, phase-trace-example.jsonl and private T003-phase-tracing source/binary/hash/raw receipts.
 
   - Evidence mode: artifact
-  - Status: T003 complete; T004 ready. Duplicate setup and baseline observer effects retained. AC-003/AC-004 verified on Linux; AC-006 matched overhead and broader GUI/correctness/performance acceptance remain T005. Changes uncommitted.
-- [ ] T004 Remove duplicate ordinary recompute diagnosis
+  - Status: T003 complete; T004 ready. Duplicate setup and baseline observer effects retained. AC-003/AC-004 verified on Linux; AC-006 matched overhead and broader GUI/correctness/performance acceptance remain T005. Committed as root 9bc0eb91ff and docs 88b3ce6.
+- [x] T004 Remove duplicate ordinary recompute diagnosis
   - Depends on: T003
   - Requirement: Requirement 1/Requirement 2; AC-001/AC-002; D-001.
-  - Files: `src/Mod/Sketcher/App/SketchObject.cpp`, `src/Mod/Sketcher/App/SketchObjectConstraints.cpp`, `src/Mod/Sketcher/App/SketchObject.h`, `tests/src/Mod/Sketcher/App/`
+  - Files: `src/Mod/Sketcher/App/SketchObject.cpp`, `src/Mod/Sketcher/App/SketchObjectConstraints.cpp`, `src/Mod/Sketcher/App/SketchObject.h`, `tests/src/Mod/Sketcher/App/`, `src/Mod/Sketcher/SketcherTests/TestSketcherSolver.py`, `tools/profile/run_sketcher_baseline.py`, `tools/profile/sketcher_baseline.py`, `diagnosis-deferral-report.md`
   - Implement C-001/C-002 in `timing-invalidation-contract.md`: one-shot deferral
     after callback validation and private authoritative-solve notification handoff.
     Retain legacy fallback/exception paths and all non-target solves.
@@ -92,8 +92,10 @@ Production performance gains and comparative acceptance remain pending.
   - Acceptance: one authoritative setup only in the targeted valid execute path;
     preserve required additional setups elsewhere and the validation/observer
     contract, geometry, DoF, recoverable diagnostics, external links and undo/redo.
-  - Evidence: before/after deterministic counts, regression results and reviewed diff.
+  - Evidence: Implemented C-001/C-002 private one-shot deferral after normal index/geometry validation, authoritative diagnostic touch, notified-input refresh and legacy exception/fallback recovery. Final Release/Debug targeted builds passed. Native suite 149/149 in Release tracing off/on and Debug; Python solver suite 27 run, 26 passed and one existing skip in each build. Independent tracing-off candidate vectors verify ordinary setup 2->1, scalar 18->17 and list 3->2 with required non-target solves retained. Matched Debug frozen-model comparison and extra Release comparison each passed 153,993 state checks; constraints/geometry/diagnostics/expressions/shapes and thickness perturb/restore preserved. Focused pre-commit, Black, parsing, links/anchors, CRLF preservation and whitespace passed; lint zero errors/two existing advisories. See diagnosis-deferral-report.md and private T004-diagnosis-deferral source/hash/XML/model/count receipts.
 
+  - Evidence mode: artifact
+  - Status: T004 complete; T005 ready. AC-001 and core correctness verified. Matched elapsed speedup/regression/tracing-off overhead budgets and broader disposable GUI checks remain T005; no performance percentage claimed.
 ## Phase 3 - Measurement and follow-up
 
 - [ ] T005 Validate correctness and measure end-to-end impact

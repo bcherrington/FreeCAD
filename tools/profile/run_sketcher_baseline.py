@@ -31,6 +31,7 @@ def main():
     parser.add_argument("--counter", type=Path, required=True)
     parser.add_argument("--fixture", type=Path, required=True)
     parser.add_argument("--pairs", type=int, default=10)
+    parser.add_argument("--configuration", choices=("baseline", "candidate"), default="baseline")
     parser.add_argument("--case", choices=CASES, action="append", dest="cases")
     args = parser.parse_args()
     if sys.platform != "linux" or args.pairs < 1:
@@ -51,7 +52,8 @@ def main():
     libdirs.append(Path(sys.prefix) / "lib")
     receipt = {
         "status": "running",
-        "purpose": "optimized baseline A/A repeatability, not a candidate speedup comparison",
+        "purpose": "single-configuration A/A repeatability and execution checks, not a speedup comparison",
+        "configuration": args.configuration,
         "build_root": str(build),
         "fixture_sha256": hashlib.sha256(fixture.read_bytes()).hexdigest(),
         "counter_sha256": hashlib.sha256(counter.read_bytes()).hexdigest(),
@@ -82,6 +84,7 @@ def main():
                     "SKETCH_PERF_APP_LIB": str(build / "lib/libFreeCADApp.so"),
                     "SKETCH_PERF_OUTPUT_DIR": str(target),
                     "SKETCH_PERF_CASE": case,
+                    "SKETCH_PERF_CONFIGURATION": args.configuration,
                     "SKETCH_PERF_PAIRS": str(args.pairs),
                     "SKETCH_PERF_FIXTURE": str(fixture),
                     "LD_PRELOAD": str(counter),

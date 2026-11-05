@@ -2,6 +2,7 @@
 
 #include <numbers>
 #include <sstream>
+#include <tuple>
 
 #include "SketcherTestHelpers.h"
 
@@ -76,7 +77,7 @@ void record(const Observation& observation)
 }
 }  // namespace
 
-TEST_F(SketchObjectTest, diagnosisObserversValidBaseline)
+TEST_F(SketchObjectTest, diagnosisObserversValidContract)
 {
     auto* sketch = getObject();
     addLine(sketch);
@@ -89,20 +90,20 @@ TEST_F(SketchObjectTest, diagnosisObserversValidBaseline)
     EXPECT_EQ(sketch->getLastDoF(), 3);
 }
 
-TEST_F(SketchObjectTest, diagnosisObserversRedundantBaseline)
+TEST_F(SketchObjectTest, diagnosisObserversRedundantContract)
 {
     auto* sketch = getObject();
     addLine(sketch);
     sketch->Constraints.setValues({constraint(Sketcher::Horizontal), constraint(Sketcher::Horizontal)});
     auto observed = observeRecompute(sketch);
     record(observed);
-    EXPECT_EQ(observed.events, "BCPBCCPS");
+    EXPECT_EQ(observed.events, "BCPBCPCS");
     EXPECT_EQ(observed.touchedAtChange, (std::vector<bool> {false, true, true}));
     EXPECT_TRUE(observed.touchedAfter);
     EXPECT_EQ(sketch->getLastRedundant(), (std::vector<int> {2}));
 }
 
-TEST_F(SketchObjectTest, diagnosisObserversConflictingBaseline)
+TEST_F(SketchObjectTest, diagnosisObserversConflictingContract)
 {
     auto* sketch = getObject();
     addLine(sketch);
@@ -111,13 +112,13 @@ TEST_F(SketchObjectTest, diagnosisObserversConflictingBaseline)
     sketch->Constraints.setValues({constraint(Sketcher::Horizontal), angle});
     auto observed = observeRecompute(sketch);
     record(observed);
-    EXPECT_EQ(observed.events, "BCPBCCPS");
+    EXPECT_EQ(observed.events, "BCPBCPCS");
     EXPECT_EQ(observed.touchedAtChange, (std::vector<bool> {false, true, true}));
     EXPECT_TRUE(observed.touchedAfter);
     EXPECT_EQ(sketch->getLastConflicting(), (std::vector<int> {1}));
 }
 
-TEST_F(SketchObjectTest, diagnosisObserversMalformedBaseline)
+TEST_F(SketchObjectTest, diagnosisObserversMalformedContract)
 {
     auto* sketch = getObject();
     addLine(sketch);
@@ -126,13 +127,13 @@ TEST_F(SketchObjectTest, diagnosisObserversMalformedBaseline)
     sketch->Constraints.setValues({radius});
     auto observed = observeRecompute(sketch);
     record(observed);
-    EXPECT_EQ(observed.events, "BCPBCCPS");
+    EXPECT_EQ(observed.events, "BCPBCPCS");
     EXPECT_EQ(observed.touchedAtChange, (std::vector<bool> {false, true, true}));
     EXPECT_TRUE(observed.touchedAfter);
     EXPECT_EQ(sketch->getLastMalformedConstraints(), (std::vector<int> {1}));
 }
 
-TEST_F(SketchObjectTest, diagnosisObserversPartiallyRedundantBaseline)
+TEST_F(SketchObjectTest, diagnosisObserversPartiallyRedundantContract)
 {
     auto* sketch = getObject();
     Part::GeomArcOfCircle arc;
@@ -147,7 +148,7 @@ TEST_F(SketchObjectTest, diagnosisObserversPartiallyRedundantBaseline)
     sketch->Constraints.setValues({coincident});
     auto observed = observeRecompute(sketch);
     record(observed);
-    EXPECT_EQ(observed.events, "BCPBCCPBCPS");
+    EXPECT_EQ(observed.events, "BCPBCPCBCPS");
     EXPECT_EQ(observed.touchedAtChange, (std::vector<bool> {false, true, true, true}));
     EXPECT_FALSE(observed.touchedAfter);
     EXPECT_EQ(sketch->getLastPartiallyRedundant(), (std::vector<int> {1}));
@@ -172,4 +173,31 @@ TEST_F(SketchObjectTest, diagnosisIndicesInvalidThenRepaired)
     EXPECT_EQ(sketch->Constraints.getValues().front()->getGeoId(0), 1);
     EXPECT_EQ(sketch->solve(), SketchSolveStatus::Success);
     EXPECT_EQ(sketch->getLastDoF(), 7);
+}
+
+TEST_F(SketchObjectTest, diagnosisObserversOverconstrainedContract)
+{
+    auto* sketch = getObject();
+    addLine(sketch);
+    std::vector<Constraint*> constraints;
+    for (auto [type, position, value] :
+         {std::tuple {Sketcher::DistanceX, PointPos::start, 0.0},
+          std::tuple {Sketcher::DistanceY, PointPos::start, 0.0},
+          std::tuple {Sketcher::DistanceX, PointPos::end, 4.0},
+          std::tuple {Sketcher::DistanceY, PointPos::end, 0.0}}) {
+        auto* c = constraint(type);
+        c->setPosId(0, position);
+        c->setValue(value);
+        constraints.push_back(c);
+    }
+    auto* length = constraint(Sketcher::Distance);
+    length->setValue(5);
+    constraints.push_back(length);
+    sketch->Constraints.setValues(std::move(constraints));
+    auto observed = observeRecompute(sketch);
+    record(observed);
+    EXPECT_LT(sketch->getLastDoF(), 0);
+    EXPECT_FALSE(sketch->getLastConflicting().empty());
+    EXPECT_EQ(observed.events, "BCPBCPCS");
+    EXPECT_TRUE(observed.touchedAfter);
 }
