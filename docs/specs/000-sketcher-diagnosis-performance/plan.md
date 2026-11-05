@@ -21,7 +21,8 @@ setup locally, validate behaviour and latency, then select further work from dat
 - **Storage**: no persistence change; private benchmark receipts outside source.
 - **Testing**: native Sketcher/App coverage plus disposable GUI model checks.
 - **Platforms**: Linux first for reproduction; preserve Windows/macOS compilation.
-- **Performance goals**: requirements AC-005/AC-006; no claimed achieved speedup.
+- **Performance goals**: indicative improvement and overhead assessment per revised
+  AC-005/AC-006; no strict percentage or confidence-bound gate.
 - **Scope**: Sketcher App, planegcs, affected native tests and diagnostic docs.
 
 ## Governance Check
@@ -30,7 +31,7 @@ setup locally, validate behaviour and latency, then select further work from dat
 - [x] Reuse policy: existing guards/time/reporting before introducing new helpers.
 - [x] Test strategy: each task maps to FR/AC and verification cases.
 - [x] User impact: no changed modelling interaction or public error semantics.
-- [x] Proposed budgets and comparable measurement method defined in AC-005/AC-006.
+- [x] Indicative evidence and comparable measurement method defined in AC-005/AC-006.
 
 These checks describe the plan, not evidence that implementation has passed.
 
@@ -69,7 +70,9 @@ validation cases in [timing-invalidation-contract.md](timing-invalidation-contra
 T002 adds native baseline observer/index probes; T003 implements the optional
 tracing documented in [phase-tracing-report.md](phase-tracing-report.md).
 [diagnosis-deferral-report.md](diagnosis-deferral-report.md) records the one-setup
-implementation, fallback rules and correctness evidence. Performance gates remain T005.
+implementation, fallback rules and correctness evidence. T005 measurements and
+bounded GUI checks satisfy the revised indicative standard in
+performance-validation-report.md. T005 is complete; T006 and T007 remain pending.
 
 ## Dependencies
 
@@ -88,7 +91,8 @@ Only one implementation task should be in progress at a time.
 - Concurrent QR reporting races: collect safely, emit through a safe owner.
 - No-op samples, ambiguous caches or noisy acceptance: freeze executed/reset/cache
   manifests, assert counts, alternate matched pairs, report MAD/paired intervals
-  and retain inconclusive gates after bounded extra batches.
+  and disclose variability. Confidence intervals are optional diagnostic context;
+  investigate apparent repeatable material slowdowns without demanding strict gates.
 - Debug/release or preference mismatch: require complete baseline receipts.
 - Overfitting one model: use synthetic, master, plate and diagnostic-error cases.
 

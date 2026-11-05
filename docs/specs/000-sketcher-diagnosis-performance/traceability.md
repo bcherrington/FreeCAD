@@ -12,8 +12,9 @@ last_reviewed: 2026-11-05
 ## Purpose
 
 Map each task to the full requirements/design/evidence context. All delivery
-coverage distinguishes implemented tracing/diagnosis deferral from pending
-comparative performance and broader GUI acceptance. T001 through T004 are complete.
+coverage distinguishes completed T001 through T005 from pending T006 attribution
+and T007 promotion/closure. Timing acceptance uses the user-approved indicative
+standard; original strict-gate outcomes remain historical evidence.
 
 ## Task To Context Matrix
 
@@ -21,9 +22,9 @@ comparative performance and broader GUI acceptance. T001 through T004 are comple
 | --- | --- | --- | --- | --- | --- | --- |
 | T001 | Requirement 1, Requirement 2, Requirement 6 | AC-001, AC-002, AC-005 | D-001, D-003 | baseline-report.md; workloads.json; verification.md | Diagnostics reference, investigation runbook | Resolved baseline; historical symmetry owned by T006 |
 | T002 | Requirement 1, Requirement 2, Requirement 3, Requirement 4, Requirement 5 | AC-001, AC-002, AC-003, AC-004, AC-006 | D-001, D-002; C-001 through C-006 | timing-invalidation-contract.md; verification.md; native diagnosis probes | Diagnostics reference | Design resolved; implementation proof T003/T004 |
-| T003 | Requirement 3, Requirement 4, Requirement 5 | AC-003, AC-004, AC-006 | D-002; C-003 through C-006 | phase-tracing-report.md; native SketcherTrace tests | Diagnostics reference | Implemented; overhead budget remains T005 |
-| T004 | Requirement 1, Requirement 2 | AC-001, AC-002 | D-001; C-001/C-002 | diagnosis-deferral-report.md; native/Python/model comparisons | Diagnostics reference | Implemented and tested; broader GUI T005 |
-| T005 | Requirement 2, Requirement 6 | AC-002, AC-005, AC-006 | D-003 | verification.md measurement matrix | Investigation runbook | Budget dispositions |
+| T003 | Requirement 3, Requirement 4, Requirement 5 | AC-003, AC-004, AC-006 | D-002; C-003 through C-006 | phase-tracing-report.md; native SketcherTrace tests | Diagnostics reference | Implemented; indicative overhead review complete T005 |
+| T004 | Requirement 1, Requirement 2 | AC-001, AC-002 | D-001; C-001/C-002 | diagnosis-deferral-report.md; native/Python/model comparisons | Diagnostics reference | Implemented and tested; bounded GUI verified in T005 |
+| T005 | Requirement 2, Requirement 6 | AC-002, AC-005, AC-006 | D-003 | performance-validation-report.md; performance-results.json; comparison-protocol.md | Investigation runbook | Complete under user-approved indicative AC-005/AC-006; original strict outcomes retained |
 | T006 | Requirement 7 | AC-007 | D-004 | verification.md review/closure | Follow-up packages or backlog | Evidence-led selection |
 | T007 | Requirement 1, Requirement 2, Requirement 3, Requirement 4, Requirement 5, Requirement 6, Requirement 7 | AC-001, AC-002, AC-003, AC-004, AC-005, AC-006, AC-007 | D-004 | verification.md quality gates | Both proposed documents | Closure disposition |
 
@@ -32,11 +33,11 @@ comparative performance and broader GUI acceptance. T001 through T004 are comple
 | Requirement | Acceptance Criteria | Design Sections | Tasks | Coverage State | Residual Destination |
 | --- | --- | --- | --- | --- | --- |
 | Requirement 1 | AC-001 | D-001 | T001, T002, T004 | covered | Native and independent frozen-model counts in diagnosis-deferral-report.md |
-| Requirement 2 | AC-002 | D-001, D-003 | T001, T002, T004, T005 | partial | Native/Python/model evidence in diagnosis-deferral-report.md; broader GUI T005 |
+| Requirement 2 | AC-002 | D-001, D-003 | T001, T002, T004, T005 | covered | Native/Python/model and bounded Linux GUI evidence in diagnosis-deferral-report.md and performance-validation-report.md |
 | Requirement 3 | AC-003 | D-002 | T002, T003 | covered | Native/process evidence in phase-tracing-report.md; promotion T007 |
 | Requirement 4 | AC-003 | D-002 | T002, T003 | covered | Known counters, dense/sparse/block/redundancy tests; promotion T007 |
-| Requirement 5 | AC-004, AC-006 | D-002 | T002, T003, T005 | partial | AC-004 verified; AC-006 budget remains T005 |
-| Requirement 6 | AC-005, AC-006 | D-003 | T001, T005 | not-covered | Planned work in this package |
+| Requirement 5 | AC-004, AC-006 | D-002 | T002, T003, T005 | covered | Disabled behaviour verified; indicative overhead review satisfies revised AC-006 with uncertainty disclosed |
+| Requirement 6 | AC-005, AC-006 | D-003 | T001, T005 | covered | Comparable repeated evidence satisfies revised indicative criteria; strict historical outcomes unchanged |
 | Requirement 7 | AC-007 | D-004 | T006, T007 | not-covered | Planned work in this package |
 
 ## Correctness Property Coverage
@@ -66,9 +67,9 @@ contracts in implementation. T006 resolves deeper optimization choices after mea
 
 | Design Section | Requirements | Tasks | Interfaces Or Files | Verification | Coverage State | Residual Destination |
 | --- | --- | --- | --- | --- | --- | --- |
-| D-001 | Requirement 1, Requirement 2 | T001, T002, T004 | SketchObject.cpp, SketchObjectConstraints.cpp, SketchObject.h | AC-001, AC-002 | partial | Implementation and core correctness verified T004; broader GUI T005 |
-| D-002 | Requirement 3, Requirement 4, Requirement 5 | T002, T003 | SketcherTrace.h/.cpp, SketchObject entry scopes, Sketch.cpp, planegcs/GCS.cpp | AC-003, AC-004, AC-006 | partial | Tracing native/process verified; overhead budget T005; promotion T007 |
-| D-003 | Requirement 2, Requirement 6 | T001, T005 | Native fixtures and private benchmark receipts | AC-002, AC-005, AC-006 | not-covered | Planned work in this package |
+| D-001 | Requirement 1, Requirement 2 | T001, T002, T004 | SketchObject.cpp, SketchObjectConstraints.cpp, SketchObject.h | AC-001, AC-002 | covered | Native/Python/model and bounded Linux GUI verified T004/T005 |
+| D-002 | Requirement 3, Requirement 4, Requirement 5 | T002, T003 | SketcherTrace.h/.cpp, SketchObject entry scopes, Sketch.cpp, planegcs/GCS.cpp | AC-003, AC-004, AC-006 | partial | Tracing and indicative overhead review verified; promotion T007 |
+| D-003 | Requirement 2, Requirement 6 | T001, T005 | Native fixtures and private benchmark receipts | AC-002, AC-005, AC-006 | covered | Correctness and indicative timing evidence complete under timing-evidence-decision.md |
 | D-004 | Requirement 7 | T006, T007 | Proposed diagnostics reference and runbook | AC-007 | not-covered | Planned work in this package |
 
 ## Authority Review
@@ -92,9 +93,9 @@ The finding-by-finding disposition is in
 two external-reference tests, native duplicate-setup reproduction, nine optimized
 baseline batches and private build/raw/analysis receipts. [workloads.json](workloads.json)
 freezes each runnable execution vector and reset/cache protocol. T001 is complete;
-T002 through T004 are complete; T005 is the next pending task and owns matched
-candidate acceptance and noise investigation. Tracing delivery now has native/
-process evidence, while all performance budget decisions remain pending.
+T002 through T005 are complete after correctness/GUI verification and indicative
+timing review. Earlier strict-gate uncertainty remains recorded, with no promise
+of regression-free behaviour or guaranteed overhead bounds. T006 is ready.
 
 ## T002 Evidence Status
 
@@ -120,3 +121,23 @@ core regression matrix. Correctness-required observer-input refresh and legacy
 fallbacks retain extra setups. Native/Python/model evidence does not pass T005's
 GUI and matched latency/overhead gates. T004 implementation is complete; durable
 reference/runbook promotion remains T007.
+
+## Original T005 Strict-Gate Evidence Status (Superseded)
+
+[performance-validation-report.md](performance-validation-report.md) and
+[performance-results.json](performance-results.json) provide correctness, all
+batch/pooled statistics, execution/reset counts and budget dispositions.
+AC-002's bounded Linux GUI gap is closed. The master/profile speedup requirement
+passes, but overall AC-005 and AC-006 remain inconclusive after the full sampling
+bound. T005 stays partial; T006's dependency and T007 closure are not satisfied.
+The current data must be retained when defining a separate controlled-host cohort;
+do not pool different machines or relabel this cohort as accepted.
+
+## Current T005 Evidence Status
+
+The user explicitly revised timing acceptance to indication of improvement on
+2026-11-05. [timing-evidence-decision.md](timing-evidence-decision.md) links the
+revised AC-005/AC-006 to the unchanged samples, two-to-one setup counts, approximately
+47%/57% lower representative medians and passing correctness checks. Variability
+and the original inconclusive strict-gate results remain disclosed. T005 is
+complete; T006 is ready. T007 still requires attribution, review and promotion.

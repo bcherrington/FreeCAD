@@ -162,6 +162,7 @@ def main():
             "55a0b21e57c979fe9e53dd89c073c47b2718257e7e7b10298375379094e3d4eb"
         )
 
+    controlled = os.environ.get("SKETCH_PERF_CONTROLLED") == "1"
     rows = []
     expected = None
 
@@ -207,13 +208,27 @@ def main():
             persistent = open_fixture()
             persistent.recompute()
 
-        for iteration in range(2 + pairs * 2):
-            if iteration < 2:
-                label = f"warmup-{iteration}"
+        def labels():
+            if controlled:
+                print("SKETCH_PERF_READY", flush=True)
+                for request in sys.stdin:
+                    label = json.loads(request)
+                    if label == "stop":
+                        return
+                    yield label
+                    # Report only after validation, undo/restoration and discard.
+                    print("SKETCH_PERF_ROW " + json.dumps(rows[-1]), flush=True)
+                raise RuntimeError("comparison controller disconnected")
             else:
-                pair, side = divmod(iteration - 2, 2)
-                order = ("A", "B") if pair % 2 == 0 else ("B", "A")
-                label = f"pair-{pair}-{order[side]}"
+                for iteration in range(2 + pairs * 2):
+                    if iteration < 2:
+                        yield f"warmup-{iteration}"
+                    else:
+                        pair, side = divmod(iteration - 2, 2)
+                        order = ("A", "B") if pair % 2 == 0 else ("B", "A")
+                        yield f"pair-{pair}-{order[side]}"
+
+        for label in labels():
 
             if case == "warm_load":
                 document = measure(open_fixture, validate_private_load, label)

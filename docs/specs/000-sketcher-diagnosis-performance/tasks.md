@@ -13,8 +13,9 @@ last_reviewed: 2026-11-05
 [Traceability](traceability.md), [Design](design.md), [Plan](plan.md),
 [Research](research.md), [Verification](verification.md).
 
-T001 through T004 are complete. Ordinary recompute now uses one authoritative
-setup. T005 comparative performance and broader GUI acceptance remain pending.
+T001 through T005 are complete. Ordinary recompute uses one authoritative setup;
+correctness/GUI checks and indicative timing evidence satisfy the revised standard
+in timing-evidence-decision.md. T006 attribution is next.
 
 ## Phase 1 - Baseline and contract
 
@@ -98,19 +99,22 @@ setup. T005 comparative performance and broader GUI acceptance remain pending.
   - Status: T004 complete; T005 ready. AC-001 and core correctness verified. Matched elapsed speedup/regression/tracing-off overhead budgets and broader disposable GUI checks remain T005; no performance percentage claimed.
 ## Phase 3 - Measurement and follow-up
 
-- [ ] T005 Validate correctness and measure end-to-end impact
+- [x] T005 Validate correctness and measure end-to-end impact
   - Depends on: T004
   - Requirement: Requirement 2/Requirement 6; AC-002/AC-005/AC-006; D-003.
-  - Files: `verification.md`, private benchmark receipts
+  - Files: `verification.md`, `performance-validation-report.md`, `comparison-protocol.md`, `timing-evidence-decision.md`, `performance-results.json`, `tools/profile/run_sketcher_comparison.py`, `tools/profile/sketcher_baseline.py`, `tools/profile/test_sketcher_comparison.py`, private benchmark receipts
   - Run build/focused and affected suites; compare synthetic/master/plate workloads
     in equivalent optimized builds. Use disposable GUI processes for GUI-only checks.
   - Acceptance: correctness matrix passes; workload execution/reset checks pass.
-    Record raw alternating pairs, medians, MAD, bootstrap intervals, rejected-pair
-    reasons and budget dispositions, including tracing-off overhead. Apply the
-    bounded additional-batch rule; unresolved threshold overlap is inconclusive
-    and cannot pass acceptance. No gains inferred from logs or medians alone.
-  - Evidence: exact commands, output receipts, geometry/diagnostic comparisons and timing data.
+    Record comparable repeated timings, medians/spread, execution/setup counts,
+    rejected-sample reasons and caveats, including tracing-disabled observations.
+    Establish an indication of improvement supported by correctness/count evidence;
+    investigate apparent repeatable material slowdowns. Strict percentage and
+    confidence-bound gates are not required under timing-evidence-decision.md.
+  - Evidence: Reassessed on 2026-11-05 under the user's explicit request for an indication of improvement rather than strict performance measurements. Revised AC-005/AC-006 and timing-evidence-decision.md keep correctness, equivalent inputs/settings/builds and actual execution/setup validation strict, while making confidence/percentage gates diagnostic. Existing evidence suffices: setups two to one; representative master/profile medians approximately 47%/57% lower; 190 matched triples/570 timed samples retained; native 149/149, affected Python 97 run with one existing skip, full model comparisons and nine bounded GUI stages pass. Other workload and disabled-overhead observations reviewed with variability disclosed; no guaranteed absence of regression/overhead claimed. Original raw data, per-batch/pooled statistics and inconclusive strict-gate outcomes unchanged. No additional timing runs or model edits required.
 
+  - Evidence mode: artifact
+  - Status: T005 complete under user-approved indicative timing criteria; T006 ready. The former strict AC-005/AC-006 results remain historical and are not relabelled passed. Controlled-host reruns are optional follow-up. Correctness/execution contracts unchanged; final attribution/promotion/review/closure remain T006/T007. Changes uncommitted.
 - [ ] T006 Attribute remaining costs and decide further work
   - Depends on: T005
   - Requirement: Requirement 7; AC-007; D-004.

@@ -13,8 +13,10 @@ last_reviewed: 2026-11-05
 
 Reduce duplicate native sketch diagnosis, provide optional phase timings and
 measure remaining cost while preserving modelling behaviour. See [spec](spec.md)
-for scenarios and scope. T003 implements optional phase tracing; setup deferral,
-comparative performance acceptance and final promotion remain pending.
+for scenarios and scope. T003/T004 implement tracing and setup deferral. T005
+correctness and bounded measurements are recorded in performance-validation-report.md;
+indicative timing acceptance is satisfied under timing-evidence-decision.md; final
+attribution and promotion remain pending.
 
 ## Goals
 
@@ -43,8 +45,9 @@ Add verified behaviour and interfaces to proposed
 
 - T001 baseline and T002 timing/invalidation contract are complete; their evidence
   is in baseline-report.md and timing-invalidation-contract.md.
-- T003 tracing is implemented and validated; T004 is the next implementation slice.
-  Comparative performance and final delivery acceptance remain pending.
+- T003 tracing and T004 setup deferral are implemented and validated. T005 bounded
+  measurements and correctness checks satisfy the revised indicative AC-005/AC-006.
+  T005 is complete; T006 attribution and T007 promotion/closure remain pending.
 - Code changes require the task dependencies and design decisions to be satisfied.
 - No design-first exception; measurable requirements precede implementation.
 
@@ -135,9 +138,10 @@ Performance evidence MUST compare equivalent fixtures, operations,
   settings and build configurations, including tracing-disabled results.
   Workload execution/reset/cache protocols MUST be frozen in T001 and verified
   with execute/setup counts. Clean no-op and forced unchanged-geometry recompute
-  MUST be separate cases; a skipped sketch MUST NOT satisfy the speedup target.
-  Acceptance MUST use the uncertainty and inconclusive-result protocol in
-  verification.md, not a median-only comparison.
+  MUST be separate cases; a skipped sketch MUST NOT count as evidence of improvement.
+  Acceptance MUST use the indicative evidence protocol in verification.md: repeated
+  comparable timings, spread and caveats, supported by actual setup counts and
+  unchanged modelling results. Formal confidence-bound gates are not required.
 
 #### Acceptance Criteria
 
@@ -176,20 +180,21 @@ Further optimizations MUST be selected only after attributing
    per diagnosis, with correct dimensions/method/rank on a known small fixture.
 4. **AC-004**: Given tracing disabled, when the same operations run, then no new
    detailed records are emitted and existing timing getters retain their meaning.
-5. **AC-005**: Given matched optimized builds, warmups and at least ten samples
-   per configuration, then record raw data, median and spread. The initial target
-   is at least 10% lower median total recompute time on one diagnosis-dominated
-   fixture, with no other selected workload regressing by more than the greater
-   of 5% or 1 ms. These are proposed acceptance budgets, not measured savings.
-   A missed budget requires investigation and explicit disposition, not a silent
-   reduction of the target or a correctness tradeoff. Use paired alternating
-   runs, median absolute deviation and a paired bootstrap 95% interval as defined
-   in verification.md. A threshold-overlapping interval is inconclusive, not a pass.
-6. **AC-006**: Given an equivalent instrumentation-only build with tracing off,
-   then its median overhead versus baseline is no more than the greater of 2%
-   or 1 ms. Apply the same paired-run uncertainty gate; an interval overlapping
-   the allowed overhead requires the bounded additional batches or an explicit
-   inconclusive disposition defined in verification.md.
+5. **AC-005**: Given comparable optimized builds, the same frozen workloads and
+   settings, warmups and several repeated samples per configuration, record raw
+   timings, medians and spread. Demonstrate an indication of useful improvement
+   on a representative diagnosis-heavy workload, supported by actual execution/
+   setup counts and unchanged modelling results. Review the other measured
+   workloads; investigate and explicitly disposition any apparent repeatable
+   material slowdown. Disclose variability and scope. No minimum percentage,
+   mandatory bootstrap interval or controlled-host validation is required.
+6. **AC-006**: Given comparable baseline and instrumentation-only builds with
+   tracing disabled, record indicative timing differences and variability on
+   representative workloads. Investigate and disposition any apparent repeatable
+   material slowdown attributable to instrumentation. Uncertain or near-flat
+   measurements may be reported with their limitations without blocking delivery;
+   do not claim proven zero overhead or a guaranteed upper bound.
+
 7. **AC-007**: Given the phase results, then publish a ranked follow-up decision
    covering unchanged metadata, matrix copies, structural reuse and sparse
    assembly, with measured justification and a destination for deferred work.
@@ -212,3 +217,7 @@ evidence for AC-001 through AC-007 in [verification.md](verification.md).
 
 [Specification](spec.md), [Design](design.md), [Tasks](tasks.md),
 [Traceability](traceability.md), [Verification](verification.md).
+
+Timing acceptance was revised by explicit user direction on 2026-11-05; see
+[timing-evidence-decision.md](timing-evidence-decision.md). Earlier strict-gate
+statistics remain historical evidence, not current completion criteria.

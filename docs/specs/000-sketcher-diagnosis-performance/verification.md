@@ -21,18 +21,20 @@ T003 tracing is implemented and validated in
 [phase-tracing-report.md](phase-tracing-report.md). T004 setup deferral and native/
 Python/model correctness are verified in
 [diagnosis-deferral-report.md](diagnosis-deferral-report.md). Comparative performance
-and broader GUI acceptance remain T005. Baseline A/A results do not satisfy candidate budgets.
+acceptance satisfies the user-approved indicative standard; see
+[the T005 report](performance-validation-report.md). Bounded GUI checks pass.
+T005 is complete; historical strict-gate uncertainty remains disclosed.
 
 ## Acceptance And Traceability
 
 | Requirement | Design | Tasks | Cases | State |
 | --- | --- | --- | --- | --- |
 | FR-001 | D-001 | T001, T002, T004 | AC-001 | One-setup invariant verified in T004 |
-| FR-002 | D-001, D-003 | T001, T002, T004, T005 | AC-002 | Native/Python/model verified T004; broader GUI T005 |
+| FR-002 | D-001, D-003 | T001, T002, T004, T005 | AC-002 | Linux native/Python/model and bounded GUI verified T004/T005 |
 | FR-003 | D-002 | T002, T003 | AC-003 | Native/process verified in T003 |
 | FR-004 | D-002 | T002, T003 | AC-003 | Native/process verified in T003 |
-| FR-005 | D-002 | T002, T003, T005 | AC-004, AC-006 | AC-004 verified; AC-006 pending T005 |
-| FR-006 | D-003 | T001, T005 | AC-005, AC-006 | Pending |
+| FR-005 | D-002 | T002, T003, T005 | AC-004, AC-006 | AC-004 verified; indicative AC-006 satisfied with uncertainty disclosed |
+| FR-006 | D-003 | T001, T005 | AC-005, AC-006 | Indicative AC-005/AC-006 satisfied; former strict gates retained as historical |
 | FR-007 | D-004 | T006, T007 | AC-007 | Pending |
 
 ## Correctness Matrix
@@ -86,44 +88,33 @@ Reject an entire matched pair if counts, inputs or reset checks fail; retain the
 raw pair and reason, and replace it under the original ordering protocol. Process
 survival is insufficient: validate geometry, diagnostics and links after samples.
 
-### Pairing, variability and budget decisions
+### Indicative comparisons and variability
 
-Compare baseline, instrumentation-only and optimized configurations in equivalent
-optimized builds. Attribute phases with tracing on; enforce total latency and
-instrumentation overhead with tracing off. Record machine/compiler/dependency
-identity, source and flags, preferences, fixture hashes, process/cache class,
-workload/reset commands and sampling order. Reset disposable state outside the
-measured region; never reuse a changed sketch as the next precursor.
+The current policy is [timing-evidence-decision.md](timing-evidence-decision.md),
+which supersedes mandatory percentage/confidence gates. Keep comparable optimized
+baseline, instrumentation-only and candidate builds, unchanged settings, frozen
+operations/cache/reset boundaries and actual execution/setup checks. Keep strict
+correctness validation and reject mismatched/skipped-work samples.
 
-For each comparison/workload, perform at least two untimed warmup runs per
-configuration where warming is meaningful. Then collect a batch of ten matched
-baseline/candidate pairs, alternating A/B then B/A order by pair. Fresh-process
-loads use new processes throughout; warmups do not turn that case into reopened
-load. Keep raw samples, pair IDs, order and rejection reasons. Report each
-configuration's median and median absolute deviation (MAD), plus the effect and
-its paired bootstrap percentile 95% confidence interval. Resample whole pairs
-10,000 times with a recorded fixed seed; recompute both medians and the effect
-for every resample. Never resample the two configurations independently.
+Use warmups where meaningful and several repeated samples per configuration;
+five measured samples is a reasonable starting point, not a statistical guarantee.
+Alternate configurations where practical. Keep raw observations and report medians
+and spread (MAD or range), including process/cache class and machine/build identity.
+Bootstrap intervals are optional context. Existing 10/30-pair samples are sufficient;
+no new run is needed solely to satisfy a confidence bound.
 
-For speedup use `1 - candidate_median / baseline_median` and require the entire
-interval to be at least 10% on one eligible diagnosis-dominated workload. For
-regression/disabled overhead use `candidate_median - baseline_median`, with
-allowance `max(0.05 * baseline_median, 0.001 seconds)` and
-`max(0.02 * baseline_median, 0.001 seconds)` respectively. In each bootstrap
-resample recompute the allowance from that resample's baseline median; assess
-its interval on `difference - allowance`. A regression/overhead gate passes
-only when its entire interval is at or below zero. An interval wholly on the
-unacceptable side is a failure; one crossing a threshold is inconclusive.
+Accept indicative improvement when repeated timings and setup counts support a
+useful reduction on a representative diagnosis-heavy workload, with unchanged
+modelling results. Review the other workloads and tracing-disabled comparison for
+apparent repeatable material slowdowns; investigate and record their disposition
+if found. Report noisy controls honestly. Timing variability or overlap with the
+former 10%/5%/2% thresholds does not block completion. This is not proof of no
+regression, zero overhead or a universal speedup.
 
-For an inconclusive gate, collect at most two additional independent batches of
-ten matched pairs with the same manifest, warmup policy and alternating order;
-report per-batch results and the pooled paired interval without dropping an
-unfavourable batch. If uncertainty still crosses the threshold after thirty
-pairs, retain an explicit inconclusive result: the criterion is not met. Investigate
-noise or route a bounded measurement follow-up; do not weaken the target, accept
-from the median alone or describe an inconclusive result as no regression.
-These intervals are diagnostic estimates, not a claim to remove all measurement
-bias. Record systematic process/cache or thermal variation separately.
+The original stricter collection and analysis are preserved in
+[comparison-protocol.md](comparison-protocol.md) and
+[performance-results.json](performance-results.json), with their original outcomes.
+Do not relabel those historical statistical gates as passed.
 
 ## Commands And Evidence
 
@@ -185,7 +176,8 @@ AC-006 or claim the proposed guard is already implemented.
 - Implementation: T001's executed/reset manifests and T002's timing/counter and
   index-validation/diagnostic-observer contracts are approved before T003/T004.
   Missing validation ownership or non-recompute coverage blocks T004.
-- Validation: AC-001 through AC-006 backed by actual tests/measurements.
+- Validation: AC-001 through AC-006 backed by actual tests and indicative measurements
+  under timing-evidence-decision.md; correctness and execution checks remain strict.
 - Closure: AC-007, review disposition, promotion and residual ownership complete.
 
 ## Evidence Log
@@ -206,8 +198,9 @@ and no history index exists; creation used the tool's revalidated proposal.
 Source pointers can drift, private fixtures may become unavailable, and historical
 logs do not establish remaining phase costs. T001 pinned source/fixture/build
 identity. Preserve the unverified symmetry case in T006. Large A/A intervals in
-the baseline require noise investigation and fresh matched comparisons in T005;
-they cannot justify passing a budget or weakening acceptance.
+the baseline require uncertainty disclosure. The user-approved indicative timing
+policy supersedes strict confidence gates; historical outcomes remain unchanged
+and correctness/execution requirements are not relaxed.
 
 ## MoE Review Disposition - 2026-11-05
 
@@ -290,3 +283,38 @@ coverage for index repair, diagnostic IDs/touched/ordering, external references,
 scalar/list transactions, noRecomputes, direct changes, immediate post-undo/redo
 solve/move, driving/reference transitions and thickness propagation/restoration.
 Broader GUI panel/recovery checks and all matched elapsed budgets remain T005.
+
+## T005 Original Strict-Gate Disposition (Superseded)
+
+[performance-validation-report.md](performance-validation-report.md),
+[performance-results.json](performance-results.json) and
+[comparison-protocol.md](comparison-protocol.md) record 190 matched triples,
+570 timed samples, 114 warmups and zero rejected execution/state pairs. Master
+and plate-profile recompute exceed the 10% improvement target across their paired
+intervals. Native 149/149, affected Python 97 tests (one existing skip), three-way
+full model comparisons and nine GUI panel/recovery stages pass on Linux.
+
+AC-005 and AC-006 do not pass overall: thickness/fresh-load regression and all
+five repeated tracing-off-overhead gates remain inconclusive after 30 pairs.
+T005 remains partial. Its owner must resolve measurement uncertainty on a
+controlled host under a separately frozen follow-up protocol; the existing
+sample bound must not be extended or targets weakened. T006 dependency and T007
+closure remain blocked by this acceptance gap. No permission or waiver is inferred.
+
+## Current T005 Acceptance - User-Approved Indicative Evidence
+
+The user revised the timing objective on 2026-11-05; see
+[timing-evidence-decision.md](timing-evidence-decision.md). Existing matched samples
+and two-to-one setup counts indicate improvement: approximately 47% lower master
+and 57% lower plate-profile median target recompute. Native/Python/model and bounded
+GUI correctness checks pass. Other workloads and tracing-disabled results have
+been reviewed; their variable estimates do not establish a consistent material
+slowdown attributable to the change, nor prove its absence. AC-005/AC-006 are
+satisfied under the revised criteria; T005 is complete and T006 is ready.
+The earlier strict confidence gates remain inconclusive historically. No raw data
+was changed, no regression-free guarantee is made and no new measurement is needed.
+
+R-005's earlier recommendation for strict confidence gates is superseded for timing
+acceptance by the explicit user decision. Its uncertainty-disclosure concern remains:
+retain raw results/spread and avoid claiming no regression from noisy data. R-001
+through R-004 and R-006 correctness, execution and diagnostic requirements are unchanged.

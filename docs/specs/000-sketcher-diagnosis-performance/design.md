@@ -121,7 +121,8 @@ stages are defined in
 [C-003 through C-006](timing-invalidation-contract.md#c-003---trace-control-correlation-and-ownership).
 The process-start control `FREECAD_SKETCHER_TRACE=1` and the private helper are
 implemented in T003, with 21 tracing tests and isolated-process validation.
-Disabled instrumentation-overhead acceptance remains T005.
+Indicative disabled-instrumentation assessment is complete in T005; uncertainty
+is disclosed under timing-evidence-decision.md.
 
 ### D-003 - Fixtures and comparative measurement
 
@@ -136,12 +137,12 @@ numeric tolerances, external-link propagation, valid solids and undo/redo.
 A timer-only change must not change any of those results.
 
 Use matching optimized builds for performance acceptance. Debug builds remain
-useful for call counts and correctness but cannot establish production budgets.
+useful for call counts and correctness; optimized builds provide indicative timings.
 Record machine, source commit, compiler/dependencies, build flags, preferences,
 fixture hashes, warmups, sample order, raw paired samples, median, median absolute
-deviation and paired bootstrap 95% intervals. Alternate baseline/candidate order
-within matched pairs. The normative workload/reset/cache definitions and bounded
-uncertainty escalation rule are in [verification.md](verification.md#measurement-matrix).
+deviation or range. Bootstrap intervals are optional context. Alternate configurations
+where practical. The normative workload/reset/cache definitions and indicative
+evidence policy are in [verification.md](verification.md#measurement-matrix).
 
 T001 freezes separate clean no-op and forced unchanged-geometry execution cases,
 asserting actual execute/setup counts. Only the latter is eligible for diagnosis
@@ -150,8 +151,9 @@ label filesystem cache state as uncontrolled unless independently established.
 Freeze each edit's precursor, reset method and measured boundary before collecting
 results; discard and explain any pair that did not perform the intended operation.
 Preserve originals and restore disposable starting states; do not retry unknown
-bridge outcomes. A result remains inconclusive when uncertainty spans a budget
-following the bounded additional batches; it cannot satisfy acceptance by fiat.
+bridge outcomes. Disclose timing uncertainty without requiring strict confidence
+bounds; review apparent repeatable material slowdowns. The explicit user-approved
+policy is in [timing-evidence-decision.md](timing-evidence-decision.md).
 
 ### D-004 - Evidence-led follow-up gate
 

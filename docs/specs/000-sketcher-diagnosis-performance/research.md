@@ -136,3 +136,31 @@ fallback, not a candidate for blanket suppression. Ordinary unchanged recompute
 needs one setup. Native, Python and frozen-model checks establish behaviour; T005
 still owns elapsed speedup, regression/overhead budgets and disposable GUI checks.
 No matrix-copy, structural-reuse or sparse-assembly rewrite was started.
+
+## Original T005 Strict-Gate Reconciliation - 2026-11-05 (Superseded)
+
+Three optimized configurations were checked against the same native execution
+and model-state protocol. Candidate master/profile target recompute median
+speedups are 47.07% (paired 95% interval 44.44–68.46%) and 57.06%
+(42.02–64.88%). These exclude downstream whole-document propagation by the frozen
+T001 boundary. Separate thickness/load and tracing-disabled-overhead gates have
+unresolved confidence intervals after the maximum 30 pairs; overall AC-005/AC-006
+are inconclusive, not passed. See performance-validation-report.md and
+performance-results.json for every batch, MAD, interval and disposition.
+
+Separate tracing-on runs preserve active-constraint/equation/unknown/matrix/rank
+counters while setups drop two to one. Diagnosis still dominates setup. Master
+allocated/effective dimensions are 482x481 / 481x481, rank 481; profile 695x742 /
+695x742, rank 695. Both use dense QR. These are stage-labelled structural facts,
+not evidence for a matrix-copy or sparse-assembly rewrite. T006 is not started;
+T005 acceptance must be resolved before that task proceeds.
+
+## User-Approved Timing Evidence Revision - 2026-11-05
+
+The user wants an indication of improvement, not strict performance measurement.
+See [timing-evidence-decision.md](timing-evidence-decision.md). Existing observations
+and correctness/execution checks satisfy that objective; T005 is complete and T006
+can proceed. Formal percentage/confidence limits no longer block completion.
+All original samples and strict outcomes remain unchanged. Load/thickness/overhead
+variability remains a limitation, not evidence of guaranteed no regression. A new
+controlled-host cohort is optional unless a concrete repeatable slowdown warrants it.

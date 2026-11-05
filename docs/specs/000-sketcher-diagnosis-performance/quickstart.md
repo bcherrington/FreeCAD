@@ -12,8 +12,10 @@ last_reviewed: 2026-11-05
 ## Purpose
 
 Resume the performance work without touching the operator's working CAD session.
-T003's optional tracing and T004's setup deferral are implemented. T005 owns
-matched performance measurements and broader GUI acceptance.
+T003's optional tracing, T004's setup deferral and T005 validation are complete.
+Timing evidence now uses the user-approved indicative standard; review
+[the validation report](performance-validation-report.md) and
+[timing-evidence-decision.md](timing-evidence-decision.md).
 
 ## Prerequisites
 
@@ -26,11 +28,13 @@ matched performance measurements and broader GUI acceptance.
 
 ## Steps
 
-1. T001 through T004 are complete. Read the
+1. T001 through T005 are complete. Read the
    [baseline report](baseline-report.md), [manifest](workloads.json) and
    [contract](timing-invalidation-contract.md). Use Spec Lifecycle Manager context
-   for T005, recheck source freshness through Agent Workbench and direct reads,
-   and mark T005 in progress before validation.
+   for T006, recheck source freshness through Agent Workbench and direct reads,
+   and mark T006 in progress before starting attribution/follow-up decisions.
+   The existing data satisfies T005's revised indicative timing criteria; no
+   additional confidence-bound measurement is required.
 2. Verify fixture hashes and use disposable copies for further measurements.
    Preserve the frozen execution/reset/cache boundaries and verify counts on
    each new build; retain the distinction between no-op and actual recompute.
@@ -39,16 +43,16 @@ matched performance measurements and broader GUI acceptance.
    `FREECAD_SKETCHER_TRACE=1`; see [the tracing report](phase-tracing-report.md).
 4. Read [the deferral report](diagnosis-deferral-report.md). Preserve the pinned
    T003 two-setup baseline and compare it with the candidate in equivalent builds.
-5. Build with `pixi run build -j 2`, run the discovered focused/affected checks,
-   then use matched optimized builds for T005's alternating-pair/MAD/bootstrap
-   measurements and bounded inconclusive-result protocol.
+5. If code changes in further work, build with `pixi run build -j 2` and run
+   relevant checks. Use comparable optimized timings for indications of improvement;
+   disclose variability and investigate apparent repeatable material slowdowns.
 6. Record the follow-up decision in T006 and promote verified guidance in T007.
 
 ## Expected Results
 
 The affected ordinary execute path diagnoses once with identical modelling
 results. Optional timings distinguish setup, QR and solve costs. Performance
-results include raw repeated samples and explicit budget dispositions.
+results include repeated comparable samples, spread and explicit limitations.
 
 ## Use Optional Phase Tracing
 
@@ -101,3 +105,16 @@ preferences and current runtime intact. Retain private measurements outside Git;
 remove temporary diagnostic code unless intentionally retained and reviewed.
 Do not merge into the integration branch or install a snapshot as part of merely
 creating or resuming the specification.
+
+## Matched T005 Comparisons
+
+Use `tools/profile/run_sketcher_comparison.py` with explicit baseline,
+instrumentation-only and candidate runtime roots; the executable example is in
+[performance-validation-report.md](performance-validation-report.md). The
+[comparison protocol](comparison-protocol.md) documents the alternating triples,
+reset handshake, affinity and original statistical analysis. That analysis is
+historical: the current indicative acceptance policy does not require a new
+controlled-host cohort or confidence gate. Preserve the existing raw data and
+separately identify any optional future measurements.
+Run `pixi run python -m unittest discover -s tools/profile -p test_sketcher_comparison.py -v`
+for the analytical/controller checks, and Black with 100 columns for these helpers.

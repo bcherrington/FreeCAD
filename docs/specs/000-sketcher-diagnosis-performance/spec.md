@@ -14,8 +14,10 @@ last_reviewed: 2026-11-05
 Reduce repeated Sketcher setup and diagnosis during document recompute, add
 optional phase timings, and use comparable measurements to select further work.
 The user requested this package after discussing these two initial changes.
-T001 baseline investigation has started; the production optimization and optional
-phase tracing have not been implemented.
+T001 through T004 are complete, including optional phase tracing and one-setup
+ordinary recompute. T005 correctness and bounded measurements are finished, but
+the user-approved indicative timing requirement is satisfied; see
+[the validation report](performance-validation-report.md).
 
 ## Problem
 
@@ -70,7 +72,7 @@ Maps to FR-003/FR-004/FR-005, AC-003/AC-004/AC-006.
 
 A maintainer receives matched timing evidence and bounded follow-up proposals.
 Independent test: reproduce an executed/reset-checked paired benchmark receipt,
-apply uncertainty/inconclusive gates and inspect the decision table.
+report indicative improvement and variability, then inspect the decision table.
 Maps to FR-006/FR-007, AC-005/AC-007.
 
 ## Edge Cases
@@ -85,7 +87,7 @@ Maps to FR-006/FR-007, AC-005/AC-007.
 
 - **SC-001**: AC-001 and AC-002 pass before performance gains are accepted.
 - **SC-002**: AC-003, AC-004 and AC-006 establish usable optional diagnostics.
-- **SC-003**: AC-005 has reproducible before/after evidence and budget disposition.
+- **SC-003**: AC-005 has comparable before/after evidence of improvement with variability disclosed.
 - **SC-004**: AC-007 and durable documentation promotion complete before closure.
 
 ## Related Artifacts
