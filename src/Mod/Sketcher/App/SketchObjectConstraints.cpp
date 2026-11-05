@@ -42,6 +42,7 @@
 
 #include "GeoEnum.h"
 #include "SketchObject.h"
+#include "SketcherTrace.h"
 
 
 #undef DEBUG
@@ -77,6 +78,11 @@ void SketchObject::retrieveSolverDiagnostics()
 
 SketchSolveStatus SketchObject::solve(bool updateGeoAfterSolving /*=true*/)
 {
+    Trace::Operation trace("solve", "explicit_solve", getDocument(), this);
+    if (trace) {
+        trace.identify(getDocument() ? getDocument()->getName() : "", getNameInDocument());
+        trace.inputConstraints(Constraints.getValues());
+    }
     // no need to check input data validity as this is an sketchobject managed operation.
     Base::StateLocker lock(managedoperation, true);
 
@@ -170,6 +176,7 @@ SketchSolveStatus SketchObject::solve(bool updateGeoAfterSolving /*=true*/)
         FullyConstrained.setValue(lastDoF == 0);
         if (updateGeoAfterSolving) {
             // set the newly solved geometry
+            Trace::Span writeback(Trace::Phase::GeometryWriteback);
             std::vector<Part::Geometry*> geomlist = solvedSketch.extractGeometry();
             Part::PropertyGeometryList tmp;
             tmp.setValues(std::move(geomlist));
@@ -179,6 +186,8 @@ SketchSolveStatus SketchObject::solve(bool updateGeoAfterSolving /*=true*/)
 
     signalSolverUpdate();
 
+    trace.result(status == SketchSolveStatus::Success ? Trace::Outcome::Success
+        : Trace::Outcome::RecoverableError, static_cast<int>(status));
     return status;
 }
 
@@ -772,6 +781,11 @@ int SketchObject::setVisibility(int ConstrId, bool isVisible)
 
 int SketchObject::setUpSketch()
 {
+    Trace::Operation trace("additional_setup", "diagnosis", getDocument(), this);
+    if (trace) {
+        trace.identify(getDocument() ? getDocument()->getName() : "", getNameInDocument());
+        trace.inputConstraints(Constraints.getValues());
+    }
     lastDoF = solvedSketch.setUpSketch(
         getCompleteGeometry(), Constraints.getValues(), getExternalGeometryCount());
 
@@ -781,12 +795,21 @@ int SketchObject::setUpSketch()
         || lastHasPartialRedundancies)
         Constraints.touch();
 
+    if (trace) {
+        trace.result(lastHasRedundancies || lastDoF < 0 || lastHasConflict || lastHasMalformedConstraints
+            ? Trace::Outcome::RecoverableError : Trace::Outcome::Success, lastDoF);
+    }
     return lastDoF;
 }
 
 int SketchObject::diagnoseAdditionalConstraints(
     std::vector<Sketcher::Constraint*> additionalconstraints)
 {
+    Trace::Operation trace("additional_setup", "additional_constraints", getDocument(), this);
+    if (trace) {
+        trace.identify(getDocument() ? getDocument()->getName() : "", getNameInDocument());
+        trace.inputConstraints(Constraints.getValues());
+    }
     auto objectconstraints = Constraints.getValues();
 
     std::vector<Sketcher::Constraint*> allconstraints;

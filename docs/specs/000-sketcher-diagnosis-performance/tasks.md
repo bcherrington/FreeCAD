@@ -13,8 +13,8 @@ last_reviewed: 2026-11-05
 [Traceability](traceability.md), [Design](design.md), [Plan](plan.md),
 [Research](research.md), [Verification](verification.md).
 
-T001 baseline establishment and T002 contract definition are complete. T003 is next.
-Production performance changes and delivery acceptance remain pending.
+T001 through T003 are complete. T004 is next; duplicate diagnosis is retained.
+Production performance gains and comparative acceptance remain pending.
 
 ## Phase 1 - Baseline and contract
 
@@ -57,22 +57,25 @@ Production performance changes and delivery acceptance remain pending.
   - Status: Design contract complete; T003 ready. Guard/tracing implementation and full non-target/exception/GUI proof remain T003/T004/T005; no production acceptance claimed.
 ## Phase 2 - First changes
 
-- [ ] T003 Add optional phase timings and regression coverage
+- [x] T003 Add optional phase timings and regression coverage
   - Depends on: T002
   - Requirement: Requirement 3/Requirement 4/Requirement 5; AC-003/AC-004/AC-006; D-002.
   - Files: `src/Mod/Sketcher/App/SketchObject.cpp`, `src/Mod/Sketcher/App/SketchObjectConstraints.cpp`, `src/Mod/Sketcher/App/Sketch.cpp`, `src/Mod/Sketcher/App/Sketch.h`, `src/Mod/Sketcher/App/planegcs/GCS.cpp`, `src/Mod/Sketcher/App/planegcs/GCS.h`, `tests/src/Mod/Sketcher/App/`
   - Implement scoped timing at the approved Sketcher/planegcs boundaries and native tests
     under `tests/src/Mod/Sketcher/App/`; update target wiring only if needed.
     Follow C-003 through C-006 in `timing-invalidation-contract.md`; source scope
-    includes the private SketcherTrace helper and movement entry in
-    `SketchObjectGeometry.cpp` when needed for reason correlation.
+    includes the private SketcherTrace helper and actual movement entry in
+    `SketchObjectOperations.cpp` for reason correlation. Implementation evidence
+    is in `phase-tracing-report.md` and the 21 new native tracing tests.
   - Acceptance: success/failure scopes close, identity/reasons correlate, overlapping
     and deferred QR timelines reconstruct from offsets/lanes/dispatch/join spans;
     known-fixture counters match equations, unknowns, matrix size, QR method and rank.
     Worker output is safe, tracing off is silent with no counter-only work, and
     existing `lastSolveTime` meaning and async launch policy remain unchanged.
-  - Evidence: focused test results, example redacted trace and disabled-path inspection.
+  - Evidence: Implemented C-003 through C-006 in private SketcherTrace helper and SketchObject/Sketch/planegcs entry/phase scopes. Twenty-one new tracing tests verify disabled work/output, exceptions/loss, context restoration, dense/sparse counters, block ordinals, actual invocation reasons, async/deferred intervals, unchanged payload copies and wait/deferred-discard semantics. Release full suite passes 136/136 with tracing off and on; Debug full suite passes 136/136. Five isolated FreeCADCmd control modes produce equal modelling state; on emits 194 complete validated JSON records, other modes none. Final pre-commit, line endings, local links/anchors/example JSON, CRLF-aware whitespace passed; package lint zero errors/two existing advisories. See phase-tracing-report.md, phase-trace-example.jsonl and private T003-phase-tracing source/binary/hash/raw receipts.
 
+  - Evidence mode: artifact
+  - Status: T003 complete; T004 ready. Duplicate setup and baseline observer effects retained. AC-003/AC-004 verified on Linux; AC-006 matched overhead and broader GUI/correctness/performance acceptance remain T005. Changes uncommitted.
 - [ ] T004 Remove duplicate ordinary recompute diagnosis
   - Depends on: T003
   - Requirement: Requirement 1/Requirement 2; AC-001/AC-002; D-001.

@@ -58,6 +58,9 @@
 #include <Base/Tools.h>
 
 #include "GCS.h"
+#include "../SketcherTrace.h"
+
+namespace Trace = Sketcher::Trace;
 #include "qp_eq.h"
 
 // NOTE: In CMakeList.txt -DEIGEN_NO_DEBUG is set (it does not work with a define here), to solve
@@ -1907,7 +1910,14 @@ SolveStatus System::solve(VEC_pD& params, Algorithm alg, bool isRedundantsolving
 
 SolveStatus System::solve(Algorithm alg, bool isRedundantsolving)
 {
+    Trace::Span trace(
+        Trace::Phase::SolveAttempt,
+        alg == DogLeg     ? "dogleg"
+            : alg == BFGS ? "bfgs"
+                          : "levenberg_marquardt"
+    );
     if (!isInit) {
+        trace.result(Trace::Outcome::Rejected, static_cast<int>(SolveStatus::Failed));
         return SolveStatus::Failed;
     }
 
@@ -1939,10 +1949,15 @@ SolveStatus System::solve(Algorithm alg, bool isRedundantsolving)
             // chances are low I've broken anything.
             double err = (*constr)->error();
             if (err * err > (isRedundantsolving ? convergenceRedundant : convergence)) {
+                trace.result(Trace::Outcome::RecoverableError, static_cast<int>(SolveStatus::Converged));
                 return SolveStatus::Converged;
             }
         }
     }
+    trace.result(
+        status == SolveStatus::Success ? Trace::Outcome::Success : Trace::Outcome::RecoverableError,
+        static_cast<int>(status)
+    );
     return status;
 }
 
@@ -4730,6 +4745,7 @@ void System::makeReducedJacobian(
     std::map<int, int>& tagmultiplicity
 )
 {
+    Trace::Span trace(Trace::Phase::Jacobian);
     // construct specific parameter list for diagonose ignoring driven constraint parameters
     for (int j = 0; j < int(plist.size()); j++) {
         auto result1 = std::ranges::find(pdrivenlist, plist[j]);
@@ -4772,6 +4788,11 @@ void System::makeReducedJacobian(
 
 int System::diagnose(Algorithm alg)
 {
+    Trace::Diagnosis trace;
+    if (auto* record = trace.record()) {
+        record->counters.equations = clist.size();
+        record->counters.unknowns = plist.size();
+    }
     // Analyses the constrainess grad of the system and provides feedback
     // The vector "conflictingTags" will hold a group of conflicting constraints
 
@@ -4785,6 +4806,7 @@ int System::diagnose(Algorithm alg)
     hasDiagnosis = false;
     if (!hasUnknowns) {
         dofs = -1;
+        trace.result(Trace::Outcome::NotRun, dofs);
         return dofs;
     }
 
@@ -4806,6 +4828,7 @@ int System::diagnose(Algorithm alg)
         hasDiagnosis = true;
         emptyDiagnoseMatrix = true;
         dofs = 0;
+        trace.result(Trace::Outcome::NotRun, dofs);
         return dofs;
     }
 
@@ -4837,6 +4860,9 @@ int System::diagnose(Algorithm alg)
     std::map<int, int> tagmultiplicity;
 
     makeReducedJacobian(J, jacobianconstraintmap, pdiagnoselist, tagmultiplicity);
+    if (trace) {
+        Trace::matrixCounters(jacobianconstraintmap.size(), pdiagnoselist.size(), J.rows(), J.cols());
+    }
 
     // this function will exit with a diagnosis and, unless overridden by functions below, with full
     // DoFs
@@ -4908,7 +4934,11 @@ int System::diagnose(Algorithm alg)
     }
 #endif
 
+    if (auto* counters = Trace::diagnosisCounters()) {
+        counters->method = qrAlgorithm == EigenDenseQR ? Trace::Method::Dense : Trace::Method::Sparse;
+    }
     if (J.rows() == 0) {
+        trace.result(Trace::Outcome::NotRun, dofs);
         return dofs;
     }
 
@@ -4935,7 +4965,7 @@ int System::diagnose(Algorithm alg)
         //
         // identifyDependentParametersDenseQR(J, jacobianconstraintmap, pdiagnoselist, true)
         //
-        auto fut = std::async(
+        auto fut = Trace::async(
             &System::identifyDependentParametersDenseQR,
             this,
             J,
@@ -4955,7 +4985,7 @@ int System::diagnose(Algorithm alg)
         // identifyDependentGeometryParametersInTransposedJacobianDenseQRDecomposition( qrJT,
         // pdiagnoselist, paramsNum, rank);
 
-        fut.wait();  // wait for the execution of identifyDependentParametersSparseQR to finish
+        Trace::wait(fut);  // preserve wait-only exception semantics
 
         dofs = paramsNum - rank;  // unless overconstraint, which will be overridden below
 
@@ -5012,7 +5042,7 @@ int System::diagnose(Algorithm alg)
         // auto fut =
         // std::async(std::launch::deferred,&System::identifyDependentParametersSparseQR, this,
         // J, jacobianconstraintmap, pdiagnoselist, false);
-        auto fut = std::async(
+        auto fut = Trace::async(
             &System::identifyDependentParametersSparseQR,
             this,
             J,
@@ -5034,7 +5064,7 @@ int System::diagnose(Algorithm alg)
         int paramsNum = SqrJT.rows();
         int constrNum = SqrJT.cols();
 
-        fut.wait();  // wait for the execution of identifyDependentParametersSparseQR to finish
+        Trace::wait(fut);  // preserve wait-only exception semantics
 
         dofs = paramsNum - rank;  // unless overconstraint, which will be overridden below
 
@@ -5070,6 +5100,12 @@ int System::diagnose(Algorithm alg)
     }
 #endif
 
+    trace.result(
+        dofs < 0 || !conflictingTags.empty() || !redundantTags.empty()
+            ? Trace::Outcome::RecoverableError
+            : Trace::Outcome::Success,
+        dofs
+    );
     return dofs;
 }
 
@@ -5083,6 +5119,7 @@ void System::makeDenseQRDecomposition(
     bool silent
 )
 {
+    Trace::Span trace(transposeJ ? Trace::Phase::QRJT : Trace::Phase::QRJ);
 
 #ifdef _GCS_DEBUG
     if (!silent) {
@@ -5112,12 +5149,16 @@ void System::makeDenseQRDecomposition(
 
         if (JG.rows() > 0 && JG.cols() > 0) {
 
-            qrJT.compute(JG);
+            {
+                Trace::Span compute(Trace::Phase::QRCompute);
+                qrJT.compute(JG);
+            }
 
             rowsNum = qrJT.rows();
             colsNum = qrJT.cols();
             qrJT.setThreshold(qrpivotThreshold);
             rank = qrJT.rank();
+            Trace::qrRank(transposeJ, rank);
 
             if (colsNum >= rowsNum) {
                 R = qrJT.matrixQR().triangularView<Eigen::Upper>();
@@ -5164,14 +5205,18 @@ void System::makeSparseQRDecomposition(
     bool silent
 )
 {
+    Trace::Span trace(transposeJ ? Trace::Phase::QRJT : Trace::Phase::QRJ);
 
     Eigen::SparseMatrix<double> SJ;
 
     // this creation is not optimized (done using triplets)
     // however the time this takes is negligible compared to the
     // time the QR decomposition itself takes
-    SJ = J.sparseView();
-    SJ.makeCompressed();
+    {
+        Trace::Span conversion(Trace::Phase::SparseConversion);
+        SJ = J.sparseView();
+        SJ.makeCompressed();
+    }
 
 # ifdef _GCS_DEBUG
     if (!silent) {
@@ -5200,7 +5245,10 @@ void System::makeSparseQRDecomposition(
         }
 
         if (SJG.rows() > 0 && SJG.cols() > 0) {
-            SqrJT.compute(SJG);
+            {
+                Trace::Span compute(Trace::Phase::QRCompute);
+                SqrJT.compute(SJG);
+            }
 // Do not ask for Q Matrix!!
 // At Eigen 3.2 still has a bug that this only works for square matrices
 // if enabled it will crash
@@ -5213,6 +5261,7 @@ void System::makeSparseQRDecomposition(
             colsNum = SqrJT.cols();
             SqrJT.setPivotThreshold(qrpivotThreshold);
             rank = SqrJT.rank();
+            Trace::qrRank(transposeJ, rank);
 
             if (colsNum >= rowsNum) {
                 R = SqrJT.matrixR().triangularView<Eigen::Upper>();
@@ -5468,6 +5517,7 @@ void System::identifyConflictingRedundantConstraints(
     int& nonredundantconstrNum
 )
 {
+    Trace::Span analysis(Trace::Phase::RedundantAnalysis);
     eliminateNonZerosOverPivotInUpperTriangularMatrix(R, rank);
 
     std::vector<std::vector<Constraint*>> conflictGroups(constrNum - rank);
@@ -5594,7 +5644,16 @@ void System::identifyConflictingRedundantConstraints(
     });
 
     SubSystem* subSysTmp = new SubSystem(clistTmp, pdiagnoselist);
-    auto status = solve(subSysTmp, alg, true);
+    SolveStatus status;
+    {
+        Trace::Span redundant(Trace::Phase::RedundantSolve);
+        status = solve(subSysTmp, alg, true);
+        redundant.result(
+            status == SolveStatus::Success ? Trace::Outcome::Success
+                                           : Trace::Outcome::RecoverableError,
+            static_cast<int>(status)
+        );
+    }
 
     if (debugMode == Minimal || debugMode == IterationLevel) {
         std::string solvername;

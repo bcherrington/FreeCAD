@@ -59,6 +59,7 @@
 
 #include "GeoEnum.h"
 #include "SketchObject.h"
+#include "SketcherTrace.h"
 #include "Constraint.h"
 #include "SketchObjectPy.h"
 #include "ExternalGeometryFacade.h"
@@ -317,20 +318,33 @@ GCS::Algorithm getDefaultSolver()
 
 App::DocumentObjectExecReturn* SketchObject::execute()
 {
+    Trace::Operation trace("execute", "document_recompute", getDocument(), this);
+    if (trace) {
+        trace.identify(getDocument() ? getDocument()->getName() : "", getNameInDocument());
+        trace.inputConstraints(Constraints.getValues());
+    }
     try {
         App::DocumentObjectExecReturn* rtn = Part2DObject::execute();// to positionBySupport
-        if (rtn != App::DocumentObject::StdReturn)
-            // error
+        if (rtn != App::DocumentObject::StdReturn) {
+            trace.result(Trace::Outcome::Rejected);
             return rtn;
+        }
     }
     catch (const Base::Exception& e) {
+        trace.result(Trace::Outcome::RecoverableError);
         return new App::DocumentObjectExecReturn(e.what());
     }
 
     // setup and diagnose the sketch
     try {
-        rebuildExternalGeometry();
-        Constraints.acceptGeometry(getCompleteGeometry());
+        {
+            Trace::Span phase(Trace::Phase::ExternalGeometry);
+            rebuildExternalGeometry();
+        }
+        {
+            Trace::Span phase(Trace::Phase::GeometryAcceptance);
+            Constraints.acceptGeometry(getCompleteGeometry());
+        }
     }
     catch (const Base::Exception&) {
         // 9/16/24: We used to clear the constraints here, but we no longer want to do that
@@ -344,13 +358,17 @@ App::DocumentObjectExecReturn* SketchObject::execute()
         solvedSketch.defaultSolver = getDefaultSolver();
     }
     catch (const Base::Exception& e) {
+        trace.result(Trace::Outcome::Rejected);
         return new App::DocumentObjectExecReturn(e.what(), this);
     }
 
     // This includes a regular solve including full geometry update, except when an error
     // ensues
     std::string msg;
-    switch (solve(true)) {
+    const auto solveStatus = solve(true);
+    trace.result(solveStatus == SketchSolveStatus::Success ? Trace::Outcome::Success
+        : Trace::Outcome::RecoverableError, static_cast<int>(solveStatus));
+    switch (solveStatus) {
     case SketchSolveStatus::Success:
         break;
     case SketchSolveStatus::Overconstrained:
@@ -392,6 +410,7 @@ static bool inline checkSmallEdge(const Part::TopoShape &s) {
 // clang-format on
 void SketchObject::buildShape()
 {
+    Trace::Span trace(Trace::Phase::Shape);
     // We use the following instead to map element names
 
     std::vector<Part::TopoShape> shapes;
@@ -1033,6 +1052,11 @@ void SketchObject::onChanged(const App::Property* prop)
 
 void SketchObject::onGeometryChanged()
 {
+    Trace::Operation trace("callback", isRestoring() ? "document_restore" : "geometry_change", getDocument(), this);
+    if (trace) {
+        trace.identify(getDocument() ? getDocument()->getName() : "", getNameInDocument());
+        trace.inputConstraints(Constraints.getValues());
+    }
     if (isRestoring() && checkMigration(Geometry)) {
         // Construction migration to extension
         for (auto geometryValue : Geometry.getValues()) {
@@ -1122,6 +1146,11 @@ void SketchObject::onGeometryChanged()
 
 void SketchObject::onConstraintsChanged()
 {
+    Trace::Operation trace("callback", isRestoring() ? "document_restore" : "constraint_change", getDocument(), this);
+    if (trace) {
+        trace.identify(getDocument() ? getDocument()->getName() : "", getNameInDocument());
+        trace.inputConstraints(Constraints.getValues());
+    }
     auto doc = getDocument();
 
     if (doc && doc->isPerformingTransaction()) {
@@ -1344,6 +1373,11 @@ void SketchObject::onUpdateElementReference(const App::Property *prop)
 
 void SketchObject::onUndoRedoFinished()
 {
+    Trace::Operation trace("undo_redo", "transaction_replay", getDocument(), this);
+    if (trace) {
+        trace.identify(getDocument() ? getDocument()->getName() : "", getNameInDocument());
+        trace.inputConstraints(Constraints.getValues());
+    }
     // upon undo/redo, PropertyConstraintList does not have updated valid geometry keys, which
     // results in empty constraint lists when using getValues
     //
@@ -1404,6 +1438,11 @@ void SketchObject::restoreFinished()
 
 void SketchObject::onSketchRestore()
 {
+    Trace::Operation trace("restore", "document_restore", getDocument(), this);
+    if (trace) {
+        trace.identify(getDocument() ? getDocument()->getName() : "", getNameInDocument());
+        trace.inputConstraints(Constraints.getValues());
+    }
     try {
         migrateSketch();
 
@@ -1459,9 +1498,11 @@ void SketchObject::onSketchRestore()
             }
         }
     } catch (Base::Exception &e) {
+        trace.result(Trace::Outcome::Exception);
         e.reportException();
         FC_ERR("Error while restoring " << getFullName());
     } catch (...) {
+        trace.result(Trace::Outcome::Exception);
     }
 }
 

@@ -75,9 +75,10 @@ T004 must implement and prove this contract; no guard is implemented by T002.
 
 Reuse existing Sketcher logging/reporting and time facilities where appropriate.
 Keep implementation within Sketcher App and planegcs; avoid a generic telemetry
-framework or a GUI dependency in the solver. Select the exact enablement mechanism
-in T002 and document it before coding; no setting name in this package is an
-implemented interface. Do not repurpose `lastSolveTime` to mean total operation.
+framework or a GUI dependency in the solver. T002 selected the development control
+`FREECAD_SKETCHER_TRACE=1`; T003 implements it as documented in
+[phase-tracing-report.md](phase-tracing-report.md). Do not repurpose `lastSolveTime`
+to mean total operation.
 
 A record contains an operation identifier, optional parent identifier, phase,
 reason, document/sketch identity, elapsed duration and completion outcome. It also
@@ -116,8 +117,9 @@ context handoff into `Sketch`/planegcs, in addition to the solver phase scopes.
 T002's selected control, schema, lifetimes, QR boundaries and exact counter
 stages are defined in
 [C-003 through C-006](timing-invalidation-contract.md#c-003---trace-control-correlation-and-ownership).
-The proposed process-start control is `FREECAD_SKETCHER_TRACE=1`. T003 must add
-the private helper and tests before this becomes an implemented interface.
+The process-start control `FREECAD_SKETCHER_TRACE=1` and the private helper are
+implemented in T003, with 21 tracing tests and isolated-process validation.
+Disabled instrumentation-overhead acceptance remains T005.
 
 ### D-003 - Fixtures and comparative measurement
 
@@ -167,7 +169,7 @@ acceptance criteria; larger changes get their own follow-up package.
 ## Data And Contract Impact
 
 No FCStd format, public Python API, solver result or existing timing getter
-changes. Only an optional development diagnostic surface is proposed. Defaults
+changes. T003 adds only the optional development diagnostic surface. Defaults
 remain silent. No new dependency is planned. No new modelling/MCP operation.
 
 ## Operational Considerations

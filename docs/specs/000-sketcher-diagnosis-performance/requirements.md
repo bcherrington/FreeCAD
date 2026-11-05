@@ -13,7 +13,8 @@ last_reviewed: 2026-11-05
 
 Reduce duplicate native sketch diagnosis, provide optional phase timings and
 measure remaining cost while preserving modelling behaviour. See [spec](spec.md)
-for scenarios and scope. Requirements are proposed; none are implemented here.
+for scenarios and scope. T003 implements optional phase tracing; setup deferral,
+comparative performance acceptance and final promotion remain pending.
 
 ## Goals
 
@@ -26,7 +27,7 @@ The exclusions in [spec.md](spec.md#non-goals) apply to every requirement.
 
 ## Durable Source Baseline
 
-Current source at commit `36aa20c979` is the code-derived baseline in
+The code-derived starting baseline is commit `36aa20c979`, recorded in
 [research](research.md). No dedicated durable Sketcher performance reference
 exists in this documentation partition. Repository templates govern document
 shape; they do not establish implemented solver semantics. Historical private
@@ -42,7 +43,8 @@ Add verified behaviour and interfaces to proposed
 
 - T001 baseline and T002 timing/invalidation contract are complete; their evidence
   is in baseline-report.md and timing-invalidation-contract.md.
-- T003 is the next implementation slice; production delivery acceptance is pending.
+- T003 tracing is implemented and validated; T004 is the next implementation slice.
+  Comparative performance and final delivery acceptance remain pending.
 - Code changes require the task dependencies and design decisions to be satisfied.
 - No design-first exception; measurable requirements precede implementation.
 

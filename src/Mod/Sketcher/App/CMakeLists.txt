@@ -85,6 +85,8 @@ SET(Datatypes_SRCS
     Constraint.h
     Sketch.cpp
     Sketch.h
+    SketcherTrace.cpp
+    SketcherTrace.h
     GeoList.h
     GeoList.cpp
     GeometryFacade.cpp

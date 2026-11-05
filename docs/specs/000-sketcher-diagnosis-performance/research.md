@@ -108,3 +108,19 @@ earlier acceptance observers may see the prior solver snapshot under the stated
 contract. Addon dependence on that intermediate snapshot remains a compatibility
 risk to check during implementation. All 115 isolated Release native tests pass;
 production behavior is unchanged and implementation proof remains T003/T004.
+
+## T003 Runtime Reconciliation - 2026-11-05
+
+Optional tracing now records setup/Jacobian/QR/redundancy/numerical/writeback/shape
+phases with operation-relative offsets and lanes. Production retains the default
+async policy and original payload copies. Exceptional future destruction is
+measured without forcing deferred work; rank-not-run and computed rank zero remain
+separate. The block fixture requires the native addConstraint API to establish
+blocked geometry state. Mixed Message/Log sink output order is unsuitable as a
+chronology marker; use operation identities and monotonic span fields.
+
+[phase-tracing-report.md](phase-tracing-report.md) records 136 passing native
+tests in Release off/on and Debug, plus command-line opt-in/silence checks. The
+new control is not a performance optimization: duplicate diagnosis remains and
+no latency/overhead budget has been evaluated. T004 and T005 remain the owners
+of those changes and measurements respectively.

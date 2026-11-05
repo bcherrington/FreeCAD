@@ -6,6 +6,7 @@ add_executable(Sketcher_tests_run
         SketchObject.cpp
         SketchObjectChanges.cpp
         SketchObjectDiagnosis.cpp
+        SketcherTrace.cpp
         SketchObjectRecompute.cpp
         SketchObjectSymmetric.cpp
 )

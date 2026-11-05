@@ -12,8 +12,8 @@ last_reviewed: 2026-11-05
 ## Purpose
 
 Map each task to the full requirements/design/evidence context. All delivery
-coverage is currently not-covered because production optimization and tracing
-are not implemented. T001 baseline and T002 design contract are complete.
+coverage distinguishes implemented tracing from pending diagnosis optimization
+and performance budgets. T001 through T003 are complete.
 
 ## Task To Context Matrix
 
@@ -21,7 +21,7 @@ are not implemented. T001 baseline and T002 design contract are complete.
 | --- | --- | --- | --- | --- | --- | --- |
 | T001 | Requirement 1, Requirement 2, Requirement 6 | AC-001, AC-002, AC-005 | D-001, D-003 | baseline-report.md; workloads.json; verification.md | Diagnostics reference, investigation runbook | Resolved baseline; historical symmetry owned by T006 |
 | T002 | Requirement 1, Requirement 2, Requirement 3, Requirement 4, Requirement 5 | AC-001, AC-002, AC-003, AC-004, AC-006 | D-001, D-002; C-001 through C-006 | timing-invalidation-contract.md; verification.md; native diagnosis probes | Diagnostics reference | Design resolved; implementation proof T003/T004 |
-| T003 | Requirement 3, Requirement 4, Requirement 5 | AC-003, AC-004, AC-006 | D-002 | verification.md timing cases | Diagnostics reference | Resolved by T002 |
+| T003 | Requirement 3, Requirement 4, Requirement 5 | AC-003, AC-004, AC-006 | D-002; C-003 through C-006 | phase-tracing-report.md; native SketcherTrace tests | Diagnostics reference | Implemented; overhead budget remains T005 |
 | T004 | Requirement 1, Requirement 2 | AC-001, AC-002 | D-001 | verification.md correctness matrix | Diagnostics reference | Resolved by T002 |
 | T005 | Requirement 2, Requirement 6 | AC-002, AC-005, AC-006 | D-003 | verification.md measurement matrix | Investigation runbook | Budget dispositions |
 | T006 | Requirement 7 | AC-007 | D-004 | verification.md review/closure | Follow-up packages or backlog | Evidence-led selection |
@@ -33,9 +33,9 @@ are not implemented. T001 baseline and T002 design contract are complete.
 | --- | --- | --- | --- | --- | --- |
 | Requirement 1 | AC-001 | D-001 | T001, T002, T004 | not-covered | Planned work in this package |
 | Requirement 2 | AC-002 | D-001, D-003 | T001, T002, T004, T005 | not-covered | Planned work in this package |
-| Requirement 3 | AC-003 | D-002 | T002, T003 | not-covered | Planned work in this package |
-| Requirement 4 | AC-003 | D-002 | T002, T003 | not-covered | Planned work in this package |
-| Requirement 5 | AC-004, AC-006 | D-002 | T002, T003, T005 | not-covered | Planned work in this package |
+| Requirement 3 | AC-003 | D-002 | T002, T003 | covered | Native/process evidence in phase-tracing-report.md; promotion T007 |
+| Requirement 4 | AC-003 | D-002 | T002, T003 | covered | Known counters, dense/sparse/block/redundancy tests; promotion T007 |
+| Requirement 5 | AC-004, AC-006 | D-002 | T002, T003, T005 | partial | AC-004 verified; AC-006 budget remains T005 |
 | Requirement 6 | AC-005, AC-006 | D-003 | T001, T005 | not-covered | Planned work in this package |
 | Requirement 7 | AC-007 | D-004 | T006, T007 | not-covered | Planned work in this package |
 
@@ -67,7 +67,7 @@ contracts in implementation. T006 resolves deeper optimization choices after mea
 | Design Section | Requirements | Tasks | Interfaces Or Files | Verification | Coverage State | Residual Destination |
 | --- | --- | --- | --- | --- | --- | --- |
 | D-001 | Requirement 1, Requirement 2 | T001, T002, T004 | SketchObject.cpp, SketchObjectConstraints.cpp | AC-001, AC-002 | not-covered | Planned work in this package |
-| D-002 | Requirement 3, Requirement 4, Requirement 5 | T002, T003 | Sketch.cpp, Sketch.h, planegcs/GCS.cpp, GCS.h | AC-003, AC-004, AC-006 | not-covered | Planned work in this package |
+| D-002 | Requirement 3, Requirement 4, Requirement 5 | T002, T003 | SketcherTrace.h/.cpp, SketchObject entry scopes, Sketch.cpp, planegcs/GCS.cpp | AC-003, AC-004, AC-006 | partial | Tracing native/process verified; overhead budget T005; promotion T007 |
 | D-003 | Requirement 2, Requirement 6 | T001, T005 | Native fixtures and private benchmark receipts | AC-002, AC-005, AC-006 | not-covered | Planned work in this package |
 | D-004 | Requirement 7 | T006, T007 | Proposed diagnostics reference and runbook | AC-007 | not-covered | Planned work in this package |
 
@@ -92,8 +92,9 @@ The finding-by-finding disposition is in
 two external-reference tests, native duplicate-setup reproduction, nine optimized
 baseline batches and private build/raw/analysis receipts. [workloads.json](workloads.json)
 freezes each runnable execution vector and reset/cache protocol. T001 is complete;
-T002's contract is complete; T003 is the next pending task. T005 still owns matched candidate acceptance and
-noise investigation; no delivery coverage or performance acceptance row is complete.
+T002 and T003 are complete; T004 is the next pending task. T005 still owns matched
+candidate acceptance and noise investigation. Tracing delivery now has native/
+process evidence, while all performance budget decisions remain pending.
 
 ## T002 Evidence Status
 
@@ -102,3 +103,11 @@ selected design and requirements-linked validation plan. Six native probes
 establish observer ordering/touched-state/diagnostic identities and independent
 index-flag repair; the isolated Release suite passes 115 tests. No production
 tracing or setup deferral is implemented, and no performance gate passes here.
+
+## T003 Evidence Status
+
+[phase-tracing-report.md](phase-tracing-report.md) maps the private helper,
+SketchObject/Sketch/planegcs boundaries, schema and test evidence to C-003 through
+C-006. Native suites pass 136 tests in Release (off/on) and Debug. Isolated-process
+control/JSON checks and 21 native tracing tests establish AC-003/AC-004; overhead
+and comparative budgets remain T005. Durable promotion remains T007.

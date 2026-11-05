@@ -17,8 +17,10 @@ freezes nine optimized baseline cases with per-sample native counts, resets and
 cache classes; [baseline-report.md](baseline-report.md) records raw evidence,
 medians/MAD and A/A uncertainty. Historical symmetry remains unverified, owned by
 T006. T002's design contract and native observer/index probes are complete;
-T003 is next. Production optimization and all delivery acceptance rows
-below remain pending; baseline A/A results do not satisfy candidate budgets.
+T003 tracing is implemented and validated in
+[phase-tracing-report.md](phase-tracing-report.md); T004 is next. Diagnosis
+optimization and comparative performance acceptance remain pending. Baseline
+A/A results do not satisfy candidate budgets.
 
 ## Acceptance And Traceability
 
@@ -26,9 +28,9 @@ below remain pending; baseline A/A results do not satisfy candidate budgets.
 | --- | --- | --- | --- | --- |
 | FR-001 | D-001 | T001, T002, T004 | AC-001 | Pending |
 | FR-002 | D-001, D-003 | T001, T002, T004, T005 | AC-002 | Pending |
-| FR-003 | D-002 | T002, T003 | AC-003 | Pending |
-| FR-004 | D-002 | T002, T003 | AC-003 | Pending |
-| FR-005 | D-002 | T002, T003, T005 | AC-004, AC-006 | Pending |
+| FR-003 | D-002 | T002, T003 | AC-003 | Native/process verified in T003 |
+| FR-004 | D-002 | T002, T003 | AC-003 | Native/process verified in T003 |
+| FR-005 | D-002 | T002, T003, T005 | AC-004, AC-006 | AC-004 verified; AC-006 pending T005 |
 | FR-006 | D-003 | T001, T005 | AC-005, AC-006 | Pending |
 | FR-007 | D-004 | T006, T007 | AC-007 | Pending |
 
@@ -254,3 +256,25 @@ baseline report records the ambient-config native crash in material loading and
 the passing isolated rerun. Old Debug/concurrent-build/touch-included pilot timings
 remain ineligible. Current A/A variation is explicit; candidate speedup, regression
 and instrumentation overhead decisions still require T005's full protocol.
+
+## T003 Implementation Evidence
+
+Requirement 3/Requirement 4 and AC-003/AC-004 are verified by the implementation
+and tests in [phase-tracing-report.md](phase-tracing-report.md). Requirement 5 is
+partial until T005 evaluates AC-006. New tracing is disabled by default; the
+existing two-setup and diagnostic observer baselines remain unchanged.
+
+Release tests pass 136/136 both with tracing off and with the environment opt-in;
+Debug tests pass 136/136. The 21 new tracing cases cover disabled clocks/context/
+output, nested/exceptional scopes, overflow/allocation/sink failure, worker and
+owner exceptions, async/deferred lanes, unchanged payload copies, actual dense/
+sparse QR, structural counters, block ordinals, diagnostic failure and move/undo
+reason correlation. Five isolated FreeCADCmd modes produce equal modelling state:
+on emits 194 complete validated JSON records; unset/zero/invalid/sink-off emit none.
+Existing timing getters and solver algorithms are retained.
+
+Private receipts are under `sketch-performance-static-analysis/T003-phase-tracing/`.
+Formatting/pre-commit, line endings, local links/anchors and CRLF-aware whitespace
+checks passed. Package lint reports zero errors and the same two authoring
+advisories. These checks do not pass AC-005/AC-006, T004's deferral contract or the
+remaining GUI/correctness matrix owned by T004/T005.

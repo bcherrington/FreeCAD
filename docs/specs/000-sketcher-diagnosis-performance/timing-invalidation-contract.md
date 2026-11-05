@@ -15,8 +15,10 @@ This is the implementation contract selected in T002 - Finalize timing and
 invalidation boundaries, for Requirement 1 through Requirement 5,
 AC-001/AC-002/AC-003/AC-004/AC-006 and D-001/D-002. It specifies proposed T003/T004
 behaviour; no production tracing or setup deferral is implemented by T002.
-Source inspected after T001 commit `1efd3713a8`; production sources match T001's
-baseline. Native baseline probes are in
+The T002 source inspection followed T001 commit `1efd3713a8`. T003 now implements
+C-003 through C-006; [phase-tracing-report.md](phase-tracing-report.md) records
+the implementation and tests. C-001/C-002 setup deferral remains T004 work.
+Native baseline probes are in
 `tests/src/Mod/Sketcher/App/SketchObjectDiagnosis.cpp`. This contract supplements
 [design.md](design.md); requirements and acceptance budgets remain authoritative.
 
@@ -174,8 +176,8 @@ missing/reversed/loaded external-reference cases identified in T001.
 
 ## C-003 - Trace Control, Correlation And Ownership
 
-T003 will add a private Sketcher/planegcs trace helper (proposed
-`src/Mod/Sketcher/App/SketcherTrace.h`, with implementation file if needed). Keep the helper independent of App/Gui
+T003 implements the private Sketcher/planegcs trace helper in
+`src/Mod/Sketcher/App/SketcherTrace.h` and `.cpp`. Keep the helper independent of App/Gui
 types; SketchObject supplies identity at the root boundary.
 Enablement is process-start environment `FREECAD_SKETCHER_TRACE=1`; every other
 value or absence is off. Sample at the first entry into an immutable, thread-safe local static; set the
@@ -228,7 +230,7 @@ undo_redo/transaction_replay, move/geometry_move, and additional_setup/diagnosis
 Use the existing caller context for nested setup/solve; record the actual fallback
 entry if a call has no more specific context. Establish restore and transaction
 reasons at their SketchObject entry points, not by guessing inside planegcs.
-T003 may touch `SketchObjectGeometry.cpp` for the movement boundary; this does not
+The actual movement entry is in `SketchObjectOperations.cpp`; tracing it does not
 authorize changing movement semantics.
 
 Each enabled operation uses bounded private record storage (4096 span slots,
@@ -279,6 +281,11 @@ A thin callable wrapper may capture a small trace lane/context handle while
 accepting the original decayed async arguments by const reference; no extra
 matrix copy is permitted. If tracing is off, preserve the original data flow.
 
+T003's private future wrapper also spans destruction of the same shared state.
+It does not call wait in its destructor: async work joins and unstarted deferred
+work is discarded, including on exceptional owner exit. The destruction span
+has reason `future_destruction`; it is distinct from the explicit wait span.
+
 Before dispatch, reserve the worker's parent/lane information. Bind its context
 inside the callable and restore it on return/unwind. Worker writes are private
 record-slot updates, with no Console, Python, Qt notification or preference access.
@@ -314,7 +321,7 @@ input driving constraints. Preserve the diagnostic ordinal for repeated analyses
 | effective_rows, effective_columns | `J.topRows(diagnostic_equations)` dimensions, before transpose |
 | qr_method | Actual dense/sparse after auto-choice and compatibility fallback; not merely configured preference |
 | rank_j, rank_jt | Existing local result after the respective compute/threshold/rank call succeeds; nullable independently |
-| rank_status | computed, not_run, exception or unavailable; valid computed zero is distinct |
+| rank_j_status, rank_jt_status | computed, not_run or exception, independently; null rank is unavailable and valid computed zero is distinct |
 
 The current Jacobian is allocated with `clist.size()` rows and then only driving
 rows are filled; QR uses `topRows(jacobianconstraintmap.size())`. Reporting only
