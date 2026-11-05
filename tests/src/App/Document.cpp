@@ -9,7 +9,10 @@
 
 #include "App/Application.h"
 #include "App/Document.h"
+#include "App/DocumentObject.h"
+#include "App/Expression.h"
 #include "App/MergeDocuments.h"
+#include "App/PropertyUnits.h"
 #include "App/StringHasher.h"
 #include "Base/Tools.h"
 #include "Base/Writer.h"
@@ -231,6 +234,81 @@ TEST_F(DocumentTest, RecomputePreservesExplicitNonClosableStatus)
     EXPECT_FALSE(doc()->isClosable());
     doc()->setClosable(true);
     EXPECT_TRUE(doc()->isClosable());
+}
+
+TEST_F(DocumentTest, RemovingExpressionOwnerClearsPropertyBacklinks)
+{
+    auto* source = doc()->addObject("App::FeaturePython", "Source");
+    auto* thickness = static_cast<App::PropertyLength*>(
+        source->addDynamicProperty("App::PropertyLength", "Thickness")
+    );
+    source->addDynamicProperty("App::PropertyLength", "Width");
+    auto* removed = doc()->addObject("App::FeaturePython", "Removed");
+    removed->addDynamicProperty("App::PropertyLength", "Length");
+    removed->setExpression(
+        App::ObjectIdentifier::parse(removed, "Length"),
+        std::shared_ptr<App::Expression>(
+            App::Expression::parse(removed, "Source.Thickness + Source.Width")
+        )
+    );
+    auto* survivor = doc()->addObject("App::FeaturePython", "Survivor");
+    auto* length = static_cast<App::PropertyLength*>(
+        survivor->addDynamicProperty("App::PropertyLength", "Length")
+    );
+    survivor->setExpression(
+        App::ObjectIdentifier::parse(survivor, "Length"),
+        std::shared_ptr<App::Expression>(App::Expression::parse(survivor, "Source.Thickness"))
+    );
+    thickness->setValue(0.8);
+    doc()->recompute();
+    ASSERT_EQ(source->getInListProp().size(), 3);
+
+    doc()->removeObject("Removed");
+
+    // Assert before recomputing: a stale edge would dereference the deleted object.
+    ASSERT_EQ(source->getInListProp().size(), 1);
+    EXPECT_EQ(source->getInListProp().front().fromObj, survivor);
+    for (double value : {0.81, 0.8}) {
+        thickness->setValue(value);
+        doc()->recompute();
+        EXPECT_DOUBLE_EQ(length->getValue(), value);
+    }
+}
+
+TEST_F(DocumentTest, UndoExpressionOwnerRemovalRestoresPropertyBacklinks)
+{
+    auto* source = doc()->addObject("App::FeaturePython", "Source");
+    auto* thickness = static_cast<App::PropertyLength*>(
+        source->addDynamicProperty("App::PropertyLength", "Thickness")
+    );
+    auto* target = doc()->addObject("App::FeaturePython", "Target");
+    target->addDynamicProperty("App::PropertyLength", "Length");
+    target->setExpression(
+        App::ObjectIdentifier::parse(target, "Length"),
+        std::shared_ptr<App::Expression>(App::Expression::parse(target, "Source.Thickness"))
+    );
+    doc()->recompute();
+    ASSERT_EQ(source->getInListProp().size(), 1);
+
+    doc()->openTransaction("Remove expression owner");
+    doc()->removeObject("Target");
+    doc()->commitTransaction();
+    ASSERT_TRUE(source->getInListProp().empty());
+
+    ASSERT_TRUE(doc()->undo());
+    ASSERT_EQ(source->getInListProp().size(), 1);
+    thickness->setValue(0.81);
+    doc()->recompute();
+    auto* restored = doc()->getObject("Target");
+    ASSERT_NE(restored, nullptr);
+    auto* length = static_cast<App::PropertyLength*>(restored->getPropertyByName("Length"));
+    ASSERT_NE(length, nullptr);
+    EXPECT_DOUBLE_EQ(length->getValue(), 0.81);
+
+    ASSERT_TRUE(doc()->redo());
+    ASSERT_TRUE(source->getInListProp().empty());
+    thickness->setValue(0.8);
+    doc()->recompute();
 }
 
 
