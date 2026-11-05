@@ -76,11 +76,18 @@ owns other work and is not migrated or broadened by this package.
 
 ## T001 Runtime Reconciliation - 2026-11-05
 
-The new native fixture confirms clean recompute performs no work and forced
-unchanged execution performs two setups. The full native Sketcher suite passes
-109 tests. Scalar/list insertion and recoverable diagnostic probes are recorded
-in [baseline-report.md](baseline-report.md). The staged private file has changed
-hash; only the frozen fixture was used for private-profile diagnosis. Pilot
-elapsed values are not eligible for performance acceptance; requirements and
-budgets remain unchanged. See [workloads.json](workloads.json) for the initial
-operation/reset manifest and still-unverified vectors.
+T001 is complete. The native fixture confirms clean recompute performs no work
+and forced unchanged execution performs two setups. The isolated Release native
+suite passes 109 tests; two external-reference Python tests also pass. Nine cases
+completed optimized baseline A/A batches with native counts checked per sample.
+Scalar/list insertion and recoverable diagnostic probes are recorded in
+[baseline-report.md](baseline-report.md). Only the frozen fixture was used; the
+changed staged file remains excluded. [workloads.json](workloads.json) freezes
+execution/reset/cache boundaries and vectors. Load restores 10 sketches with 19
+setups but no ordinary executes; thickness propagation performs no sketch setups.
+The historical symmetry precursor remains unverified, owned by T006.
+
+Baseline A/A intervals are wide on several workloads. T005 must investigate noise
+and collect fresh interleaved matched comparisons; these observations do not
+establish a speedup, regression or overhead budget. Old pilot elapsed values are
+ineligible, and all production acceptance requirements remain unchanged.

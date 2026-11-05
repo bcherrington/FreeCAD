@@ -13,15 +13,15 @@ last_reviewed: 2026-11-05
 [Traceability](traceability.md), [Design](design.md), [Plan](plan.md),
 [Research](research.md), [Verification](verification.md).
 
-T001 baseline investigation is in progress. Production performance changes and
-acceptance remain pending; task evidence below records current investigation work.
+T001 baseline establishment is complete. T002 is the next pending task.
+Production performance changes and delivery acceptance remain pending.
 
 ## Phase 1 - Baseline and contract
 
-- [/] T001 Reconcile source and establish the baseline
+- [x] T001 Reconcile source and establish the baseline
   - Depends on: none
   - Requirement: Requirement 1/Requirement 2/Requirement 6; AC-001/AC-002/AC-005; D-001/D-003.
-  - Files: `src/Mod/Sketcher/App/SketchObject.cpp`, `src/Mod/Sketcher/App/SketchObjectConstraints.cpp`, `src/Mod/Sketcher/App/PropertyConstraintList.cpp`, `tests/src/Mod/Sketcher/App/`
+  - Files: `src/Mod/Sketcher/App/SketchObject.cpp`, `src/Mod/Sketcher/App/SketchObjectConstraints.cpp`, `src/Mod/Sketcher/App/PropertyConstraintList.cpp`, `tests/src/Mod/Sketcher/App/`, `tools/profile/sketcher_baseline.py`, `tools/profile/run_sketcher_baseline.py`, `tools/profile/sketcher_call_counts.cpp`, `baseline-report.md`, `workloads.json`
   - Inspect `src/Mod/Sketcher/App/SketchObject.cpp`, `SketchObjectConstraints.cpp`,
     `PropertyConstraintList.cpp`, native test registration and existing trace settings.
   - Create a minimal call-count fixture and identify external-link/undo test targets.
@@ -30,12 +30,14 @@ acceptance remain pending; task evidence below records current investigation wor
     execute/setup counts for every sample and reject skipped/mismatched pairs.
   - Capture baseline raw paired samples and fixture/settings/build identity under
     verification.md's measurement protocol; keep originals private.
+    Baseline A/A pairs characterize repeatability; candidate and tracing-overhead
+    comparisons remain T005 and cannot be inferred from these samples.
   - Acceptance: reproduce two setups on the affected ordinary execute path; characterize
     exception paths and establish an executable test/benchmark command list.
-  - Evidence: Native baseline fixture:2passed; full Sketcher suite:109passed. Diagnostic pilot:20synthetic+20frozen-profile forced samples each2setups; scalar/list probes18/3setups and undo restored0constraints. See baseline-report.md and workloads.json. Pilot timings are ineligible for acceptance; optimized comparable baseline and complete load/whole-document execution vectors pending.
+  - Evidence: Release -O3 build passed at b6141a373c; isolated Sketcher_tests_run 109/109 and external-reference Python tests 2/2 passed. Nine workloads completed two warmups plus ten alternating A/A pairs each, zero rejected pairs, with actual native execute/setup vectors and model-state/reset checks. Valid/redundant/conflicting/invalid-solver Release probes verified. See baseline-report.md, workloads.json and private T001-completion build/raw/summary receipts. Formatting, Python compilation, local links/JSON and whitespace checks passed; package lint zero errors, two previously documented advisories.
 
-  - Status: Count path and native targets verified; baseline collection remains incomplete. Do not advance dependent implementation yet.
-  - Evidence mode: validation
+  - Status: Baseline complete. T002 ready; historical symmetry explicitly unverified and owned by T006. A/A timing noise recorded for T005; candidate speedup/regression/overhead acceptance remains pending.
+  - Evidence mode: artifact
 - [ ] T002 Finalize timing and invalidation boundaries
   - Depends on: T001
   - Requirement: Requirement 1/Requirement 2/Requirement 3/Requirement 4/Requirement 5; AC-001/AC-002/AC-003/AC-004/AC-006; D-001/D-002.

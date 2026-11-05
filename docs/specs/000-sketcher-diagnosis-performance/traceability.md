@@ -12,13 +12,14 @@ last_reviewed: 2026-11-05
 ## Purpose
 
 Map each task to the full requirements/design/evidence context. All delivery
-coverage is currently not-covered because implementation has not started.
+coverage is currently not-covered because production optimization and tracing
+are not implemented. T001 baseline establishment is complete.
 
 ## Task To Context Matrix
 
 | Task ID | Requirements | Acceptance Criteria | Design Sections | Verification | Durable Targets | Open Decisions |
 | --- | --- | --- | --- | --- | --- | --- |
-| T001 | Requirement 1, Requirement 2, Requirement 6 | AC-001, AC-002, AC-005 | D-001, D-003 | verification.md correctness/measurement matrices | Diagnostics reference, investigation runbook | Source/fixture/target refresh |
+| T001 | Requirement 1, Requirement 2, Requirement 6 | AC-001, AC-002, AC-005 | D-001, D-003 | baseline-report.md; workloads.json; verification.md | Diagnostics reference, investigation runbook | Resolved baseline; historical symmetry owned by T006 |
 | T002 | Requirement 1, Requirement 2, Requirement 3, Requirement 4, Requirement 5 | AC-001, AC-002, AC-003, AC-004, AC-006 | D-001, D-002 | verification.md correctness matrix | Diagnostics reference | Trace control/schema and local guard |
 | T003 | Requirement 3, Requirement 4, Requirement 5 | AC-003, AC-004, AC-006 | D-002 | verification.md timing cases | Diagnostics reference | Resolved by T002 |
 | T004 | Requirement 1, Requirement 2 | AC-001, AC-002 | D-001 | verification.md correctness matrix | Diagnostics reference | Resolved by T002 |
@@ -54,7 +55,9 @@ They are promotion targets, not current implemented authority.
 
 ## Open Decision Impact
 
-T001 resolves source freshness, private fixtures and exact test targets. T002
+T001 resolved source freshness, frozen private fixture identity and exact test
+targets. The changed staged file is excluded; unverified historical symmetry
+belongs to T006. Baseline A/A noise is recorded for investigation in T005. T002
 resolves optional trace control/schema, worker-output safety and the scoped guard
 before T003/T004. T006 resolves the deeper optimization choice after measurements.
 
@@ -84,7 +87,9 @@ The finding-by-finding disposition is in
 
 ## T001 Evidence Status
 
-[baseline-report.md](baseline-report.md) links the native count reproduction,
-109-test run and private diagnostic receipts. T001 remains partial: optimized
-comparable baseline capture and all workload execution vectors are pending.
-No delivery coverage or performance acceptance row is marked complete.
+[baseline-report.md](baseline-report.md) records Release 109-test validation,
+two external-reference tests, native duplicate-setup reproduction, nine optimized
+baseline batches and private build/raw/analysis receipts. [workloads.json](workloads.json)
+freezes each runnable execution vector and reset/cache protocol. T001 is complete;
+T002 is the next pending task. T005 still owns matched candidate acceptance and
+noise investigation; no delivery coverage or performance acceptance row is complete.

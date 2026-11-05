@@ -25,12 +25,13 @@ This is a proposed implementation workflow, not an implemented diagnostic API.
 
 ## Steps
 
-1. Use Spec Lifecycle Manager preflight/task context for
-   T001 - Reconcile source and establish the baseline. Recheck source freshness
-   through Agent Workbench and direct reads; mark T001 in progress before work.
-2. Verify fixture hashes, create disposable copies and discover native tests.
-   Freeze workload execution/reset/cache manifests and capture baseline builds,
-   preferences and execute/setup counts; separate no-op from actual recompute.
+1. T001 - Reconcile source and establish the baseline is complete. Read its
+   [baseline report](baseline-report.md) and [manifest](workloads.json). Use Spec
+   Lifecycle Manager task context for T002 and recheck source freshness through
+   Agent Workbench and direct reads; mark T002 in progress before implementation.
+2. Verify fixture hashes and use disposable copies for further measurements.
+   Preserve the frozen execution/reset/cache boundaries and verify counts on
+   each new build; retain the distinction between no-op and actual recompute.
 3. Resolve trace enablement, offsets/lanes/dispatch/join spans and structural counters
    in T002. Approve index-validation and diagnostic observer/touched invariants
    before guard selection; include non-recompute paths in the regression plan.
@@ -45,6 +46,36 @@ This is a proposed implementation workflow, not an implemented diagnostic API.
 The affected ordinary execute path diagnoses once with identical modelling
 results. Optional timings distinguish setup, QR and solve costs. Performance
 results include raw repeated samples and explicit budget dispositions.
+
+## Reproduce The T001 Baseline
+
+The baseline runner is Linux/ELF diagnostic tooling, separate from the proposed
+production tracing interface. Use the immutable private fixture identified in
+[workloads.json](workloads.json), a fresh output directory and task-owned profiles.
+Builds must finish before collecting timing samples:
+
+```sh
+pixi run build-release -j 2 --target FreeCADCmd Sketcher_tests_run PartDesign
+pixi run clang++ -std=c++17 -O2 -fPIC -shared tools/profile/sketcher_call_counts.cpp -o /tmp/sketcher-call-counts.so -ldl -pthread
+pixi run python tools/profile/run_sketcher_baseline.py --build-root build/release --output-root /tmp/sketcher-baseline-new --counter /tmp/sketcher-call-counts.so --fixture /path/to/disposable/refined-bottom-reflow.FCStd --pairs 10
+```
+
+The concrete Pixi build task preserves the job/target arguments in this checkout;
+the composite `build` task did not forward them during T001. The runner rejects
+failed processes, missing/stale receipts, modules outside the selected build and
+changed execution vectors. It retains two warmups and ten alternating A/A pairs
+per case; exclude warmup rows from reported timing. A/A results describe baseline
+repeatability and cannot satisfy the candidate speedup or overhead gates.
+
+For native tests, keep material libraries and configuration isolated too:
+
+```sh
+env XDG_CONFIG_HOME=/tmp/sketcher-native-config XDG_DATA_HOME=/tmp/sketcher-native-data XDG_CACHE_HOME=/tmp/sketcher-native-cache pixi run ./build/release/tests/Sketcher_tests_run
+pixi run ctest --test-dir build/release -N -R '^SketchObjectTest.recompute'
+```
+
+See [baseline-report.md](baseline-report.md) for the tested build identity,
+results, exception observations and the baseline counter's measurement limits.
 
 ## Cleanup
 

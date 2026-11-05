@@ -11,10 +11,13 @@ last_reviewed: 2026-11-05
 
 ## Current State
 
-T001 baseline investigation is in progress. The native call-count fixture passed, and an
-[initial workload manifest](workloads.json) records verified and remaining cases. Diagnostic Debug
-samples do not establish optimized-build acceptance. Existing crash-fix tests
-establish starting context only; they do not satisfy this package's criteria.
+T001 - Reconcile source and establish the baseline is complete. The native suite
+passed 109 tests in an isolated Release environment. The [workload manifest](workloads.json)
+freezes nine optimized baseline cases with per-sample native counts, resets and
+cache classes; [baseline-report.md](baseline-report.md) records raw evidence,
+medians/MAD and A/A uncertainty. Historical symmetry remains unverified, owned by
+T006. T002 can proceed. Production optimization and all delivery acceptance rows
+below remain pending; baseline A/A results do not satisfy candidate budgets.
 
 ## Acceptance And Traceability
 
@@ -120,8 +123,11 @@ bias. Record systematic process/cache or thermal variation separately.
 
 ## Commands And Evidence
 
-T001 must discover the registered native targets and exact CTest filters before
-writing runnable focused commands. Normal build: `pixi run build -j 2`.
+T001 discovered `Sketcher_tests_run` and the exact CTest filter
+`^SketchObjectTest.recompute`. Tested commands, build identity, an executable
+baseline launcher and isolated native-test instructions are recorded in
+[baseline-report.md](baseline-report.md) and [quickstart.md](quickstart.md).
+Use the concrete Pixi build tasks there to preserve target/job arguments.
 Affected suites, manual GUI checks and pre-commit outcomes must be recorded with
 results. A skipped check needs a reason and remaining risk. Private traces/models
 stay outside Git; promote a redacted summary and reproducible synthetic fixture.
@@ -151,15 +157,18 @@ contain explicit WHEN/THE SYSTEM SHALL clauses linked to observable AC definitio
 this does not establish delivery acceptance. Authority review is recorded in
 [traceability.md](traceability.md#authority-review); no separate imported-authority
 artifact is needed. Local Markdown link and whitespace checks passed.
-No native performance acceptance evidence exists yet. T001 creates the baseline.
+Optimized baseline evidence now exists; candidate performance acceptance remains
+T005. T003 owns production trace semantics and T005 owns tracing-off overhead.
 Numbering remains provisional-confidence because older packages are unnumbered
 and no history index exists; creation used the tool's revalidated proposal.
 
 ## Residual Risks
 
-Source pointers can drift, private fixtures may be unavailable, and historical
-logs do not establish the remaining phase costs. Resolve these in T001; preserve
-explicitly unverified cases instead of changing acceptance to match available data.
+Source pointers can drift, private fixtures may become unavailable, and historical
+logs do not establish remaining phase costs. T001 pinned source/fixture/build
+identity. Preserve the unverified symmetry case in T006. Large A/A intervals in
+the baseline require noise investigation and fresh matched comparisons in T005;
+they cannot justify passing a budget or weakening acceptance.
 
 ## MoE Review Disposition - 2026-11-05
 
@@ -192,13 +201,20 @@ No code, native test, benchmark, build or live CAD operation was part of this re
 
 ## T001 Investigation Evidence
 
-See [baseline-report.md](baseline-report.md): both new native cases passed and
-the full native Sketcher suite passed 109 tests. Existing logs reproduce two
-setup passes on forced synthetic and frozen private-profile execution. Insertion
-probes verify 18 scalar setups versus 3 list/checked-solve setups for16constraints,
-with transaction undo restoring zero constraints.
+This establishes baseline evidence for Requirement 1, Requirement 2 and
+Requirement 6 (AC-001/AC-002/AC-005); delivery acceptance remains pending.
 
-This establishes the path and test targets, not a performance acceptance result.
-Pilot elapsed data is explicitly ineligible because of Debug/provenance, concurrent
-compilation and its touch-included timing boundary. Optimized comparable baseline
-capture and the complete workload execution vectors remain pending in T001.
+See [baseline-report.md](baseline-report.md): Release build and isolated native
+suite passed (109 tests); all nine runnable cases completed two warmups and ten
+alternating A/A pairs, with zero execution-vector mismatches or rejected pairs.
+Forced synthetic/master/profile paths each execute once and set up twice;
+scalar/list insertion counts are 18/3 with undo to zero constraints. Load restores
+10 sketches with 19 setups and zero ordinary executes; thickness propagation
+performs no sketch setups and preserves the checked solid/linked dimensions.
+
+Raw receipts, analysis and build/dependency hashes are retained under the private
+`sketch-performance-static-analysis/T001-completion/` artifact directory. The
+baseline report records the ambient-config native crash in material loading and
+the passing isolated rerun. Old Debug/concurrent-build/touch-included pilot timings
+remain ineligible. Current A/A variation is explicit; candidate speedup, regression
+and instrumentation overhead decisions still require T005's full protocol.
