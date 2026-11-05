@@ -14,7 +14,8 @@ last_reviewed: 2026-11-05
 Reduce repeated Sketcher setup and diagnosis during document recompute, add
 optional phase timings, and use comparable measurements to select further work.
 The user requested this package after discussing these two initial changes.
-This package authorizes their implementation plan; implementation has not started.
+T001 baseline investigation has started; the production optimization and optional
+phase tracing have not been implemented.
 
 ## Problem
 

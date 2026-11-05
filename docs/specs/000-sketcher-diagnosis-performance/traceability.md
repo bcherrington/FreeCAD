@@ -81,3 +81,10 @@ R-003/R-005 map to Requirement 6, D-003 and T001/T005. R-004/R-006 map to
 Requirement 3/Requirement 4/Requirement 5, D-002 and T002/T003/T005.
 The finding-by-finding disposition is in
 [verification.md](verification.md#moe-review-disposition---2026-11-05).
+
+## T001 Evidence Status
+
+[baseline-report.md](baseline-report.md) links the native count reproduction,
+109-test run and private diagnostic receipts. T001 remains partial: optimized
+comparable baseline capture and all workload execution vectors are pending.
+No delivery coverage or performance acceptance row is marked complete.

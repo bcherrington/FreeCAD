@@ -11,9 +11,10 @@ last_reviewed: 2026-11-05
 
 ## Current State
 
-Spec authoring only. No implementation, performance benchmark, new native test
-or build result is claimed. Existing crash-fix tests establish the branch's
-starting context only; they do not satisfy this package's acceptance criteria.
+T001 baseline investigation is in progress. The native call-count fixture passed, and an
+[initial workload manifest](workloads.json) records verified and remaining cases. Diagnostic Debug
+samples do not establish optimized-build acceptance. Existing crash-fix tests
+establish starting context only; they do not satisfy this package's criteria.
 
 ## Acceptance And Traceability
 
@@ -188,3 +189,16 @@ in their reviewed scopes. This is not implementation or numerical acceptance.
 Package lint reports zero errors and the same two documented authoring advisories;
 local file/anchor links and Git whitespace checks passed before commit.
 No code, native test, benchmark, build or live CAD operation was part of this revision.
+
+## T001 Investigation Evidence
+
+See [baseline-report.md](baseline-report.md): both new native cases passed and
+the full native Sketcher suite passed 109 tests. Existing logs reproduce two
+setup passes on forced synthetic and frozen private-profile execution. Insertion
+probes verify 18 scalar setups versus 3 list/checked-solve setups for16constraints,
+with transaction undo restoring zero constraints.
+
+This establishes the path and test targets, not a performance acceptance result.
+Pilot elapsed data is explicitly ineligible because of Debug/provenance, concurrent
+compilation and its touch-included timing boundary. Optimized comparable baseline
+capture and the complete workload execution vectors remain pending in T001.

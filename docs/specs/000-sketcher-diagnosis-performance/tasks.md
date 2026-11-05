@@ -13,12 +13,12 @@ last_reviewed: 2026-11-05
 [Traceability](traceability.md), [Design](design.md), [Plan](plan.md),
 [Research](research.md), [Verification](verification.md).
 
-All implementation tasks are pending. This package records proposed work;
-no performance source changes, new benchmarks or builds have been completed.
+T001 baseline investigation is in progress. Production performance changes and
+acceptance remain pending; task evidence below records current investigation work.
 
 ## Phase 1 - Baseline and contract
 
-- [ ] T001 Reconcile source and establish the baseline
+- [/] T001 Reconcile source and establish the baseline
   - Depends on: none
   - Requirement: Requirement 1/Requirement 2/Requirement 6; AC-001/AC-002/AC-005; D-001/D-003.
   - Files: `src/Mod/Sketcher/App/SketchObject.cpp`, `src/Mod/Sketcher/App/SketchObjectConstraints.cpp`, `src/Mod/Sketcher/App/PropertyConstraintList.cpp`, `tests/src/Mod/Sketcher/App/`
@@ -32,8 +32,10 @@ no performance source changes, new benchmarks or builds have been completed.
     verification.md's measurement protocol; keep originals private.
   - Acceptance: reproduce two setups on the affected ordinary execute path; characterize
     exception paths and establish an executable test/benchmark command list.
-  - Evidence: baseline receipts, call graph/counts, fixture hashes and exact commands.
+  - Evidence: Native baseline fixture:2passed; full Sketcher suite:109passed. Diagnostic pilot:20synthetic+20frozen-profile forced samples each2setups; scalar/list probes18/3setups and undo restored0constraints. See baseline-report.md and workloads.json. Pilot timings are ineligible for acceptance; optimized comparable baseline and complete load/whole-document execution vectors pending.
 
+  - Status: Count path and native targets verified; baseline collection remains incomplete. Do not advance dependent implementation yet.
+  - Evidence mode: validation
 - [ ] T002 Finalize timing and invalidation boundaries
   - Depends on: T001
   - Requirement: Requirement 1/Requirement 2/Requirement 3/Requirement 4/Requirement 5; AC-001/AC-002/AC-003/AC-004/AC-006; D-001/D-002.

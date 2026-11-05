@@ -1,0 +1,113 @@
+{
+  "schema_version": 1,
+  "status": "frozen-initial-protocol",
+  "purpose": "T001 workload definitions; baseline counts must be verified before comparative acceptance",
+  "baseline_source": "576c7c28ad",
+  "production_source_change": false,
+  "fixtures": {
+    "synthetic_circle": {
+      "construction": "new App document, one nonconstruction circle at (1,2,0), radius 3; no constraints",
+      "native_fixture": "tests/src/Mod/Sketcher/App/SketchObjectRecompute.cpp"
+    },
+    "frozen_plate": {
+      "sha256": "55a0b21e57c979fe9e53dd89c073c47b2718257e7e7b10298375379094e3d4eb",
+      "sketch": "BottomPlateProfile",
+      "geometry": 118,
+      "constraints": 241,
+      "availability": "private disposable copy; do not commit FCStd"
+    },
+    "staged_plate": {
+      "expected_sha256": "7699ee464e73822cffc8d0538fef5f3ef82e3d8f5e74ae2220a0e96ad970839d",
+      "status": "excluded-source-file-hash-changed",
+      "observed_sha256": "b5ac698dc89d1f959d21432f31d05d1821529ec6ba9bc9c5f92b7ed90af69457"
+    }
+  },
+  "workloads": [
+    {
+      "id": "clean_noop",
+      "reset": "recompute synthetic document to clean state outside timing",
+      "operation": "doc.recompute()",
+      "expected_sketch_executes": 0,
+      "expected_setups": 0,
+      "speedup_eligible": false
+    },
+    {
+      "id": "forced_unchanged_synthetic",
+      "reset": "same clean synthetic geometry; touch target outside timing",
+      "operation": "doc.recompute()",
+      "expected_sketch_executes": 1,
+      "baseline_expected_setups": 2,
+      "candidate_expected_setups": 1,
+      "speedup_eligible": true
+    },
+    {
+      "id": "forced_unchanged_frozen_profile",
+      "reset": "open verified disposable frozen fixture; clean once outside timing; touch BottomPlateProfile outside timing",
+      "operation": "doc.recompute([doc.BottomPlateProfile])",
+      "expected_target_executes": 1,
+      "baseline_expected_target_setups": 2,
+      "candidate_expected_target_setups": 1,
+      "scope": "target and prerequisites, not whole-document propagation",
+      "speedup_eligible": true
+    },
+    {
+      "id": "thickness_edit_whole_document",
+      "reset": "reopen verified frozen fixture for each sample; start thickness0.8; no reorder unless explicitly testing recorded precursor",
+      "operation": "set Dimensions.BottomPlateThickness=0.81; doc.recompute()",
+      "scope": "mutation plus whole-document recompute; validation and discard outside timing",
+      "execution_counts": "freeze deterministic per-sketch vector during T001 before acceptance; not a count-two ordinary-profile assertion",
+      "status": "manifest only; T001 does not repeat the private crash mutation"
+    },
+    {
+      "id": "scalar_insertion",
+      "reset": "fresh synthetic sketch with16 independent horizontal lines, line i from (10*i,0) to (10*i+4,0); one active transaction per sample",
+      "operation": "add Horizontal(i) for i=0..15 through16 scalar calls; doc.recompute(); commit outside timing",
+      "baseline_expected_setups": 18,
+      "scope": "scalar immediate solve plus ordinary execute; verify count before acceptance",
+      "count_status": "verified in isolated installed-snapshot probe; transaction undo restored zero constraints"
+    },
+    {
+      "id": "list_insertion",
+      "reset": "fresh synthetic sketch with16 independent horizontal lines, line i from (10*i,0) to (10*i+4,0); one active transaction per sample",
+      "operation": "add [Horizontal(i) for i=0..15] as one list; explicit sketch.solve(); doc.recompute(); commit outside timing",
+      "baseline_expected_setups": 3,
+      "scope": "matched requested checked-solve plus recompute; list wrapper itself remains deferred",
+      "note": "do not infer a list-wrapper solve from the explicit checked solve",
+      "count_status": "verified in isolated installed-snapshot probe; transaction undo restored zero constraints"
+    },
+    {
+      "id": "fresh_process_load",
+      "reset": "new isolated process/profile for each sample; same immutable fixture",
+      "operation": "time App.openDocument(copy) only; startup outside boundary",
+      "cache_state": "OS page cache uncontrolled",
+      "execution_counts": "record restore/setup vector separately; do not impose ordinary execute count"
+    },
+    {
+      "id": "reopened_warm_load",
+      "reset": "same initialized isolated process after two warmups; close/discard previous copy",
+      "operation": "time App.openDocument(copy) only",
+      "cache_state": "reopened warm; filesystem cache not independently controlled",
+      "execution_counts": "record restore/setup vector separately"
+    },
+    {
+      "id": "historical_symmetry",
+      "status": "unverified until exact precursor and request are recovered",
+      "operation": "no surrogate permitted"
+    }
+  ],
+  "measurement": {
+    "warmups_per_configuration": 2,
+    "pairs_per_batch": 10,
+    "order": "AB,BA alternating",
+    "baseline_stage": "A/A diagnostic harness smoke only until instrumented/candidate optimized builds exist",
+    "dispersion": "MAD",
+    "bootstrap_resamples": 10000,
+    "bootstrap_seed": 576001,
+    "interval": "paired percentile95",
+    "maximum_batches": 3,
+    "overlap_disposition": "inconclusive; cannot pass",
+    "count_method_now": "existing Minimal diagnostic messages plus native doc.recompute return count on synthetic fixture",
+    "count_method_acceptance": "same count-only seam in both configurations, implemented/verified before tracing-off acceptance",
+    "timing_limit": "Debug and concurrent-build samples cannot satisfy performance budgets"
+  }
+}

@@ -73,3 +73,14 @@ The native backlink crash fix `c9af1a45d1`, merged as `36aa20c979`, is a separat
 correctness change already included in the baseline. The existing
 [restore/image performance package](../freecad-performance-optimization/spec.md)
 owns other work and is not migrated or broadened by this package.
+
+## T001 Runtime Reconciliation - 2026-11-05
+
+The new native fixture confirms clean recompute performs no work and forced
+unchanged execution performs two setups. The full native Sketcher suite passes
+109 tests. Scalar/list insertion and recoverable diagnostic probes are recorded
+in [baseline-report.md](baseline-report.md). The staged private file has changed
+hash; only the frozen fixture was used for private-profile diagnosis. Pilot
+elapsed values are not eligible for performance acceptance; requirements and
+budgets remain unchanged. See [workloads.json](workloads.json) for the initial
+operation/reset manifest and still-unverified vectors.
