@@ -73,7 +73,7 @@ private:
     QImage loadSvg(const char*) const;
     QImage loadSvgOfSize(const char*, const QSizeF&) const;
     QImage loadRaster(const char*) const;
-    void convertToSFImage(const QImage& img);
+    bool convertToSFImage(const QImage& img);
     void manipulateImage();
 
 private:

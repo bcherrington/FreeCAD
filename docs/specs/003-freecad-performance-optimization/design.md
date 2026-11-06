@@ -30,7 +30,7 @@ review gates. Keep compact rail geometry in package 002.
 | Property | Design Behavior | Validation Direction | Notes |
 | --- | --- | --- | --- |
 | CP-001 | Buffered restore preserves bytes, entry boundaries, permissions and notifications with defined document-level failure outcomes. | T018, T002; archive-level failure and compatibility fixtures | Source correction/qualification pending |
-| CP-002 | Image conversion and texture-only materialization preserve pixel semantics, original source, independently calibrated dimensions and placement. | T013, T003, T006; calibrated reopen/import/show/save fixtures | Source correction/qualification pending |
+| CP-002 | Image conversion and texture-only materialization preserve pixel semantics, original source, independently calibrated dimensions and placement. | T013, T003, T006; calibrated reopen/import/show/save fixtures | T013/T003/T006 local qualification complete; final T010 applicability remains |
 | CP-003 | Tree batching preserves per-object effects, ends callbacks with receiver lifetime and completes every suppressed restore path. | T014, T017, T007; destruction and idle restore-path regressions | Source correction/qualification pending |
 | CP-004 | Image extents, allocation lengths and offsets are checked before narrowing or writing; unsupported input is rejected safely. | T012, T003; null/slender boundary tests and sanitizer-equivalent checks | Source correction/qualification pending |
 | CP-005 | Numeric conversion is bounded and element-map aliases, child IDs and dependent CAD reference identities survive restore/recompute. | T015, T016, T005; numeric/writer/identity fixture matrix | Source correction/qualification pending |
@@ -142,7 +142,21 @@ invalidation and diagnostic contracts.
   Placement and calibrated Coin quad coordinates remain unchanged. The existing
   Gui::Document completion ordering is retained; the provider owns this policy.
   Real offscreen App/Gui archive/copy/import regressions qualify the local fix;
-  broader image/visual/lifecycle coverage remains T003/T006.
+  T003 qualifies local image/render fidelity; T006 qualifies the expanded lifecycle.
+  Ordinary show defers while GUI restoring or App ObjImporting without consuming
+  the pending request. Object finishRestoring is the explicit payload-ready barrier:
+  App import extracts payloads before afterRestore emits completion, although
+  ObjImporting remains set until import returns. Visible pending planes load there;
+  hidden planes retain the request until first show. No Document ordering patch
+  is required. Failed/empty/unsupported conversion clears the old texture and
+  preserves calibration/geometry; physical DPI initialization follows successful
+  conversion only. A failed nonempty load warns and consumes the request; an
+  explicit valid replacement recovers using insertion sizing. Repeated show of a
+  materialized plane retains its cache even if the backing file disappears. Empty
+  property Paste/undo clears the texture; existing blank-string setValue semantics
+  remain unchanged. Included payloads survive deletion of the external original.
+  T018 owns broken-archive save/metadata outcomes, and T010 owns final environment
+  qualification, including the unsuccessful Qt/IBus lifecycle Memcheck attempts.
 - **Receiver lifetime (F003):** start/finish-open subscriptions and scheduled
   callbacks must not outlive TreeWidget. T014 may use explicit disconnection or
   established scoped connections; test actual destruction/recreation, not dock

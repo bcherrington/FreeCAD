@@ -202,24 +202,31 @@ void ViewProviderImagePlane::loadImage(ImageSizePolicy sizePolicy)
     Image::ImagePlane* imagePlane = static_cast<Image::ImagePlane*>(pcObject);
     std::string fileName = imagePlane->ImageFile.getValue();
 
+    pendingFullResTexture = false;
+    QImage impQ;
     if (!fileName.empty()) {
-        pendingFullResTexture = false;
-        QImage impQ;
         if (isSvgFile(fileName.c_str())) {
             impQ = loadSvg(fileName.c_str());
         }
         else {
             impQ = loadRaster(fileName.c_str());
         }
+    }
 
+    // Reject missing/undecodable/unsupported images before initializing physical
+    // dimensions. Empty results also clear a previous image's stale texture.
+    if (convertToSFImage(impQ)) {
         setPlaneSize(impQ, sizePolicy);
-        convertToSFImage(impQ);
+    }
+    else if (!fileName.empty()) {
+        Base::Console().warning("Cannot load image '{}'.\n", fileName);
     }
 }
 
 void ViewProviderImagePlane::loadImageIfPending()
 {
-    if (pendingFullResTexture) {
+    if (pendingFullResTexture && !isRestoring()
+        && !pcObject->testStatus(App::ObjectStatus::ObjImporting)) {
         // Deferred materialization must not initialize saved/imported calibration,
         // even when the transient restoring/importing flags have already cleared.
         loadImage(ImageSizePolicy::Preserve);
@@ -230,8 +237,10 @@ void ViewProviderImagePlane::finishRestoring()
 {
     ViewProviderGeometryObject::finishRestoring();
 
-    if (Visibility.getValue()) {
-        loadImageIfPending();
+    if (Visibility.getValue() && pendingFullResTexture) {
+        // The object completion signal follows payload extraction, even though
+        // ObjImporting can remain set until the surrounding import returns.
+        loadImage(ImageSizePolicy::Preserve);
     }
 }
 
@@ -364,14 +373,16 @@ QSizeF ViewProviderImagePlane::pixelSize(const char* filename, const QSizeF& siz
     return size;
 }
 
-void ViewProviderImagePlane::convertToSFImage(const QImage& img)
+bool ViewProviderImagePlane::convertToSFImage(const QImage& img)
 {
-    if (!img.isNull()) {
-        SoSFImage sfimg;
-        // convert to Coin bitmap
-        BitmapFactory().convert(img, sfimg);
-        texture->image = sfimg;
-    }
+    SoSFImage sfimg;
+    // BitmapFactory clears null/unsupported input to an empty Coin image.
+    BitmapFactory().convert(img, sfimg);
+    texture->image = sfimg;
+    SbVec2s size;
+    int components;
+    const auto* bytes = sfimg.getValue(size, components);
+    return bytes && size[0] > 0 && size[1] > 0;
 }
 
 void ViewProviderImagePlane::updateData(const App::Property* prop)

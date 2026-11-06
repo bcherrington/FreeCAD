@@ -32,7 +32,7 @@ that explicit routing verified.
 | Phase | Required sequence | Exit gate |
 | --- | --- | --- |
 | 1 — Planning | T021/T019 retained; T009 scope disposition; T001 complete | D001 protocol approved before source work |
-| 2A — Images | T012/T013/T003 complete → **T006 next** | Safe conversion and calibrated lifecycle qualified |
+| 2A — Images | T012/T013/T003/T006 complete | Safe conversion and calibrated lifecycle qualified |
 | 2B — Tree | T014 → T017 → T007 | Receiver/completion fixes and current functional qualification |
 | 2C — CAD maps | T015 → T016 → T005 | Bounded parsing and CAD reference identity qualified |
 | 2D — Archives | T018 → T002 | Archive error outcomes and compatibility qualified |
@@ -74,8 +74,8 @@ none -> T008
 ## Phase 1 — Finish Planning
 
 Exit satisfied: T021/T019 evidence retained, T009 scope disposition recorded, and T001
-resolves D001 with the benchmark protocol. **Next action: T006 — Validate deferred full-resolution image-plane lifecycle
-(Phase 2A; T012/T013/T003 complete).**
+resolves D001 with the benchmark protocol. **Next action: T014 — Bind tree application callbacks to widget lifetime
+(Phase 2B; image subgroup complete).**
 
 - [x] T021 Expose lifecycle decisions and verify execution guardrails.
   - Depends on: none
@@ -295,45 +295,49 @@ Exit: T012/T013 corrections and T003/T006 required local acceptance pass on a na
       validation-manifest.md and record actual execution provenance.
 
   - Status: Completed current local qualification; scope and final-applicability limits are in t003-validation.json.
-- [ ] T006 Validate deferred full-resolution image-plane lifecycle.
+- [x] T006 Validate deferred full-resolution image-plane lifecycle.
   - Depends on: T003, T013
   - Requirements: Requirement 2, Requirement 5 (all acceptance criteria)
   - Design: design.md#high-level-design; design.md#low-level-design
   - Files: `src/Gui/ViewProviderImagePlane.cpp`, `src/Gui/ViewProviderImagePlane.h`,
-    `src/Gui/Document.cpp`, `verification.md`
+    `tests/src/Gui/ImagePlane.cpp`, `t006-validation.json`, `verification.md`
   - Acceptance: Requirement 5 AC1–AC4 pass after T013: independently calibrated visible/hidden
     reopen, hidden import/paste then show, explicit edits, missing/external files and save/reopen
     retain stored XSize/YSize, placement and original resolution independently of temporary flags.
   - Validation: See verification.md#quality-gates and the linked criteria.
   - Evidence mode: artifact
-  - Evidence: Pending current qualification. Replanning retained prior implementation and dated test observations in baseline-status.md; no child/current expanded acceptance result is complete.
-  - Status: Remaining execution is pending; source presence/historical results are baseline context, not partial execution.
+  - Evidence: 2026-11-06: T006.1 and T006.2 completed in dependency order. t006-validation.json and verification.md#t006-deferred-image-plane-lifecycle bind actual root f46d1d28e7/docs 946e262 plus exact three-file tracked diff, build/runtime/source/log hashes, 7 clean dependencies and 510 matching packages. Final old-provider reproduction 16 passes/8 failures; early-show deferral, failed/empty stale texture and unsupported-image calibration faults corrected. Full pixi build, 24 lifecycle Qt passes (22 functional rows), 82 bitmap cases, 42 native X11 software-render Qt passes, 2 CTest targets and scoped pre-commit pass; zero acceptance test skips/failures. All 41 current render PNG hashes match immutable T003 outputs. Direct checker passes exact hashes, 40 stable tasks, 10 prior completed task records, 88 links/anchors, frozen artifacts/receipts, CRLF and unrelated console preservation. Package lint zero diagnostics. Lifecycle Memcheck attempts exit 99 before tests in Qt/IBus startup; explicitly unqualified and routed to T010. Missing archive-entry save/OriginalName metadata audit remains T018. No performance, interactive-frame, hardware-GPU or final platform acceptance claimed.
+  - Status: Completed current local Requirement 5 AC1–AC4 and requalified Requirement 2 regressions; Phase 2A complete. Next T014; final/runtime/platform and performance gates remain T010/T020/T004.
   - Properties: CP-002
   - Candidate manifest: spec003-linux-x86_64-debug-candidate-20261106-v1; see validation-manifest.md
     and record actual execution provenance.
   - Baseline: baseline-status.md#image-plane-lifecycle
 
-  - [ ] T006.1 Verify visible-plane restore, edits and external/missing-file behavior.
+  - [x] T006.1 Verify visible-plane restore, edits and external/missing-file behavior.
     - Depends on: T003, T013
     - Requirements: Requirement 2, Requirement 5 (all acceptance criteria)
-    - Files: `src/Gui/ViewProviderImagePlane.cpp`, `verification.md`
+    - Files: `src/Gui/ViewProviderImagePlane.cpp`, `src/Gui/ViewProviderImagePlane.h`,
+      `tests/src/Gui/ImagePlane.cpp`, `t006-validation.json`, `verification.md`
     - Acceptance: Verify visible restored planes with independently non-default XSize/YSize,
       external/missing files and intentional image insertion/resize; calibration and placement must
       not be overwritten at finishRestoring.
+    - Status: Completed local visible/edit/error lifecycle qualification; archive metadata/error policy remains T018 and final runtime/platform applicability T010.
     - Evidence mode: artifact
-    - Evidence: Pending.
+    - Evidence: 2026-11-06: t006-validation.json and verification.md#t006-deferred-image-plane-lifecycle record visible PNG/SVG calibrated reopen, early-show restore/import ready/late payloads, explicit replacement/resize, removed/corrupt/unsupported/empty-property behavior, invalid external assignment and embedded-payload survival after external deletion. Final red run 16 passes/8 failures; corrected provider 24 Qt passes (22 functional rows), zero skips. Calibration, Placement, geometry, original resolution and DPI assertions pass; build, current 82 bitmap regressions, 42 native render passes, two CTest targets and scoped pre-commit pass. Lifecycle Memcheck attempts stop before tests in Qt/IBus; no memory-clean claim; T010 owns revalidation.
     - Candidate manifest: spec003-linux-x86_64-debug-candidate-20261106-v1; see
       validation-manifest.md and record actual execution provenance.
 
-  - [ ] T006.2 Verify hidden restore and show-after-restore preserve original texture resolution and plane dimensions.
+  - [x] T006.2 Verify hidden restore and show-after-restore preserve original texture resolution and plane dimensions.
     - Depends on: T006.1
     - Requirements: Requirement 2, Requirement 5 (all acceptance criteria)
-    - Files: `src/Gui/ViewProviderImagePlane.cpp`, `verification.md`
+    - Files: `src/Gui/ViewProviderImagePlane.cpp`, `tests/src/Gui/ImagePlane.cpp`,
+      `t006-validation.json`, `verification.md`
     - Acceptance: Verify independently calibrated hidden reopen and hidden copy/paste/import
       followed by first show; compare dimensions, placement and original resolution before/after
       materialization and again after save/reopen.
+    - Status: Completed local hidden pending/materialized lifecycle qualification; T006.1 prerequisites satisfied; final profile applicability remains T010.
     - Evidence mode: artifact
-    - Evidence: Pending.
+    - Evidence: 2026-11-06: t006-validation.json and verification.md#t006-deferred-image-plane-lifecycle bind hidden PNG/SVG reopen/first show/save-reopen, calibrated copy/paste/import after source closure, hidden resize/save before first show and repeated show without implicit reload. All 22 functional lifecycle rows pass (24 Qt passes), with original texture resolution, independently stored dimensions, Placement, geometry and DPI assertions. Two CTest targets pass; current native render outputs match all 41 immutable T003 PNG hashes.
     - Candidate manifest: spec003-linux-x86_64-debug-candidate-20261106-v1; see
       validation-manifest.md and record actual execution provenance.
 
@@ -510,7 +514,11 @@ measurements.
   - Candidate manifest: spec003-linux-x86_64-debug-candidate-20261106-v1; see validation-manifest.md
     and record actual execution provenance.
   - Context evidence: F006 source review found XMLReader catches restore-hook exceptions; current
-    fixture evidence does not specify all archive-level outcomes.
+    fixture evidence does not specify all archive-level outcomes. T006 additionally observed
+    PropertyFileIncluded::setValue writes _OriginalName before validating existence; a rejected
+    external assignment retains getValue/texture/calibration, but metadata transactionality is
+    unqualified. Include that metadata audit and missing-payload save outcomes here; owner
+    local-developer. This is source evidence, not an approved policy change.
 
 - [ ] T002 Verify included-file restore compatibility on the target revision.
   - Depends on: T018
@@ -665,7 +673,10 @@ promotion and owned residual dispositions are complete.
   - Candidate manifest: spec003-linux-x86_64-debug-candidate-20261106-v1; see validation-manifest.md
     and record actual execution provenance.
   - Context evidence: Focused reachable commits and dated results exist; exact PR revisions, full
-    build/test and final review evidence remain unverified.
+    build/test and final review evidence remain unverified. T006 lifecycle Memcheck attempts
+    stopped before tests in Qt aeshash128/QDBus/QIBus startup (exit 99), including a compose
+    input-method retry that still loaded IBus. Diagnose/revalidate the final runtime input-method
+    profile here; owner local-developer. No lifecycle memory-clean claim or broad suppression.
 
   - [ ] T010.1 Confirm final production revisions and invalidate affected evidence.
     - Depends on: T004
@@ -825,7 +836,7 @@ Plan epic IDs remain searchable in [plan.md](plan.md).
 | C1; shape-map tracing and parser | T005 | Investigation history retained; parser exists; current compatibility evidence needed |
 | C2; conditional GUI substep timing | T008 | Conditional on renewed measurements |
 | D2, E1, E2; conversion/visual/format checks | T003 | Direct path exists; uncommon/visual matrix incomplete |
-| F1, F2; restore ordering and lazy full-resolution prototype | T006 | Implemented; lifecycle matrix open |
+| F1, F2; restore ordering and lazy full-resolution prototype | T006 | Current local lifecycle qualification complete; final platform/runtime profile remains T010 |
 | F2 reduced-resolution checkbox | T009 | Separate decision, not implemented |
 | G1, G2; tree pending flag, side effects, larger trace | T007 | Batching exists; no bulk-delete bypass; larger-model evidence open |
 | G3; startup tracing/ranking | T008 | Historical normal-profile observations; conditional follow-up |
