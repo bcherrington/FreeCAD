@@ -36,7 +36,8 @@ historical notes override code, tests, policy or live evidence.
 | Source | Role | Scope | Notes |
 | --- | --- | --- | --- |
 | requirements.md | Proposed acceptance | This package | Legacy FR/PR/SC aliases retained |
-| design.md | Current working approach | This package | Unresolved choices stay explicit |
+| design.md | Current working approach | This package | Source/spec conflicts remain explicit until verified |
+| open-decisions.md | Authoritative decision status/ownership | D001–D003 | Direct ledger overrides an empty discovery result until reconciled |
 | tasks.md | Delivery queue | This package | Read with requirements and design |
 | traceability.md | Bidirectional context | This package | Partial coverage blocks closure |
 | verification.md | Revision/date-bound evidence | Named checks only | No blanket readiness inferred |
@@ -48,6 +49,16 @@ historical notes override code, tests, policy or live evidence.
 | requirements.md; design.md | legacy-spec.md | Existing 2026-11-04 working document | adapted | Proposed behavior only | See requirements.md durable impact |
 | verification.md | Pre-migration verification report | 2026-11-04 at 13d601b9dd6b66026e2d0dbb5c16156f18bdb592 | background | Historical results only | Current validated results to proposed runbook |
 | design.md; verification.md | Current source paths in requirements.md | d0644236e41f35a849b12a1e77941aa88354496f | summarized | Presence of inspected implementation only | See requirements.md durable impact |
+
+## MoE Evidence And Execution Boundary
+
+Static MoE findings at root c69560af8a/docs 8d1abe9 are recorded in
+verification.md#moe-review-findings. They establish source conflicts/risk and
+missing acceptance contracts, not executed failures or completed corrections.
+The earlier implementation-presence baseline does not override F001–F009.
+Pin candidate provenance through T019 before accepting source/test evidence;
+reconcile exact final revisions and invalidated evidence at T010. Context-ready
+packets never override review-needed decisions, prerequisites or safety blockers.
 
 ## Non-Canonical Background Sources
 
@@ -70,3 +81,4 @@ stays dated or is retained with an explicit audit-only role.
 - [Tasks](tasks.md)
 - [Traceability](traceability.md)
 - [Verification](verification.md)
+- [Open decisions](open-decisions.md)

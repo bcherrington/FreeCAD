@@ -49,5 +49,15 @@ The [legacy specification](legacy-spec.md) preserves the original content and
 
 ## Status
 
-Draft. See [open decisions](design.md#open-questions) and
+Draft. See [open decisions](open-decisions.md) and
 [readiness](verification.md#readiness-decision).
+
+## MoE Review Follow-Up
+
+The 2026-11-06 specialist review found three static source-safety/calibration/
+receiver-lifetime blockers and five acceptance requests plus a lifecycle
+interoperability suggestion. All are owned in this package as F001–F009; see
+[dispositions](verification.md#moe-review-findings) and the T012–T021 corrective
+queue. Requirements, design and task dependencies include the expanded gates.
+T021 completed discovery/guardrail repair; T019 must pin candidate evidence before source work.
+Updating these documents does not complete the source fixes or runtime tests.

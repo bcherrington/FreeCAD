@@ -89,6 +89,13 @@ file permissions, failure behavior, and document compatibility.
 1. GIVEN empty, binary, multi-buffer and multi-entry included payloads, WHEN restored, THEN bytes,
    entry boundaries, notifications and read-only destination behavior SHALL remain compatible;
    read/write/close failures SHALL remain observable.
+2. GIVEN empty and nonempty archive payloads with injected read, write or close failures, WHEN the
+   enclosing document restore runs, THEN the approved compatibility policy SHALL define
+   diagnostic/failure-list state, partial destination disposition, property notifications and
+   continued restoration of later entries.
+3. GIVEN a failed first registered entry followed by a valid second entry, WHEN opening the archive,
+   THEN the expected second-entry bytes and document-level failure outcome SHALL be verified rather
+   than inferred from a property-hook exception.
 
 ### Requirement 2: Image conversion fidelity
 
@@ -106,6 +113,14 @@ scale, and texture ownership behavior.
 1. GIVEN RGB32, ARGB32, RGBA8888, RGBX8888, premultiplied, indexed, grayscale, high-depth and
    SVG-derived inputs, WHEN converted and displayed, THEN orientation, color, alpha, scale and
    texture ownership SHALL match the baseline.
+2. BEFORE conversion or Coin allocation, THE converter SHALL validate non-null input, supported
+   positive dimensions representable by the destination type, and checked allocation/offset
+   arithmetic; unsupported extents SHALL follow a documented failure result without partial writes
+   or memory access outside the destination.
+3. GIVEN direct and fallback images at the supported extent boundary and slender images with
+   dimensions 32767, 32768 and 65537, WHEN converted, THEN supported cases SHALL retain correct
+   pixels and unsupported cases SHALL be rejected safely; null input SHALL have an explicit tested
+   outcome.
 
 ### Requirement 3: Comparable optimization evidence
 
@@ -123,6 +138,24 @@ comparable workflow and build mode.
 1. WHEN an optimization is proposed for review, THE evidence SHALL identify baseline/current
    revisions, build mode, fixture, run count, cold/warm policy, before/after timings and focused
    correctness checks.
+2. BEFORE correctness or measurement results are accepted, THE evidence SHALL identify candidate
+   source/dependency revisions, binary/build provenance, platform, toolchain and fixture identity in
+   the validation manifest; evidence from existing unpinned binaries SHALL remain historical.
+3. BEFORE performance samples are collected for acceptance, THE protocol SHALL define primary
+   fixtures/metrics, timing endpoints, run count, statistic, warm-up/exclusion policy, variability
+   treatment and improvement/non-regression decision rules; each production optimization SHALL have
+   assigned comparative evidence or an explicit reviewed exclusion/routed disposition.
+4. WHEN deferred image work is evaluated, THE measurements SHALL distinguish command-mode restore,
+   GUI open-to-first-correct-frame, hidden-first-show-to-correct-frame and repeat-show latency,
+   initial visibility, pending/materialized texture counts, and peak process/decoded/Coin image
+   bytes; deferred work SHALL be reported separately from eliminated work.
+5. WHEN source, dependency, build, fixture or relevant environment changes affect evidence
+   applicability, THE final review SHALL rerun affected automated, archive, calibration/lifecycle,
+   visual/manual and benchmark checks or record a reviewed equivalence justification tied to the
+   exact final revisions; assembling old timings alone SHALL NOT satisfy acceptance.
+6. WHEN lifecycle decision discovery is queried, THE package SHALL expose all still-open D001, D002
+   and D003 decisions with accurate status, owner and blocking tasks; context-packet availability
+   SHALL NOT authorize execution over unresolved decisions or task dependencies.
 
 ### Requirement 4: Element-map restore compatibility
 
@@ -137,6 +170,18 @@ and child-ID semantics, so that I can reopen existing geometry archives compatib
 
 1. WHEN existing dot-separated element-map entries are restored, THE parser SHALL preserve names,
    child string IDs and map semantics without changing the archive format.
+2. WHEN numeric archive tokens are parsed, THE implementation SHALL avoid signed overflow and
+   out-of-bounds access and document accepted/rejected behavior for decimal/hexadecimal limits,
+   signs, prefixes, whitespace, invalid suffixes and oversized tokens, preserving legacy tolerance
+   unless an intentional compatibility change is approved.
+3. GIVEN fixtures for semicolon, colon and hashed dollar-prefix forms, decimal child IDs and
+   hexadecimal mapped IDs above nine, multiple SIDs/aliases and nested/shared child maps, WHEN
+   saved/restored/saved, THEN semantic identity and mapped-to-indexed/indexed-to-mapped lookups
+   SHALL remain equivalent after input storage is released.
+4. GIVEN a saved CAD document with features referencing dependent subelements, WHEN reopened and
+   recomputed after parser changes, THEN those references SHALL retain their intended targets;
+   byte-identical serialization SHALL be required only where the format promises deterministic
+   ordering.
 
 ### Requirement 5: Image-plane restore lifecycle
 
@@ -153,6 +198,13 @@ failed loads without changing image fidelity.
 1. WHILE restore-time image payloads are unavailable, THE view provider SHALL defer loading.
 2. WHEN restore completes for a visible image plane or a hidden plane is shown, THE pending original
    full-resolution texture SHALL materialize while preserving source image and plane dimensions.
+3. GIVEN visible and hidden image planes with stored XSize and YSize independently calibrated away
+   from image DPI defaults, WHEN reopened, first shown and saved/reopened again, THEN stored
+   dimensions, placement and original texture resolution SHALL remain unchanged; hidden
+   copy/paste/import followed by later show SHALL preserve the same calibration.
+4. WHEN a pending original texture is materialized, THE texture-load operation SHALL preserve
+   existing calibration independently of transient GUI restoring or App importing flags; fresh image
+   insertion or explicit user resize SHALL retain its documented sizing behavior.
 
 ### Requirement 6: Tree restore status batching
 
@@ -170,15 +222,27 @@ observer behavior.
    document open.
 2. WHEN objects are deleted, THE tree SHALL preserve per-object selection, focus, child and map side
    effects; a bulk-delete bypass requires separate evidence and design.
+3. WHEN a tree widget is destroyed or recreated while the application remains alive, THEN its
+   application subscriptions and queued callbacks SHALL end with receiver lifetime; a later
+   document-open signal SHALL NOT access the destroyed widget.
+4. GIVEN idle tree timers, WHEN application open, direct document load/restore, import or copy/paste
+   enters a suppressed restore path, THEN a matching completion or safely resumed scheduler SHALL
+   eventually populate/status the tree and attach observers without another edit or document open;
+   completion/error cleanup SHALL NOT strand pending work.
 
 ## Correctness Properties
 
 - **CP-001**: Buffered restore preserves payload bytes, registered entry boundaries, permissions and
-  notifications. Covers Requirement 1, Requirement 4.
+  notifications, and defines document-level failure outcomes. Covers Requirement 1.
 - **CP-002**: Image conversion/lazy loading preserves orientation, RGBA semantics, original source
-  and plane dimensions. Covers Requirement 2, Requirement 5.
+  and independently calibrated plane dimensions. Covers Requirement 2, Requirement 5.
 - **CP-003**: Tree restore batching preserves selection, focus, observer and per-object deletion
-  behavior. Covers Requirement 6.
+  behavior, receiver lifetime and eventual updates for every suppressed restore path. Covers Requirement 6.
+
+- **CP-004**: Image dimensions, allocation lengths and offsets are validated before narrowing or
+  writing; rejected input causes no out-of-bounds access. Covers Requirement 2.
+- **CP-005**: Numeric parsing is bounded and element-map aliases, child IDs and dependent CAD
+  subelement identities survive restore/recompute. Covers Requirement 4.
 
 ## Edge Cases
 
@@ -186,15 +250,23 @@ observer behavior.
 - Corrupt or partial embedded payloads.
 - Uncommon `QImage` formats, premultiplied alpha, indexed images, and SVG image
   planes.
-- Debug versus RelWithDebInfo timing differences.
+- Debug versus RelWithDebInfo timing differences and changed cherry-pick/dependency compositions.
+- Null/slender oversized images, arithmetic boundaries and decoder-versus-Coin dimension limits.
+- Independently calibrated visible/hidden planes and hidden import/paste followed by first show.
+- Tree destruction/recreation, idle direct load/restore/import and failed restore cleanup.
+- Empty/nonempty archive-entry failures followed by valid entries and malformed numeric map tokens.
 
 ## Technical Context
 
-- Language/dependencies: repository C++/Python toolchain, Qt, Coin/Quarter, App/Base/Gui and OpenCascade.
+- Language/dependencies: repository C++/Python toolchain, Qt, Coin/Quarter, App/Base/Gui and
+  OpenCascade.
 - Storage: existing FCStd archive entries and original image files; no archive-format migration.
-- Target: captured Linux Debug baseline; final production revisions need their declared platform gates.
-- Constraints: preserve stream boundaries, notifications, permissions, image semantics and tree side effects.
-- Performance: lower comparable restore/conversion timings without correctness regression; exact protocol pending D001.
+- Target: captured Linux Debug baseline; final production revisions need their declared platform
+  gates.
+- Constraints: preserve stream boundaries, notifications, permissions, image semantics and tree side
+  effects.
+- Performance: lower comparable restore/conversion timings without correctness regression; exact
+  protocol pending D001.
 
 ## Success Criteria
 
@@ -203,7 +275,11 @@ observer behavior.
 - **SC-002**: Large image conversion has a measured before/after improvement
   without visual regression.
 - **SC-003**: All production changes include focused validation evidence in the
-  implementation PR notes.
+  implementation PR notes, with applicability reconciled against the exact final revisions.
+- **SC-004**: All MoE safety findings have regression evidence and no unresolved acceptance blocker;
+  current pixel-format tests alone do not establish memory, calibration or receiver-lifetime safety.
+- **SC-005**: Each retained production optimization satisfies D001's predeclared improvement and
+  non-regression decision rules, including deferred-display latency and material memory effects.
 
 Success criteria remain acceptance gates, not claims of completion. Tentative budgets and
 qualitative improvement targets require a recorded decision before validation.
@@ -214,4 +290,6 @@ qualitative improvement targets require a recorded decision before validation.
 - [Tasks](tasks.md)
 - [Traceability](traceability.md)
 - [Verification](verification.md)
+- [Open decisions](open-decisions.md)
+- [MoE finding dispositions](verification.md#moe-review-findings)
 - [Historical input](legacy-spec.md)
