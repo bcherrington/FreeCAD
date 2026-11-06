@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <array>
 #include <vector>
+#include <tuple>
 
 #include <QImage>
 #include <QColor>
@@ -214,3 +215,102 @@ TEST_F(BitmapFactoryTest, ConvertRgbx8888UsesOpaqueAlphaAndFlipsVertically)
         }
     );
 }
+
+TEST_F(BitmapFactoryTest, ConvertNullImageClearsPreviousImage)
+{
+    SoSFImage image;
+    Gui::BitmapFactory().convert(makeArgb32Image(), image);
+    Gui::BitmapFactory().convert(QImage(), image);
+
+    int width = -1;
+    int height = -1;
+    int components = -1;
+    EXPECT_TRUE(imageBytes(image, width, height, components).empty());
+    EXPECT_EQ(width, 0);
+    EXPECT_EQ(height, 0);
+    EXPECT_EQ(components, 0);
+}
+
+TEST_F(BitmapFactoryTest, ConvertOversizedFallbackExtentClearsPreviousImage)
+{
+    // 65537 used to narrow to 1: bounded input and allocation, but wrong output size.
+    QImage source(65537, 1, QImage::Format_Grayscale8);
+    ASSERT_FALSE(source.isNull());
+    source.fill(42);
+    SoSFImage image;
+    Gui::BitmapFactory().convert(makeArgb32Image(), image);
+    Gui::BitmapFactory().convert(source, image);
+
+    int width = -1;
+    int height = -1;
+    int components = -1;
+    EXPECT_TRUE(imageBytes(image, width, height, components).empty());
+    EXPECT_EQ(width, 0);
+    EXPECT_EQ(height, 0);
+    EXPECT_EQ(components, 0);
+}
+
+class BitmapFactoryExtentTest
+    : public BitmapFactoryTest,
+      public ::testing::WithParamInterface<std::tuple<int, bool, QImage::Format>>
+{
+};
+
+TEST_P(BitmapFactoryExtentTest, ConvertsSupportedExtentsAndClearsUnsupportedExtents)
+{
+    const auto [extent, vertical, format] = GetParam();
+    const int width = vertical ? 1 : extent;
+    const int height = vertical ? extent : 1;
+    QImage source(width, height, format);
+    ASSERT_FALSE(source.isNull());
+    source.fill(QColor(10, 20, 30));
+    source.setPixelColor(0, 0, QColor(40, 50, 60));
+    source.setPixelColor(width - 1, height - 1, QColor(70, 80, 90));
+
+    SoSFImage image;
+    Gui::BitmapFactory().convert(makeArgb32Image(), image);
+    Gui::BitmapFactory().convert(source, image);
+    int actualWidth = -1;
+    int actualHeight = -1;
+    int components = -1;
+    const auto bytes = imageBytes(image, actualWidth, actualHeight, components);
+    if (extent > 32767) {
+        EXPECT_TRUE(bytes.empty());
+        EXPECT_EQ(actualWidth, 0);
+        EXPECT_EQ(actualHeight, 0);
+        EXPECT_EQ(components, 0);
+        return;
+    }
+
+    ASSERT_EQ(actualWidth, width);
+    ASSERT_EQ(actualHeight, height);
+    ASSERT_EQ(components, 4);
+    ASSERT_EQ(bytes.size(), static_cast<std::size_t>(width) * height * 4);
+    std::vector<unsigned char> expected;
+    expected.reserve(bytes.size());
+    for (int y = height - 1; y >= 0; --y) {
+        for (int x = 0; x < width; ++x) {
+            const QColor pixel = source.pixelColor(x, y);
+            expected.push_back(pixel.red());
+            expected.push_back(pixel.green());
+            expected.push_back(pixel.blue());
+            expected.push_back(pixel.alpha());
+        }
+    }
+    EXPECT_EQ(bytes, expected);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    CoinSignedShortBoundary,
+    BitmapFactoryExtentTest,
+    ::testing::Combine(
+        ::testing::Values(32767, 32768, 65537),
+        ::testing::Bool(),
+        ::testing::Values(
+            QImage::Format_ARGB32,
+            QImage::Format_RGBA8888,
+            QImage::Format_Grayscale8,
+            QImage::Format_ARGB32_Premultiplied
+        )
+    )
+);

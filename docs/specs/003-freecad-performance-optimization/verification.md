@@ -83,14 +83,15 @@ Five AI specialist perspectives covered CAD persistence, rendering, FreeCAD
 lifecycle, performance engineering and requirements/QA. Findings are static
 source/code-path evidence and acceptance gaps, not executed reproductions.
 Historical implementation-presence/test rows below do not discharge these new
-criteria. Requirement 2/5/6 acceptance remains blocked by F001/F002/F003 until
-source correction and meaningful regression checks exist.
+criteria. F001 has since been reproduced and locally corrected/qualified by
+T012 (see below). F002/F003 remain source blockers; broader Requirement 2/5/6
+fidelity, calibration and lifecycle acceptance remains pending.
 
 ## MoE Review Findings
 
 | ID | Severity | Observed evidence / consequence | Owner / task destination | Disposition |
 | --- | --- | --- | --- | --- |
-| F001 | blocker | BitmapFactory.cpp:64–98 allocates using narrowed SbVec2s dimensions but writes original dimensions; inspected Linux 65537x1 becomes a 1x1 allocation. Null/extent/arithmetic policy was missing. | local-developer; T012 then T003 | Open source fix and boundary/safety regression |
+| F001 | blocker | BitmapFactory.cpp:64–98 allocates using narrowed SbVec2s dimensions but writes original dimensions; inspected Linux 65537x1 becomes a 1x1 allocation. Null/extent/arithmetic policy was missing. | local-developer; T012 then T003 | Corrected and locally qualified by T012; broader T003 fidelity remains pending |
 | F002 | blocker | Gui/Document.cpp:2170 clears GUI restoring before finishRestoring; ViewProviderImagePlane.cpp:215–251 can write DPI-derived XSize/YSize during deferred load. Non-default calibration can be lost. | local-developer; T013 then T006 | Open source correction and visible/hidden/import calibration regressions |
 | F003 | blocker | Tree.cpp:696–700 captures raw this in application callbacks; destructor at 762–775 omits those connection disconnections; fastsignals::connection destructor is unscoped. | local-developer; T014 then T007 | Open receiver-lifetime fix and destroy/recreate/open regression |
 | F004 | request | ElementMap.cpp:89–105 changes numeric conversion as well as token splitting, with unchecked signed arithmetic; current parser fixtures do not cover all writer/alias/radix/child identity forms. | local-developer; T015, T016 then T005 | Open bounded numeric policy/implementation and CAD identity fixtures |
@@ -111,7 +112,7 @@ GPU residency claims require separate actual measurements.
 
 | Gate | Required fixtures / outcome | Owner tasks | Evidence status |
 | --- | --- | --- | --- |
-| Image extent/arithmetic | Null, valid edge and slender 32767/32768/65537 inputs; safe documented rejection, checked offsets; sanitizer-equivalent checks where available | T012, T003 | Pending source fix and execution |
+| Image extent/arithmetic | Null, valid edge and slender 32767/32768/65537 inputs; safe documented rejection, checked offsets; sanitizer-equivalent checks where available | T012, T003 | T012 local boundary/CPU memory-access checks pass; broader T003 qualification pending |
 | Calibrated CAD planes | Independently non-default XSize/YSize and placement; visible/hidden reopen, hidden import/paste/show, repeated show, save/reopen; preserve new-image/explicit-resize behavior | T013, T006 | Pending source fix and execution |
 | Receiver lifetime | Actual tree destroy/recreate then start/finish-open; callbacks and queued work cannot access dead receiver | T014, T007 | Pending source fix and execution |
 | Numeric and subelement identity | Signed/unsigned-form tolerance, decimal/hex bounds, malformed/overflow tokens; semicolon/colon/dollar writer forms; multiple aliases/SIDs/shared children; bidirectional lookups after buffers die; dependent CAD target reopen/recompute | T015, T016, T005 | Pending policy, source correction and fixtures |
@@ -165,10 +166,69 @@ remain T020/T004 responsibilities after Phase 2. F001–F008 runtime/final gates
 platform confirmation and durable promotion remain open. Next: T012 — Guard
 bitmap dimensions and conversion arithmetic.
 
+## T012 Extent And Arithmetic Correction — 2026-11-06
+
+T012 guards null, nonpositive and signed-short-unrepresentable QImage extents
+before either conversion path can allocate Coin storage or narrow a dimension.
+RGBA byte counts are checked by division against `qsizetype::max()`; direct row
+offsets use `std::size_t`. Valid input keeps existing RGBA/channel/vertical-flip
+semantics. Unsupported input or failed fallback conversion clears an existing
+output to zero dimensions/components and no pixels. Coin allocation exceptions
+remain exceptions. The public method signature is unchanged; its header documents
+the failure contract, preserving the original CRLF endings in both GUI files.
+
+The [execution receipt](t012-validation.json) binds T019's immutable manifest to
+actual root revision plus the exact three-file working diff/source hashes,
+seven clean matching dependencies, 510 matching package identities, unchanged
+config/tool identities, effective Debug compile commands, binaries, resolved
+libraries, fixtures and result/log hashes. This is a local CPU conversion check,
+not native viewport or whole-image lifecycle acceptance. Final PR reconciliation
+remains T010; no old timing or unrelated checkpoint is transferred as a pass.
+
+- **Bounded red reproduction:** the new 65537×1 grayscale fallback regression
+  failed on the old converter: a 1×1 output was returned instead of rejection.
+  Memcheck on the old direct ARGB32 path then detected an invalid one-byte write
+  immediately after Coin's four-byte allocation, exiting with code 99 at the
+  first bitmap error. This turns F001's static finding into a runtime reproduction.
+- **Fresh build:** `pixi run --locked build -j 2` completed successfully. Pivy
+  emitted stub-generation warnings; unchanged workbench/test code emitted
+  OpenCASCADE deprecation warnings. The receipt names the actual Debug profile
+  and effective flags; these are not optimized performance results.
+- **Focused checks:** the receipt's bounded offscreen gtest command passed all
+  30 cases: four retained channel/alpha/orientation cases, null input, replacement
+  of an existing output by an oversized fallback, and 24 parameterized boundary
+  cases (32767/32768/65537, both orientations, ARGB32/RGBA8888/Grayscale8/premultiplied).
+  Supported boundary fixtures compare every pixel; unsupported fixtures assert
+  zero extents/components and empty storage. Inputs stay slender and bounded.
+- **Memory access:** the final executable passed all 30 cases under Valgrind
+  Memcheck with zero errors. Leak and undefined-value checks were disabled.
+  The sole suppression matches libunwind's startup `syscall write(buf)` address
+  probe, not converter/Coin errors; its exact text/hash is in the receipt. An
+  initial unsuppressed startup stop and a 90-second startup timeout are retained
+  as unsuccessful attempts, not bitmap passes. Qualified runs used a 300-second
+  bound. This is sanitizer-equivalent access checking for these fixtures, not an
+  ASan/UBSan, allocation-failure or 32-bit execution claim.
+- **Style/scope:** focused pre-commit hooks pass after the formatter's local
+  update. CRLF-aware root whitespace and nested-docs whitespace checks pass.
+  Immutable T019 artifacts and completed T001/T019/T021/T009 evidence are retained.
+  The direct final checker passed receipt source/binary/log/diff identities, all
+  40 stable tasks, 81 local links/anchors, frozen history/manifest/protocol and
+  preservation of the unrelated console working diff. Package lint returned
+  zero diagnostics; T012 context has zero gaps. Workbench retained its nested
+  docs authority-boundary limitation; direct Git/hash checks and lifecycle tools
+  provide the execution evidence. Final lifecycle preflight selects T013 with
+  satisfied dependencies, zero context gaps and no open decisions; task counts
+  are five complete, 33 pending and two follow-up, with no partial/in-progress task.
+
+T012 closes its local F001 correction scope. T003's broader format/visual matrix,
+T013 calibration, T006 lifecycle, T020 performance/resources and T010 final
+platform/composition gates remain open. Next: T013 — Preserve calibrated
+image-plane dimensions during texture loading.
+
 ## Next Actions
 
-1. **Next: T012 — Guard bitmap dimensions and conversion arithmetic.**
-   T001 resolves D001; apply its protocol and T019 receipt rules throughout execution.
+1. **Next: T013 — Preserve calibrated image-plane dimensions during texture loading.**
+   T012 local extent correction is complete; retain D001/T019 applicability rules.
 2. Follow [the explicit Phase 2 subgroups](tasks.md#execution-order): images,
    tree lifecycle, CAD maps, then archives; finish each fix's focused regression
    and subgroup qualification before advancing.
@@ -182,7 +242,7 @@ bitmap dimensions and conversion arithmetic.
 | Gate | Required? | Status | Evidence |
 | --- | --- | --- | --- |
 | Requirements and decisions accepted | yes | partial | D001 protocol recorded; D002 routes to B009; D003 initial policy recorded; final T010.1 confirmation pending |
-| MoE source-safety blockers resolved | yes | blocked | F001/F002/F003; T012/T013/T014 and regression matrix |
+| MoE source-safety blockers resolved | yes | blocked | F001 locally qualified by T012; F002/F003 source corrections and broader regression matrix remain |
 | Candidate and final evidence applicability | yes | partial | T019 initial manifest/policy recorded; actual new-build/runtime receipts and T010 final reconciliation pending |
 | Predeclared per-optimization performance/resource acceptance | yes | pending | T001 protocol complete; T020/T004 and final T010 evidence pending |
 | Complete task/criterion evidence | yes | pending | tasks.md; traceability.md |
@@ -301,8 +361,8 @@ executed. Runtime regression evidence for F001–F008 remains pending.
 
 ## Residual Risks
 
-- F001/F002/F003 remain implementation acceptance blockers; source changes and runtime
-  regressions are not completed by adding tasks or strengthening prose.
+- F002/F003 remain implementation acceptance blockers. F001 is locally corrected
+  and memory-access qualified by T012; broader T003 image acceptance remains pending.
 - Malformed numeric tokens, archive-level error outcomes and broader restore paths require
   explicit compatibility decisions and regression evidence.
 - Dated tests do not certify the selected final production revision.
@@ -321,8 +381,8 @@ this migration.
 
 ## Readiness Decision
 
-- Ready to implement: T012 — Guard bitmap dimensions and conversion arithmetic; Phase 1 complete.
-- Ready to validate: whole-package acceptance blocked by F001/F002/F003; Phase 2 reproductions require named current build receipts.
+- Ready to implement: T013 — Preserve calibrated image-plane dimensions during texture loading; T012 complete.
+- Ready to validate: whole-package acceptance blocked by F002/F003 and remaining qualification; T012 local extent checks pass on its recorded composition.
 - Ready to close: no.
 - Ready to archive: no.
 - Cleanup action: keep active, draft.

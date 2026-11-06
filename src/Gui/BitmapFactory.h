@@ -147,6 +147,9 @@ public:
     QPixmap empty(QSize size) const;
 
     /** Converts a QImage into a SoSFImage to use it inside a SoImage node.
+     * Null images, extents outside the positive signed-short range, RGBA byte
+     * sizes exceeding QImage's byte-size limit, or failed format conversion
+     * clear the output to an empty image with zero components.
      */
     void convert(const QImage& img, SoSFImage& out) const;
     /** Converts a SoSFImage into a QImage.

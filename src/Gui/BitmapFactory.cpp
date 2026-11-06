@@ -35,6 +35,8 @@
 #include <QSvgRenderer>
 #include <QStyleOption>
 
+#include <cstddef>
+#include <limits>
 #include <string>
 #include <Inventor/fields/SoSFImage.h>
 
@@ -61,19 +63,19 @@ bool convertDirect32BitImage(const QImage& source, SoSFImage& image)
         return false;
     }
 
-    SbVec2s size;
-    size[0] = source.width();
-    size[1] = source.height();
+    // convert() has validated the extents and the complete RGBA allocation size.
+    const int width = source.width();
+    const int height = source.height();
+    SbVec2s size(static_cast<short>(width), static_cast<short>(height));
 
     int numcomponents = 4;
     image.setValue(size, numcomponents, nullptr);
 
     unsigned char* bytes = image.startEditing(size, numcomponents);
-    const int width = source.width();
-    const int height = source.height();
+    const std::size_t rowBytes = static_cast<std::size_t>(width) * numcomponents;
 
     for (int y = 0; y < height; ++y) {
-        unsigned char* target = &bytes[width * numcomponents * (height - (y + 1))];
+        unsigned char* target = bytes + rowBytes * static_cast<std::size_t>(height - y - 1);
         const unsigned char* sourceLine = source.constScanLine(y);
 
         if (isRgbx8888 || isRgba8888) {
@@ -837,6 +839,19 @@ QPixmap BitmapFactoryInst::empty(QSize size) const
 
 void BitmapFactoryInst::convert(const QImage& p, SoSFImage& img) const
 {
+    const int width = p.width();
+    const int height = p.height();
+    constexpr int numcomponents = 4;
+    constexpr int maxExtent = std::numeric_limits<short>::max();
+    // Match QImage's signed byte-size limit. This also leaves room for Coin's
+    // allocation rounding to a multiple of four, including on 32-bit platforms.
+    constexpr auto maxBytes = static_cast<std::size_t>(std::numeric_limits<qsizetype>::max());
+    if (p.isNull() || width <= 0 || height <= 0 || width > maxExtent || height > maxExtent
+        || static_cast<std::size_t>(width) > maxBytes / numcomponents / height) {
+        img.setValue(SbVec2s(0, 0), 0, nullptr);
+        return;
+    }
+
     if (convertDirect32BitImage(p, img)) {
         return;
     }
@@ -844,7 +859,6 @@ void BitmapFactoryInst::convert(const QImage& p, SoSFImage& img) const
     // Coin3D also supports grayscale, grayscale+alpha and RGB888 formats,
     // but RGBA8888 is universal and is simple and fast to obtain.
     QImage::Format targetFormat = QImage::Format_RGBA8888;
-    int numcomponents = 4;
 
     QImage reformattedImage = p.convertedTo(targetFormat);
 
@@ -854,10 +868,12 @@ void BitmapFactoryInst::convert(const QImage& p, SoSFImage& img) const
     reformattedImage.flip(Qt::Vertical);
 #endif
 
-    SbVec2s size;
-    size[0] = p.width();
-    size[1] = p.height();
+    if (reformattedImage.isNull()) {
+        img.setValue(SbVec2s(0, 0), 0, nullptr);
+        return;
+    }
 
+    const SbVec2s size(static_cast<short>(width), static_cast<short>(height));
     img.setValue(size, numcomponents, reformattedImage.constBits());
 }
 

@@ -69,7 +69,9 @@ Updating these documents does not complete the source fixes or runtime tests.
 Follow the four phases in [tasks.md](tasks.md#execution-order): planning,
 coherent correction/qualification slices, comparative performance, then final
 delivery/closure. T001 completes the [D001 benchmark protocol](benchmark-protocol.md).
-**Next: T012 — Guard bitmap dimensions and conversion arithmetic (Phase 2A).**
+T012 locally qualifies the extent/arithmetic correction; see its
+[execution evidence](verification.md#t012-extent-and-arithmetic-correction--2026-11-06).
+**Next: T013 — Preserve calibrated image-plane dimensions during texture loading (Phase 2A).**
 [baseline-status.md](baseline-status.md) holds existing implementation facts;
 remaining execution checkpoints are pending until current evidence is recorded.
 Optional new investigations have [owned backlog routes](../../backlog/spec003-follow-ups.md).

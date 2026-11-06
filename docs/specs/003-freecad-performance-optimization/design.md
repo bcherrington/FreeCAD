@@ -106,9 +106,16 @@ invalidation and diagnostic contracts.
 
 - **Image extents (F001):** before narrowing dimensions into Coin types, validate
   non-null image, positive representable extents and checked destination/offset
-  sizes. D001/D003 records include the supported backend/build. T012 defines a
-  documented failure result for unsupported extents without adding a public API
-  casually; cover 32767/32768/65537 slender boundaries and valid edge pixels.
+  sizes. T012's QImage-to-Coin conversion accepts positive extents up to
+  `std::numeric_limits<short>::max()` (32767 here), with RGBA bytes bounded by
+  `qsizetype::max()` using division before multiplication. It clears the output
+  to `(0,0)`, zero components and no pixels for null/unsupported input or failed
+  fallback format conversion. Direct row offsets use `std::size_t`; narrowing
+  follows validation and Coin's four-byte allocation alignment cannot overflow.
+  The void API is preserved. Allocation exceptions from Coin remain exceptions;
+  this is not an out-of-memory recovery policy. D001/D003 identify backend/build;
+  T012 covers both orientations of 32767/32768/65537 slender images and valid
+  edge pixels; broader fidelity/calibration qualification remains T003/T006.
 - **Calibration (F002):** T013 requires texture-only load of restored/imported
   image planes. Existing XSize/YSize and placement survive finishRestoring,
   hidden first show and save/reopen independently of GUI restoring/ObjImporting

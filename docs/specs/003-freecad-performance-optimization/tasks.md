@@ -32,7 +32,7 @@ that explicit routing verified.
 | Phase | Required sequence | Exit gate |
 | --- | --- | --- |
 | 1 — Planning | T021/T019 retained; T009 scope disposition; T001 complete | D001 protocol approved before source work |
-| 2A — Images | T012 → T013 → T003 → T006 | Safe conversion and calibrated lifecycle qualified |
+| 2A — Images | T012 complete → **T013 next** → T003 → T006 | Safe conversion and calibrated lifecycle qualified |
 | 2B — Tree | T014 → T017 → T007 | Receiver/completion fixes and current functional qualification |
 | 2C — CAD maps | T015 → T016 → T005 | Bounded parsing and CAD reference identity qualified |
 | 2D — Archives | T018 → T002 | Archive error outcomes and compatibility qualified |
@@ -74,8 +74,8 @@ none -> T008
 ## Phase 1 — Finish Planning
 
 Exit satisfied: T021/T019 evidence retained, T009 scope disposition recorded, and T001
-resolves D001 with the benchmark protocol. **Next action: T012 — Guard bitmap dimensions
-and conversion arithmetic (Phase 2A).**
+resolves D001 with the benchmark protocol. **Next action: T013 — Preserve calibrated image-plane dimensions
+during texture loading (Phase 2A; T012 complete).**
 
 - [x] T021 Expose lifecycle decisions and verify execution guardrails.
   - Depends on: none
@@ -190,11 +190,12 @@ invalidate affected earlier evidence.
 
 Exit: T012/T013 corrections and T003/T006 required local acceptance pass on a named composition.
 
-- [ ] T012 Guard bitmap dimensions and conversion arithmetic.
+- [x] T012 Guard bitmap dimensions and conversion arithmetic.
   - Depends on: T001, T019, T021
   - Requirements: Requirement 2 AC2, AC3
   - Design: design.md#moe-safety-and-compatibility-contracts
-  - Files: `src/Gui/BitmapFactory.cpp`, `tests/src/Gui/BitmapFactory.cpp`
+  - Files: `src/Gui/BitmapFactory.cpp`, `src/Gui/BitmapFactory.h`,
+    `tests/src/Gui/BitmapFactory.cpp`, `t012-validation.json`, `verification.md`
   - Acceptance: Reproduce the allocation/loop extent mismatch in a bounded regression; validate
     non-null/positive representable dimensions and checked offset/allocation arithmetic before Coin
     allocation. Define unsupported-input outcomes, preserve valid formats and test slender
@@ -203,14 +204,16 @@ Exit: T012/T013 corrections and T003/T006 required local acceptance pass on a na
   - Validation: Run the focused regression cases in acceptance on the T019 pinned revision; record
     commands, results and limits in verification.md.
   - Evidence mode: artifact
-  - Evidence: Pending.
+  - Evidence: 2026-11-06: QImage-to-Coin conversion now validates null/positive signed-short extents and RGBA byte capacity before narrowing/allocation, uses size_t direct row offsets, and clears invalid/failed-fallback output; public signature unchanged and header documents failure. Bounded old-code regression returned 1x1 for 65537x1 fallback; old direct path Memcheck reproduced an invalid write past a 4-byte Coin allocation (exit 99). Fresh pixi run --locked build -j 2 passed; final executable passed all 30 focused tests and all 30 under Memcheck with zero errors (one narrowly scoped libunwind startup probe suppression; leak/undefined-value checks disabled). Focused pre-commit and CRLF-aware whitespace pass. t012-validation.json pins actual root + three-file diff/source hashes, 7 matching clean dependencies, 510 packages, config/tool/build/binary/runtime/fixture/log identities and limitations. Direct checker passed 40 stable task IDs, 81 links/anchors, frozen manifests/history/protocol, completed evidence and unrelated console preservation; package lint zero diagnostics and T012 context zero gaps. No native viewport, 32-bit, broader calibration/lifecycle, performance or final PR acceptance claimed.
   - Owner: local-developer
   - Properties: CP-004
   - Candidate manifest: spec003-linux-x86_64-debug-candidate-20261106-v1; see validation-manifest.md
     and record actual execution provenance.
-  - Context evidence: F001 static source finding at c69560af8a: narrowed Coin allocation and
-    original-size writes conflict; no runtime reproduction or fix yet.
+  - Context evidence: F001 reproduced on the old converter and corrected with local
+    boundary/CPU memory-access qualification; see verification.md and t012-validation.json.
+    Broader T003 image-format/visual qualification remains pending.
 
+  - Status: Completed local extent/arithmetic correction and CPU memory-access qualification. Next T013; broader T003/T006/native GUI/performance/platform acceptance remains pending.
 - [ ] T013 Preserve calibrated image-plane dimensions during texture loading.
   - Depends on: T012
   - Requirements: Requirement 5 AC2–AC4; Requirement 2 AC1
