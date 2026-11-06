@@ -59,7 +59,7 @@ last_reviewed: 2026-11-06
 | Requirement | Priority | Acceptance Criteria | Design Sections | Tasks | Verification | Durable Targets | Coverage State | Residual Destination |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | Requirement 1 | must-have | AC1, AC2, AC3 | design.md#low-level-design | T002, T004, T010, T011, T018 | verification.md | docs/reference/document-open-performance.md | partial-blocking | tasks.md (T002); local-developer |
-| Requirement 2 | must-have | AC1, AC2, AC3 | design.md#low-level-design | T003, T004, T006, T009, T010, T011, T012, T013, T020 | verification.md | docs/reference/document-open-performance.md | partial-blocking | tasks.md (T003); local-developer |
+| Requirement 2 | must-have | AC1, AC2, AC3 | design.md#low-level-design | T003, T004, T006, T009, T010, T011, T012, T013, T020 | verification.md | docs/reference/document-open-performance.md | complete | none for local Requirement 2; T010 reconfirms final/platform applicability |
 | Requirement 3 | must-have | AC1, AC2, AC3, AC4, AC5, AC6 | design.md#low-level-design | T001, T004, T008, T010, T011, T019, T020, T021 | verification.md | docs/reference/document-open-performance.md | partial-blocking | tasks.md (T020/T004/T010); local-developer |
 | Requirement 4 | must-have | AC1, AC2, AC3, AC4 | design.md#low-level-design | T004, T005, T010, T011, T015, T016 | verification.md | docs/reference/document-open-performance.md | partial-blocking | tasks.md (T005); local-developer |
 | Requirement 5 | must-have | AC1, AC2, AC3, AC4 | design.md#low-level-design | T004, T006, T009, T010, T011, T013, T020 | verification.md | docs/reference/document-open-performance.md | partial-blocking | tasks.md; current domain checkpoint in execution phase coverage |
@@ -70,9 +70,9 @@ last_reviewed: 2026-11-06
 | Property | Requirements | Design Sections | Tasks | Tests Or Verification | Residual Risk |
 | --- | --- | --- | --- | --- | --- |
 | CP-001 | Requirement 1 | design.md#moe-safety-and-compatibility-contracts | T002, T018 | verification.md#moe-regression-matrix | Source corrections and runtime regressions pending |
-| CP-002 | Requirement 2, Requirement 5 | design.md#moe-safety-and-compatibility-contracts | T003, T006, T013 | verification.md#t013-calibration-preservation | T013 local calibration fixtures pass; broader T003/T006 qualification pending |
+| CP-002 | Requirement 2, Requirement 5 | design.md#moe-safety-and-compatibility-contracts | T003, T006, T013 | verification.md#t013-calibration-preservation | T013 calibration and T003 rendered fidelity pass locally; broader T006 lifecycle pending |
 | CP-003 | Requirement 6 | design.md#moe-safety-and-compatibility-contracts | T007, T014, T017 | verification.md#moe-regression-matrix | Source corrections and runtime regressions pending |
-| CP-004 | Requirement 2 | design.md#moe-safety-and-compatibility-contracts | T003, T012 | verification.md#t012-extent-and-arithmetic-correction--2026-11-06 | T012 local boundary/access checks pass; broader T003 image qualification pending |
+| CP-004 | Requirement 2 | design.md#moe-safety-and-compatibility-contracts | T003, T012 | verification.md#t012-extent-and-arithmetic-correction--2026-11-06 | T012 correction plus T003 expanded format/extent/access/render matrix pass locally |
 | CP-005 | Requirement 4 | design.md#moe-safety-and-compatibility-contracts | T005, T015, T016 | verification.md#moe-regression-matrix | Source corrections and runtime regressions pending |
 
 ## Design To Implementation Matrix
@@ -89,7 +89,7 @@ last_reviewed: 2026-11-06
 | Criterion | Current tasks | Verification | Disposition |
 | --- | --- | --- | --- |
 | SC-001 | T002, T018 | verification.md | Open; compatibility and archive failures need current evidence |
-| SC-002 | T001, T003, T004, T012, T020 | verification.md | Open; bounded image safety plus measured latency/memory/fidelity |
+| SC-002 | T001, T003, T004, T012, T020 | verification.md | Image safety/fidelity locally qualified by T003; latency/memory gates remain T020/T004 |
 | SC-003 | T019, T010 | verification.md | Open; exact-final-revision evidence reconciliation |
 | SC-004 | T012, T013, T014, T015, T016, T017, T018, T021 | verification.md#moe-review-findings | Open; source corrections and regression evidence required |
 | SC-005 | T001, T004, T020, T010 | verification.md | Open; measurements against the resolved D001 pass rules |
@@ -117,7 +117,7 @@ are satisfied; D001 planning is complete.
 
 | Finding | Requirements | Owning Tasks | Verification | Disposition |
 | --- | --- | --- | --- | --- |
-| F001 | Requirement 2 AC2, AC3; CP-004 | T012, T003 | verification.md#t012-extent-and-arithmetic-correction--2026-11-06 | T012 correction/local memory-access qualification complete; broader T003 acceptance pending |
+| F001 | Requirement 2 AC2, AC3; CP-004 | T012, T003 | verification.md#t012-extent-and-arithmetic-correction--2026-11-06 | T012 correction and T003 current local fidelity/access qualification complete; T010 final applicability remains |
 | F002 | Requirement 5 AC2–AC4; CP-002 | T013, T006 | verification.md#t013-calibration-preservation | T013 correction/local calibration qualification complete; broader T006 acceptance pending |
 | F003 | Requirement 6 AC3; CP-003 | T014, T007 | verification.md#moe-regression-matrix | Source fix pending; acceptance blocker |
 | F004 | Requirement 4 AC1–AC4; CP-005 | T015, T016, T005 | verification.md#moe-regression-matrix | Bounded parser and CAD identity qualification pending |
@@ -132,7 +132,7 @@ are satisfied; D001 planning is complete.
 | Phase | Required active tasks | Optional/routed records | Completion rule |
 | --- | --- | --- | --- |
 | 1 — Planning | T021, T019 retained; T009 scope disposition; T001 complete | D002/B009 proposal stays deferred | D001 resolved; Phase 2A active |
-| 2A — Images | T012/T013 complete; T003 next and children, T006 and children | none | Broader image/lifecycle qualification before tree subgroup |
+| 2A — Images | T012/T013/T003 and children complete; T006 next and children | none | Broader lifecycle qualification before tree subgroup |
 | 2B — Tree | T014, T017, T007, T007.1 | T007.2 routed to B011 | Current functional tests required; future optimization profile is owned outside current runtime gate |
 | 2C — CAD maps | T015, T016, T005 | none | Numeric/identity fixtures and checkpoint pass |
 | 2D — Archives | T018, T002 and children | none | Current archive policy/error/compatibility pass |

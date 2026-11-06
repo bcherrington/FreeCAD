@@ -93,6 +93,24 @@ placeholders are not implemented. Tree restore batches status scheduling only;
 _slotDeleteObject still preserves per-object focus, selection, children and map
 side effects. Any bulk-delete bypass needs a separate measured proposal.
 
+### Image Qualification Reference
+
+T003 compares canonical RGBA8 against an independent QColor/pixelColor scalar
+reference derived from the historical conversion approach. The old raw
+sizeInBytes-based component inference is not an oracle for padded, alpha-only
+or newer floating-point formats. Preserve source color/alpha semantics rather
+than reproducing its unsupported layouts. Direct byte fixtures remain exact;
+normalized premultiplied/high-depth scalar comparison permits at most one RGBA8
+level for quantization. Real production SoQtOffscreenRenderer image-plane frames
+must match the scalar luminance/LA/RGB/RGBA reference within two RGB levels per
+pixel, with source-over color at texel centers within three levels. Orientation,
+transparent-background blending and world-space scale/placement have independent
+analytic assertions; bounding rectangles are exact with zero MSAA. These rules
+are set before executing the render matrix. Qualify the native X11/xcb framebuffer
+profile required by T019 and record supplementary Qt offscreen results separately.
+Framebuffer correctness is distinct from T020's interactive native-view
+first-correct-frame timing and T010's platform coverage.
+
 ### Error Handling And Compatibility
 
 Preserve binary bytes, entry boundaries, destination permissions and observable

@@ -32,7 +32,7 @@ that explicit routing verified.
 | Phase | Required sequence | Exit gate |
 | --- | --- | --- |
 | 1 — Planning | T021/T019 retained; T009 scope disposition; T001 complete | D001 protocol approved before source work |
-| 2A — Images | T012/T013 complete → **T003 next** → T006 | Safe conversion and calibrated lifecycle qualified |
+| 2A — Images | T012/T013/T003 complete → **T006 next** | Safe conversion and calibrated lifecycle qualified |
 | 2B — Tree | T014 → T017 → T007 | Receiver/completion fixes and current functional qualification |
 | 2C — CAD maps | T015 → T016 → T005 | Bounded parsing and CAD reference identity qualified |
 | 2D — Archives | T018 → T002 | Archive error outcomes and compatibility qualified |
@@ -74,8 +74,8 @@ none -> T008
 ## Phase 1 — Finish Planning
 
 Exit satisfied: T021/T019 evidence retained, T009 scope disposition recorded, and T001
-resolves D001 with the benchmark protocol. **Next action: T003 — Complete bitmap and rendered image correctness coverage
-(Phase 2A; T012/T013 complete).**
+resolves D001 with the benchmark protocol. **Next action: T006 — Validate deferred full-resolution image-plane lifecycle
+(Phase 2A; T012/T013/T003 complete).**
 
 - [x] T021 Expose lifecycle decisions and verify execution guardrails.
   - Depends on: none
@@ -238,57 +238,63 @@ Exit: T012/T013 corrections and T003/T006 required local acceptance pass on a na
     See verification.md and t013-validation.json; broader T003/T006 acceptance remains pending.
 
   - Status: Completed local calibration-preserving deferred materialization/import correction and declared lifecycle fixtures. Next T003; broader T006/native-view/format/performance/platform acceptance remains pending.
-- [ ] T003 Complete bitmap and rendered image correctness coverage.
+- [x] T003 Complete bitmap and rendered image correctness coverage.
   - Depends on: T012, T013
   - Requirements: Requirement 2 (all acceptance criteria)
   - Design: design.md#high-level-design; design.md#low-level-design
-  - Files: `src/Gui/BitmapFactory.cpp`, `tests/src/Gui/BitmapFactory.cpp`
+  - Files: `tests/src/Gui/BitmapFactory.cpp`, `tests/src/Gui/ImagePlaneRender.cpp`,
+    `tests/src/Gui/CMakeLists.txt`, `t003-validation.json`, `t003-render-contact.png`,
+    `verification.md`; production converter/provider/renderer inspected unchanged
   - Acceptance: Requirement 2 AC1–AC3 pass: T012 extent/arithmetic guards, all direct/fallback
     formats, null/slender boundary outcomes and rendered orientation/color/alpha/scale/ownership are
     verified on the pinned revision.
   - Validation: See verification.md#quality-gates and the linked criteria.
   - Evidence mode: artifact
-  - Evidence: Pending current qualification. Replanning retained prior implementation and dated test observations in baseline-status.md; no child/current expanded acceptance result is complete.
-  - Status: Remaining execution is pending; source presence/historical results are baseline context, not partial execution.
+  - Evidence: 2026-11-06: T003.1/T003.2/T003.3 completed in dependency order. Fresh pixi run --locked build -j 2 passes; 82 direct/fallback/boundary/ownership cases pass normally and under Memcheck with zero errors (one exact libunwind startup-probe suppression; leak/undefined-value checks disabled). All 36 valid Qt 6.11.3 formats plus indexed color/gray alpha, high-depth non-byte-aligned data, padded external storage and SVG are covered; direct scalar checks are exact, normalized fallback bound is one RGBA8 level. Real provider scenes through production SoQtOffscreenRenderer pass 39 format rows plus analytic calibrated scale/placement in both native X11/xcb and Qt offscreen Mesa llvmpipe contexts (42 QtTest passes each, no skips). Full-pixel scalar parity and independent orientation/color/source-over alpha/geometry/texture-lifetime assertions pass under predeclared limits; all 41 PNG hashes match repeated/offscreen/native profiles. Two CTest targets (render and existing calibration/archive suite) and pre-commit/whitespace pass. t003-validation.json binds actual source/test/new-file diff, 7 clean dependencies, 510 packages, build/runtime/context/log/output identities; t003-render-contact.png retained and visually inspected by Codex. Direct checker passes 40 stable tasks, 6 prior completed records, 87 links/anchors and frozen/unrelated preservation; package lint and child contexts have zero diagnostics/gaps. Production source unchanged. No interactive viewer, hardware GPU, scanout, performance/resource budget or final-platform acceptance claimed.
+  - Status: Completed current local Requirement 2 AC1–AC3 qualification and all three children. Next T006; interactive/native-frame timing, broad lifecycle, platform and final PR gates remain pending.
   - Properties: CP-002, CP-004
   - Candidate manifest: spec003-linux-x86_64-debug-candidate-20261106-v1; see validation-manifest.md
     and record actual execution provenance.
   - Baseline: baseline-status.md#bitmap-conversion
 
-  - [ ] T003.1 Verify direct conversion for RGB32, ARGB32, RGBA8888 and RGBX8888.
+  - [x] T003.1 Verify direct conversion for RGB32, ARGB32, RGBA8888 and RGBX8888.
     - Depends on: T012, T013
     - Requirements: Requirement 2 (all acceptance criteria)
-    - Files: `src/Gui/BitmapFactory.cpp`, `tests/src/Gui/BitmapFactory.cpp`
+    - Files: `tests/src/Gui/BitmapFactory.cpp`, `t003-validation.json`, `verification.md`
     - Acceptance: Verify RGB32/ARGB32/RGBA8888/RGBX8888 pixel correctness and safe
       null/32767/32768/65537 slender dimension outcomes under T012; verify supported edge pixels and
       absence of invalid memory writes with sanitizer-equivalent evidence where available.
     - Evidence mode: artifact
-    - Evidence: Pending.
+    - Evidence: 2026-11-06: all four direct formats retain exact byte/component and scalar-reference results; expanded width/height 32767/32768/65537 fixtures, null and replacement-output cases pass. Current 82-case bitmap suite passes normally and under Memcheck with zero errors (only the narrow libunwind startup-probe suppression; leak/undefined-value checks disabled). Fresh locked Pixi build passes; t003-validation.json pins current source/test/binary/context/log identities. No unsupported extent is written; T012 production guard is unchanged.
     - Candidate manifest: spec003-linux-x86_64-debug-candidate-20261106-v1; see
       validation-manifest.md and record actual execution provenance.
 
-  - [ ] T003.2 Verify premultiplied, indexed, grayscale, high-depth and SVG-derived fallback results.
+  - Status: Completed current local qualification; scope and final-applicability limits are in t003-validation.json.
+  - [x] T003.2 Verify premultiplied, indexed, grayscale, high-depth and SVG-derived fallback results.
     - Depends on: T003.1
     - Requirements: Requirement 2 (all acceptance criteria)
-    - Files: `src/Gui/BitmapFactory.cpp`, `tests/src/Gui/BitmapFactory.cpp`
+    - Files: `tests/src/Gui/BitmapFactory.cpp`, `t003-validation.json`, `verification.md`
     - Acceptance: Verify premultiplied, indexed, grayscale, high-depth and SVG-derived fallback
       results.
     - Evidence mode: artifact
-    - Evidence: Pending.
+    - Evidence: 2026-11-06: all 36 valid Qt 6.11.3 formats (32 fallback), indexed color/gray alpha palettes, non-byte-aligned RGBA64, odd/padded/external strides and SVG-derived pixels pass independent QColor scalar reference checks. Canonical fallback quantization bound is one RGBA8 level, predeclared; direct comparisons are exact. Source mutation/destruction, backing-buffer death and Coin copy/original-clear ownership assertions pass in the current 82-case normal/Memcheck suite. Native-X11 and offscreen render matrices also pass. See t003-validation.json; no production conversion changes were needed.
     - Candidate manifest: spec003-linux-x86_64-debug-candidate-20261106-v1; see
       validation-manifest.md and record actual execution provenance.
 
-  - [ ] T003.3 Record rendered-plane orientation, color, alpha, scale and texture ownership checks.
+  - Status: Completed current local qualification; scope and final-applicability limits are in t003-validation.json.
+  - [x] T003.3 Record rendered-plane orientation, color, alpha, scale and texture ownership checks.
     - Depends on: T003.2
     - Requirements: Requirement 2 (all acceptance criteria)
-    - Files: `src/Gui/BitmapFactory.cpp`, `tests/src/Gui/BitmapFactory.cpp`
+    - Files: `tests/src/Gui/ImagePlaneRender.cpp`, `tests/src/Gui/CMakeLists.txt`,
+      `t003-validation.json`, `t003-render-contact.png`, `verification.md`
     - Acceptance: Record rendered-plane orientation, color, alpha, scale and texture ownership
       checks.
     - Evidence mode: artifact
-    - Evidence: Pending.
+    - Evidence: 2026-11-06: real image-plane provider scenes passed 39 format rows plus calibrated scale/placement in both native X11/xcb and Qt offscreen software-GL contexts (42 QtTest passes each including setup/cleanup, zero skips). Production SoQtOffscreenRenderer compared every pixel against an independent scalar luminance/LA/RGB/RGBA render with fixed 2-level bound; texel-center orientation/color/source-over alpha uses a fixed 3-level bound; exact world-scale and translated/rotated bounding rectangles pass. Texture data remains correct after caller QImage and temporary Coin image destruction. All 41 PNG hashes match across repeated/offscreen/native runs; retained t003-render-contact.png was visually inspected by Codex. Current build, two CTest targets and pre-commit pass. t003-validation.json records renderer/source/build/output/log scope; no interactive viewer/frame timing, hardware-GPU or performance claim.
     - Candidate manifest: spec003-linux-x86_64-debug-candidate-20261106-v1; see
       validation-manifest.md and record actual execution provenance.
 
+  - Status: Completed current local qualification; scope and final-applicability limits are in t003-validation.json.
 - [ ] T006 Validate deferred full-resolution image-plane lifecycle.
   - Depends on: T003, T013
   - Requirements: Requirement 2, Requirement 5 (all acceptance criteria)

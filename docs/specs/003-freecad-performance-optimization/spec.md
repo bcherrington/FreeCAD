@@ -72,7 +72,8 @@ delivery/closure. T001 completes the [D001 benchmark protocol](benchmark-protoco
 T012 locally qualifies the extent/arithmetic correction; see its
 [execution evidence](verification.md#t012-extent-and-arithmetic-correction--2026-11-06).
 T013 locally qualifies [calibration preservation](verification.md#t013-calibration-preservation).
-**Next: T003 — Complete bitmap and rendered image correctness coverage (Phase 2A).**
+T003 locally qualifies [bitmap/rendered fidelity](verification.md#t003-bitmap-and-rendered-fidelity-qualification).
+**Next: T006 — Validate deferred full-resolution image-plane lifecycle (Phase 2A).**
 [baseline-status.md](baseline-status.md) holds existing implementation facts;
 remaining execution checkpoints are pending until current evidence is recorded.
 Optional new investigations have [owned backlog routes](../../backlog/spec003-follow-ups.md).

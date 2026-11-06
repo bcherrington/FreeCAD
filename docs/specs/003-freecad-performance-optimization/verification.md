@@ -85,15 +85,15 @@ source/code-path evidence and acceptance gaps, not executed reproductions.
 Historical implementation-presence/test rows below do not discharge these new
 criteria. F001 has since been reproduced and locally corrected/qualified by
 T012 (see below); T013 locally qualifies the F002 calibration correction.
-F003 remains a source blocker; broader Requirement 2/5/6
-fidelity, calibration and lifecycle acceptance remains pending.
+F003 remains a source blocker. T003 now qualifies local Requirement 2 fidelity;
+broader Requirement 5/6 lifecycle and exact-final/platform acceptance remain pending.
 
 ## MoE Review Findings
 
 | ID | Severity | Observed evidence / consequence | Owner / task destination | Disposition |
 | --- | --- | --- | --- | --- |
-| F001 | blocker | BitmapFactory.cpp:64–98 allocates using narrowed SbVec2s dimensions but writes original dimensions; inspected Linux 65537x1 becomes a 1x1 allocation. Null/extent/arithmetic policy was missing. | local-developer; T012 then T003 | Corrected and locally qualified by T012; broader T003 fidelity remains pending |
-| F002 | blocker | Gui/Document.cpp:2170 clears GUI restoring before finishRestoring; ViewProviderImagePlane.cpp:215–251 can write DPI-derived XSize/YSize during deferred load. Non-default calibration can be lost. | local-developer; T013 then T006 | Corrected and locally qualified by T013; broader T003/T006 qualification pending |
+| F001 | blocker | BitmapFactory.cpp:64–98 allocates using narrowed SbVec2s dimensions but writes original dimensions; inspected Linux 65537x1 becomes a 1x1 allocation. Null/extent/arithmetic policy was missing. | local-developer; T012 then T003 | T012 correction plus T003 current format/render/access qualification pass; final T010 applicability remains |
+| F002 | blocker | Gui/Document.cpp:2170 clears GUI restoring before finishRestoring; ViewProviderImagePlane.cpp:215–251 can write DPI-derived XSize/YSize during deferred load. Non-default calibration can be lost. | local-developer; T013 then T006 | T013 calibration correction and T003 rendered fidelity pass; broader T006 lifecycle pending |
 | F003 | blocker | Tree.cpp:696–700 captures raw this in application callbacks; destructor at 762–775 omits those connection disconnections; fastsignals::connection destructor is unscoped. | local-developer; T014 then T007 | Open receiver-lifetime fix and destroy/recreate/open regression |
 | F004 | request | ElementMap.cpp:89–105 changes numeric conversion as well as token splitting, with unchecked signed arithmetic; current parser fixtures do not cover all writer/alias/radix/child identity forms. | local-developer; T015, T016 then T005 | Open bounded numeric policy/implementation and CAD identity fixtures |
 | F005 | request | Tree suppression uses broad isRestoring while completion follows application finish-open; idle direct load/restore/import/paste can lack a matched completion. | local-developer; T017 then T007 | Open scheduling contract and idle completion/error tests |
@@ -113,7 +113,7 @@ GPU residency claims require separate actual measurements.
 
 | Gate | Required fixtures / outcome | Owner tasks | Evidence status |
 | --- | --- | --- | --- |
-| Image extent/arithmetic | Null, valid edge and slender 32767/32768/65537 inputs; safe documented rejection, checked offsets; sanitizer-equivalent checks where available | T012, T003 | T012 local boundary/CPU memory-access checks pass; broader T003 qualification pending |
+| Image extent/arithmetic | Null, valid edge and slender 32767/32768/65537 inputs; safe documented rejection, checked offsets; sanitizer-equivalent checks where available | T012, T003 | T003 current 82-case expanded byte/access matrix and real rendered-plane qualification pass |
 | Calibrated CAD planes | Independently non-default XSize/YSize and placement; visible/hidden reopen, hidden import/paste/show, repeated show, save/reopen; preserve new-image/explicit-resize behavior | T013, T006 | T013 local calibrated archive/copy/import checks pass; broader T006 checkpoint pending |
 | Receiver lifetime | Actual tree destroy/recreate then start/finish-open; callbacks and queued work cannot access dead receiver | T014, T007 | Pending source fix and execution |
 | Numeric and subelement identity | Signed/unsigned-form tolerance, decimal/hex bounds, malformed/overflow tokens; semicolon/colon/dollar writer forms; multiple aliases/SIDs/shared children; bidirectional lookups after buffers die; dependent CAD target reopen/recompute | T015, T016, T005 | Pending policy, source correction and fixtures |
@@ -290,10 +290,86 @@ sanitizer or performance/resource acceptance is claimed. T003/T006, T020 and
 T010 remain required. Next: T003 — Complete bitmap and rendered image
 correctness coverage.
 
+## T003 Bitmap And Rendered Fidelity Qualification
+
+The [execution receipt](t003-validation.json) records the exact root revision,
+tracked/new-test patch and file hashes, unchanged production sources, seven clean
+matching dependencies, 510 matching packages, effective Debug build flags,
+binaries/resolved libraries, actual renderer profile, fixture/reference contract,
+commands and log/output hashes. T019/T012/T013 snapshots remain unchanged.
+T003 adds tests and registration; no production converter/provider change was
+needed after T012/T013.
+
+| Slice | Current evidence | Result |
+| --- | --- | --- |
+| T003.1 direct conversion and extents | Four exact direct-format tests; all four direct formats included in the scalar/ownership matrix and 32767/32768/65537 width/height boundary matrix; null and replacement-output assertions | Current expanded 82-case suite and Memcheck pass |
+| T003.2 fallback fidelity | Every valid QImage format in Qt 6.11.3 (36 total, including 32 fallback formats); indexed color/gray alpha palettes, odd/padded strides, non-byte-aligned RGBA64 and SVG-derived pixels | Scalar/source semantics, alpha, orientation and caller-storage lifetime assertions pass |
+| T003.3 rendered planes | Real ViewProviderImagePlane Coin graphs, production SoQtOffscreenRenderer, independent scalar luminance/LA/RGB/RGBA reference, source-over color samples and calibrated scale/Placement checks | 39 format rows plus scale/placement row pass (42 QtTest passes including setup/cleanup), no skips |
+
+The baseline is an independent historical-style QColor/pixelColor scalar
+reference with normalized component semantics, not execution of unsafe old
+binaries or reproduction of obsolete sizeInBytes/stride inference. Extra
+alpha-only, float and CMYK cases are checked against normalized QImage semantics.
+The predeclared [reference contract](design.md#image-qualification-reference)
+keeps direct byte fixtures exact, permits one RGBA8 level for normalized fallback
+quantization, two RGB levels at every rendered reference pixel and three at
+analytic texel-center source-over samples. Geometry bounding rectangles are exact
+with zero MSAA. No tolerances were relaxed after seeing render results.
+
+Executed validation:
+
+- `pixi run --locked build -j 2` passed; Pivy stub-generation warnings were emitted.
+  Focused target builds were used during test development. Scoped pre-commit and
+  whitespace checks pass; no existing production file or line ending changed.
+- All **82 bitmap cases** passed normally and under bounded Valgrind Memcheck,
+  with **zero errors**. The sole suppression is the libunwind startup address
+  probe, whose exact text/hash is retained in the receipt. Leak and undefined-value
+  checks were disabled; this is fixture-bounded access checking, not ASan/UBSan.
+- All **40 functional render rows** passed using Mesa llvmpipe, OpenGL 4.5
+  compatibility Mesa 25.2.8, Qt 6.11.3, DPR 1, a 320×240 framebuffer and no MSAA.
+  Both native X11/xcb and Qt offscreen profiles ran inside task-owned Xvfb
+  displays with software rendering, with 42 QtTest passes/no skips in each.
+  The native X11 profile satisfies T019's rendered-check scope; the supplementary
+  offscreen profile is recorded separately. The test compares every pixel to the scalar render, independently checks orientation
+  and alpha blending at all 16 texel centers, and checks 20×10 world-unit scale
+  (80×40 pixels) followed by translation and Z rotation (40×80 pixels).
+- Ownership checks render/read only after QImage mutation/destruction, external
+  backing-buffer destruction, clearing a temporary SoSFImage and allocator-pressure
+  allocations. A copied Coin image remains valid after clearing its original.
+- CTest passed **2/2 targets**: ImagePlaneRender_Tests_run and the existing
+  ImagePlane_Tests_run calibration/archive suite. Both executed with no skipped
+  cases; a missing OpenGL context is an explicit skip in the test and would not
+  satisfy this acceptance record.
+- All **41 output PNG hashes** match the earlier render run and the native
+  X11/xcb run. Codex inspected the
+  six-panel [render contact sheet](t003-render-contact.png): opaque/alpha formats,
+  premultiplied alpha, indexed gray alpha, SVG and rotated placement agree with
+  the numerical assertions. These are synthetic framebuffer images, not captures
+  of the user's desktop/windows. The contact is retained; other outputs/logs are
+  temporary, identified by hash and reproducible using the receipt commands.
+
+The direct final checker passed exact source/new-test/diff/binary/log identities,
+41 repeated/native output hashes and the retained contact, unchanged production
+source, 40 stable task IDs, six prior completed records, frozen history/manifests/
+receipts/protocol, 87 local links/anchors and the unrelated console working diff.
+Package lint returned zero diagnostics; all three child contexts have zero gaps.
+Workbench still reports its nested-docs authority limitation; direct Git/hash
+checks and lifecycle tools supply the actual execution evidence. Final lifecycle
+preflight selects T006 with satisfied dependencies, zero context gaps and no open
+decisions: 10 complete, 28 pending, two follow-up, none partial/in progress.
+
+Requirement 2 AC1–AC3 is implemented/verified for this named local profile.
+T006 still owns broader deferred-load lifecycle/error/observer qualification;
+T020 owns native-view first-correct-frame, latency and memory budgets; T010 owns
+exact-final-revision and platform applicability. The recorded native X11 profile uses framebuffer rendering; it is not an
+interactive native viewer, hardware-GPU, scanout, HDR/ICC policy or performance
+acceptance.
+Next: T006 — Validate deferred full-resolution image-plane lifecycle.
+
 ## Next Actions
 
-1. **Next: T003 — Complete bitmap and rendered image correctness coverage.**
-   T012/T013 local corrections are complete; retain D001/T019 applicability rules.
+1. **Next: T006 — Validate deferred full-resolution image-plane lifecycle.**
+   T012/T013 corrections and T003 local fidelity qualification are complete; retain D001/T019 applicability rules.
 2. Follow [the explicit Phase 2 subgroups](tasks.md#execution-order): images,
    tree lifecycle, CAD maps, then archives; finish each fix's focused regression
    and subgroup qualification before advancing.
@@ -311,7 +387,7 @@ correctness coverage.
 | Candidate and final evidence applicability | yes | partial | T019 initial manifest/policy recorded; actual new-build/runtime receipts and T010 final reconciliation pending |
 | Predeclared per-optimization performance/resource acceptance | yes | pending | T001 protocol complete; T020/T004 and final T010 evidence pending |
 | Complete task/criterion evidence | yes | pending | tasks.md; traceability.md |
-| Focused current correctness and failure tests | yes | pending | Baseline code/dates are inventory; T002/T003/T005/T006/T007 await current qualification |
+| Focused current correctness and failure tests | yes | pending | T003 current local fidelity passes; T002/T005/T006/T007 qualification remains pending |
 | Current measurements and platform/manual acceptance | yes | pending | Historical observations are insufficient |
 | Durable promotion and residual ownership | yes | pending | requirements.md durable impact |
 | Review and closure metadata | yes | pending | No closure claimed |
@@ -427,8 +503,8 @@ executed. Runtime regression evidence for F001–F008 remains pending.
 ## Residual Risks
 
 - F003 remains an implementation acceptance blocker. F001/T012 and F002/T013 are
-  locally corrected/qualified; broader T003 image and T006 lifecycle acceptance
-  remains pending.
+  locally corrected/qualified; T003 image qualification passes on its recorded
+  software-GL profile; broader T006 lifecycle acceptance remains pending.
 - Malformed numeric tokens, archive-level error outcomes and broader restore paths require
   explicit compatibility decisions and regression evidence.
 - Dated tests do not certify the selected final production revision.
@@ -447,8 +523,8 @@ this migration.
 
 ## Readiness Decision
 
-- Ready to implement: T003 — Complete bitmap and rendered image correctness coverage; T012/T013 complete.
-- Ready to validate: T003 qualification slice; whole-package acceptance remains blocked by F003 and other pending checkpoints. T012/T013 local results are composition-bound.
+- Ready to implement: T006 — Validate deferred full-resolution image-plane lifecycle; T003 and all its children complete.
+- Ready to validate: T006 lifecycle slice; whole-package acceptance remains blocked by F003 and other pending checkpoints. T003 local fidelity is qualified, with final/platform applicability still T010.
 - Ready to close: no.
 - Ready to archive: no.
 - Cleanup action: keep active, draft.

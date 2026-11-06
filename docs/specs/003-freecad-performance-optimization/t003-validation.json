@@ -1,0 +1,466 @@
+{
+  "schema": "freecad-spec003-task-validation/v1",
+  "task": "T003",
+  "children": [
+    "T003.1",
+    "T003.2",
+    "T003.3"
+  ],
+  "criteria": [
+    "Requirement 2 AC1",
+    "Requirement 2 AC2",
+    "Requirement 2 AC3"
+  ],
+  "captured_at_utc": "2026-11-06T16:44:14.408582+00:00",
+  "manifest_id": "spec003-linux-x86_64-debug-candidate-20261106-v1",
+  "immutable_manifest_sha256": "2ceaf3dbe3d474f4bb8d70ae6706218ddffdd3616473a1c13a55133611a19d01",
+  "actual_root_revision": "c7e3099803e2c53ace059150de05f6d6c75a2bb8",
+  "docs_revision": "fe2573f76c4c52f087051b4c98b30304baf2551d",
+  "working_diff_scope": [
+    "tests/src/Gui/BitmapFactory.cpp",
+    "tests/src/Gui/CMakeLists.txt",
+    "tests/src/Gui/ImagePlaneRender.cpp"
+  ],
+  "working_diff_sha256": "0c41cc4bafe60d9c0991423dd2fa35c09a6baad8ac51188c88107044cd830e5c",
+  "working_diff_encoding": "Concatenate raw git diff --binary HEAD -- the first two tracked paths with git diff --no-index --binary -- /dev/null tests/src/Gui/ImagePlaneRender.cpp stdout (including final newlines). New test remains untracked.",
+  "test_and_cmake_sha256": {
+    "tests/src/Gui/BitmapFactory.cpp": "73f8835c87da6e7d71c03da0320580353cbae8671d9b261fdb7bcdddffe2cd0f",
+    "tests/src/Gui/CMakeLists.txt": "0b8f00dc2281738e3ba56653ddf92b8d7b9b1109430d21c50041a1fa55c580ed",
+    "tests/src/Gui/ImagePlaneRender.cpp": "bf18acef7eb8c3a31e6ec7cfcce970fb1a2456a21a84ac6c3a21a1779fd77bad"
+  },
+  "production_sources_unchanged": {
+    "src/Gui/BitmapFactory.cpp": "e457567303245dc5f751143a11b877f64528ba379016733922e6c82e51ecb9da",
+    "src/Gui/BitmapFactory.h": "f40f3ad393aa33bd7440fb250dd245631a0e567e3d123b0bea16553af05cdd8e",
+    "src/Gui/ViewProviderImagePlane.cpp": "2e6b2730a105cdda6ea41cb831f359f2aafe8693ba73087079cbd84378f67f48",
+    "src/Gui/ViewProviderImagePlane.h": "e872790777a89687ca6b1b76cb70722c87ba3e3482c85387559ed5ff0eba2526",
+    "src/Gui/SoFCOffscreenRenderer.cpp": "94cb4c899b3145322b8b0d4983686467b330c37c37f0bc4ce325e9fda07712a6"
+  },
+  "production_source_tree": "45240868b27905e029d390a5bf0e611da850eebd",
+  "submodule_heads_and_dirty_state": [
+    {
+      "path": "src/3rdParty/GSL",
+      "head": "a75212b9f3b14162edd62d540cbf9273d5a59d20",
+      "clean": true
+    },
+    {
+      "path": "src/3rdParty/OndselSolver",
+      "head": "4be80eef02a3486cda0d78f3ccbb308d207a9639",
+      "clean": true
+    },
+    {
+      "path": "src/3rdParty/coin",
+      "head": "50e37f04e7027661ea2318d0425b7836ac819568",
+      "clean": true
+    },
+    {
+      "path": "src/3rdParty/coin/cpack.d",
+      "head": "118ac5a21bcf57f0f90e2b0e681c9dcbf07074c2",
+      "clean": true
+    },
+    {
+      "path": "src/3rdParty/coin/docs/doxygen-awesome",
+      "head": "6217657eef6aec24a0e4ecea4695031c1a622cf3",
+      "clean": true
+    },
+    {
+      "path": "src/3rdParty/pivy",
+      "head": "515f038d32f163a976acd8a8cd9e8d26e1d0b884",
+      "clean": true
+    },
+    {
+      "path": "src/Mod/AddonManager",
+      "head": "745c1b1ebc8bc684439210c5fa237d2c6287153b",
+      "clean": true
+    }
+  ],
+  "pixi_lock_sha256": "45727758e595efad731c9bc71e429719040b1509ad686d762ad52ba84e44ec5c",
+  "installed_package_identity_sha256": "27048ce62e5ad835811cb32e58d11ee775f304c81bfef5235bbdd397c3e59d28",
+  "package_count": 510,
+  "tool_versions": {
+    "source": "validation-manifest.json#toolchain",
+    "equivalence": "All recorded executable hashes rechecked and unchanged; Clang 21.1.8, CMake 4.4.3, Ninja 1.13.2, Python 3.13.18, Pixi 0.83.0; QtTest/resolved Qt 6.11.3; Valgrind 3.22.0"
+  },
+  "build": {
+    "command": "pixi run --locked build -j 2",
+    "exit_status": 0,
+    "profile": "existing conda-linux-debug, -g -O0 -DFC_DEBUG; NDEBUG also defined; sanitizers OFF",
+    "cache_sha256": "be2075651b61afc4329c8b321c9038c01bf2fc24d9eeda3c0788cdcda9b92ede",
+    "compile_commands": {
+      "tests/src/Gui/BitmapFactory.cpp": "${REPO_ROOT}/.pixi/envs/default/bin/clang++ -DBOOST_ATOMIC_DYN_LINK -DBOOST_ATOMIC_NO_LIB -DBOOST_CHRONO_DYN_LINK -DBOOST_CHRONO_NO_LIB -DBOOST_CONTAINER_DYN_LINK -DBOOST_CONTAINER_NO_LIB -DBOOST_DATE_TIME_DYN_LINK -DBOOST_DATE_TIME_NO_LIB -DBOOST_PP_VARIADICS=1 -DBOOST_PROGRAM_OPTIONS_DYN_LINK -DBOOST_PROGRAM_OPTIONS_NO_LIB -DBOOST_REGEX_DYN_LINK -DBOOST_REGEX_NO_LIB -DBOOST_THREAD_DYN_LINK -DBOOST_THREAD_NO_LIB -DGTEST_LINKED_AS_SHARED_LIBRARY=1 -DHAVE_CONFIG_H -DMINIMUM_CPLUSPLUS_VERSION=202302L -DNDEBUG -DPYCXX_6_2_COMPATIBILITY -DQT_CORE_LIB -DQT_GUI_LIB -DQT_NETWORK_LIB -DQT_NO_KEYWORDS -DQT_OPENGLWIDGETS_LIB -DQT_OPENGL_LIB -DQT_PRINTSUPPORT_LIB -DQT_SVGWIDGETS_LIB -DQT_SVG_LIB -DQT_UITOOLS_LIB -DQT_WIDGETS_LIB -DQT_XML_LIB -DSALOME_USE_64BIT_IDS -D_OCC64 -I${REPO_ROOT}/build/debug/tests/src/Gui/Gui_tests_run_autogen/include -I${REPO_ROOT}/build/debug -I${REPO_ROOT}/build/debug/src -I${REPO_ROOT}/src -I${REPO_ROOT}/tests -I${REPO_ROOT}/src/3rdParty/FastSignals/libfastsignals/include -I${REPO_ROOT}/src/Gui -I${REPO_ROOT}/src/Gui/Quarter -I${REPO_ROOT}/src/Gui/PreferencePages -I${REPO_ROOT}/src/Gui/Selection -I${REPO_ROOT}/src/Gui/StyleParameters -I${REPO_ROOT}/build/debug/src/Gui -I${REPO_ROOT}/src/Gui/.. -I${REPO_ROOT}/build/debug/src/Gui/.. -I${REPO_ROOT}/build/debug/src/Gui/Language -I${REPO_ROOT}/build/debug/src/Gui/propertyeditor -I${REPO_ROOT}/build/debug/src/Gui/TaskView -I${REPO_ROOT}/build/debug/src/Gui/Quarter -I${REPO_ROOT}/build/debug/src/Gui/DAGView -isystem ${REPO_ROOT}/.pixi/envs/default/include/qt6/QtCore -isystem ${REPO_ROOT}/.pixi/envs/default/include/qt6 -isystem ${REPO_ROOT}/.pixi/envs/default/include/qt6/QtXml -isystem ${REPO_ROOT}/src/3rdParty/PyCXX -isystem ${REPO_ROOT}/.pixi/envs/default/include/python3.13 -isystem ${REPO_ROOT}/src/3rdParty -isystem ${REPO_ROOT}/.pixi/envs/default/lib/qt6/mkspecs/linux-g++ -isystem ${REPO_ROOT}/.pixi/envs/default/include/qt6/QtWidgets -isystem ${REPO_ROOT}/.pixi/envs/default/include/qt6/QtOpenGL -isystem ${REPO_ROOT}/.pixi/envs/default/include/qt6/QtOpenGLWidgets -isystem ${REPO_ROOT}/.pixi/envs/default/include/qt6/QtPrintSupport -isystem ${REPO_ROOT}/.pixi/envs/default/include/qt6/QtSvg -isystem ${REPO_ROOT}/.pixi/envs/default/include/qt6/QtSvgWidgets -isystem ${REPO_ROOT}/.pixi/envs/default/include/qt6/QtNetwork -isystem ${REPO_ROOT}/.pixi/envs/default/include/qt6/QtUiTools -isystem ${REPO_ROOT}/.pixi/envs/default/include/shiboken6 -isystem ${REPO_ROOT}/.pixi/envs/default/include/PySide6 -isystem ${REPO_ROOT}/.pixi/envs/default/include/PySide6/QtCore -isystem ${REPO_ROOT}/.pixi/envs/default/include/PySide6/QtGui -isystem ${REPO_ROOT}/.pixi/envs/default/include/PySide6/QtWidgets -isystem ${REPO_ROOT}/src/3rdParty/coin/include -isystem ${REPO_ROOT}/build/debug/src/3rdParty/coin/include -isystem ${REPO_ROOT}/.pixi/envs/default/include/qt6/QtGui -Wall -Wextra -Wpedantic -Wno-write-strings -fdiagnostics-color  -Wno-undefined-var-template -g -O0 -DFC_DEBUG -std=c++23 -fcolor-diagnostics -pthread -fPIC -o tests/src/Gui/CMakeFiles/Gui_tests_run.dir/BitmapFactory.cpp.o -c ${REPO_ROOT}/tests/src/Gui/BitmapFactory.cpp",
+      "tests/src/Gui/ImagePlaneRender.cpp": "${REPO_ROOT}/.pixi/envs/default/bin/clang++ -DBOOST_ATOMIC_DYN_LINK -DBOOST_ATOMIC_NO_LIB -DBOOST_CHRONO_DYN_LINK -DBOOST_CHRONO_NO_LIB -DBOOST_CONTAINER_DYN_LINK -DBOOST_CONTAINER_NO_LIB -DBOOST_DATE_TIME_DYN_LINK -DBOOST_DATE_TIME_NO_LIB -DBOOST_PP_VARIADICS=1 -DBOOST_PROGRAM_OPTIONS_DYN_LINK -DBOOST_PROGRAM_OPTIONS_NO_LIB -DBOOST_REGEX_DYN_LINK -DBOOST_REGEX_NO_LIB -DBOOST_THREAD_DYN_LINK -DBOOST_THREAD_NO_LIB -DHAVE_CONFIG_H -DMINIMUM_CPLUSPLUS_VERSION=202302L -DNDEBUG -DPYCXX_6_2_COMPATIBILITY -DQT_CORE_LIB -DQT_GUI_LIB -DQT_NETWORK_LIB -DQT_NO_KEYWORDS -DQT_OPENGLWIDGETS_LIB -DQT_OPENGL_LIB -DQT_PRINTSUPPORT_LIB -DQT_SVGWIDGETS_LIB -DQT_SVG_LIB -DQT_TESTCASE_BUILDDIR=\\\"${REPO_ROOT}/build/debug/tests/src/Gui\\\" -DQT_TESTCASE_SOURCEDIR=\\\"${REPO_ROOT}/tests/src/Gui\\\" -DQT_TESTLIB_LIB -DQT_UITOOLS_LIB -DQT_WIDGETS_LIB -DQT_XML_LIB -DSALOME_USE_64BIT_IDS -D_OCC64 -I${REPO_ROOT}/build/debug/tests/src/Gui/ImagePlaneRender_Tests_run_autogen/include -I${REPO_ROOT}/build/debug -I${REPO_ROOT}/build/debug/src -I${REPO_ROOT}/src -I${REPO_ROOT}/tests -I${REPO_ROOT}/tests/src/Gui/SYSTEM -I${REPO_ROOT}/src/3rdParty/FastSignals/libfastsignals/include -I${REPO_ROOT}/src/Gui -I${REPO_ROOT}/src/Gui/Quarter -I${REPO_ROOT}/src/Gui/PreferencePages -I${REPO_ROOT}/src/Gui/Selection -I${REPO_ROOT}/src/Gui/StyleParameters -I${REPO_ROOT}/build/debug/src/Gui -I${REPO_ROOT}/src/Gui/.. -I${REPO_ROOT}/build/debug/src/Gui/.. -I${REPO_ROOT}/build/debug/src/Gui/Language -I${REPO_ROOT}/build/debug/src/Gui/propertyeditor -I${REPO_ROOT}/build/debug/src/Gui/TaskView -I${REPO_ROOT}/build/debug/src/Gui/Quarter -I${REPO_ROOT}/build/debug/src/Gui/DAGView -isystem ${REPO_ROOT}/.pixi/envs/default/include/qt6/QtTest -isystem ${REPO_ROOT}/.pixi/envs/default/include/qt6 -isystem ${REPO_ROOT}/.pixi/envs/default/include/qt6/QtCore -isystem ${REPO_ROOT}/.pixi/envs/default/include/qt6/QtXml -isystem ${REPO_ROOT}/src/3rdParty/PyCXX -isystem ${REPO_ROOT}/.pixi/envs/default/include/python3.13 -isystem ${REPO_ROOT}/src/3rdParty -isystem ${REPO_ROOT}/.pixi/envs/default/lib/qt6/mkspecs/linux-g++ -isystem ${REPO_ROOT}/.pixi/envs/default/include/qt6/QtWidgets -isystem ${REPO_ROOT}/.pixi/envs/default/include/qt6/QtOpenGL -isystem ${REPO_ROOT}/.pixi/envs/default/include/qt6/QtOpenGLWidgets -isystem ${REPO_ROOT}/.pixi/envs/default/include/qt6/QtPrintSupport -isystem ${REPO_ROOT}/.pixi/envs/default/include/qt6/QtSvg -isystem ${REPO_ROOT}/.pixi/envs/default/include/qt6/QtSvgWidgets -isystem ${REPO_ROOT}/.pixi/envs/default/include/qt6/QtNetwork -isystem ${REPO_ROOT}/.pixi/envs/default/include/qt6/QtUiTools -isystem ${REPO_ROOT}/.pixi/envs/default/include/shiboken6 -isystem ${REPO_ROOT}/.pixi/envs/default/include/PySide6 -isystem ${REPO_ROOT}/.pixi/envs/default/include/PySide6/QtCore -isystem ${REPO_ROOT}/.pixi/envs/default/include/PySide6/QtGui -isystem ${REPO_ROOT}/.pixi/envs/default/include/PySide6/QtWidgets -isystem ${REPO_ROOT}/src/3rdParty/coin/include -isystem ${REPO_ROOT}/build/debug/src/3rdParty/coin/include -isystem ${REPO_ROOT}/.pixi/envs/default/include/qt6/QtGui -Wall -Wextra -Wpedantic -Wno-write-strings -fdiagnostics-color  -Wno-undefined-var-template -g -O0 -DFC_DEBUG -std=c++23 -fcolor-diagnostics -pthread -fPIC -o tests/src/Gui/CMakeFiles/ImagePlaneRender_Tests_run.dir/ImagePlaneRender.cpp.o -c ${REPO_ROOT}/tests/src/Gui/ImagePlaneRender.cpp"
+    },
+    "warnings": [
+      "Pivy stub-generation warnings"
+    ],
+    "focused_iteration": "pixi run --locked cmake --build build/debug --target Gui_tests_run ImagePlaneRender_Tests_run -j 2; diagnostic iteration before final full build"
+  },
+  "binary_and_core_library_sha256": {
+    "build/debug/tests/Gui_tests_run": "0de632e203de1acbe2a1a24b8a916368c2e1194474e5a9391bc9b5f3b9d4041a",
+    "build/debug/tests/ImagePlaneRender_Tests_run": "e670982f653e6f1f0aebd3ebebc397f8a7d0f275c3af1bbcfe1a86fa9bfe0013",
+    "build/debug/tests/ImagePlane_Tests_run": "399de5cca50668f32ab69a9514d51eb88cd69641cd618d6bbac4822ab98294a3",
+    "build/debug/lib/libFreeCADGui.so": "b5c61dbf897b581fd93e6f7c0000df08268e91a3ab29cd301d8f1d2f73f83c8d",
+    "build/debug/lib/libFreeCADApp.so": "c7fa6cc807d4552d0e1b7ceaa9cd416cf97811644dbaec9aff5187e15391ac25",
+    "build/debug/lib/libFreeCADBase.so": "04e1e7c5ce58be7a5de3fee0ba2c7fbfde3105a6e7b95378f6c7ba2cf8998b5c",
+    "build/debug/lib/libCoin.so.80": "fa2df16f4509cfa84ef1386aa0c0238a979d6093a488f34d83ead661f8e82c20",
+    ".pixi/envs/default/lib/libQt6Core.so.6": "bd2f5e952774dea6ac2cef7641ffd0c2cd528d684495e89fd8050e52bc42bd1c",
+    ".pixi/envs/default/lib/libQt6Gui.so.6": "18650a11c2b5873eb99ada3cae33670f74edef84ae7679f698d5abd9aca1a8db",
+    ".pixi/envs/default/lib/libQt6Test.so.6": "5473f6ec77981fe519d6938a3ae38c8a7e7e7823a1e140575d5801e72fb4ec41"
+  },
+  "resolved_runtime_libraries": {
+    "libFreeCADGui.so": "${REPO_ROOT}/build/debug/lib/libFreeCADGui.so",
+    "libQt6Test.so.6": "${REPO_ROOT}/.pixi/envs/default/lib/libQt6Test.so.6.11.3",
+    "libFreeCADApp.so": "${REPO_ROOT}/build/debug/lib/libFreeCADApp.so",
+    "libFreeCADBase.so": "${REPO_ROOT}/build/debug/lib/libFreeCADBase.so",
+    "libxerces-c-3.3.so": "${REPO_ROOT}/.pixi/envs/default/lib/libxerces-c-3.3.so",
+    "libz.so.1": "${REPO_ROOT}/.pixi/envs/default/lib/libz.so.1.3.2",
+    "libicuuc.so.78": "${REPO_ROOT}/.pixi/envs/default/lib/libicuuc.so.78.3",
+    "libicui18n.so.78": "${REPO_ROOT}/.pixi/envs/default/lib/libicui18n.so.78.3",
+    "libcpptrace.so.1": "${REPO_ROOT}/.pixi/envs/default/lib/libcpptrace.so.1.0.4",
+    "libpython3.13.so.1.0": "${REPO_ROOT}/.pixi/envs/default/lib/libpython3.13.so.1.0",
+    "libutil.so.1": "/usr/lib/x86_64-linux-gnu/libutil.so.1",
+    "libdl.so.2": "/usr/lib/x86_64-linux-gnu/libdl.so.2",
+    "libQt6Xml.so.6": "${REPO_ROOT}/.pixi/envs/default/lib/libQt6Xml.so.6.11.3",
+    "libboost_program_options.so.1.90.0": "${REPO_ROOT}/.pixi/envs/default/lib/libboost_program_options.so.1.90.0",
+    "libboost_regex.so.1.90.0": "${REPO_ROOT}/.pixi/envs/default/lib/libboost_regex.so.1.90.0",
+    "libboost_thread.so.1.90.0": "${REPO_ROOT}/.pixi/envs/default/lib/libboost_thread.so.1.90.0",
+    "libboost_container.so.1.90.0": "${REPO_ROOT}/.pixi/envs/default/lib/libboost_container.so.1.90.0",
+    "libboost_atomic.so.1.90.0": "${REPO_ROOT}/.pixi/envs/default/lib/libboost_atomic.so.1.90.0",
+    "libboost_chrono.so.1.90.0": "${REPO_ROOT}/.pixi/envs/default/lib/libboost_chrono.so.1.90.0",
+    "libboost_date_time.so.1.90.0": "${REPO_ROOT}/.pixi/envs/default/lib/libboost_date_time.so.1.90.0",
+    "libpthread.so.0": "/usr/lib/x86_64-linux-gnu/libpthread.so.0",
+    "libGL.so.1": "${REPO_ROOT}/.pixi/envs/default/lib/libGL.so.1.7.0",
+    "libCoin.so.80": "${REPO_ROOT}/build/debug/lib/libCoin.so.80.0.10",
+    "libQt6PrintSupport.so.6": "${REPO_ROOT}/.pixi/envs/default/lib/libQt6PrintSupport.so.6.11.3",
+    "libQt6SvgWidgets.so.6": "${REPO_ROOT}/.pixi/envs/default/lib/libQt6SvgWidgets.so.6.11.3",
+    "libQt6Svg.so.6": "${REPO_ROOT}/.pixi/envs/default/lib/libQt6Svg.so.6.11.3",
+    "libQt6Network.so.6": "${REPO_ROOT}/.pixi/envs/default/lib/libQt6Network.so.6.11.3",
+    "libQt6UiTools.so.6": "${REPO_ROOT}/.pixi/envs/default/lib/libQt6UiTools.so.6.11.3",
+    "libQt6OpenGLWidgets.so.6": "${REPO_ROOT}/.pixi/envs/default/lib/libQt6OpenGLWidgets.so.6.11.3",
+    "libQt6Widgets.so.6": "${REPO_ROOT}/.pixi/envs/default/lib/libQt6Widgets.so.6.11.3",
+    "libQt6OpenGL.so.6": "${REPO_ROOT}/.pixi/envs/default/lib/libQt6OpenGL.so.6.11.3",
+    "libQt6Gui.so.6": "${REPO_ROOT}/.pixi/envs/default/lib/libQt6Gui.so.6.11.3",
+    "libGLX.so.0": "${REPO_ROOT}/.pixi/envs/default/lib/libGLX.so.0.0.0",
+    "libOpenGL.so.0": "${REPO_ROOT}/.pixi/envs/default/lib/libOpenGL.so.0.0.0",
+    "libyaml-cpp.so.0.8": "${REPO_ROOT}/.pixi/envs/default/lib/libyaml-cpp.so.0.8.0",
+    "libspnav.so.0": "${REPO_ROOT}/.pixi/envs/default/lib/libspnav.so.0.3",
+    "libpyside6.cpython-313-x86_64-linux-gnu.so.6.11": "${REPO_ROOT}/.pixi/envs/default/lib/libpyside6.cpython-313-x86_64-linux-gnu.so.6.11",
+    "libshiboken6.cpython-313-x86_64-linux-gnu.so.6.11": "${REPO_ROOT}/.pixi/envs/default/lib/libshiboken6.cpython-313-x86_64-linux-gnu.so.6.11",
+    "libQt6Core.so.6": "${REPO_ROOT}/.pixi/envs/default/lib/libQt6Core.so.6.11.3",
+    "libstdc++.so.6": "${REPO_ROOT}/.pixi/envs/default/lib/libstdc++.so.6.0.36",
+    "libm.so.6": "/usr/lib/x86_64-linux-gnu/libm.so.6",
+    "libgcc_s.so.1": "${REPO_ROOT}/.pixi/envs/default/lib/libgcc_s.so.1",
+    "libc.so.6": "/usr/lib/x86_64-linux-gnu/libc.so.6",
+    "libnsl.so.3": "${REPO_ROOT}/.pixi/envs/default/lib/libnsl.so.3.0.0",
+    "libicudata.so.78": "${REPO_ROOT}/.pixi/envs/default/lib/libicudata.so.78.3",
+    "libdwarf.so.2": "${REPO_ROOT}/.pixi/envs/default/lib/libdwarf.so.2.1.0",
+    "libunwind.so.8": "${REPO_ROOT}/.pixi/envs/default/lib/libunwind.so.8.2.0",
+    "librt.so.1": "/usr/lib/x86_64-linux-gnu/librt.so.1",
+    "libGLdispatch.so.0": "${REPO_ROOT}/.pixi/envs/default/lib/libGLdispatch.so.0.0.0",
+    "libSM.so.6": "${REPO_ROOT}/.pixi/envs/default/lib/libSM.so.6.0.1",
+    "libICE.so.6": "${REPO_ROOT}/.pixi/envs/default/lib/libICE.so.6.3.0",
+    "libX11.so.6": "${REPO_ROOT}/.pixi/envs/default/lib/libX11.so.6.4.0",
+    "libXext.so.6": "${REPO_ROOT}/.pixi/envs/default/lib/libXext.so.6.4.0",
+    "libEGL.so.1": "${REPO_ROOT}/.pixi/envs/default/lib/libEGL.so.1.1.0",
+    "libexpat.so.1": "${REPO_ROOT}/.pixi/envs/default/lib/libexpat.so.1.12.5",
+    "libfreetype.so.6": "${REPO_ROOT}/.pixi/envs/default/lib/libfreetype.so.6.20.6",
+    "libbrotlidec.so.1": "${REPO_ROOT}/.pixi/envs/default/lib/libbrotlidec.so.1.2.1",
+    "libzstd.so.1": "${REPO_ROOT}/.pixi/envs/default/lib/libzstd.so.1.5.7",
+    "libresolv.so.2": "/usr/lib/x86_64-linux-gnu/libresolv.so.2",
+    "libcrypto.so.3": "${REPO_ROOT}/.pixi/envs/default/lib/libcrypto.so.3",
+    "libfontconfig.so.1": "${REPO_ROOT}/.pixi/envs/default/lib/libfontconfig.so.1.17.0",
+    "libglib-2.0.so.0": "${REPO_ROOT}/.pixi/envs/default/lib/libglib-2.0.so.0.9000.0",
+    "libQt6DBus.so.6": "${REPO_ROOT}/.pixi/envs/default/lib/libQt6DBus.so.6.11.3",
+    "libxkbcommon.so.0": "${REPO_ROOT}/.pixi/envs/default/lib/libxkbcommon.so.0.13.2",
+    "libpng16.so.16": "${REPO_ROOT}/.pixi/envs/default/lib/libpng16.so.16.59.0",
+    "libharfbuzz.so.0": "${REPO_ROOT}/.pixi/envs/default/lib/libharfbuzz.so.0.61500.0",
+    "libdouble-conversion.so.3": "${REPO_ROOT}/.pixi/envs/default/lib/libdouble-conversion.so.3.4.0",
+    "libpcre2-16.so.0": "${REPO_ROOT}/.pixi/envs/default/lib/libpcre2-16.so.0.15.0",
+    "libuuid.so.1": "${REPO_ROOT}/.pixi/envs/default/lib/libuuid.so.1.3.0",
+    "libxcb.so.1": "${REPO_ROOT}/.pixi/envs/default/lib/libxcb.so.1.1.0",
+    "libbrotlicommon.so.1": "${REPO_ROOT}/.pixi/envs/default/lib/libbrotlicommon.so.1.2.1",
+    "libiconv.so.2": "${REPO_ROOT}/.pixi/envs/default/lib/libiconv.so.2.7.0",
+    "libpcre2-8.so.0": "${REPO_ROOT}/.pixi/envs/default/lib/libpcre2-8.so.0.15.0",
+    "libdbus-1.so.3": "${REPO_ROOT}/.pixi/envs/default/lib/libdbus-1.so.3.38.3",
+    "libgraphite2.so.3": "${REPO_ROOT}/.pixi/envs/default/lib/libgraphite2.so.3.3.1",
+    "libXau.so.6": "${REPO_ROOT}/.pixi/envs/default/lib/libXau.so.6.0.0",
+    "libXdmcp.so.6": "${REPO_ROOT}/.pixi/envs/default/lib/libXdmcp.so.6.0.0"
+  },
+  "platform": {
+    "system": "Linux",
+    "machine": "x86_64",
+    "kernel": "7.0.0-42-generic"
+  },
+  "renderer": {
+    "qt_backend": "native X11/xcb, inside a task-owned Xvfb server",
+    "xvfb_command": "xvfb-run -a -s '-screen 0 1024x768x24'",
+    "environment": {
+      "QT_QPA_PLATFORM": "xcb",
+      "LIBGL_ALWAYS_SOFTWARE": "1",
+      "QT_SCALE_FACTOR": "1"
+    },
+    "gl_vendor": "Mesa",
+    "gl_renderer": "llvmpipe (LLVM 20.1.2, 256 bits)",
+    "gl_version": "4.5 (Compatibility Profile) Mesa 25.2.8-0ubuntu0.24.04.4",
+    "qt_version": "6.11.3",
+    "dpr": 1,
+    "viewport_physical_pixels": [
+      320,
+      240
+    ],
+    "multisamples": 0,
+    "camera": "orthographic height 60, position (0,0,100), near/far 1/200",
+    "unlit_provider_mode": "No shading",
+    "texture_quality": 0.1,
+    "framebuffer": "production SoQtOffscreenRenderer default GL_RGB32F_ARB; opaque RGB(32,64,96) background",
+    "metadata_boundary": "Actual strings from test context; driver dlopen payload integrity is not attested. No native viewer, monitor scanout or hardware-GPU acceptance claim."
+  },
+  "fixtures": {
+    "byte_generator": "tests/src/Gui/BitmapFactory.cpp",
+    "render_generator": "tests/src/Gui/ImagePlaneRender.cpp",
+    "source_identity": "test_and_cmake_sha256 above",
+    "qt_valid_formats": [
+      "Format_Mono",
+      "Format_MonoLSB",
+      "Format_Indexed8",
+      "Format_RGB32",
+      "Format_ARGB32",
+      "Format_ARGB32_Premultiplied",
+      "Format_RGB16",
+      "Format_ARGB8565_Premultiplied",
+      "Format_RGB666",
+      "Format_ARGB6666_Premultiplied",
+      "Format_RGB555",
+      "Format_ARGB8555_Premultiplied",
+      "Format_RGB888",
+      "Format_RGB444",
+      "Format_ARGB4444_Premultiplied",
+      "Format_RGBX8888",
+      "Format_RGBA8888",
+      "Format_RGBA8888_Premultiplied",
+      "Format_BGR30",
+      "Format_A2BGR30_Premultiplied",
+      "Format_RGB30",
+      "Format_A2RGB30_Premultiplied",
+      "Format_Alpha8",
+      "Format_Grayscale8",
+      "Format_RGBX64",
+      "Format_RGBA64",
+      "Format_RGBA64_Premultiplied",
+      "Format_Grayscale16",
+      "Format_BGR888",
+      "Format_RGBX16FPx4",
+      "Format_RGBA16FPx4",
+      "Format_RGBA16FPx4_Premultiplied",
+      "Format_RGBX32FPx4",
+      "Format_RGBA32FPx4",
+      "Format_RGBA32FPx4_Premultiplied",
+      "Format_CMYK8888"
+    ],
+    "additional_render_formats": [
+      "indexed-gray-alpha",
+      "indexed-color-alpha",
+      "svg-derived"
+    ],
+    "byte_matrix": "5x3 asymmetric odd-stride images, source mutation/destruction and Coin image copy/clear; indexed color/gray alpha palettes; non-byte-aligned RGBA64; SVG-derived premultiplied image; 32-byte external ARGB32 stride",
+    "extent_matrix": "32767/32768/65537, both width and height, all four direct formats plus Grayscale8 and ARGB32_Premultiplied; null and previous-output rejection",
+    "render_matrix": "4x4 quadrant RGBA source (opaque red, half-alpha green, opaque blue, transparent yellow), all 36 Qt formats plus indexed-gray-alpha/indexed-color-alpha/SVG; real ImagePlane provider with 20x10 physical size",
+    "scale_placement": "4 pixels/world unit; opaque red plane exact bbox (120,100,80,40), then translation (3,-2,0) and Z rotation pi/2 radians gives bbox (152,88,40,80)"
+  },
+  "reference_contract": {
+    "definition": "Independent historical-style QColor/pixelColor scalar sampling; canonical luminance/LA/RGB/RGBA, avoiding obsolete byte-size/stride component inference. Not execution or parity with unsafe historical binaries. Extra alpha-only/float/CMYK formats are checked against normalized QImage semantics.",
+    "direct_bytes": "exact existing tests and generic direct-format scalar comparisons",
+    "normalized_fallback_bytes": "maximum one RGBA8 level; quantization contract declared before expanded tests",
+    "rendered_scalar_reference": "maximum two RGB levels at every pixel",
+    "analytic_orientation_color_alpha": "maximum three RGB levels at each texel center for source-over composition",
+    "calibrated_world_scale": "exact pixel bounding rectangles, no MSAA",
+    "ownership": "after QImage mutation/destruction, external backing storage death, original SoSFImage clear and texture copy; allocator-pressure buffers precede checks/render",
+    "scope": "Normalized in-range color fixtures; no HDR tone mapping or ICC/color-managed pipeline policy is established",
+    "scalar_reference_lineage": {
+      "commit": "fa8659635e4b1f74220d1f0f6909185c777e55b0",
+      "path": "src/Gui/BitmapFactory.cpp",
+      "boundary": "QColor/pixelColor sampling lineage only; current test uses explicit normalized component selection instead of obsolete stride inference."
+    }
+  },
+  "commands": {
+    "bytes": "pixi run --locked env QT_QPA_PLATFORM=offscreen timeout 120s build/debug/tests/Gui_tests_run '--gtest_filter=BitmapFactory*:*BitmapFactory*'",
+    "memcheck": "pixi run --locked env QT_QPA_PLATFORM=offscreen timeout 300s valgrind --tool=memcheck --leak-check=no --undef-value-errors=no --exit-on-first-error=yes --error-exitcode=99 --suppressions=/tmp/spec003-t012-libunwind.supp --log-file=/tmp/spec003-t003-memcheck.log build/debug/tests/Gui_tests_run '--gtest_filter=BitmapFactory*:*BitmapFactory*'",
+    "ctest": "pixi run --locked env LIBGL_ALWAYS_SOFTWARE=1 QT_SCALE_FACTOR=1 timeout 180s xvfb-run -a -s '-screen 0 1024x768x24' ctest --test-dir build/debug -R '^(ImagePlaneRender_Tests_run|ImagePlane_Tests_run)$' --output-on-failure",
+    "format": "pre-commit run --files tests/src/Gui/BitmapFactory.cpp tests/src/Gui/ImagePlaneRender.cpp tests/src/Gui/CMakeLists.txt",
+    "whitespace": "git -c core.whitespace=cr-at-eol diff --check; git -C docs diff --check",
+    "render_offscreen": "pixi run --locked env QT_QPA_PLATFORM=offscreen LIBGL_ALWAYS_SOFTWARE=1 QT_SCALE_FACTOR=1 FREECAD_IMAGE_TEST_OUTPUT=/tmp/spec003-t003-rendered-final timeout 180s xvfb-run -a -s '-screen 0 1024x768x24' build/debug/tests/ImagePlaneRender_Tests_run",
+    "render_native_x11": "pixi run --locked env QT_QPA_PLATFORM=xcb LIBGL_ALWAYS_SOFTWARE=1 QT_SCALE_FACTOR=1 FREECAD_IMAGE_TEST_OUTPUT=/tmp/spec003-t003-rendered-x11 timeout 180s xvfb-run -a -s '-screen 0 1024x768x24' build/debug/tests/ImagePlaneRender_Tests_run"
+  },
+  "memcheck_suppression": {
+    "text": "{\n  libunwind_address_probe\n  Memcheck:Param\n  write(buf)\n  fun:syscall\n  fun:_UIx86_64_address_is_valid\n}\n",
+    "sha256": "52d015f82c97cef29511f2806d369739dbf556bcb4b9a7ab52b95b1aed4b6c09",
+    "scope": "Only libunwind startup address probe; no bitmap/Coin writes or rendering suppressed"
+  },
+  "logs": {
+    "build": {
+      "local_log": "/tmp/spec003-t003-build.log",
+      "sha256": "dfe7682879e50f3cbc45533c2ed50b78812274d565830430474988429a684f28"
+    },
+    "focused_build": {
+      "local_log": "/tmp/spec003-t003-focused-build.log",
+      "sha256": "4c4fa704d22f8721a79c7bcd2ac04c1f75e0fb956e647c27b685ce96120bcf41"
+    },
+    "byte_tests": {
+      "local_log": "/tmp/spec003-t003-byte-tests-final.log",
+      "sha256": "6a3afbe0ad14dcaae6d5feaf050fd2c3b4e21ad4439a67288d8e18d39b286ce4"
+    },
+    "memcheck": {
+      "local_log": "/tmp/spec003-t003-memcheck.log",
+      "sha256": "41b2484c6148565f71294d70acd5191f46ef1fb07273d13574125810ec86ad59"
+    },
+    "memcheck_tests": {
+      "local_log": "/tmp/spec003-t003-memcheck-tests.log",
+      "sha256": "63e04e25f91506d70cf669c53b18b12021294954ef0decdb78a18ddf93020f8b"
+    },
+    "render_tests": {
+      "local_log": "/tmp/spec003-t003-render-tests-final.log",
+      "sha256": "3baea0a71f0801165e2782aef7b8cc76869e91035e01e1fdf4e727a0b12aafeb"
+    },
+    "initial_render_tests": {
+      "local_log": "/tmp/spec003-t003-render-tests.log",
+      "sha256": "e798612d9f06776800bf9c377526b9f777a2368efd1bf5b2f3f797075bb4f0ba"
+    },
+    "ctest": {
+      "local_log": "/tmp/spec003-t003-ctest.log",
+      "sha256": "a140cbf623723b5d1c5c3d582575daaf57085f0cf68146ec9b3c0efdad9fd934"
+    },
+    "precommit": {
+      "local_log": "/tmp/spec003-t003-precommit-pass.log",
+      "sha256": "c08cb8962660457decc327fae80aea7a8edb2b1b0e4fe80551122eb1f027ce38"
+    },
+    "native_x11_render": {
+      "local_log": "/tmp/spec003-t003-render-tests-x11.log",
+      "sha256": "1e89270f115019223c847711b7827ae30218ffc31afe078c013b3a1233b3c3f9"
+    }
+  },
+  "rendered_outputs": {
+    "local_directory": "/tmp/spec003-t003-rendered-final",
+    "png_sha256": {
+      "Format_A2BGR30_Premultiplied.png": "581c01d6790ff00f698d8afce3f1bdccd0c4e8f8a1a321e3ca3d6c5ad5faab6d",
+      "Format_A2RGB30_Premultiplied.png": "581c01d6790ff00f698d8afce3f1bdccd0c4e8f8a1a321e3ca3d6c5ad5faab6d",
+      "Format_ARGB32.png": "eaaceefd87b66a8bc535e9631c13cf6fa9f15fdcd08e5cf4b430fedca85016a4",
+      "Format_ARGB32_Premultiplied.png": "eaaceefd87b66a8bc535e9631c13cf6fa9f15fdcd08e5cf4b430fedca85016a4",
+      "Format_ARGB4444_Premultiplied.png": "2808fe905ed13ee794ab10150766a574cce86f20528a329df963a02d9d21301b",
+      "Format_ARGB6666_Premultiplied.png": "ad212d601b2a2dd963a32259824c609dfe6bf7a6f416e5826cb3710a262a3e15",
+      "Format_ARGB8555_Premultiplied.png": "eaaceefd87b66a8bc535e9631c13cf6fa9f15fdcd08e5cf4b430fedca85016a4",
+      "Format_ARGB8565_Premultiplied.png": "eaaceefd87b66a8bc535e9631c13cf6fa9f15fdcd08e5cf4b430fedca85016a4",
+      "Format_Alpha8.png": "cc095676b2b6e9c2390a3dfd25214311d04c5a64a3ece71d49366331d26797df",
+      "Format_BGR30.png": "4d9a81a1f315a3919cd5616b2c6b4118bf301c12deac675bea2ca83594f07d1c",
+      "Format_BGR888.png": "ccb7854aa1e612fe89d7ca8b1b732d6ef1fae622e01a799261fd56645027b5f8",
+      "Format_CMYK8888.png": "ccb7854aa1e612fe89d7ca8b1b732d6ef1fae622e01a799261fd56645027b5f8",
+      "Format_Grayscale16.png": "b455bf51f757329f45b078ca2e67c4dba5f28b1224e7e523c2f9b6e4722cf2d2",
+      "Format_Grayscale8.png": "b455bf51f757329f45b078ca2e67c4dba5f28b1224e7e523c2f9b6e4722cf2d2",
+      "Format_Indexed8.png": "0b0c2b664612c68515d838dfdb6c179169865f432ce2025491077b31503c1d4e",
+      "Format_Mono.png": "0e56ffcf447588eac93af6cfa3aa180ad0cf81bfcf654e8d27c57dfa451b5165",
+      "Format_MonoLSB.png": "0e56ffcf447588eac93af6cfa3aa180ad0cf81bfcf654e8d27c57dfa451b5165",
+      "Format_RGB16.png": "ccb7854aa1e612fe89d7ca8b1b732d6ef1fae622e01a799261fd56645027b5f8",
+      "Format_RGB30.png": "4d9a81a1f315a3919cd5616b2c6b4118bf301c12deac675bea2ca83594f07d1c",
+      "Format_RGB32.png": "ccb7854aa1e612fe89d7ca8b1b732d6ef1fae622e01a799261fd56645027b5f8",
+      "Format_RGB444.png": "ccb7854aa1e612fe89d7ca8b1b732d6ef1fae622e01a799261fd56645027b5f8",
+      "Format_RGB555.png": "ccb7854aa1e612fe89d7ca8b1b732d6ef1fae622e01a799261fd56645027b5f8",
+      "Format_RGB666.png": "ccb7854aa1e612fe89d7ca8b1b732d6ef1fae622e01a799261fd56645027b5f8",
+      "Format_RGB888.png": "ccb7854aa1e612fe89d7ca8b1b732d6ef1fae622e01a799261fd56645027b5f8",
+      "Format_RGBA16FPx4.png": "eaaceefd87b66a8bc535e9631c13cf6fa9f15fdcd08e5cf4b430fedca85016a4",
+      "Format_RGBA16FPx4_Premultiplied.png": "eaaceefd87b66a8bc535e9631c13cf6fa9f15fdcd08e5cf4b430fedca85016a4",
+      "Format_RGBA32FPx4.png": "eaaceefd87b66a8bc535e9631c13cf6fa9f15fdcd08e5cf4b430fedca85016a4",
+      "Format_RGBA32FPx4_Premultiplied.png": "eaaceefd87b66a8bc535e9631c13cf6fa9f15fdcd08e5cf4b430fedca85016a4",
+      "Format_RGBA64.png": "eaaceefd87b66a8bc535e9631c13cf6fa9f15fdcd08e5cf4b430fedca85016a4",
+      "Format_RGBA64_Premultiplied.png": "eaaceefd87b66a8bc535e9631c13cf6fa9f15fdcd08e5cf4b430fedca85016a4",
+      "Format_RGBA8888.png": "eaaceefd87b66a8bc535e9631c13cf6fa9f15fdcd08e5cf4b430fedca85016a4",
+      "Format_RGBA8888_Premultiplied.png": "eaaceefd87b66a8bc535e9631c13cf6fa9f15fdcd08e5cf4b430fedca85016a4",
+      "Format_RGBX16FPx4.png": "ccb7854aa1e612fe89d7ca8b1b732d6ef1fae622e01a799261fd56645027b5f8",
+      "Format_RGBX32FPx4.png": "ccb7854aa1e612fe89d7ca8b1b732d6ef1fae622e01a799261fd56645027b5f8",
+      "Format_RGBX64.png": "ccb7854aa1e612fe89d7ca8b1b732d6ef1fae622e01a799261fd56645027b5f8",
+      "Format_RGBX8888.png": "ccb7854aa1e612fe89d7ca8b1b732d6ef1fae622e01a799261fd56645027b5f8",
+      "indexed-color-alpha.png": "eaaceefd87b66a8bc535e9631c13cf6fa9f15fdcd08e5cf4b430fedca85016a4",
+      "indexed-gray-alpha.png": "36ccf11b42a33d9c21a3e0cfd9251984664f20fd7ae62d0f1188eb1730426555",
+      "scale-initial.png": "2f796793566e65a0a17f2db589331d5a2c63cf6ff720498179f62f722d7e73d4",
+      "scale-placed.png": "cd1a74abcb6cf2560481d8482e332cb0de629357c728f7bc7dce5e0b56b6ab4d",
+      "svg-derived.png": "3c724618480479318c8642637c5318d2f1dcdbe4fe0ce5a9fe3585e51dcf7036"
+    },
+    "repeatability": "All 41 final PNGs match initial render-run SHA-256 identities",
+    "retained_contact_sheet": "t003-render-contact.png",
+    "contact_sha256": "2afdcf3a37e44045b727698b8b9a34cd3b9e0fef8d8f5ccbe77a7680d1c3a07d",
+    "visual_inspection": "Codex inspected the 6-panel contact: quadrant orientation, alpha/background blend, indexed gray alpha, SVG and moved/rotated plane agree with numeric assertions; synthetic FBO images, not screenshots of user windows",
+    "native_x11_local_directory": "/tmp/spec003-t003-rendered-x11",
+    "native_x11_equivalence": "All 41 native X11/xcb outputs match the recorded final offscreen PNG SHA-256 identities; both profiles executed, no unexecuted profile transfer."
+  },
+  "results": {
+    "bitmap_tests": 82,
+    "bitmap_memcheck_tests": 82,
+    "memcheck_errors": 0,
+    "libunwind_probe_suppressions": 1,
+    "render_format_rows": 39,
+    "render_scale_rows": 1,
+    "qt_render_total_including_setup_cleanup": 42,
+    "render_skips": 0,
+    "ctest_targets_passed": 2,
+    "calibration_qt_total_including_setup_cleanup": 9,
+    "production_changes": "none; qualification adds tests/registration only",
+    "native_x11_qt_total_including_setup_cleanup": 42,
+    "native_x11_skips": 0
+  },
+  "prior_evidence": "T012/T013 receipts remain immutable and dated. Current source fixes are committed, expanded bitmap checks rerun with fresh Memcheck, and T013 calibration CTest reruns on this composition; changed test registration does not silently transfer old binary results.",
+  "applicability": "actual_root_revision plus exact test/new-test patch/source/build/binary/context/output identities above; final T010 reconciliation still required",
+  "limitations": [
+    "Framebuffer correctness on native X11/xcb and Qt offscreen with software GL: no interactive native viewer, hardware GPU, scanout, latency/resident-memory budget, cross-platform or final PR acceptance",
+    "A missing OpenGL context causes the renderer test to skip, which is not acceptance evidence; this run has zero skips",
+    "Memcheck access checks used with undefined-value/leak checks disabled; not ASan/UBSan",
+    "Only the small contact sheet is retained; other PNGs/logs are temporary by hash and reproducible through the named commands",
+    "No universal HDR/ICC/color-management or unsupported-input recovery policy beyond T012 is added; broader lifecycle/error qualification remains T006"
+  ],
+  "renderer_profiles": {
+    "qt_offscreen": {
+      "qt_backend": "offscreen, inside a task-owned Xvfb X11 server",
+      "xvfb_command": "xvfb-run -a -s '-screen 0 1024x768x24'",
+      "environment": {
+        "QT_QPA_PLATFORM": "offscreen",
+        "LIBGL_ALWAYS_SOFTWARE": "1",
+        "QT_SCALE_FACTOR": "1"
+      },
+      "gl_vendor": "Mesa",
+      "gl_renderer": "llvmpipe (LLVM 20.1.2, 256 bits)",
+      "gl_version": "4.5 (Compatibility Profile) Mesa 25.2.8-0ubuntu0.24.04.4",
+      "qt_version": "6.11.3",
+      "dpr": 1,
+      "viewport_physical_pixels": [
+        320,
+        240
+      ],
+      "multisamples": 0,
+      "camera": "orthographic height 60, position (0,0,100), near/far 1/200",
+      "unlit_provider_mode": "No shading",
+      "texture_quality": 0.1,
+      "framebuffer": "production SoQtOffscreenRenderer default GL_RGB32F_ARB; opaque RGB(32,64,96) background",
+      "metadata_boundary": "Actual strings from test context; driver dlopen payload integrity is not attested. No native viewer, monitor scanout or hardware-GPU acceptance claim."
+    },
+    "native_x11": {
+      "qt_backend": "native X11/xcb, inside a task-owned Xvfb server",
+      "xvfb_command": "xvfb-run -a -s '-screen 0 1024x768x24'",
+      "environment": {
+        "QT_QPA_PLATFORM": "xcb",
+        "LIBGL_ALWAYS_SOFTWARE": "1",
+        "QT_SCALE_FACTOR": "1"
+      },
+      "gl_vendor": "Mesa",
+      "gl_renderer": "llvmpipe (LLVM 20.1.2, 256 bits)",
+      "gl_version": "4.5 (Compatibility Profile) Mesa 25.2.8-0ubuntu0.24.04.4",
+      "qt_version": "6.11.3",
+      "dpr": 1,
+      "viewport_physical_pixels": [
+        320,
+        240
+      ],
+      "multisamples": 0,
+      "camera": "orthographic height 60, position (0,0,100), near/far 1/200",
+      "unlit_provider_mode": "No shading",
+      "texture_quality": 0.1,
+      "framebuffer": "production SoQtOffscreenRenderer default GL_RGB32F_ARB; opaque RGB(32,64,96) background",
+      "metadata_boundary": "Actual strings from test context; driver dlopen payload integrity is not attested. No native viewer, monitor scanout or hardware-GPU acceptance claim."
+    }
+  }
+}
