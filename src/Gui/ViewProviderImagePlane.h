@@ -55,10 +55,16 @@ public:
     void onChanged(const App::Property* prop) override;
 
 private:
+    enum class ImageSizePolicy
+    {
+        Initialize,
+        Preserve
+    };
+
     void resizePlane(float xsize, float ysize);
-    void loadImage();
+    void loadImage(ImageSizePolicy sizePolicy);
     void loadImageIfPending();
-    void setPlaneSize(const QSizeF& size, const QImage& img);
+    void setPlaneSize(const QImage& img, ImageSizePolicy sizePolicy);
     void reloadIfSvg();
     bool isSvgFile(const char*) const;
     QSizeF getSizeInMM(const QImage&) const;

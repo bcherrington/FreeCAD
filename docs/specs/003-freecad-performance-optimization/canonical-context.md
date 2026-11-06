@@ -40,8 +40,9 @@ historical notes override code, tests, policy or live evidence.
 | open-decisions.md | Authoritative decision status/ownership | D001–D003 | D001 protocol, D002 routing and D003 initial policy resolved; no runtime/final PR acceptance implied |
 | validation-manifest.md and validation-manifest.json | Candidate identity and evidence applicability | T019 initial local Linux candidate | Historical binaries ineligible; actual new-build/runtime receipt required |
 | benchmark-protocol.md; benchmark-plan.json; benchmark-runner.py | Predeclared measurement contract and bounded collector | T001/D001 | No FreeCAD probe, generated fixture, qualified arm or performance result claimed |
-| tasks.md | Four-phase delivery queue and explicit next action | This package | T012 complete; T013 next; phase order and dependencies govern execution |
+| tasks.md | Four-phase delivery queue and explicit next action | This package | T012/T013 complete; T003 next; phase order and dependencies govern execution |
 | t012-validation.json | Local image extent/access qualification receipt | T012 plus actual working diff/source/binary hashes | No native GUI, calibration, full-format or performance acceptance implied |
+| t013-validation.json | Local calibrated image-plane lifecycle receipt | T013 plus actual source/new-test/diff/binary hashes | No native viewport, broad image qualification or performance acceptance implied |
 | baseline-status.md | Existing implementation and dated evidence | Baseline inventory only | Source presence does not set execution status |
 | traceability.md | Bidirectional context | This package | Partial coverage blocks closure |
 | verification.md | Revision/date-bound evidence | Named checks only | No blanket readiness inferred |
@@ -78,7 +79,7 @@ The user-authorized execution replan preserves stable IDs, completed T019/T021
 artifacts and the immutable manifest. Five old partial task states are pending
 remaining qualification; their imported observations are retained in the
 baseline inventory. T001 resolves D001 with a predeclared protocol; Phase 2
-has completed T012 and continues with T013. Performance sampling still requires
+has completed T012/T013 and continues with T003. Performance sampling still requires
 the remaining Phase 2 qualification. D002's B009 routing and B010/B011 optional investigations do not
 approve new behavior or waive any current MoE safety/measurement requirement.
 The original manifest's "remaining decisions" prose records its intake time;

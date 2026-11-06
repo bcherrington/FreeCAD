@@ -70,7 +70,7 @@ last_reviewed: 2026-11-06
 | Property | Requirements | Design Sections | Tasks | Tests Or Verification | Residual Risk |
 | --- | --- | --- | --- | --- | --- |
 | CP-001 | Requirement 1 | design.md#moe-safety-and-compatibility-contracts | T002, T018 | verification.md#moe-regression-matrix | Source corrections and runtime regressions pending |
-| CP-002 | Requirement 2, Requirement 5 | design.md#moe-safety-and-compatibility-contracts | T003, T006, T013 | verification.md#moe-regression-matrix | Source corrections and runtime regressions pending |
+| CP-002 | Requirement 2, Requirement 5 | design.md#moe-safety-and-compatibility-contracts | T003, T006, T013 | verification.md#t013-calibration-preservation | T013 local calibration fixtures pass; broader T003/T006 qualification pending |
 | CP-003 | Requirement 6 | design.md#moe-safety-and-compatibility-contracts | T007, T014, T017 | verification.md#moe-regression-matrix | Source corrections and runtime regressions pending |
 | CP-004 | Requirement 2 | design.md#moe-safety-and-compatibility-contracts | T003, T012 | verification.md#t012-extent-and-arithmetic-correction--2026-11-06 | T012 local boundary/access checks pass; broader T003 image qualification pending |
 | CP-005 | Requirement 4 | design.md#moe-safety-and-compatibility-contracts | T005, T015, T016 | verification.md#moe-regression-matrix | Source corrections and runtime regressions pending |
@@ -118,7 +118,7 @@ are satisfied; D001 planning is complete.
 | Finding | Requirements | Owning Tasks | Verification | Disposition |
 | --- | --- | --- | --- | --- |
 | F001 | Requirement 2 AC2, AC3; CP-004 | T012, T003 | verification.md#t012-extent-and-arithmetic-correction--2026-11-06 | T012 correction/local memory-access qualification complete; broader T003 acceptance pending |
-| F002 | Requirement 5 AC2–AC4; CP-002 | T013, T006 | verification.md#moe-regression-matrix | Source fix pending; acceptance blocker |
+| F002 | Requirement 5 AC2–AC4; CP-002 | T013, T006 | verification.md#t013-calibration-preservation | T013 correction/local calibration qualification complete; broader T006 acceptance pending |
 | F003 | Requirement 6 AC3; CP-003 | T014, T007 | verification.md#moe-regression-matrix | Source fix pending; acceptance blocker |
 | F004 | Requirement 4 AC1–AC4; CP-005 | T015, T016, T005 | verification.md#moe-regression-matrix | Bounded parser and CAD identity qualification pending |
 | F005 | Requirement 6 AC1, AC4; CP-003 | T017, T007 | verification.md#moe-regression-matrix | Restore-path scheduling qualification pending |
@@ -132,7 +132,7 @@ are satisfied; D001 planning is complete.
 | Phase | Required active tasks | Optional/routed records | Completion rule |
 | --- | --- | --- | --- |
 | 1 — Planning | T021, T019 retained; T009 scope disposition; T001 complete | D002/B009 proposal stays deferred | D001 resolved; Phase 2A active |
-| 2A — Images | T012 complete; T013 next, T003 and children, T006 and children | none | Calibration correction and broader image/lifecycle qualification before tree subgroup |
+| 2A — Images | T012/T013 complete; T003 next and children, T006 and children | none | Broader image/lifecycle qualification before tree subgroup |
 | 2B — Tree | T014, T017, T007, T007.1 | T007.2 routed to B011 | Current functional tests required; future optimization profile is owned outside current runtime gate |
 | 2C — CAD maps | T015, T016, T005 | none | Numeric/identity fixtures and checkpoint pass |
 | 2D — Archives | T018, T002 and children | none | Current archive policy/error/compatibility pass |

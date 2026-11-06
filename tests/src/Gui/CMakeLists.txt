@@ -36,6 +36,8 @@ add_executable(Gui_tests_run
 # Qt tests
 setup_qt_test(CompactMainWindowChrome)
 setup_qt_test(ObjectSelection)
+setup_qt_test(ImagePlane)
+set_tests_properties(ImagePlane_Tests_run PROPERTIES TIMEOUT 120)
 setup_qt_test(TranslatorLocale)
 setup_qt_test(InputField)
 setup_qt_test(QuantitySpinBox)

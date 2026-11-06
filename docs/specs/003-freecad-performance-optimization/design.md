@@ -116,10 +116,15 @@ invalidation and diagnostic contracts.
   this is not an out-of-memory recovery policy. D001/D003 identify backend/build;
   T012 covers both orientations of 32767/32768/65537 slender images and valid
   edge pixels; broader fidelity/calibration qualification remains T003/T006.
-- **Calibration (F002):** T013 requires texture-only load of restored/imported
-  image planes. Existing XSize/YSize and placement survive finishRestoring,
-  hidden first show and save/reopen independently of GUI restoring/ObjImporting
-  flags. Preserve intentional initial-image sizing and explicit user resize.
+- **Calibration (F002):** T013 uses an explicit private image-size policy:
+  direct new/replaced image assignment initializes DPI-derived physical sizes;
+  pending materialization preserves stored XSize/YSize after transient flags
+  clear, while still refreshing image DPI metadata and original texture data.
+  Both GUI restoring and App ObjImporting defer ImageFile/XSize/YSize loads.
+  Placement and calibrated Coin quad coordinates remain unchanged. The existing
+  Gui::Document completion ordering is retained; the provider owns this policy.
+  Real offscreen App/Gui archive/copy/import regressions qualify the local fix;
+  broader image/visual/lifecycle coverage remains T003/T006.
 - **Receiver lifetime (F003):** start/finish-open subscriptions and scheduled
   callbacks must not outlive TreeWidget. T014 may use explicit disconnection or
   established scoped connections; test actual destruction/recreation, not dock

@@ -197,7 +197,7 @@ void ViewProviderImagePlane::resizePlane(float xsize, float ysize)
     pcCoords->point.set1Value(3, -(xsize / 2), +(ysize / 2), 0.0);
 }
 
-void ViewProviderImagePlane::loadImage()
+void ViewProviderImagePlane::loadImage(ImageSizePolicy sizePolicy)
 {
     Image::ImagePlane* imagePlane = static_cast<Image::ImagePlane*>(pcObject);
     std::string fileName = imagePlane->ImageFile.getValue();
@@ -212,8 +212,7 @@ void ViewProviderImagePlane::loadImage()
             impQ = loadRaster(fileName.c_str());
         }
 
-        QSizeF size = getSizeInMM(impQ);
-        setPlaneSize(size, impQ);
+        setPlaneSize(impQ, sizePolicy);
         convertToSFImage(impQ);
     }
 }
@@ -221,7 +220,9 @@ void ViewProviderImagePlane::loadImage()
 void ViewProviderImagePlane::loadImageIfPending()
 {
     if (pendingFullResTexture) {
-        loadImage();
+        // Deferred materialization must not initialize saved/imported calibration,
+        // even when the transient restoring/importing flags have already cleared.
+        loadImage(ImageSizePolicy::Preserve);
     }
 }
 
@@ -240,13 +241,13 @@ void ViewProviderImagePlane::show()
     loadImageIfPending();
 }
 
-void ViewProviderImagePlane::setPlaneSize(const QSizeF& size, const QImage& img)
+void ViewProviderImagePlane::setPlaneSize(const QImage& img, ImageSizePolicy sizePolicy)
 {
     if (!img.isNull()) {
         Image::ImagePlane* imagePlane = static_cast<Image::ImagePlane*>(pcObject);
-        // When restoring the document or importing a ImagePlane by eg. pasting it
-        // preserve the X and Y size.
-        if (!isRestoring() && !pcObject->testStatus(App::ObjectStatus::ObjImporting)) {
+        if (sizePolicy == ImageSizePolicy::Initialize && !isRestoring()
+            && !pcObject->testStatus(App::ObjectStatus::ObjImporting)) {
+            const QSizeF size = getSizeInMM(img);
             imagePlane->XSize.setValue(size.width());
             imagePlane->YSize.setValue(size.height());
         }
@@ -382,7 +383,8 @@ void ViewProviderImagePlane::updateData(const App::Property* prop)
 
         resizePlane(xsize, ysize);
         const std::string fileName = pcPlaneObj->ImageFile.getValue();
-        if (isRestoring() && !fileName.empty()) {
+        if ((isRestoring() || pcObject->testStatus(App::ObjectStatus::ObjImporting))
+            && !fileName.empty()) {
             pendingFullResTexture = true;
             return;
         }
@@ -390,11 +392,12 @@ void ViewProviderImagePlane::updateData(const App::Property* prop)
     }
     else if (prop == &pcPlaneObj->ImageFile) {
         const std::string fileName = pcPlaneObj->ImageFile.getValue();
-        if (isRestoring() && !fileName.empty()) {
+        if ((isRestoring() || pcObject->testStatus(App::ObjectStatus::ObjImporting))
+            && !fileName.empty()) {
             pendingFullResTexture = true;
             return;
         }
-        loadImage();
+        loadImage(ImageSizePolicy::Initialize);
     }
     else {
         Gui::ViewProviderGeometryObject::updateData(prop);

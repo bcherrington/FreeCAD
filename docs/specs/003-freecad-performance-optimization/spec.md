@@ -71,7 +71,8 @@ coherent correction/qualification slices, comparative performance, then final
 delivery/closure. T001 completes the [D001 benchmark protocol](benchmark-protocol.md).
 T012 locally qualifies the extent/arithmetic correction; see its
 [execution evidence](verification.md#t012-extent-and-arithmetic-correction--2026-11-06).
-**Next: T013 — Preserve calibrated image-plane dimensions during texture loading (Phase 2A).**
+T013 locally qualifies [calibration preservation](verification.md#t013-calibration-preservation).
+**Next: T003 — Complete bitmap and rendered image correctness coverage (Phase 2A).**
 [baseline-status.md](baseline-status.md) holds existing implementation facts;
 remaining execution checkpoints are pending until current evidence is recorded.
 Optional new investigations have [owned backlog routes](../../backlog/spec003-follow-ups.md).

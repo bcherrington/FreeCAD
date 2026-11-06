@@ -32,7 +32,7 @@ that explicit routing verified.
 | Phase | Required sequence | Exit gate |
 | --- | --- | --- |
 | 1 — Planning | T021/T019 retained; T009 scope disposition; T001 complete | D001 protocol approved before source work |
-| 2A — Images | T012 complete → **T013 next** → T003 → T006 | Safe conversion and calibrated lifecycle qualified |
+| 2A — Images | T012/T013 complete → **T003 next** → T006 | Safe conversion and calibrated lifecycle qualified |
 | 2B — Tree | T014 → T017 → T007 | Receiver/completion fixes and current functional qualification |
 | 2C — CAD maps | T015 → T016 → T005 | Bounded parsing and CAD reference identity qualified |
 | 2D — Archives | T018 → T002 | Archive error outcomes and compatibility qualified |
@@ -74,8 +74,8 @@ none -> T008
 ## Phase 1 — Finish Planning
 
 Exit satisfied: T021/T019 evidence retained, T009 scope disposition recorded, and T001
-resolves D001 with the benchmark protocol. **Next action: T013 — Preserve calibrated image-plane dimensions
-during texture loading (Phase 2A; T012 complete).**
+resolves D001 with the benchmark protocol. **Next action: T003 — Complete bitmap and rendered image correctness coverage
+(Phase 2A; T012/T013 complete).**
 
 - [x] T021 Expose lifecycle decisions and verify execution guardrails.
   - Depends on: none
@@ -214,12 +214,13 @@ Exit: T012/T013 corrections and T003/T006 required local acceptance pass on a na
     Broader T003 image-format/visual qualification remains pending.
 
   - Status: Completed local extent/arithmetic correction and CPU memory-access qualification. Next T013; broader T003/T006/native GUI/performance/platform acceptance remains pending.
-- [ ] T013 Preserve calibrated image-plane dimensions during texture loading.
+- [x] T013 Preserve calibrated image-plane dimensions during texture loading.
   - Depends on: T012
   - Requirements: Requirement 5 AC2–AC4; Requirement 2 AC1
   - Design: design.md#moe-safety-and-compatibility-contracts
   - Files: `src/Gui/ViewProviderImagePlane.cpp`, `src/Gui/ViewProviderImagePlane.h`,
-    `src/Gui/Document.cpp`, `verification.md`
+    `tests/src/Gui/ImagePlane.cpp`, `tests/src/Gui/CMakeLists.txt`,
+    `t013-validation.json`, `verification.md`; `src/Gui/Document.cpp` inspected unchanged
   - Acceptance: Separate texture materialization from sizing saved/imported planes after
     restoring/import flags clear. Add calibrated X/Y and placement fixtures for visible/hidden
     reopen, hidden copy/paste/import then show, repeated show and save/reopen; retain intended
@@ -227,14 +228,16 @@ Exit: T012/T013 corrections and T003/T006 required local acceptance pass on a na
   - Validation: Run the focused regression cases in acceptance on the T019 pinned revision; record
     commands, results and limits in verification.md.
   - Evidence mode: artifact
-  - Evidence: Pending.
+  - Evidence: 2026-11-06: private Initialize/Preserve sizing policy separates fresh/replaced image sizing from pending texture/DPI materialization; both restore and ObjImporting defer loads. Gui::Document ordering remains unchanged. Bounded old-provider run failed four rows: hidden reopen/flags-cleared visible finish reset XSize 123.25 to 20 and geometry; hidden copy/merge imported too early. Corrected pixi run --locked build -j 2 passed; ImagePlane_Tests_run passed seven functional rows plus init/cleanup (9 passes, no skips/failures); registered CTest passed with 120s timeout; all 30 retained bitmap regressions passed. Real App/Gui FCStd restore/copy/import fixtures assert independent X/Y calibration, Placement, Coin translation/quad geometry, pending/full 40x20 texture and DPI, repeated show/save-reopen and fresh/replaced raster/explicit SVG sizing. t013-validation.json records actual root + source/new-test patch hashes, 7 matching clean dependencies, 510 package identities, config/tool/build/binary/runtime/fixture/log provenance and limits. Pre-commit and CRLF-aware whitespace pass; package lint zero diagnostics, task context zero gaps; direct checker validates 40 stable IDs, prior completed/frozen artifacts, 83 links/anchors and unrelated console preservation. No native frame/visual matrix, cross-platform, sanitizer or performance acceptance claimed.
   - Owner: local-developer
   - Properties: CP-002
   - Candidate manifest: spec003-linux-x86_64-debug-candidate-20261106-v1; see validation-manifest.md
     and record actual execution provenance.
-  - Context evidence: F002 independently confirmed by rendering and lifecycle reviewers through
-    source ordering; runtime regression/fix remains pending.
+  - Context evidence: F002 reproduced on the old provider; explicit pending-load preservation
+    and importing deferral pass the local calibrated archive/copy/import/resize fixtures.
+    See verification.md and t013-validation.json; broader T003/T006 acceptance remains pending.
 
+  - Status: Completed local calibration-preserving deferred materialization/import correction and declared lifecycle fixtures. Next T003; broader T006/native-view/format/performance/platform acceptance remains pending.
 - [ ] T003 Complete bitmap and rendered image correctness coverage.
   - Depends on: T012, T013
   - Requirements: Requirement 2 (all acceptance criteria)
