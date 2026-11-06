@@ -31,7 +31,7 @@ review gates. Keep compact rail geometry in package 002.
 | --- | --- | --- | --- |
 | CP-001 | Buffered restore preserves bytes, entry boundaries, permissions and notifications with defined document-level failure outcomes. | T018, T002; archive-level failure and compatibility fixtures | Source correction/qualification pending |
 | CP-002 | Image conversion and texture-only materialization preserve pixel semantics, original source, independently calibrated dimensions and placement. | T013, T003, T006; calibrated reopen/import/show/save fixtures | T013/T003/T006 local qualification complete; final T010 applicability remains |
-| CP-003 | Tree batching preserves per-object effects, ends callbacks with receiver lifetime and completes every suppressed restore path. | T014, T017, T007; destruction and idle restore-path regressions | Source correction/qualification pending |
+| CP-003 | Tree batching preserves per-object effects, ends callbacks with receiver lifetime and completes every suppressed restore path. | T014, T017, T007; destruction and idle restore-path regressions | T014 receiver lifetime qualified; T017/T007 completion/semantics pending |
 | CP-004 | Image extents, allocation lengths and offsets are checked before narrowing or writing; unsupported input is rejected safely. | T012, T003; null/slender boundary tests and sanitizer-equivalent checks | Source correction/qualification pending |
 | CP-005 | Numeric conversion is bounded and element-map aliases, child IDs and dependent CAD reference identities survive restore/recompute. | T015, T016, T005; numeric/writer/identity fixture matrix | Source correction/qualification pending |
 
@@ -59,9 +59,9 @@ instead of temporary split vectors; bounded numeric compatibility remains
 T015/T016. `src/Gui/BitmapFactory.cpp`: direct 32-bit conversion plus Qt fallback.
 `src/Gui/ViewProviderImagePlane.cpp`: pending full-resolution texture lifecycle.
 `src/Gui/Tree.cpp`/`Tree.h`: pending restore status scheduling and receiver-owned
-application subscriptions. T014/T017 must reconcile widget teardown and all
-suppressed restore completion paths; application finish-open alone is not a
-complete contract.
+application subscriptions. T014 qualifies widget teardown; T017 must reconcile
+all suppressed restore completion paths. Application finish-open alone is not a
+complete scheduling contract.
 
 ### Data Models And Flow
 
@@ -158,9 +158,19 @@ invalidation and diagnostic contracts.
   T018 owns broken-archive save/metadata outcomes, and T010 owns final environment
   qualification, including the unsuccessful Qt/IBus lifecycle Memcheck attempts.
 - **Receiver lifetime (F003):** start/finish-open subscriptions and scheduled
-  callbacks must not outlive TreeWidget. T014 may use explicit disconnection or
-  established scoped connections; test actual destruction/recreation, not dock
-  hiding alone. Include Tree.h and receiver ownership in scope.
+  callbacks must not outlive TreeWidget. T014 explicitly disconnects both App
+  open subscriptions in the destructor alongside the seven existing Gui
+  subscriptions, before removing the receiver from the instance registry. The
+  unscoped connection member type is unchanged. Owned QTimers and receiver-context
+  queued calls cancel with QObject lifetime; the existing delayed focus callback
+  also supplies its receiver context. Direct and parent destruction, real App
+  document open after deletion, repeated replacement, and queued status work pass
+  under Memcheck. This preserves the existing GUI-thread dispatch assumption;
+  no concurrent signal/teardown contract or broader scheduler change is added.
+  Tree.h is inspected unchanged. T017/T007 still own completion and object effects.
+  The new internal-widget test is registered outside Windows because TreeWidget
+  lacks DLL export; no public export is introduced for testing. T010 owns final
+  platform/native qualification.
 - **Numeric and CAD identity (F004):** tokenization and numeric conversion are
   both implementation changes. T015 defines bounded numeric conversion and
   legacy tolerance for signs, whitespace, prefixes, invalid suffixes and range

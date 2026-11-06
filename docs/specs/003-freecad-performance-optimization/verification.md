@@ -85,7 +85,7 @@ source/code-path evidence and acceptance gaps, not executed reproductions.
 Historical implementation-presence/test rows below do not discharge these new
 criteria. F001 has since been reproduced and locally corrected/qualified by
 T012 (see below); T013 locally qualifies the F002 calibration correction.
-F003 remains a source blocker. T003 now qualifies local Requirement 2 fidelity;
+T014 now locally corrects/qualifies F003 receiver lifetime. T003 qualifies local Requirement 2 fidelity;
 T006 now qualifies local Requirement 5 lifecycle. Requirement 6 and exact-final/platform acceptance remain pending.
 
 ## MoE Review Findings
@@ -94,7 +94,7 @@ T006 now qualifies local Requirement 5 lifecycle. Requirement 6 and exact-final/
 | --- | --- | --- | --- | --- |
 | F001 | blocker | BitmapFactory.cpp:64–98 allocates using narrowed SbVec2s dimensions but writes original dimensions; inspected Linux 65537x1 becomes a 1x1 allocation. Null/extent/arithmetic policy was missing. | local-developer; T012 then T003 | T012 correction plus T003 current format/render/access qualification pass; final T010 applicability remains |
 | F002 | blocker | Gui/Document.cpp:2170 clears GUI restoring before finishRestoring; ViewProviderImagePlane.cpp:215–251 can write DPI-derived XSize/YSize during deferred load. Non-default calibration can be lost. | local-developer; T013 then T006 | T013 calibration correction plus T003 fidelity and T006 expanded lifecycle pass locally; T010 final applicability remains |
-| F003 | blocker | Tree.cpp:696–700 captures raw this in application callbacks; destructor at 762–775 omits those connection disconnections; fastsignals::connection destructor is unscoped. | local-developer; T014 then T007 | Open receiver-lifetime fix and destroy/recreate/open regression |
+| F003 | blocker | Tree.cpp:696–700 captures raw this in application callbacks; destructor at 762–775 omits those connection disconnections; fastsignals::connection destructor is unscoped. | local-developer; T014 then T007 | T014 two disconnections plus real destroy/recreate/open and queued-status Memcheck checks pass locally; T010 final platform applicability remains |
 | F004 | request | ElementMap.cpp:89–105 changes numeric conversion as well as token splitting, with unchecked signed arithmetic; current parser fixtures do not cover all writer/alias/radix/child identity forms. | local-developer; T015, T016 then T005 | Open bounded numeric policy/implementation and CAD identity fixtures |
 | F005 | request | Tree suppression uses broad isRestoring while completion follows application finish-open; idle direct load/restore/import/paste can lack a matched completion. | local-developer; T017 then T007 | Open scheduling contract and idle completion/error tests |
 | F006 | request | PropertyFile copy errors are caught by XMLReader::readFiles; hook exceptions alone do not establish diagnostic/failure-list/partial-file/continuation behavior. | local-developer; T018 then T002 | Open archive-level outcome table and failure fixtures |
@@ -115,7 +115,7 @@ GPU residency claims require separate actual measurements.
 | --- | --- | --- | --- |
 | Image extent/arithmetic | Null, valid edge and slender 32767/32768/65537 inputs; safe documented rejection, checked offsets; sanitizer-equivalent checks where available | T012, T003 | T003 current 82-case expanded byte/access matrix and real rendered-plane qualification pass |
 | Calibrated CAD planes | Independently non-default XSize/YSize and placement; visible/hidden reopen, hidden import/paste/show, repeated show, save/reopen; preserve new-image/explicit-resize behavior | T013, T006 | T006 expanded calibrated archive/copy/import/show/edit/error checks pass locally |
-| Receiver lifetime | Actual tree destroy/recreate then start/finish-open; callbacks and queued work cannot access dead receiver | T014, T007 | Pending source fix and execution |
+| Receiver lifetime | Actual tree destroy/recreate then start/finish-open; callbacks and queued work cannot access dead receiver | T014, T007 | T014 local receiver lifetime passes; broader T007 tree checkpoint remains pending |
 | Numeric and subelement identity | Signed/unsigned-form tolerance, decimal/hex bounds, malformed/overflow tokens; semicolon/colon/dollar writer forms; multiple aliases/SIDs/shared children; bidirectional lookups after buffers die; dependent CAD target reopen/recompute | T015, T016, T005 | Pending policy, source correction and fixtures |
 | Restore completion | Initially idle timers; app open, direct load/restore, import/paste and failure cleanup; eventual tree population/status/observer work without unrelated edit/open | T017, T007 | Pending scheduling correction and execution |
 | Archive failures | Empty/nonempty failing first entry plus valid second; read/write/close injection, diagnostics/failure list, partial bytes/permissions and notifications | T018, T002 | Pending approved outcome table and execution |
@@ -430,10 +430,68 @@ nested docs authority boundary blocks validation planning; direct Git/source
 checks and executed commands establish the evidence above.
 Next: T014 — Bind tree application callbacks to widget lifetime, in Phase 2B.
 
+## T014 Tree Widget Receiver Lifetime
+
+T014 completes local Requirement 6 AC3 on committed T006 root
+`99b341fa31` / docs `413cefe`, plus the exact source/new-test diff identified
+by [t014-validation.json](t014-validation.json). Previous receipts and frozen
+manifest/history remain unchanged. Only two production lines are added:
+start-open and finish-open explicitly disconnect in TreeWidget's destructor
+alongside its seven existing Gui subscriptions. Tree.h, public API, connection
+member types, restore suppression and scheduler behavior are unchanged.
+
+The new QtTest reproduces retained receivers after actual direct and parent
+widget deletion: both rows fail on the old code, each leaving one start-open
+and one finish-open subscription, while seven Gui counts return to baseline.
+A separate old-code Memcheck run opens a real saved FCStd after heap receiver
+deletion and detects an invalid one-byte write in slotStartOpenDocument, inside
+the freed TreeWidget allocation. It exits 99 at the first error; it is failure
+reproduction, not a passing check.
+
+| Regression | Current outcome |
+| --- | --- |
+| Direct and parent destruction | QPointer confirms deletion; all nine App/Gui subscriber counts return to baseline |
+| Actual App open after destruction/recreation | Three cycles, six successful App::Application::openDocument calls, balanced start/finish signals; replacement tree populates/clears a real Gui document item |
+| Queued status work | Real status timer active, production slot queued before deletion, owned timer pointers clear, event loop drains; replacement receiver can queue/drain again |
+| Memory access | All four functional rows pass under Memcheck with zero errors; one pre-existing exact libunwind probe suppression only |
+
+`pixi run --locked build -j 2` passes. The lifetime executable has **six Qt
+passes** (four functional rows plus setup/cleanup), zero failures/skips, both
+normally and under Memcheck. Five CTest targets pass: TreeWidgetLifetime,
+ObjectSelection, SelectionView, ImagePlane and ImagePlaneRender. Scoped
+pre-commit and root/nested-doc whitespace checks pass; Tree.cpp CRLF is retained.
+The new test is bounded to 120 seconds. The receipt binds source/new-test/diff,
+red and corrected binaries, runtime/build/log identities, seven clean dependency
+heads and 510 unchanged package identities. Guarded lifecycle completion leaves
+14 complete, 24 pending and two routed follow-ups, with zero partial/in-progress
+records and all 40 IDs retained. Lint reports zero diagnostics; preflight selects
+T017 with satisfied dependencies, zero context gaps and no open decisions. The
+direct checker verifies exact receipt hashes, 89 local links/anchors, all 13 prior
+completed task records, frozen artifacts, CRLF and the unrelated console diff.
+Agent Workbench remains navigation-only at its nested docs authority boundary;
+direct checks and executed commands establish the validation above.
+
+Memcheck explicitly sets both QT_IM_MODULES=compose and QT_IM_MODULE=compose,
+which reaches the tests. The earlier T006 single-variable compose retry still
+loaded IBus; its unsuccessful result remains dated and unchanged. No tree or Qt
+lifetime errors are suppressed. Leak/undefined-value checks are disabled;
+this is bounded memory-access validation, not ASan/UBSan. The test is not
+registered on Windows because internal TreeWidget has no DLL export; adding a
+public export solely for testing was unnecessary. T010 owns Windows/native and
+final runtime composition qualification, including default IBus startup.
+
+These tests isolate receiver lifetime with an empty saved archive and explicit
+Gui document registration after real App open. They do not qualify all object
+side effects, deferred focus interactions, restore completion paths, scheduler
+semantics or performance. Existing receiver-context Qt callbacks and owned
+timers retain their lifetime handling; no new queued callback is introduced.
+T017/T007 remain required. Next: T017 — Match tree restore suppression to all
+completion paths.
+
 ## Next Actions
 
-1. **Next: T014 — Bind tree application callbacks to widget lifetime.**
-   Phase 2A image correction/qualification is complete; retain D001/T019 applicability rules.
+1. **Next: T017 — Match tree restore suppression to all completion paths.**
+   Phase 2A and T014 receiver lifetime are complete; retain D001/T019 applicability rules.
 2. Follow [the explicit Phase 2 subgroups](tasks.md#execution-order): images,
    tree lifecycle, CAD maps, then archives; finish each fix's focused regression
    and subgroup qualification before advancing.
@@ -447,7 +505,7 @@ Next: T014 — Bind tree application callbacks to widget lifetime, in Phase 2B.
 | Gate | Required? | Status | Evidence |
 | --- | --- | --- | --- |
 | Requirements and decisions accepted | yes | partial | D001 protocol recorded; D002 routes to B009; D003 initial policy recorded; final T010.1 confirmation pending |
-| MoE source-safety blockers resolved | yes | blocked | F001/T012 and F002/T013 locally qualified; F003 correction and broader regression matrix remain |
+| MoE source-safety blockers resolved | yes | partial | F001/T012, F002/T013 and F003/T014 locally corrected/qualified; broader checkpoints and final platform applicability remain |
 | Candidate and final evidence applicability | yes | partial | T019 initial manifest/policy recorded; actual new-build/runtime receipts and T010 final reconciliation pending |
 | Predeclared per-optimization performance/resource acceptance | yes | pending | T001 protocol complete; T020/T004 and final T010 evidence pending |
 | Complete task/criterion evidence | yes | pending | tasks.md; traceability.md |
@@ -566,10 +624,11 @@ executed. Runtime regression evidence for F001–F008 remains pending.
 
 ## Residual Risks
 
-- F003 remains an implementation acceptance blocker. F001/T012 and F002/T013 are
-  locally corrected/qualified; T003 image qualification passes on its recorded
-  software-GL profile; T006 local lifecycle qualification passes. Final runtime/platform
-  applicability, including Qt/IBus Memcheck startup diagnosis, remains T010.
+- F001/T012, F002/T013 and F003/T014 are locally corrected/qualified. T003 image
+  fidelity, T006 lifecycle and T014 receiver lifetime pass on their recorded
+  profiles. T017/T007 still own broader tree scheduling/object semantics. Final
+  runtime/platform applicability, including default Qt/IBus startup diagnosis,
+  remains T010; the T014 compose profile does not certify default IBus or T006.
 - Malformed numeric tokens, archive-level error outcomes and broader restore paths require
   explicit compatibility decisions and regression evidence.
 - Dated tests do not certify the selected final production revision.
@@ -588,8 +647,8 @@ this migration.
 
 ## Readiness Decision
 
-- Ready to implement: T014 — Bind tree application callbacks to widget lifetime; Phase 2A and all image children complete.
-- Ready to validate: local image slice qualified by T003/T006; T014 implementation comes next. Whole-package acceptance remains blocked by F003 and other checkpoints; final/platform applicability remains T010.
+- Ready to implement: T017 — Match tree restore suppression to all completion paths; T014 and Phase 2A complete.
+- Ready to validate: local images and receiver lifetime qualified by T003/T006/T014; T017 implementation comes next. Whole-package acceptance still requires pending completion/map/archive/performance checkpoints and T010 final/platform applicability.
 - Ready to close: no.
 - Ready to archive: no.
 - Cleanup action: keep active, draft.

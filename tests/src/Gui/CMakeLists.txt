@@ -34,6 +34,11 @@ add_executable(Gui_tests_run
 )
 
 # Qt tests
+# TreeWidget is internal and has no Windows DLL export; keep this test off Windows.
+if(NOT WIN32)
+    setup_qt_test(TreeWidgetLifetime)
+    set_tests_properties(TreeWidgetLifetime_Tests_run PROPERTIES TIMEOUT 120)
+endif()
 setup_qt_test(CompactMainWindowChrome)
 setup_qt_test(ObjectSelection)
 setup_qt_test(ImagePlaneRender)

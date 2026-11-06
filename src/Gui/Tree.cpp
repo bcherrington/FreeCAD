@@ -768,6 +768,8 @@ TreeWidget::~TreeWidget()
     connectRelDocument.disconnect();
     connectShowHidden.disconnect();
     connectChangedViewObj.disconnect();
+    connectStartOpenDocument.disconnect();
+    connectFinishOpenDocument.disconnect();
     Instances.erase(this);
     if (_LastSelectedTreeWidget == this) {
         _LastSelectedTreeWidget = nullptr;

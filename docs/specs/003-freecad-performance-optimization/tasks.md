@@ -33,7 +33,7 @@ that explicit routing verified.
 | --- | --- | --- |
 | 1 — Planning | T021/T019 retained; T009 scope disposition; T001 complete | D001 protocol approved before source work |
 | 2A — Images | T012/T013/T003/T006 complete | Safe conversion and calibrated lifecycle qualified |
-| 2B — Tree | T014 → T017 → T007 | Receiver/completion fixes and current functional qualification |
+| 2B — Tree | T014 complete → **T017 next** → T007 | Receiver/completion fixes and current functional qualification |
 | 2C — CAD maps | T015 → T016 → T005 | Bounded parsing and CAD reference identity qualified |
 | 2D — Archives | T018 → T002 | Archive error outcomes and compatibility qualified |
 | 3 — Performance | T020 → T004 | Predeclared latency/memory/per-change acceptance satisfied |
@@ -74,8 +74,8 @@ none -> T008
 ## Phase 1 — Finish Planning
 
 Exit satisfied: T021/T019 evidence retained, T009 scope disposition recorded, and T001
-resolves D001 with the benchmark protocol. **Next action: T014 — Bind tree application callbacks to widget lifetime
-(Phase 2B; image subgroup complete).**
+resolves D001 with the benchmark protocol. **Next action: T017 — Match tree restore suppression to all completion paths
+(Phase 2B; T014 receiver lifetime complete).**
 
 - [x] T021 Expose lifecycle decisions and verify execution guardrails.
   - Depends on: none
@@ -346,11 +346,12 @@ Exit: T012/T013 corrections and T003/T006 required local acceptance pass on a na
 Exit: T014/T017 corrections and T007.1 current tree qualification pass; T007.2 has owned B011
 routing, with no new optimization claim.
 
-- [ ] T014 Bind tree application callbacks to widget lifetime.
+- [x] T014 Bind tree application callbacks to widget lifetime.
   - Depends on: T006
   - Requirements: Requirement 6 AC3
   - Design: design.md#moe-safety-and-compatibility-contracts
-  - Files: `src/Gui/Tree.cpp`, `src/Gui/Tree.h`, `verification.md`
+  - Files: `src/Gui/Tree.cpp`, `tests/src/Gui/TreeWidgetLifetime.cpp`,
+    `tests/src/Gui/CMakeLists.txt`, `t014-validation.json`, `verification.md`
   - Acceptance: Ensure both new start/finish-open subscriptions and queued work cease with
     TreeWidget lifetime using established scoped connections or explicit disconnection. Add actual
     destroy/recreate then application-open regression with stale receiver access detected; hiding a
@@ -358,14 +359,17 @@ routing, with no new optimization claim.
   - Validation: Run the focused regression cases in acceptance on the T019 pinned revision; record
     commands, results and limits in verification.md.
   - Evidence mode: artifact
-  - Evidence: Pending.
+  - Evidence: 2026-11-06: t014-validation.json and verification.md#t014-tree-widget-receiver-lifetime bind actual committed T006 root 99b341fa31/docs 413cefe plus exact Tree.cpp/CMake/new-test diff, source/build/runtime/log identities, 7 clean dependencies and 510 unchanged packages. Old code fails both direct/parent destruction rows, retaining start/finish subscribers; separate real App open after heap receiver deletion reproduces Memcheck invalid write in slotStartOpenDocument, exit 99. Two explicit destructor disconnections correct it without Tree.h/public API/scheduler changes. All 4 functional rows (6 Qt passes including setup/cleanup) pass normally and under Memcheck with zero errors, one exact existing libunwind probe suppression, leak/undefined-value checks disabled. Three replacement cycles exercise six actual App opens; owned timers and queued production status calls drain after receiver deletion. Full pixi build, five focused CTest targets and scoped pre-commit pass, zero failures/skips. Direct checker verifies exact hashes, 40 stable IDs, 13 prior completed task records, 89 links/anchors, immutable artifacts/receipts, CRLF and unrelated console preservation; package lint/context zero diagnostics/gaps. Compose input-method profile explicit; default IBus and final Windows/native qualification remain T010. Broader restore completion/object effects remain T017/T007.
   - Owner: local-developer
   - Properties: CP-003
   - Candidate manifest: spec003-linux-x86_64-debug-candidate-20261106-v1; see validation-manifest.md
     and record actual execution provenance.
-  - Context evidence: F003 source review found raw-this subscriptions omitted from explicit
-    destructor disconnection; no runtime reproduction or fix yet.
+  - Context evidence: F003 reproduced by retained start/finish subscriber counts after direct/parent
+    destruction and by a Memcheck invalid write during actual App open after heap receiver deletion.
+    Two explicit destructor disconnections correct it; Tree.h, public API and scheduler policy
+    remain unchanged. See verification.md#t014-tree-widget-receiver-lifetime and t014-validation.json.
 
+  - Status: Completed local Requirement 6 AC3 receiver-lifetime correction and qualification; F003 locally resolved. Next T017; T007 broader tree and T010 final/platform acceptance remain required.
 - [ ] T017 Match tree restore suppression to all completion paths.
   - Depends on: T014
   - Requirements: Requirement 6 AC1, AC4

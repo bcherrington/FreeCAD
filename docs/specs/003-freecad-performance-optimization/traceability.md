@@ -71,7 +71,7 @@ last_reviewed: 2026-11-06
 | --- | --- | --- | --- | --- | --- |
 | CP-001 | Requirement 1 | design.md#moe-safety-and-compatibility-contracts | T002, T018 | verification.md#moe-regression-matrix | Source corrections and runtime regressions pending |
 | CP-002 | Requirement 2, Requirement 5 | design.md#moe-safety-and-compatibility-contracts | T003, T006, T013 | verification.md#t006-deferred-image-plane-lifecycle | T013/T003/T006 pass locally; final applicability and Qt/IBus memory-profile diagnosis remain T010 |
-| CP-003 | Requirement 6 | design.md#moe-safety-and-compatibility-contracts | T007, T014, T017 | verification.md#moe-regression-matrix | Source corrections and runtime regressions pending |
+| CP-003 | Requirement 6 | design.md#moe-safety-and-compatibility-contracts | T007, T014, T017 | verification.md#t014-tree-widget-receiver-lifetime | T014 lifetime correction passes locally; T017/T007 completion/object semantics pending |
 | CP-004 | Requirement 2 | design.md#moe-safety-and-compatibility-contracts | T003, T012 | verification.md#t012-extent-and-arithmetic-correction--2026-11-06 | T012 correction plus T003 expanded format/extent/access/render matrix pass locally |
 | CP-005 | Requirement 4 | design.md#moe-safety-and-compatibility-contracts | T005, T015, T016 | verification.md#moe-regression-matrix | Source corrections and runtime regressions pending |
 
@@ -119,7 +119,7 @@ are satisfied; D001 planning is complete.
 | --- | --- | --- | --- | --- |
 | F001 | Requirement 2 AC2, AC3; CP-004 | T012, T003 | verification.md#t012-extent-and-arithmetic-correction--2026-11-06 | T012 correction and T003 current local fidelity/access qualification complete; T010 final applicability remains |
 | F002 | Requirement 5 AC2–AC4; CP-002 | T013, T006 | verification.md#t006-deferred-image-plane-lifecycle | T013 correction and T006 current local lifecycle qualification complete; T010 final applicability remains |
-| F003 | Requirement 6 AC3; CP-003 | T014, T007 | verification.md#moe-regression-matrix | Source fix pending; acceptance blocker |
+| F003 | Requirement 6 AC3; CP-003 | T014, T007 | verification.md#t014-tree-widget-receiver-lifetime | T014 correction, destroy/recreate/open and queued-work checks pass locally under Memcheck; T007 broader tree and T010 final platform applicability remain |
 | F004 | Requirement 4 AC1–AC4; CP-005 | T015, T016, T005 | verification.md#moe-regression-matrix | Bounded parser and CAD identity qualification pending |
 | F005 | Requirement 6 AC1, AC4; CP-003 | T017, T007 | verification.md#moe-regression-matrix | Restore-path scheduling qualification pending |
 | F006 | Requirement 1 AC1–AC3; CP-001 | T018, T002 | verification.md#moe-regression-matrix | Archive-level failure policy/verification pending |
@@ -131,9 +131,9 @@ are satisfied; D001 planning is complete.
 
 | Phase | Required active tasks | Optional/routed records | Completion rule |
 | --- | --- | --- | --- |
-| 1 — Planning | T021, T019 retained; T009 scope disposition; T001 complete | D002/B009 proposal stays deferred | D001 resolved; Phase 2B next |
+| 1 — Planning | T021, T019 retained; T009 scope disposition; T001 complete | D002/B009 proposal stays deferred | D001 resolved; Phase 2B active |
 | 2A — Images | T012/T013/T003/T006 and children complete | none | Local lifecycle checkpoint passed; tree subgroup next |
-| 2B — Tree | T014, T017, T007, T007.1 | T007.2 routed to B011 | Current functional tests required; future optimization profile is owned outside current runtime gate |
+| 2B — Tree | T014 complete; T017 next, then T007/T007.1 | T007.2 routed to B011 | Current functional tests required; future optimization profile is owned outside current runtime gate |
 | 2C — CAD maps | T015, T016, T005 | none | Numeric/identity fixtures and checkpoint pass |
 | 2D — Archives | T018, T002 and children | none | Current archive policy/error/compatibility pass |
 | 3 — Performance | T020, T004 and children | T008 routed to B010 | Retained optimization comparisons and predeclared pass rules remain required |
