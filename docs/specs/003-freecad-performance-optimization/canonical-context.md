@@ -37,8 +37,10 @@ historical notes override code, tests, policy or live evidence.
 | --- | --- | --- | --- |
 | requirements.md | Proposed acceptance | This package | Legacy FR/PR/SC aliases retained |
 | design.md | Current working approach | This package | Source/spec conflicts remain explicit until verified |
-| open-decisions.md | Authoritative decision status/ownership | D001–D003 | Direct ledger overrides an empty discovery result until reconciled |
-| tasks.md | Delivery queue | This package | Read with requirements and design |
+| open-decisions.md | Authoritative decision status/ownership | D001–D003 | D001/D002 open; D003 initial candidate/policy resolved; no final PR acceptance implied |
+| validation-manifest.md and validation-manifest.json | Candidate identity and evidence applicability | T019 initial local Linux candidate | Historical binaries ineligible; actual new-build/runtime receipt required |
+| tasks.md | Four-phase delivery queue and explicit next action | This package | T001 next; phase order and dependencies govern execution |
+| baseline-status.md | Existing implementation and dated evidence | Baseline inventory only | Source presence does not set execution status |
 | traceability.md | Bidirectional context | This package | Partial coverage blocks closure |
 | verification.md | Revision/date-bound evidence | Named checks only | No blanket readiness inferred |
 
@@ -56,7 +58,8 @@ Static MoE findings at root c69560af8a/docs 8d1abe9 are recorded in
 verification.md#moe-review-findings. They establish source conflicts/risk and
 missing acceptance contracts, not executed failures or completed corrections.
 The earlier implementation-presence baseline does not override F001–F009.
-Pin candidate provenance through T019 before accepting source/test evidence;
+Use the T019 manifest ID and actual new source/build/fixture execution receipts
+before accepting source/test evidence;
 reconcile exact final revisions and invalidated evidence at T010. Context-ready
 packets never override review-needed decisions, prerequisites or safety blockers.
 
@@ -66,6 +69,17 @@ Legacy-spec.md and any retained plan.md, legacy-tasks.md and research.md are
 historical migration inputs. Their checkboxes, transient paths, removed trace
 switches and future-tense instructions do not authorize current work or prove
 acceptance. No external document is copied into governing policy here.
+
+## Replanned Execution Boundary
+
+The user-authorized execution replan preserves stable IDs, completed T019/T021
+artifacts and the immutable manifest. Five old partial task states are pending
+remaining qualification; their imported observations are retained in the
+baseline inventory. D001 is resolved by the pending T001 planning task before
+new source work. D002's B009 routing and B010/B011 optional investigations do not
+approve new behavior or waive any current MoE safety/measurement requirement.
+The original manifest's "remaining decisions" prose records its intake time;
+current status is always the active decision ledger.
 
 ## Promotion Map
 
@@ -82,3 +96,5 @@ stays dated or is retained with an explicit audit-only role.
 - [Traceability](traceability.md)
 - [Verification](verification.md)
 - [Open decisions](open-decisions.md)
+- [Candidate validation manifest](validation-manifest.md)
+- [Baseline implementation inventory](baseline-status.md)

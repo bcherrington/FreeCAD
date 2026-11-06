@@ -56,7 +56,7 @@ separate changes, not that every PR gate is satisfied.
 ## Validation Run On 2026-11-04
 
 Existing debug binaries were exercised; this documentation reconciliation did
-not rebuild source or run `pixi run test`.
+not rebuild source or run `pixi run --locked test`.
 
 ```sh
 pixi run build/debug/tests/App_tests_run --gtest_filter='PropertyFileIncludedTest.*:ElementMapTest.*'
@@ -98,7 +98,7 @@ source correction and meaningful regression checks exist.
 | F006 | request | PropertyFile copy errors are caught by XMLReader::readFiles; hook exceptions alone do not establish diagnostic/failure-list/partial-file/continuation behavior. | local-developer; T018 then T002 | Open archive-level outcome table and failure fixtures |
 | F007 | request | Deferred image decode/conversion moves into show; fallback may expand 1/2-component sources to RGBA. Open-only timings can hide first-frame latency or image-memory effects. | local-developer; T020 then T004 | Open comparative frame/show/repeat latency, texture counts and peak memory evidence |
 | F008 | request | Candidate/final revision selection, per-change coverage and benchmark pass rules were insufficiently connected to acceptance; final task assembled timings without explicit evidence invalidation. | local-developer; T019, T001, T004.3, T010 | Open pinned manifest/protocol, per-optimization evidence and exact-final applicability |
-| F009 | suggestion | spec_open_decisions returned no records for embedded D001–D003, while task_context retained references; advisory ready packets describe context availability. | local-developer; T021 | Documentation ledger/guardrails verified by T021; D001–D003 remain open |
+| F009 | suggestion | spec_open_decisions returned no records for embedded D001–D003, while task_context retained references; advisory ready packets describe context availability. | local-developer; T021 | Discovery/guardrails verified; D001 open, D002 routed to B009, D003 initial policy resolved |
 
 All findings stay in this active package because they change its existing
 contracts and acceptance. No source finding is merely routed to an unowned
@@ -123,23 +123,26 @@ GPU residency claims require separate actual measurements.
 
 ## Next Actions
 
-1. T021 — Expose lifecycle decisions and verify execution guardrails is complete; use the verified ledger.
-2. Resolve D003/T019 candidate validation provenance, then D001/T001 benchmark rules.
-3. Reproduce and correct F001/F002/F003 in T012/T013/T014 on named source branches;
-   complete T015–T018 numeric/identity/archive/restore-path qualification.
-4. Execute dependent correctness matrices and T020/T004 latency, memory and per-change comparisons.
-5. Reconcile all affected evidence against exact final revisions at T010 before promotion/closure.
+1. **Next: T001 — Fix the current benchmark protocol and baseline revisions.**
+   Resolve D001 with the T019 candidate/receipt rules and predeclared pass criteria.
+2. Follow [the explicit Phase 2 subgroups](tasks.md#execution-order): images,
+   tree lifecycle, CAD maps, then archives; finish each fix's focused regression
+   and subgroup qualification before advancing.
+3. Run T020/T004 comparative latency/memory/per-change evidence under the approved
+   protocol, then T010 final applicability/platform gates and T011 promotion.
+4. B009/B010/B011 are owned deferred follow-ups; no optional investigation must
+   execute to close the core slice, and none may waive a current safety check.
 
 ## Quality Gates
 
 | Gate | Required? | Status | Evidence |
 | --- | --- | --- | --- |
-| Requirements and decisions accepted | yes | pending | open-decisions.md; D001/D002/D003 remain open |
+| Requirements and decisions accepted | yes | partial | D001 Phase 1 protocol pending; D002 routes to B009; D003 initial policy recorded; final T010.1 confirmation pending |
 | MoE source-safety blockers resolved | yes | blocked | F001/F002/F003; T012/T013/T014 and regression matrix |
-| Candidate and final evidence applicability | yes | pending | T019 manifest, D003 and T010 invalidation/rerun decisions |
+| Candidate and final evidence applicability | yes | partial | T019 initial manifest/policy recorded; actual new-build/runtime receipts and T010 final reconciliation pending |
 | Predeclared per-optimization performance/resource acceptance | yes | pending | D001/T001, T020/T004 and final T010 evidence |
 | Complete task/criterion evidence | yes | pending | tasks.md; traceability.md |
-| Focused correctness and failure tests | yes | partial or pending | Dated checks above; selected revision still needs acceptance |
+| Focused current correctness and failure tests | yes | pending | Baseline code/dates are inventory; T002/T003/T005/T006/T007 await current qualification |
 | Current measurements and platform/manual acceptance | yes | pending | Historical observations are insufficient |
 | Durable promotion and residual ownership | yes | pending | requirements.md durable impact |
 | Review and closure metadata | yes | pending | No closure claimed |
@@ -152,6 +155,45 @@ GPU residency claims require separate actual measurements.
 | 2026-11-06 | Direct source reads at d0644236e41f35a849b12a1e77941aa88354496f | Baseline implementation presence confirmed | Superseded for safety/acceptance by MoE findings; no runtime certification |
 | 2026-11-06 | Five specialist reviews at root c69560af8a / docs 8d1abe9 | F001–F009 dispositioned into this package | Static evidence; no source correction or runtime reproduction performed |
 | 2026-11-06 | T021: spec_open_decisions; task_context(T021/T001/T019/T012); lint_spec_package; direct documentation/link/dependency checks and root/nested-docs git diff --check | Passed: three open decisions with owners/blockers; zero context gaps/lint diagnostics; 8 artifacts, 45 links, 6 requirements/24 ACs, 40 tasks, acyclic parent/child dependency graph; F001–F009 mapped and historical evidence unchanged | Documentation-only completion. Temporary checker output is a bounded artifact, not a maintained runtime test. D001–D003 and source corrections remain open |
+| 2026-11-06 | T019: direct Git/recursive gitlink cleanliness, file/tool/fixture SHA-256, CMake/ELF metadata, installed package normalization; spec_open_decisions; task_context(T019); lint_spec_package; direct document/dependency checks | Initial candidate manifest and D003 policy verified; seven dependencies, 510 packages, 43 file/tool hashes, nine fixtures, eight quarantined binaries, four planned recipes, 38 explicit task bindings | No new application build, runtime test or final production revision approval; actual execution receipts and D001/D002 remain required |
+| 2026-11-06 | User-authorized execution replan; guarded task-state updates; lint_spec_package, active_spec_preflight, task_context(T001/T007), spec_open_decisions, backlog_items and direct phase/link/dependency/preservation checks | Four phases, T001 selected next, zero lint/context gaps, all 40 IDs retained, 98 links checked; baseline and optional routing separated from current execution | Documentation/routing only; source-safety fixes and runtime/performance/platform acceptance remain pending |
+
+## T019 Validation Manifest
+
+Initial local candidate: [validation-manifest.md](validation-manifest.md),
+ID `spec003-linux-x86_64-debug-candidate-20261106-v1`, and [JSON snapshot](validation-manifest.json) SHA-256
+`2ceaf3dbe3d474f4bb8d70ae6706218ddffdd3616473a1c13a55133611a19d01`. Captured root `f7fe2520c2edf25a17f3ad1fde084116cb1627d4` and docs `da79497b9b4ee447fbd8e5b0cde168af55b47118` with seven matching
+clean recursive Git dependencies, 510 installed package identities, effective
+Debug cache/compiler/tool metadata, nine hashed available document fixtures,
+four unit-fixture sources and planned generated fixture recipes. Eight observed
+executables/core libraries have hashes/ELF identities but remain historical,
+source-unverified and ineligible for new acceptance until tied to a new build.
+
+D003 is resolved for this delegated initial technical selection and invalidation
+policy. This does not resolve D001 or D002, choose benchmark pass thresholds,
+confirm an upstream PR base/final revisions, execute source fixes, rebuild or
+certify any runtime/platform behavior. Rendered first-frame evidence still needs
+the actual backend/renderer receipt. Planned generated fixtures are explicitly
+unmaterialized with null output hashes, not completed regression evidence.
+
+Every T019-dependent task has an explicit Candidate manifest field and must append an actual execution
+receipt identifying new source/dependency/build/binary/fixture state. T010.1
+checks final production applicability after any cherry-pick/rebase change;
+affected automated/manual/archive/calibration/lifecycle/benchmark results must be
+rerun or have explicit reviewed equivalence. Historical results stay dated.
+
+Manifest validation passed: seven clean matching recursive Git dependencies,
+510 installed package identities, 43 recorded file/tool hashes, nine available
+fixture identities, eight explicitly ineligible historical binaries/libraries,
+four unmaterialized recipe identities, and 38 explicit transitive task bindings.
+MCP decision discovery lists only D001/D002 as open; task_context(T019) has no
+traceability gaps or open-decision blockers. D003 initial selection is recorded
+in the resolved ledger. Package lint has zero diagnostics. Direct link, dependency
+and historical-preservation checks and root/nested-docs whitespace checks pass.
+
+No application build/test, GUI or package installation was executed to complete
+this initial inventory/policy task. Tool-version/help, Git/ELF metadata and
+hashing commands are the executed evidence, not runtime behavior acceptance.
 
 ## Correctness Property Coverage
 
@@ -165,6 +207,45 @@ The requirement-to-delivery matrix in traceability.md records every current
 requirement, its task destination and partial-blocking/not-covered disposition.
 Legacy SC identifiers in requirements.md are still gates. An existing baseline
 implementation does not satisfy the proposed extension or its broader criteria.
+
+## Execution Replan — 2026-11-06
+
+User instruction: replan around planning, coherent correction/qualification,
+comparative performance and final delivery. Stable task IDs and completed
+T019/T021 evidence remain. The immutable validation-manifest JSON/Markdown and
+all historical inputs are unchanged. No source correction, runtime test or
+benchmark was performed by this replan.
+
+The five old partial parent checkpoints had no completed current children and
+mixed code-presence observations with outstanding expanded acceptance. Their
+observations now live in [baseline-status.md](baseline-status.md); the remaining
+qualification work is pending, not silently completed or discarded. Requirement
+coverage remains partial-blocking until the actual required evidence exists.
+Future partial markers need evidence-bearing completed portions of that task.
+
+Optional work is explicitly owned: T009 records D002/B009 routing while retaining
+full resolution; T008's original conditional GUI/startup investigation routes to
+B010; T007.2's further-tree-optimization profile routes to B011. The latter two
+are routed outcomes, not completed investigations. T011 checks ownership and
+scope, not their future execution. T007.1 retains required current small/larger
+model functional checks and T004.3 retains current tree performance evidence.
+
+The graph now encodes the agreed serial delivery sequence so a first-ready-task
+heuristic cannot bypass Phase 1 or leave an unfinished subgroup without an
+explicit replan. T001 is pending planning work that resolves its own D001;
+D001 continues to block Phase 2 and sampling until that task completes.
+Replan checks passed: all 40 stable task IDs retained; four phases with four
+coherent correction subgroups; 98 file/anchor links across 13 current documents;
+acyclic required-child/dependency graph; every active source/acceptance task is
+behind T001; no routed optional investigation is a core prerequisite. Original
+T019/T021 completion evidence, all five baseline observations, immutable manifest
+JSON/Markdown, historical inputs, existing B001–B008 rows and unrelated console
+edits were preserved. Package lint has zero diagnostics; preflight selects T001,
+with 35 pending tasks, three completed documentation/preparation tasks and two
+routed records (counts include parents and children, not implementation percent).
+D001 is the sole open active decision; backlog discovery recognizes B009–B011
+as deferred with local-developer ownership and valid planning-schema/source paths.
+No application build, source regression, benchmark or GUI validation was run.
 
 ## Documentation Validation Limits
 
@@ -196,8 +277,8 @@ this migration.
 
 ## Readiness Decision
 
-- Ready to implement: only a selected dependency-safe correction slice after owner decisions; no package-wide approval.
-- Ready to validate: whole-package acceptance blocked by F001/F002/F003; bounded reproductions may run on pinned candidates.
+- Ready to implement: Phase 1 planning only; complete T001/D001 before starting any Phase 2 source correction.
+- Ready to validate: whole-package acceptance blocked by F001/F002/F003; Phase 2 reproductions follow the planning gate and named current build receipts.
 - Ready to close: no.
 - Ready to archive: no.
 - Cleanup action: keep active, draft.
@@ -209,3 +290,6 @@ this migration.
 - [Tasks](tasks.md)
 - [Traceability](traceability.md)
 - [Open decisions](open-decisions.md)
+- [Candidate validation manifest](validation-manifest.md)
+- [Baseline implementation inventory](baseline-status.md)
+- [Optional backlog routes](../../backlog/spec003-follow-ups.md)

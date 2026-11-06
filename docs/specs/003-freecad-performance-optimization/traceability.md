@@ -13,36 +13,36 @@ last_reviewed: 2026-11-06
 
 | Task ID | Requirements | Acceptance Criteria | Design Sections | Change Impact | Verification | Durable Targets | Open Decisions |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| T001 | Requirement 3 | All acceptance criteria of linked requirements | design.md#high-level-design; design.md#low-level-design | requirements.md#durable-impact | verification.md#quality-gates | docs/reference/document-open-performance.md; docs/runbooks/freecad-performance-optimization.md | D001 |
-| T002 | Requirement 1 | All acceptance criteria of linked requirements | design.md#high-level-design; design.md#low-level-design | requirements.md#durable-impact | verification.md#quality-gates | docs/reference/document-open-performance.md; docs/runbooks/freecad-performance-optimization.md | none |
-| T002.1 | Requirement 1 | All acceptance criteria of linked requirements | design.md#low-level-design | requirements.md#durable-impact | verification.md#quality-gates | docs/reference/document-open-performance.md; docs/runbooks/freecad-performance-optimization.md | none |
-| T002.2 | Requirement 1 | All acceptance criteria of linked requirements | design.md#low-level-design | requirements.md#durable-impact | verification.md#quality-gates | docs/reference/document-open-performance.md; docs/runbooks/freecad-performance-optimization.md | none |
-| T003 | Requirement 2 | All acceptance criteria of linked requirements | design.md#high-level-design; design.md#low-level-design | requirements.md#durable-impact | verification.md#quality-gates | docs/reference/document-open-performance.md; docs/runbooks/freecad-performance-optimization.md | none |
-| T003.1 | Requirement 2 | All acceptance criteria of linked requirements | design.md#low-level-design | requirements.md#durable-impact | verification.md#quality-gates | docs/reference/document-open-performance.md; docs/runbooks/freecad-performance-optimization.md | none |
-| T003.2 | Requirement 2 | All acceptance criteria of linked requirements | design.md#low-level-design | requirements.md#durable-impact | verification.md#quality-gates | docs/reference/document-open-performance.md; docs/runbooks/freecad-performance-optimization.md | none |
-| T003.3 | Requirement 2 | All acceptance criteria of linked requirements | design.md#low-level-design | requirements.md#durable-impact | verification.md#quality-gates | docs/reference/document-open-performance.md; docs/runbooks/freecad-performance-optimization.md | none |
+| T001 | Requirement 3 | Requirement 3 AC1, AC3 (protocol definition); actual measurements remain Phase 3 | design.md#execution-phases-and-checkpoints; design.md#evidence-applicability-and-benchmark-contract | requirements.md#durable-impact | verification.md#quality-gates | docs/reference/document-open-performance.md; docs/runbooks/freecad-performance-optimization.md | D001 |
+| T002 | Requirement 1 | Requirement 1 (all acceptance criteria) | design.md#high-level-design; design.md#low-level-design | requirements.md#durable-impact | verification.md#quality-gates | docs/reference/document-open-performance.md; docs/runbooks/freecad-performance-optimization.md | none |
+| T002.1 | Requirement 1 | Requirement 1 (all acceptance criteria) | design.md#low-level-design | requirements.md#durable-impact | verification.md#quality-gates | docs/reference/document-open-performance.md; docs/runbooks/freecad-performance-optimization.md | none |
+| T002.2 | Requirement 1 | Requirement 1 (all acceptance criteria) | design.md#low-level-design | requirements.md#durable-impact | verification.md#quality-gates | docs/reference/document-open-performance.md; docs/runbooks/freecad-performance-optimization.md | none |
+| T003 | Requirement 2 | Requirement 2 (all acceptance criteria) | design.md#high-level-design; design.md#low-level-design | requirements.md#durable-impact | verification.md#quality-gates | docs/reference/document-open-performance.md; docs/runbooks/freecad-performance-optimization.md | none |
+| T003.1 | Requirement 2 | Requirement 2 (all acceptance criteria) | design.md#low-level-design | requirements.md#durable-impact | verification.md#quality-gates | docs/reference/document-open-performance.md; docs/runbooks/freecad-performance-optimization.md | none |
+| T003.2 | Requirement 2 | Requirement 2 (all acceptance criteria) | design.md#low-level-design | requirements.md#durable-impact | verification.md#quality-gates | docs/reference/document-open-performance.md; docs/runbooks/freecad-performance-optimization.md | none |
+| T003.3 | Requirement 2 | Requirement 2 (all acceptance criteria) | design.md#low-level-design | requirements.md#durable-impact | verification.md#quality-gates | docs/reference/document-open-performance.md; docs/runbooks/freecad-performance-optimization.md | none |
 | T004 | Requirement 1, Requirement 2, Requirement 3, Requirement 4, Requirement 5, Requirement 6 | Requirement 1 AC1–AC3; Requirement 2 AC1–AC3; Requirement 3 AC1–AC5; Requirement 4 AC1–AC4; Requirement 5 AC1–AC4; Requirement 6 AC1–AC4 | design.md#high-level-design; design.md#low-level-design | requirements.md#durable-impact | verification.md#quality-gates | docs/reference/document-open-performance.md; docs/runbooks/freecad-performance-optimization.md | D001 |
-| T004.1 | Requirement 1, Requirement 2, Requirement 3 | All acceptance criteria of linked requirements | design.md#low-level-design | requirements.md#durable-impact | verification.md#quality-gates | docs/reference/document-open-performance.md; docs/runbooks/freecad-performance-optimization.md | none |
-| T004.2 | Requirement 1, Requirement 2, Requirement 3 | All acceptance criteria of linked requirements | design.md#low-level-design | requirements.md#durable-impact | verification.md#quality-gates | docs/reference/document-open-performance.md; docs/runbooks/freecad-performance-optimization.md | none |
+| T004.1 | Requirement 1, Requirement 2, Requirement 3 | Requirement 1, Requirement 2, Requirement 3 (all acceptance criteria) | design.md#low-level-design | requirements.md#durable-impact | verification.md#quality-gates | docs/reference/document-open-performance.md; docs/runbooks/freecad-performance-optimization.md | none |
+| T004.2 | Requirement 1, Requirement 2, Requirement 3 | Requirement 1, Requirement 2, Requirement 3 (all acceptance criteria) | design.md#low-level-design | requirements.md#durable-impact | verification.md#quality-gates | docs/reference/document-open-performance.md; docs/runbooks/freecad-performance-optimization.md | none |
 | T004.3 | Requirement 3, Requirement 4, Requirement 6 | Requirement 3 AC1–AC5; Requirement 4 AC1–AC4; Requirement 6 AC1–AC4 | design.md#evidence-applicability-and-benchmark-contract | requirements.md#durable-impact | verification.md#quality-gates | docs/reference/document-open-performance.md; docs/runbooks/freecad-performance-optimization.md | D001 |
-| T005 | Requirement 4 | All acceptance criteria of linked requirements | design.md#high-level-design; design.md#low-level-design | requirements.md#durable-impact | verification.md#quality-gates | docs/reference/document-open-performance.md; docs/runbooks/freecad-performance-optimization.md | none |
-| T006 | Requirement 2, Requirement 5 | All acceptance criteria of linked requirements | design.md#high-level-design; design.md#low-level-design | requirements.md#durable-impact | verification.md#quality-gates | docs/reference/document-open-performance.md; docs/runbooks/freecad-performance-optimization.md | none |
-| T006.1 | Requirement 2, Requirement 5 | All acceptance criteria of linked requirements | design.md#low-level-design | requirements.md#durable-impact | verification.md#quality-gates | docs/reference/document-open-performance.md; docs/runbooks/freecad-performance-optimization.md | none |
-| T006.2 | Requirement 2, Requirement 5 | All acceptance criteria of linked requirements | design.md#low-level-design | requirements.md#durable-impact | verification.md#quality-gates | docs/reference/document-open-performance.md; docs/runbooks/freecad-performance-optimization.md | none |
-| T007 | Requirement 6 | All acceptance criteria of linked requirements | design.md#high-level-design; design.md#low-level-design | requirements.md#durable-impact | verification.md#quality-gates | docs/reference/document-open-performance.md; docs/runbooks/freecad-performance-optimization.md | none |
-| T007.1 | Requirement 6 | All acceptance criteria of linked requirements | design.md#low-level-design | requirements.md#durable-impact | verification.md#quality-gates | docs/reference/document-open-performance.md; docs/runbooks/freecad-performance-optimization.md | none |
-| T007.2 | Requirement 6 | All acceptance criteria of linked requirements | design.md#low-level-design | requirements.md#durable-impact | verification.md#quality-gates | docs/reference/document-open-performance.md; docs/runbooks/freecad-performance-optimization.md | none |
-| T008 | Requirement 3 | All acceptance criteria of linked requirements | design.md#high-level-design; design.md#low-level-design | requirements.md#durable-impact | verification.md#quality-gates | docs/reference/document-open-performance.md; docs/runbooks/freecad-performance-optimization.md | none |
-| T009 | Requirement 2, Requirement 5 | All acceptance criteria of linked requirements | design.md#high-level-design; design.md#low-level-design | requirements.md#durable-impact | verification.md#quality-gates | docs/reference/document-open-performance.md; docs/runbooks/freecad-performance-optimization.md | D002 |
-| T010 | Requirement 1, Requirement 2, Requirement 3, Requirement 4, Requirement 5, Requirement 6 | All acceptance criteria of linked requirements | design.md#high-level-design; design.md#low-level-design | requirements.md#durable-impact | verification.md#quality-gates | docs/reference/document-open-performance.md; docs/runbooks/freecad-performance-optimization.md | D003 |
-| T010.1 | Requirement 1, Requirement 2, Requirement 3, Requirement 4, Requirement 5, Requirement 6 | All acceptance criteria of linked requirements | design.md#low-level-design | requirements.md#durable-impact | verification.md#quality-gates | docs/reference/document-open-performance.md; docs/runbooks/freecad-performance-optimization.md | none |
-| T010.2 | Requirement 1, Requirement 2, Requirement 3, Requirement 4, Requirement 5, Requirement 6 | All acceptance criteria of linked requirements | design.md#low-level-design | requirements.md#durable-impact | verification.md#quality-gates | docs/reference/document-open-performance.md; docs/runbooks/freecad-performance-optimization.md | none |
-| T010.3 | Requirement 1, Requirement 2, Requirement 3, Requirement 4, Requirement 5, Requirement 6 | All acceptance criteria of linked requirements | design.md#low-level-design | requirements.md#durable-impact | verification.md#quality-gates | docs/reference/document-open-performance.md; docs/runbooks/freecad-performance-optimization.md | none |
-| T010.4 | Requirement 1, Requirement 2, Requirement 3, Requirement 4, Requirement 5, Requirement 6 | All acceptance criteria of linked requirements | design.md#low-level-design | requirements.md#durable-impact | verification.md#quality-gates | docs/reference/document-open-performance.md; docs/runbooks/freecad-performance-optimization.md | none |
-| T011 | Requirement 1, Requirement 2, Requirement 3, Requirement 4, Requirement 5, Requirement 6 | All acceptance criteria of linked requirements | design.md#high-level-design; design.md#low-level-design | requirements.md#durable-impact | verification.md#quality-gates | docs/reference/document-open-performance.md; docs/runbooks/freecad-performance-optimization.md | none |
-| T011.1 | Requirement 1, Requirement 2, Requirement 3, Requirement 4, Requirement 5, Requirement 6 | All acceptance criteria of linked requirements | design.md#low-level-design | requirements.md#durable-impact | verification.md#quality-gates | docs/reference/document-open-performance.md; docs/runbooks/freecad-performance-optimization.md | none |
-| T011.2 | Requirement 1, Requirement 2, Requirement 3, Requirement 4, Requirement 5, Requirement 6 | All acceptance criteria of linked requirements | design.md#low-level-design | requirements.md#durable-impact | verification.md#quality-gates | docs/reference/document-open-performance.md; docs/runbooks/freecad-performance-optimization.md | none |
-| T011.3 | Requirement 1, Requirement 2, Requirement 3, Requirement 4, Requirement 5, Requirement 6 | All acceptance criteria of linked requirements | design.md#low-level-design | requirements.md#durable-impact | verification.md#quality-gates | docs/reference/document-open-performance.md; docs/runbooks/freecad-performance-optimization.md | none |
+| T005 | Requirement 4 | Requirement 4 (all acceptance criteria) | design.md#high-level-design; design.md#low-level-design | requirements.md#durable-impact | verification.md#quality-gates | docs/reference/document-open-performance.md; docs/runbooks/freecad-performance-optimization.md | none |
+| T006 | Requirement 2, Requirement 5 | Requirement 2, Requirement 5 (all acceptance criteria) | design.md#high-level-design; design.md#low-level-design | requirements.md#durable-impact | verification.md#quality-gates | docs/reference/document-open-performance.md; docs/runbooks/freecad-performance-optimization.md | none |
+| T006.1 | Requirement 2, Requirement 5 | Requirement 2, Requirement 5 (all acceptance criteria) | design.md#low-level-design | requirements.md#durable-impact | verification.md#quality-gates | docs/reference/document-open-performance.md; docs/runbooks/freecad-performance-optimization.md | none |
+| T006.2 | Requirement 2, Requirement 5 | Requirement 2, Requirement 5 (all acceptance criteria) | design.md#low-level-design | requirements.md#durable-impact | verification.md#quality-gates | docs/reference/document-open-performance.md; docs/runbooks/freecad-performance-optimization.md | none |
+| T007 | Requirement 6 | Requirement 6 (all acceptance criteria) | design.md#high-level-design; design.md#low-level-design | requirements.md#durable-impact | verification.md#quality-gates | docs/reference/document-open-performance.md; docs/runbooks/freecad-performance-optimization.md | none |
+| T007.1 | Requirement 6 | Requirement 6 (all acceptance criteria) | design.md#low-level-design | requirements.md#durable-impact | verification.md#quality-gates | docs/reference/document-open-performance.md; docs/runbooks/freecad-performance-optimization.md | none |
+| T007.2 | Requirement 6 | Requirement 6 (all acceptance criteria) | design.md#low-level-design | requirements.md#durable-impact | verification.md#quality-gates | docs/reference/document-open-performance.md; docs/runbooks/freecad-performance-optimization.md | none |
+| T008 | Requirement 3 | Requirement 3 (all acceptance criteria) | design.md#high-level-design; design.md#low-level-design | requirements.md#durable-impact | verification.md#quality-gates | docs/reference/document-open-performance.md; docs/runbooks/freecad-performance-optimization.md | none |
+| T009 | Requirement 2, Requirement 5 | Requirement 2 AC1; Requirement 5 AC2–AC4 (scope disposition only; no runtime criterion discharged) | design.md#high-level-design; design.md#low-level-design | requirements.md#durable-impact | verification.md#quality-gates | docs/reference/document-open-performance.md; docs/runbooks/freecad-performance-optimization.md | none |
+| T010 | Requirement 1, Requirement 2, Requirement 3, Requirement 4, Requirement 5, Requirement 6 | Requirement 1, Requirement 2, Requirement 3, Requirement 4, Requirement 5, Requirement 6 (all acceptance criteria) | design.md#high-level-design; design.md#low-level-design | requirements.md#durable-impact | verification.md#quality-gates | docs/reference/document-open-performance.md; docs/runbooks/freecad-performance-optimization.md | none |
+| T010.1 | Requirement 1, Requirement 2, Requirement 3, Requirement 4, Requirement 5, Requirement 6 | Requirement 1, Requirement 2, Requirement 3, Requirement 4, Requirement 5, Requirement 6 (all acceptance criteria) | design.md#low-level-design | requirements.md#durable-impact | verification.md#quality-gates | docs/reference/document-open-performance.md; docs/runbooks/freecad-performance-optimization.md | none |
+| T010.2 | Requirement 1, Requirement 2, Requirement 3, Requirement 4, Requirement 5, Requirement 6 | Requirement 1, Requirement 2, Requirement 3, Requirement 4, Requirement 5, Requirement 6 (all acceptance criteria) | design.md#low-level-design | requirements.md#durable-impact | verification.md#quality-gates | docs/reference/document-open-performance.md; docs/runbooks/freecad-performance-optimization.md | none |
+| T010.3 | Requirement 1, Requirement 2, Requirement 3, Requirement 4, Requirement 5, Requirement 6 | Requirement 1, Requirement 2, Requirement 3, Requirement 4, Requirement 5, Requirement 6 (all acceptance criteria) | design.md#low-level-design | requirements.md#durable-impact | verification.md#quality-gates | docs/reference/document-open-performance.md; docs/runbooks/freecad-performance-optimization.md | none |
+| T010.4 | Requirement 1, Requirement 2, Requirement 3, Requirement 4, Requirement 5, Requirement 6 | Requirement 1, Requirement 2, Requirement 3, Requirement 4, Requirement 5, Requirement 6 (all acceptance criteria) | design.md#low-level-design | requirements.md#durable-impact | verification.md#quality-gates | docs/reference/document-open-performance.md; docs/runbooks/freecad-performance-optimization.md | none |
+| T011 | Requirement 1, Requirement 2, Requirement 3, Requirement 4, Requirement 5, Requirement 6 | Requirement 1, Requirement 2, Requirement 3, Requirement 4, Requirement 5, Requirement 6 (all acceptance criteria) | design.md#high-level-design; design.md#low-level-design | requirements.md#durable-impact | verification.md#quality-gates | docs/reference/document-open-performance.md; docs/runbooks/freecad-performance-optimization.md | none |
+| T011.1 | Requirement 1, Requirement 2, Requirement 3, Requirement 4, Requirement 5, Requirement 6 | Requirement 1, Requirement 2, Requirement 3, Requirement 4, Requirement 5, Requirement 6 (all acceptance criteria) | design.md#low-level-design | requirements.md#durable-impact | verification.md#quality-gates | docs/reference/document-open-performance.md; docs/runbooks/freecad-performance-optimization.md | none |
+| T011.2 | Requirement 1, Requirement 2, Requirement 3, Requirement 4, Requirement 5, Requirement 6 | Requirement 1, Requirement 2, Requirement 3, Requirement 4, Requirement 5, Requirement 6 (all acceptance criteria) | design.md#low-level-design | requirements.md#durable-impact | verification.md#quality-gates | docs/reference/document-open-performance.md; docs/runbooks/freecad-performance-optimization.md | none |
+| T011.3 | Requirement 1, Requirement 2, Requirement 3, Requirement 4, Requirement 5, Requirement 6 | Requirement 1, Requirement 2, Requirement 3, Requirement 4, Requirement 5, Requirement 6 (all acceptance criteria) | design.md#low-level-design | requirements.md#durable-impact | verification.md#quality-gates | docs/reference/document-open-performance.md; docs/runbooks/freecad-performance-optimization.md | none |
 | T012 | Requirement 2 | Requirement 2 AC2, AC3 | design.md#moe-safety-and-compatibility-contracts | requirements.md#durable-impact | verification.md#quality-gates | docs/reference/document-open-performance.md; docs/runbooks/freecad-performance-optimization.md | none |
 | T013 | Requirement 2, Requirement 5 | Requirement 5 AC2–AC4; Requirement 2 AC1 | design.md#moe-safety-and-compatibility-contracts | requirements.md#durable-impact | verification.md#quality-gates | docs/reference/document-open-performance.md; docs/runbooks/freecad-performance-optimization.md | none |
 | T014 | Requirement 6 | Requirement 6 AC3 | design.md#moe-safety-and-compatibility-contracts | requirements.md#durable-impact | verification.md#quality-gates | docs/reference/document-open-performance.md; docs/runbooks/freecad-performance-optimization.md | none |
@@ -50,7 +50,7 @@ last_reviewed: 2026-11-06
 | T016 | Requirement 4 | Requirement 4 AC1, AC3, AC4 | design.md#moe-safety-and-compatibility-contracts | requirements.md#durable-impact | verification.md#quality-gates | docs/reference/document-open-performance.md; docs/runbooks/freecad-performance-optimization.md | none |
 | T017 | Requirement 6 | Requirement 6 AC1, AC4 | design.md#moe-safety-and-compatibility-contracts | requirements.md#durable-impact | verification.md#quality-gates | docs/reference/document-open-performance.md; docs/runbooks/freecad-performance-optimization.md | none |
 | T018 | Requirement 1 | Requirement 1 AC1–AC3 | design.md#moe-safety-and-compatibility-contracts | requirements.md#durable-impact | verification.md#quality-gates | docs/reference/document-open-performance.md; docs/runbooks/freecad-performance-optimization.md | none |
-| T019 | Requirement 3 | Requirement 3 AC1, AC2, AC5 | design.md#evidence-applicability-and-benchmark-contract | requirements.md#durable-impact | verification.md#quality-gates | docs/reference/document-open-performance.md; docs/runbooks/freecad-performance-optimization.md | D003 |
+| T019 | Requirement 3 | Requirement 3 AC1, AC2, AC5 | design.md#evidence-applicability-and-benchmark-contract | requirements.md#durable-impact | verification.md#quality-gates | docs/reference/document-open-performance.md; docs/runbooks/freecad-performance-optimization.md | none |
 | T020 | Requirement 2, Requirement 3, Requirement 5 | Requirement 3 AC3, AC4; Requirement 2 AC1; Requirement 5 AC1–AC4 | design.md#evidence-applicability-and-benchmark-contract | requirements.md#durable-impact | verification.md#quality-gates | docs/reference/document-open-performance.md; docs/runbooks/freecad-performance-optimization.md | D001 |
 | T021 | Requirement 3 | Requirement 3 AC6 | design.md#open-questions | requirements.md#durable-impact | verification.md#quality-gates | docs/reference/document-open-performance.md; docs/runbooks/freecad-performance-optimization.md | none |
 
@@ -61,9 +61,9 @@ last_reviewed: 2026-11-06
 | Requirement 1 | must-have | AC1, AC2, AC3 | design.md#low-level-design | T002, T004, T010, T011, T018 | verification.md | docs/reference/document-open-performance.md | partial-blocking | tasks.md (T002); local-developer |
 | Requirement 2 | must-have | AC1, AC2, AC3 | design.md#low-level-design | T003, T004, T006, T009, T010, T011, T012, T013, T020 | verification.md | docs/reference/document-open-performance.md | partial-blocking | tasks.md (T003); local-developer |
 | Requirement 3 | must-have | AC1, AC2, AC3, AC4, AC5, AC6 | design.md#low-level-design | T001, T004, T008, T010, T011, T019, T020, T021 | verification.md | docs/reference/document-open-performance.md | partial-blocking | tasks.md (T001); local-developer |
-| Requirement 4 | must-have | AC1, AC2, AC3, AC4 | design.md#low-level-design | T004, T005, T010, T011, T015, T016 | verification.md | docs/reference/document-open-performance.md | partial-blocking | tasks.md (T004); local-developer |
-| Requirement 5 | must-have | AC1, AC2, AC3, AC4 | design.md#low-level-design | T004, T006, T009, T010, T011, T013, T020 | verification.md | docs/reference/document-open-performance.md | partial-blocking | tasks.md (T004); local-developer |
-| Requirement 6 | must-have | AC1, AC2, AC3, AC4 | design.md#low-level-design | T004, T007, T010, T011, T014, T017 | verification.md | docs/reference/document-open-performance.md | partial-blocking | tasks.md (T004); local-developer |
+| Requirement 4 | must-have | AC1, AC2, AC3, AC4 | design.md#low-level-design | T004, T005, T010, T011, T015, T016 | verification.md | docs/reference/document-open-performance.md | partial-blocking | tasks.md (T005); local-developer |
+| Requirement 5 | must-have | AC1, AC2, AC3, AC4 | design.md#low-level-design | T004, T006, T009, T010, T011, T013, T020 | verification.md | docs/reference/document-open-performance.md | partial-blocking | tasks.md; current domain checkpoint in execution phase coverage |
+| Requirement 6 | must-have | AC1, AC2, AC3, AC4 | design.md#low-level-design | T004, T007, T010, T011, T014, T017 | verification.md | docs/reference/document-open-performance.md | partial-blocking | tasks.md; current domain checkpoint in execution phase coverage |
 
 ## Correctness Property Coverage
 
@@ -98,9 +98,20 @@ last_reviewed: 2026-11-06
 
 | Decision ID | Blocks | Affected Requirements | Affected Tasks | Resolution Needed |
 | --- | --- | --- | --- | --- |
-| D001 | Measurement and performance acceptance | Requirement 3 AC1, AC3, AC4 | T001, T020, T004, T010 | Approve predeclared protocol/pass rules and per-change coverage |
-| D002 | Residual behavior disposition/closure | Requirement 2, Requirement 5 | T009, T011 | Reject or separately route reduced-resolution exploration |
-| D003 | Candidate/final evidence applicability | Requirement 3 AC2, AC5 | T019, T002, T003, T005, T006, T007, T010.1 | Pin candidate manifest before acceptance and reconcile exact final revisions |
+| D001 | Phase 1 exit, source-work entry and performance acceptance | Requirement 3 AC1, AC3, AC4 | T001, T020, T004, T010 | Approve predeclared protocol/pass rules and per-change coverage |
+| D002 | Resolved scope/routing; no new behavior approved | Requirement 2, Requirement 5 | T009, T011 | B009 in docs/backlog/spec003-follow-ups.md |
+| D003 | Resolved initial candidate/policy; final reconfirmation at T010.1 remains required | Requirement 3 AC2, AC5 | T019, T010.1 | validation-manifest.md; actual source/build/fixture receipts must track fixes and final PR composition |
+
+## Candidate Manifest Binding
+
+All tasks directly or transitively dependent on T019 use
+[validation-manifest.md](validation-manifest.md) and its manifest ID. T019 selects
+initial identity/policy only. Each source fix, test, measurement or manual result
+must carry its actual source/dependency/build/fixture receipt and applicability
+revision; the v1 intake snapshot does not certify changed binaries. D003 is
+resolved initially, while T010.1 remains mandatory for exact final production
+confirmation. F008 as a whole remains open until D001 and final evidence gates
+are satisfied.
 
 ## MoE Finding Coverage
 
@@ -113,8 +124,38 @@ last_reviewed: 2026-11-06
 | F005 | Requirement 6 AC1, AC4; CP-003 | T017, T007 | verification.md#moe-regression-matrix | Restore-path scheduling qualification pending |
 | F006 | Requirement 1 AC1–AC3; CP-001 | T018, T002 | verification.md#moe-regression-matrix | Archive-level failure policy/verification pending |
 | F007 | Requirement 3 AC3, AC4 | T020, T004 | verification.md#moe-regression-matrix | End-to-end latency and memory measurements pending |
-| F008 | Requirement 3 AC1–AC5 | T019, T001, T004.3, T010 | verification.md#quality-gates | Candidate/protocol/per-change/final applicability pending |
+| F008 | Requirement 3 AC1–AC5 | T019, T001, T004.3, T010 | verification.md#quality-gates | Initial candidate/policy recorded by T019; D001 protocol/per-change comparisons and exact-final evidence remain pending |
 | F009 | Requirement 3 AC6 | T021 | verification.md#moe-review-findings | Documentation discovery/guardrails verified; owner decisions remain open |
+
+## Execution Phase Coverage
+
+| Phase | Required active tasks | Optional/routed records | Completion rule |
+| --- | --- | --- | --- |
+| 1 — Planning | T021, T019 retained; T009 scope disposition; T001 next | D002/B009 proposal stays deferred | T001 resolves D001 before source work |
+| 2A — Images | T012, T013, T003 and children, T006 and children | none | Correction and current qualification pass before tree subgroup |
+| 2B — Tree | T014, T017, T007, T007.1 | T007.2 routed to B011 | Current functional tests required; future optimization profile is owned outside current runtime gate |
+| 2C — CAD maps | T015, T016, T005 | none | Numeric/identity fixtures and checkpoint pass |
+| 2D — Archives | T018, T002 and children | none | Current archive policy/error/compatibility pass |
+| 3 — Performance | T020, T004 and children | T008 routed to B010 | Retained optimization comparisons and predeclared pass rules remain required |
+| 4 — Delivery | T010/T011 and children | Audit B009/B010/B011 ownership | Exact final evidence/platform gates, promotion and closure |
+
+## Baseline Versus Execution
+
+[baseline-status.md](baseline-status.md) preserves the observations formerly
+stored as five partial task states. T002/T003/T005/T006/T007 now represent
+pending current qualification; none is marked complete by this replan. Existing
+completed T019/T021 evidence and immutable manifests are retained. Requirement
+coverage remains partial-blocking; code presence and deferred optional proposals
+do not satisfy runtime criteria. T009 completes only its explicit routing
+acceptance, not Requirement 2/5 runtime evidence.
+
+## Optional Investigation Routes
+
+| Stable task | One owned destination | Disposition | Core acceptance retained |
+| --- | --- | --- | --- |
+| T009 | docs/backlog/spec003-follow-ups.md#b009-reduced-resolution-texture-exploration | Scope decision/routing only; no prototype | Full-resolution calibration and T020 latency/memory |
+| T008 | docs/backlog/spec003-follow-ups.md#b010-conditional-gui-restore-and-startup-investigation | Original conditional investigation deferred | T004.3 measurements for each retained current optimization |
+| T007.2 | docs/backlog/spec003-follow-ups.md#b011-further-tree-batching-or-bulk-delete-profiling | Original further-optimization profiling deferred | T007.1 current functional checks and T004.3 tree comparison |
 
 ## Maintenance
 

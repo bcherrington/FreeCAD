@@ -138,9 +138,10 @@ invalidation and diagnostic contracts.
 
 ### Evidence Applicability And Benchmark Contract
 
-T019 pins a candidate validation manifest before dependent acceptance work:
+T019 selects [validation-manifest.md](validation-manifest.md) and its immutable
+v1 JSON intake snapshot (`spec003-linux-x86_64-debug-candidate-20261106-v1`) before dependent acceptance work:
 source/dependency commits, binary provenance, platform/toolchain/build flags,
-fixture hashes and the allowed workflow. This is D003's initial selection;
+fixture hashes and the allowed workflow. D003 resolves this initial selection;
 T010.1 confirms final production revisions and invalidates affected results.
 Source/build/dependency/fixture/environment changes require reruns of affected
 correctness, archive, calibration, lifecycle, manual/visual and performance checks
@@ -173,8 +174,39 @@ T004 owns comparative restore/image/parser/tree evidence. T010 reconciles exact
 final revisions, reruns affected acceptance evidence, builds and focused/full
 checks before reviewer evidence is assembled. Historical timings in
 legacy-tasks.md/research.md are ranking signals, not current speed guarantees.
-Conditional GUI profiling, startup work and lower-resolution behavior are
-separate decisions; do not reopen implemented code because old checklists drifted.
+Conditional GUI/startup, reduced-resolution and additional tree optimization
+investigations have owned backlog routes; do not reopen working code solely
+because historical checklists drifted. Current MoE defects remain required fixes.
+
+## Execution Phases And Checkpoints
+
+The authoritative execution order is [tasks.md#execution-order](tasks.md#execution-order),
+not numeric task sorting or the first dependency-ready item offered by a tool.
+`Depends on` encodes the chosen serial delivery order as well as technical edges.
+Source implementation facts and dated results remain in
+[baseline-status.md](baseline-status.md); they do not set executable task status.
+
+1. **Planning:** retain T021/T019 evidence, record T009's B009 scope disposition,
+   and complete T001's runnable D001 protocol before any new source work.
+2. **Correction/qualification:** finish image safety/calibration/fidelity,
+   tree lifetime/completion, parser/CAD identity and archive compatibility in
+   that order. Each fix includes its own regression; each subgroup ends with
+   current qualification evidence before the next subgroup begins.
+3. **Performance:** execute T020 then T004 against the predeclared contract,
+   recording deferred work, memory, per-change attribution and non-regression.
+4. **Delivery:** T010 confirms exact final applicability and broad/platform
+   checks; T011 promotes durable truth and audits owned residuals before closure.
+
+Conditional new investigation is owned outside the critical path: B009 reduced
+resolution, B010 GUI restore/startup profiling and B011 additional tree
+optimization profiling. Current source-safety fixes, functional checks and
+comparative evidence for retained tree/parser/image/restore changes are never
+waived by that routing. A routed optional child is not a runtime pass, and parent
+acceptance explicitly excludes its future execution while requiring owned routing.
+
+New comparative results belong in performance-results.md/performance-results.json
+(created by Phase 3), with the T001 contract in benchmark-protocol.md. Historical
+research.md and legacy measurement/checklist files remain immutable inputs.
 
 ## Downstream Task Guidance
 
@@ -197,9 +229,10 @@ until acceptance, reviews, promotion and closure metadata are complete.
 ## Open Questions
 
 The authoritative unresolved decision ledger is [open-decisions.md](open-decisions.md).
-D001 approves the measurement/pass-rule contract, D002 dispositions the separate
-reduced-resolution proposal, and D003 pins candidate/final revision and platform
-applicability. T021 verifies discovery of all three IDs and distinguishes
+D001 remains the Phase 1 measurement/pass-rule decision. Resolved D002 routes
+optional reduced-resolution exploration to B009 while keeping full resolution;
+resolved D003 pins the initial local candidate and applicability policy.
+T010.1 still confirms the exact final production composition and affected evidence. T021 verifies discovery of all three IDs and distinguishes
 advisory context availability from execution/acceptance readiness. The ledger,
 task dependencies and literal acceptance criteria must agree before selection.
 
@@ -210,5 +243,8 @@ task dependencies and literal acceptance criteria must agree before selection.
 - [Traceability](traceability.md)
 - [Verification](verification.md)
 - [Open decisions](open-decisions.md)
+- [Candidate validation manifest](validation-manifest.md)
+- [Baseline implementation inventory](baseline-status.md)
+- [Optional investigations](../../backlog/spec003-follow-ups.md)
 - [MoE findings](verification.md#moe-review-findings)
 - [Migration input](legacy-spec.md)

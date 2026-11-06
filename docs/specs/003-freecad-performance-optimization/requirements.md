@@ -30,8 +30,9 @@ review gates. Keep compact rail geometry in package 002.
   intentionally designed and reviewed as maintainable diagnostics.
 - Do not implement compact view rail geometry fixes here; those belong in
   [Compact view rails rework](../002-compact-view-rails-rework/spec.md).
-- Do not optimize startup addons, tree batching, or geometry meshing before the
-  higher-confidence findings are addressed.
+- Additional startup, tree optimization and reduced-resolution behavior proposals
+  are optional backlog work; preserve the required current tree safety and
+  correctness/performance checks in this slice. Geometry meshing is outside scope.
 
 ## Glossary
 
@@ -66,7 +67,7 @@ review gates. Keep compact rail geometry in package 002.
 ## Staged Readiness
 
 - **Current stage:** reconcile
-- **Next stage:** resolve decisions, then resume one scoped task.
+- **Next stage:** T001 planning/D001 protocol, then the four-phase execution sequence.
 - **Design-first exception:** no. Legacy exploration is retained as history.
 - **Downstream review needed:** design, tasks, traceability and verification after decisions.
 - **Ready to implement:** no blanket readiness; use task context and resolve its blocking decisions.
@@ -292,4 +293,6 @@ qualitative improvement targets require a recorded decision before validation.
 - [Verification](verification.md)
 - [Open decisions](open-decisions.md)
 - [MoE finding dispositions](verification.md#moe-review-findings)
+- [Baseline implementation inventory](baseline-status.md)
+- [Optional backlog routes](../../backlog/spec003-follow-ups.md)
 - [Historical input](legacy-spec.md)

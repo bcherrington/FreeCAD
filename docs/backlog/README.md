@@ -3,7 +3,7 @@ title: Local FreeCAD development backlog
 doc_type: reference
 status: active
 owner: local-developer
-last_reviewed: 2026-11-05
+last_reviewed: 2026-11-06
 planning_schema: slm-planning/v1
 ---
 
@@ -11,7 +11,8 @@ planning_schema: slm-planning/v1
 
 This index records local investigation proposals, not commitments by upstream
 FreeCAD maintainers. IDs and statuses are authoritative here. Detailed scope,
-evidence, risks and exit checks are in [Sketcher follow-ups](sketcher-performance.md).
+evidence, risks and exit checks are in [Sketcher follow-ups](sketcher-performance.md)
+and [Spec 003 optional investigations](spec003-follow-ups.md).
 The first entries come from [T006 attribution](../specs/000-sketcher-diagnosis-performance/remaining-cost-decisions.md).
 Proposed/deferred items do not authorize an implementation or change a solver default.
 
@@ -27,6 +28,9 @@ Proposed/deferred items do not authorize an implementation or change a solver de
 | B006 | deferred | Recover exact mutation precursors for historical symmetry/equality stalls | 2 | local-developer | docs/backlog/sketcher-performance.md#b006-mutation-stall-replay |
 | B007 | proposed | Attribute shape construction and downstream propagation on smaller sketches | 3 | local-developer | docs/backlog/sketcher-performance.md#b007-shape-construction |
 | B008 | proposed | Add diagnostic-observer external-property edit regression before upstream preparation | PR prep | local-developer | docs/backlog/sketcher-performance.md#b008-external-observer-regression |
+| B009 | deferred | Explore reduced-resolution initial textures only through a separate measured behavior proposal | later | local-developer | docs/backlog/spec003-follow-ups.md#b009-reduced-resolution-texture-exploration |
+| B010 | deferred | Revisit GUI restore/startup profiling only after fresh results justify a focused investigation | later | local-developer | docs/backlog/spec003-follow-ups.md#b010-conditional-gui-restore-and-startup-investigation |
+| B011 | deferred | Profile larger models before proposing further tree batching or bulk deletion | later | local-developer | docs/backlog/spec003-follow-ups.md#b011-further-tree-batching-or-bulk-delete-profiling |
 
 ## Decision History
 
@@ -40,3 +44,10 @@ identity is verified. Owner: local-developer; no new solver rewrite started.
 2026-11-05: T007 source review found no blocking defect and requested an additional
 external-property observer regression. B008 records this nonblocking test follow-up;
 it does not claim that case was executed in local delivery evidence.
+
+2026-11-06: user-authorized spec 003 execution replanning routed reduced-resolution
+texture exploration (B009), conditional GUI/startup investigation (B010), and
+profiling for additional tree optimization (B011) to owned deferred follow-ups.
+The active spec retains original-resolution semantics, all current safety and
+compatibility corrections, and measurements for every retained optimization.
+Routing records scope/ownership, not completed investigation or implementation.

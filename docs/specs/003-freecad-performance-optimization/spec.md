@@ -59,5 +59,17 @@ receiver-lifetime blockers and five acceptance requests plus a lifecycle
 interoperability suggestion. All are owned in this package as F001–F009; see
 [dispositions](verification.md#moe-review-findings) and the T012–T021 corrective
 queue. Requirements, design and task dependencies include the expanded gates.
-T021 completed discovery/guardrail repair; T019 must pin candidate evidence before source work.
+T021 completed discovery/guardrail repair; T019 selects the initial candidate in
+[validation-manifest.md](validation-manifest.md). Fresh source/build receipts and
+all corrective runtime checks remain required before acceptance.
 Updating these documents does not complete the source fixes or runtime tests.
+
+## Execution Plan
+
+Follow the four phases in [tasks.md](tasks.md#execution-order): planning,
+coherent correction/qualification slices, comparative performance, then final
+delivery/closure. **Next: T001 — Fix the current benchmark protocol and baseline
+revisions.** Source work starts only after its D001 planning gate is complete.
+[baseline-status.md](baseline-status.md) holds existing implementation facts;
+remaining execution checkpoints are pending until current evidence is recorded.
+Optional new investigations have [owned backlog routes](../../backlog/spec003-follow-ups.md).
