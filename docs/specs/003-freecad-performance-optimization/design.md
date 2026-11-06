@@ -31,7 +31,7 @@ review gates. Keep compact rail geometry in package 002.
 | --- | --- | --- | --- |
 | CP-001 | Buffered restore preserves bytes, entry boundaries, permissions and notifications with defined document-level failure outcomes. | T018, T002; archive-level failure and compatibility fixtures | Source correction/qualification pending |
 | CP-002 | Image conversion and texture-only materialization preserve pixel semantics, original source, independently calibrated dimensions and placement. | T013, T003, T006; calibrated reopen/import/show/save fixtures | T013/T003/T006 local qualification complete; final T010 applicability remains |
-| CP-003 | Tree batching preserves per-object effects, ends callbacks with receiver lifetime and completes every suppressed restore path. | T014, T017, T007; destruction and idle restore-path regressions | T014 lifetime and T017 completion locally qualified; T007 broader semantics pending |
+| CP-003 | Tree batching preserves per-object effects, ends callbacks with receiver lifetime and completes every suppressed restore path. | T014, T017, T007; destruction and idle restore-path regressions | T014/T017 corrections and T007 current local tree checkpoint qualified; final T010 applicability remains |
 | CP-004 | Image extents, allocation lengths and offsets are checked before narrowing or writing; unsupported input is rejected safely. | T012, T003; null/slender boundary tests and sanitizer-equivalent checks | Source correction/qualification pending |
 | CP-005 | Numeric conversion is bounded and element-map aliases, child IDs and dependent CAD reference identities survive restore/recompute. | T015, T016, T005; numeric/writer/identity fixture matrix | Source correction/qualification pending |
 
@@ -169,7 +169,7 @@ invalidation and diagnostic contracts.
   under Memcheck. This preserves the existing GUI-thread dispatch assumption;
   no concurrent signal/teardown contract or broader scheduler change is added.
   Tree.h is inspected unchanged. T017 qualifies local completion; T007 still owns
-  the larger-model/object-effects checkpoint.
+  the larger-model/object-effects checkpoint, now locally qualified by T007.
   The new internal-widget test is registered outside Windows because TreeWidget
   lacks DLL export; no public export is introduced for testing. T010 owns final
   platform/native qualification.
@@ -194,7 +194,14 @@ invalidation and diagnostic contracts.
   to attach deferred change/touch observers. No App/Gui document signal, flag,
   archive policy, public API, member layout or additional subscription changes
   are needed. T017 qualifies small real-document idle-timer/error paths; T007
-  retains larger-model, focus/selection and per-object effects acceptance.
+  qualifies larger-model, focus/selection and per-object effects locally through
+  checksum-pinned 10/514-object documents, with current T014/T017 reruns.
+  TreeBehavior uses full Gui services, a MainWindow/active NoneWorkbench and a
+  child tree in a panel, matching dock widget ownership. A standalone top-level
+  tree is not a valid focus fixture because batching briefly hides it. The
+  fixture inputs and generator contract are retained under tests/src/Gui/data.
+  T010 retains final platform/mixed-workbench applicability, and T004.3 retains
+  the existing benchmark inputs and comparative performance gate.
 - **Archive errors (F006):** preserve established compatibility or document an
   approved deliberate change. T018 records empty/nonempty read/write/close
   failures at document level, diagnostics/failure lists, partial-file handling,

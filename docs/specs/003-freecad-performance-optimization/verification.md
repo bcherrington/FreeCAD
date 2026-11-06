@@ -86,7 +86,7 @@ Historical implementation-presence/test rows below do not discharge these new
 criteria. F001 has since been reproduced and locally corrected/qualified by
 T012 (see below); T013 locally qualifies the F002 calibration correction.
 T014 now locally corrects/qualifies F003 receiver lifetime. T003 qualifies local Requirement 2 fidelity;
-T006 now qualifies local Requirement 5 lifecycle. Requirement 6 and exact-final/platform acceptance remain pending.
+T006 qualifies local Requirement 5 lifecycle; T007 now qualifies local Requirement 6. Exact-final/platform acceptance remains pending.
 
 ## MoE Review Findings
 
@@ -96,7 +96,7 @@ T006 now qualifies local Requirement 5 lifecycle. Requirement 6 and exact-final/
 | F002 | blocker | Gui/Document.cpp:2170 clears GUI restoring before finishRestoring; ViewProviderImagePlane.cpp:215–251 can write DPI-derived XSize/YSize during deferred load. Non-default calibration can be lost. | local-developer; T013 then T006 | T013 calibration correction plus T003 fidelity and T006 expanded lifecycle pass locally; T010 final applicability remains |
 | F003 | blocker | Tree.cpp:696–700 captures raw this in application callbacks; destructor at 762–775 omits those connection disconnections; fastsignals::connection destructor is unscoped. | local-developer; T014 then T007 | T014 two disconnections plus real destroy/recreate/open and queued-status Memcheck checks pass locally; T010 final platform applicability remains |
 | F004 | request | ElementMap.cpp:89–105 changes numeric conversion as well as token splitting, with unchecked signed arithmetic; current parser fixtures do not cover all writer/alias/radix/child identity forms. | local-developer; T015, T016 then T005 | Open bounded numeric policy/implementation and CAD identity fixtures |
-| F005 | request | Tree suppression uses broad isRestoring while completion follows application finish-open; idle direct load/restore/import/paste can lack a matched completion. | local-developer; T017 then T007 | T017 local idle restore/load/import/error and observer completion pass; T007 broader checkpoint remains |
+| F005 | request | Tree suppression uses broad isRestoring while completion follows application finish-open; idle direct load/restore/import/paste can lack a matched completion. | local-developer; T017 then T007 | T017 correction and T007 current broader tree checkpoint pass locally; T010 final applicability remains |
 | F006 | request | PropertyFile copy errors are caught by XMLReader::readFiles; hook exceptions alone do not establish diagnostic/failure-list/partial-file/continuation behavior. | local-developer; T018 then T002 | Open archive-level outcome table and failure fixtures |
 | F007 | request | Deferred image decode/conversion moves into show; fallback may expand 1/2-component sources to RGBA. Open-only timings can hide first-frame latency or image-memory effects. | local-developer; T020 then T004 | Open comparative frame/show/repeat latency, texture counts and peak memory evidence |
 | F008 | request | Candidate/final revision selection, per-change coverage and benchmark pass rules were insufficiently connected to acceptance; final task assembled timings without explicit evidence invalidation. | local-developer; T019, T001, T004.3, T010 | Open pinned manifest/protocol, per-optimization evidence and exact-final applicability |
@@ -115,9 +115,9 @@ GPU residency claims require separate actual measurements.
 | --- | --- | --- | --- |
 | Image extent/arithmetic | Null, valid edge and slender 32767/32768/65537 inputs; safe documented rejection, checked offsets; sanitizer-equivalent checks where available | T012, T003 | T003 current 82-case expanded byte/access matrix and real rendered-plane qualification pass |
 | Calibrated CAD planes | Independently non-default XSize/YSize and placement; visible/hidden reopen, hidden import/paste/show, repeated show, save/reopen; preserve new-image/explicit-resize behavior | T013, T006 | T006 expanded calibrated archive/copy/import/show/edit/error checks pass locally |
-| Receiver lifetime | Actual tree destroy/recreate then start/finish-open; callbacks and queued work cannot access dead receiver | T014, T007 | T014 local receiver lifetime passes; broader T007 tree checkpoint remains pending |
+| Receiver lifetime | Actual tree destroy/recreate then start/finish-open; callbacks and queued work cannot access dead receiver | T014, T007 | T014 and current T007 receiver-lifetime reruns pass; T010 final applicability remains |
 | Numeric and subelement identity | Signed/unsigned-form tolerance, decimal/hex bounds, malformed/overflow tokens; semicolon/colon/dollar writer forms; multiple aliases/SIDs/shared children; bidirectional lookups after buffers die; dependent CAD target reopen/recompute | T015, T016, T005 | Pending policy, source correction and fixtures |
-| Restore completion | Initially idle timers; app open, direct load/restore, import/paste and failure cleanup; eventual tree population/status/observer work without unrelated edit/open | T017, T007 | T017 local idle restore/load/import/error and observer completion pass; T007 broader checkpoint pending |
+| Restore completion | Initially idle timers; app open, direct load/restore, import/paste and failure cleanup; eventual tree population/status/observer work without unrelated edit/open | T017, T007 | T017 correction and T007 small/larger idle restore/load/import/error and observer completion pass locally |
 | Archive failures | Empty/nonempty failing first entry plus valid second; read/write/close injection, diagnostics/failure list, partial bytes/permissions and notifications | T018, T002 | Pending approved outcome table and execution |
 | End-to-end performance/resources | Pinned command restore, GUI first-correct-frame, hidden-first-show and repeat-show endpoints; visibility/texture counts; process/decoded/Coin peaks for direct and grayscale/alpha fallback fixtures | T020, T004 | Protocol/initial policy selected; measurements pending |
 | Exact final evidence | Per-optimization inventory for restore/save/parser/conversion/lazy/tree; predeclared pass rules; final-revision automated/manual/archive/lifecycle/benchmark reruns or reviewed equivalence | T019, T001, T010 | Manifest/protocol recorded; exact-final execution pending |
@@ -556,10 +556,76 @@ navigation-only at the nested docs authority boundary; direct checks and execute
 commands establish the evidence above.
 Next: T007 — Validate tree status batching and larger-model behavior.
 
+## T007 Tree Functional Qualification
+
+T007/T007.1 complete the local Requirement 6 AC1–AC4 and CP-003 checkpoint on
+committed T017 root `da90da6f93` / docs `68370d7`, plus the exact new-test,
+registration and retained fixture diff in [t007-validation.json](t007-validation.json).
+Production source, public API and prior T014/T017 tests remain unchanged.
+
+The retained FCStd inputs contain 10 and 514 objects respectively: eight or 512
+image planes, two nested groups, half the planes nested and half at document
+root. Tests verify the exact archive SHA-256 before opening them; an independent
+ZIP/XML check verifies object counts. The fixture contract and generator live
+under tests/src/Gui/data and TreeBehavior.cpp. These are functional hierarchy
+inputs with no image payload; they do not replace T001's BIM/Arch benchmark
+inputs or certify workbench geometry.
+
+| Criterion | Current evidence |
+| --- | --- |
+| Requirement 6 AC1/AC4 | Nine operation rows at each size: app open, empty-open control, direct/Python/delayed/zero-timeout restore, copy/paste, archive import and direct failure cleanup; extra failed-App-open control. Idle timers, no premature population under restoring guards, observer attachment, label/ShowInTree status delivery and no continuing ticks after completion |
+| Requirement 6 AC2 | Mouse selection, deletion of a selected root object, another selection retained, Qt focus retained; group deletion keeps every child, reparents to document root, preserves view-provider lookup/map behavior and label observers at both sizes |
+| Requirement 6 AC3 | Tree destruction/recreation before close/open at both sizes; current T014 lifetime/subscriber-count CTest rerun against this build |
+| T007.1 interactions | Expansion/collapse state and label survive save/direct reload/close/open; controlled production DraggingState defers pending work then resumes; production QDropEvent move changes group membership and eventual tree parent/count at both sizes |
+| T007.2 disposition | B011 remains deferred with local-developer ownership and a reactivation trigger; no further-optimization profile or bulk-delete bypass executed |
+
+The full native xcb suite passes **25 functional cases** (27 Qt passes including
+setup/cleanup), with zero failures/skips. Seven CTest targets pass: TreeBehavior,
+TreeRestore, TreeWidgetLifetime, ObjectSelection, SelectionView, ImagePlane and
+ImagePlaneRender. Full `pixi run --locked build -j 2`, scoped pre-commit and
+whitespace checks pass. The focused Memcheck subset covers both sizes of
+per-object deletion/selection/focus/reparenting, expansion/reload and drag/drop,
+plus larger archive import: seven functional cases, nine Qt passes, zero access
+errors; one existing exact libunwind startup-probe suppression. Leak and
+undefined-value checks are disabled; no ASan/UBSan or leak-clean claim.
+
+The interaction harness uses normal Gui application services, a macro manager,
+MainWindow and active NoneWorkbench. The tree is a child in a panel, matching
+production dock ownership. Initial harness attempts lacked those services or
+used a top-level tree that lost activation when batching hid it; GDB/Qt state
+identified those setup errors. The drop assertion now waits for scheduled tree
+reparenting after document mutation. No production fix was needed. A preliminary
+Memcheck attempt overlapped a harness rebuild and did not complete; its zero-error
+summary is discarded. Final validation freezes and rechecks source/binary hashes
+across all runs.
+
+Native validation uses task-owned Xvfb, Metacity and a private D-Bus session;
+CTest and Memcheck use Qt offscreen under Xvfb. The compose input-method profile
+is explicit for native/Memory runs. The receipt binds actual diff/source/build,
+seven clean dependency heads, 510 matching package identities, input/runtime/log
+hashes and unchanged validation binaries. Internal-widget registration remains
+non-Windows. T010 owns final production/platform/default-IBus and mixed-workbench
+integration applicability.
+
+Controlled drag state and the production drop handler qualify internal tree move
+semantics; no cross-application OS drag gesture is claimed. No performance,
+resource-budget, hardware-GPU or first-frame result is claimed. T004.3 retains
+the predeclared tree comparisons, and B011 remains an owned deferred exploration.
+Guarded updates complete T007.1 and its parent, retain T007.2/B011 routing, and
+leave 17 complete, 21 pending and two follow-ups, with zero partial/in-progress
+records and all 40 IDs retained. Package lint reports zero diagnostics; preflight
+selects T015 with satisfied dependencies, zero context gaps and no open decisions.
+The direct checker verifies exact input/source/binary/log hashes and unchanged
+validation identities, 91 local links/anchors, all 15 prior completed task records,
+frozen history/receipts/protocol and the unrelated console edit. Agent Workbench
+remains navigation-only at its nested docs authority boundary; direct checks and
+executed commands establish this evidence.
+Next: T015 — Bound element-map numeric parsing and define compatibility.
+
 ## Next Actions
 
-1. **Next: T007 — Validate tree status batching and larger-model behavior.**
-   Phase 2A and T014/T017 tree corrections are complete; retain D001/T019 applicability rules.
+1. **Next: T015 — Bound element-map numeric parsing and define compatibility.**
+   Phase 2A/2B image and tree subgroups are complete; retain D001/T019 applicability rules.
 2. Follow [the explicit Phase 2 subgroups](tasks.md#execution-order): images,
    tree lifecycle, CAD maps, then archives; finish each fix's focused regression
    and subgroup qualification before advancing.
@@ -577,7 +643,7 @@ Next: T007 — Validate tree status batching and larger-model behavior.
 | Candidate and final evidence applicability | yes | partial | T019 initial manifest/policy recorded; actual new-build/runtime receipts and T010 final reconciliation pending |
 | Predeclared per-optimization performance/resource acceptance | yes | pending | T001 protocol complete; T020/T004 and final T010 evidence pending |
 | Complete task/criterion evidence | yes | pending | tasks.md; traceability.md |
-| Focused current correctness and failure tests | yes | pending | T003/T006 image fidelity/lifecycle and T014/T017 tree corrections pass locally; T002/T005/T007 qualification remains pending |
+| Focused current correctness and failure tests | yes | pending | T003/T006 image and T007 tree checkpoints pass locally; T002/T005 map/archive qualification remains pending |
 | Current measurements and platform/manual acceptance | yes | pending | Historical observations are insufficient |
 | Durable promotion and residual ownership | yes | pending | requirements.md durable impact |
 | Review and closure metadata | yes | pending | No closure claimed |
@@ -694,8 +760,8 @@ executed. Runtime regression evidence for F001–F008 remains pending.
 
 - F001/T012, F002/T013 and F003/T014 are locally corrected/qualified. T003 image
   fidelity, T006 lifecycle and T014 receiver lifetime pass on their recorded
-  profiles. T017 small-document completion also passes; T007 still owns larger-model
-  and object semantics qualification. Final
+  profiles. T007 now qualifies common tree operations on pinned 10/514-object
+  documents. Mixed-workbench integration and final
   runtime/platform applicability, including default Qt/IBus startup diagnosis,
   remains T010; the T014 compose profile does not certify default IBus or T006.
 - Malformed numeric tokens, archive-level error outcomes and broader restore paths require
@@ -716,8 +782,8 @@ this migration.
 
 ## Readiness Decision
 
-- Ready to implement: T007 — Validate tree status batching and larger-model behavior; T014/T017 and Phase 2A complete.
-- Ready to validate: T007 tree checkpoint after qualified T014/T017 corrections; local images remain qualified by T003/T006. Whole-package acceptance still requires tree/map/archive/performance checkpoints and T010 final/platform applicability.
+- Ready to implement: T015 — Bound element-map numeric parsing and define compatibility; image/tree subgroups complete.
+- Ready to validate: local tree/image checkpoints qualified by T007/T003/T006; T015 implementation comes next. Whole-package acceptance still requires map/archive/performance checkpoints and T010 final/platform applicability.
 - Ready to close: no.
 - Ready to archive: no.
 - Cleanup action: keep active, draft.

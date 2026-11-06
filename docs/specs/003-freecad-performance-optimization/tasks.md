@@ -33,7 +33,7 @@ that explicit routing verified.
 | --- | --- | --- |
 | 1 — Planning | T021/T019 retained; T009 scope disposition; T001 complete | D001 protocol approved before source work |
 | 2A — Images | T012/T013/T003/T006 complete | Safe conversion and calibrated lifecycle qualified |
-| 2B — Tree | T014/T017 complete → **T007 next** | Receiver/completion fixes and current functional qualification |
+| 2B — Tree | T014/T017/T007 complete | Receiver/completion fixes and current functional qualification |
 | 2C — CAD maps | T015 → T016 → T005 | Bounded parsing and CAD reference identity qualified |
 | 2D — Archives | T018 → T002 | Archive error outcomes and compatibility qualified |
 | 3 — Performance | T020 → T004 | Predeclared latency/memory/per-change acceptance satisfied |
@@ -74,8 +74,8 @@ none -> T008
 ## Phase 1 — Finish Planning
 
 Exit satisfied: T021/T019 evidence retained, T009 scope disposition recorded, and T001
-resolves D001 with the benchmark protocol. **Next action: T007 — Validate tree status batching and larger-model behavior
-(Phase 2B; T014/T017 corrections complete).**
+resolves D001 with the benchmark protocol. **Next action: T015 — Bound element-map numeric parsing and define compatibility
+(Phase 2C; image and tree subgroups complete).**
 
 - [x] T021 Expose lifecycle decisions and verify execution guardrails.
   - Depends on: none
@@ -396,11 +396,13 @@ routing, with no new optimization claim.
     See verification.md#t017-tree-restore-completion and t017-validation.json.
 
   - Status: Completed local Requirement 6 AC1/AC4 correction and focused idle restore/load/import/error completion; F005 locally qualified. Next T007; broader tree, archive and final-platform/performance gates remain required.
-- [ ] T007 Validate tree status batching and larger-model behavior.
+- [x] T007 Validate tree status batching and larger-model behavior.
   - Depends on: T014, T017
   - Requirements: Requirement 6 (all acceptance criteria)
   - Design: design.md#high-level-design; design.md#low-level-design
-  - Files: `src/Gui/Tree.cpp`, `src/Gui/Tree.h`, `verification.md`
+  - Files: `tests/src/Gui/TreeBehavior.cpp`, `tests/src/Gui/CMakeLists.txt`,
+    `tests/src/Gui/data/tree-fixtures.md`, `tests/src/Gui/data/tree-8.FCStd`,
+    `tests/src/Gui/data/tree-512.FCStd`, `t007-validation.json`, `verification.md`
   - Acceptance: Requirement 6 AC1–AC4 pass after T014/T017 on representative small and larger pinned
     documents: receiver destruction/recreation and every suppressed
     open/direct-load/restore/import/paste/error path complete safely from idle timers without
@@ -409,8 +411,8 @@ routing, with no new optimization claim.
     retained tree comparative evidence remains T004.3.
   - Validation: See verification.md#quality-gates and the linked criteria.
   - Evidence mode: artifact
-  - Evidence: Pending current qualification. Replanning retained prior implementation and dated test observations in baseline-status.md; no child/current expanded acceptance result is complete.
-  - Status: Remaining execution is pending; source presence/historical results are baseline context, not partial execution.
+  - Evidence: 2026-11-06: Required T007.1 completed; T007.2 remains unchanged follow_up at owned/deferred B011, no future profile executed. t007-validation.json binds committed T017 root da90da6f93/docs 68370d7 plus exact test/registration/retained-input diff, unchanged production sources, frozen validation binary identities, 7 clean dependencies and 510 matching packages. Checksum-pinned 10/514-object nested-group/image-plane archives qualify current small/larger tree behavior. Native suite 27 Qt passes (25 functional cases), 7 CTest targets, full pixi build, scoped pre-commit and 7-case Memcheck subset (9 Qt passes, zero access errors) pass. Restoring/idle timer, selection/focus/deletion/reparenting/map/observer, expansion/reload and internal drag/drop assertions pass; actual receiver destruction/recreation and current T014/T017 reruns included. Initial harness service/activation/asynchronous assertion gaps corrected; overlapped-build memory attempt discarded; final source/binaries frozen and verified unchanged. Direct checker passes exact hashes, 40 stable tasks, 15 prior completed records, 91 links/anchors, immutable receipts/protocol/history, B011 routing and unrelated console preservation; lint/context zero diagnostics/gaps. T004.3 retains predeclared performance comparisons; T010 retains final/Windows/default-IBus/mixed-workbench applicability.
+  - Status: Completed current local Requirement 6 AC1–AC4 and CP-003 tree checkpoint; Phase 2B complete. Next T015; B011 remains deferred and broader performance/final delivery gates remain required.
   - Properties: CP-003
   - Candidate manifest: spec003-linux-x86_64-debug-candidate-20261106-v1; see validation-manifest.md
     and record actual execution provenance.
@@ -418,17 +420,19 @@ routing, with no new optimization claim.
   - Required subtasks: T007.1
   - Routed subtasks: T007.2 at B011; verify owned routing, not future profile execution.
 
-  - [ ] T007.1 Verify pending-status flush and open/close/reload, drag, expansion, selection and observer behavior.
+  - [x] T007.1 Verify pending-status flush and open/close/reload, drag, expansion, selection and observer behavior.
     - Depends on: T014, T017
     - Requirements: Requirement 6 (all acceptance criteria)
-    - Files: `src/Gui/Tree.cpp`, `src/Gui/Tree.h`, `verification.md`
+    - Files: `tests/src/Gui/TreeBehavior.cpp`, `tests/src/Gui/CMakeLists.txt`,
+      `tests/src/Gui/data/tree-fixtures.md`, `tests/src/Gui/data/tree-8.FCStd`,
+      `tests/src/Gui/data/tree-512.FCStd`, `t007-validation.json`, `verification.md`
     - Acceptance: Verify open/close/reload and idle direct doc.load/doc.restore/import/paste/error
       completion, eventual population/status/observer updates without another edit/open, and actual
       tree destruction/recreation followed by app signals. Preserve drag, expansion, selection and
       focus. Include small and larger pinned documents for current functional/observer correctness;
       later optimization profiling is separate B011 work.
     - Evidence mode: artifact
-    - Evidence: Pending.
+    - Evidence: 2026-11-06: t007-validation.json and verification.md#t007-tree-functional-qualification bind current source/build/runtime and checksum-pinned 10/514-object FCStd inputs. New TreeBehavior suite passes 25 functional cases (27 Qt passes) natively on xcb/Xvfb/Metacity and in the seven-target CTest run. Nine restore/open/load/import/copy/error rows repeat at each size; per-object deletion preserves another selection and Qt focus, group deletion reparents every child and preserves map/view-provider and label observer behavior. Expansion/labels survive save/reload/close/open and real receiver recreation; controlled DraggingState defers/resumes work, production drop handler moves selected root object into group with eventual tree agreement. Seven focused cases including both sizes of deletion/reload/drop and larger import pass Memcheck (9 Qt passes), zero access errors, one exact existing libunwind probe suppression; leak/undefined-value checks disabled. Full pixi build and scoped pre-commit pass. Production source and earlier tests unchanged; fixture harness initializes full Gui services/NoneWorkbench and uses child-tree panel ownership. Current lifetime/restore/image/selection tests rerun. Final profile/mixed-workbench applicability remains T010; no performance or cross-application drag claim.
     - Candidate manifest: spec003-linux-x86_64-debug-candidate-20261106-v1; see
       validation-manifest.md and record actual execution provenance.
 

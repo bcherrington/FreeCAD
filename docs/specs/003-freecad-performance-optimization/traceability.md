@@ -63,7 +63,7 @@ last_reviewed: 2026-11-06
 | Requirement 3 | must-have | AC1, AC2, AC3, AC4, AC5, AC6 | design.md#low-level-design | T001, T004, T008, T010, T011, T019, T020, T021 | verification.md | docs/reference/document-open-performance.md | partial-blocking | tasks.md (T020/T004/T010); local-developer |
 | Requirement 4 | must-have | AC1, AC2, AC3, AC4 | design.md#low-level-design | T004, T005, T010, T011, T015, T016 | verification.md | docs/reference/document-open-performance.md | partial-blocking | tasks.md (T005); local-developer |
 | Requirement 5 | must-have | AC1, AC2, AC3, AC4 | design.md#low-level-design | T004, T006, T009, T010, T011, T013, T020 | verification.md#t006-deferred-image-plane-lifecycle | docs/reference/document-open-performance.md | complete | none for local Requirement 5; T010 reconfirms final/platform applicability |
-| Requirement 6 | must-have | AC1, AC2, AC3, AC4 | design.md#low-level-design | T004, T007, T010, T011, T014, T017 | verification.md | docs/reference/document-open-performance.md | partial-blocking | tasks.md; current domain checkpoint in execution phase coverage |
+| Requirement 6 | must-have | AC1, AC2, AC3, AC4 | design.md#low-level-design | T004, T007, T010, T011, T014, T017 | verification.md#t007-tree-functional-qualification | docs/reference/document-open-performance.md | complete | none for local Requirement 6; T010 reconfirms final/platform applicability |
 
 ## Correctness Property Coverage
 
@@ -71,7 +71,7 @@ last_reviewed: 2026-11-06
 | --- | --- | --- | --- | --- | --- |
 | CP-001 | Requirement 1 | design.md#moe-safety-and-compatibility-contracts | T002, T018 | verification.md#moe-regression-matrix | Source corrections and runtime regressions pending |
 | CP-002 | Requirement 2, Requirement 5 | design.md#moe-safety-and-compatibility-contracts | T003, T006, T013 | verification.md#t006-deferred-image-plane-lifecycle | T013/T003/T006 pass locally; final applicability and Qt/IBus memory-profile diagnosis remain T010 |
-| CP-003 | Requirement 6 | design.md#moe-safety-and-compatibility-contracts | T007, T014, T017 | verification.md#t014-tree-widget-receiver-lifetime | T014 lifetime and T017 small-document completion pass locally; T007 larger-model/object semantics pending |
+| CP-003 | Requirement 6 | design.md#moe-safety-and-compatibility-contracts | T007, T014, T017 | verification.md#t014-tree-widget-receiver-lifetime | T014/T017 corrections and T007 small/larger pinned-document tree qualification pass locally; T010 final/platform applicability remains |
 | CP-004 | Requirement 2 | design.md#moe-safety-and-compatibility-contracts | T003, T012 | verification.md#t012-extent-and-arithmetic-correction--2026-11-06 | T012 correction plus T003 expanded format/extent/access/render matrix pass locally |
 | CP-005 | Requirement 4 | design.md#moe-safety-and-compatibility-contracts | T005, T015, T016 | verification.md#moe-regression-matrix | Source corrections and runtime regressions pending |
 
@@ -119,9 +119,9 @@ are satisfied; D001 planning is complete.
 | --- | --- | --- | --- | --- |
 | F001 | Requirement 2 AC2, AC3; CP-004 | T012, T003 | verification.md#t012-extent-and-arithmetic-correction--2026-11-06 | T012 correction and T003 current local fidelity/access qualification complete; T010 final applicability remains |
 | F002 | Requirement 5 AC2–AC4; CP-002 | T013, T006 | verification.md#t006-deferred-image-plane-lifecycle | T013 correction and T006 current local lifecycle qualification complete; T010 final applicability remains |
-| F003 | Requirement 6 AC3; CP-003 | T014, T007 | verification.md#t014-tree-widget-receiver-lifetime | T014 correction, destroy/recreate/open and queued-work checks pass locally under Memcheck; T007 broader tree and T010 final platform applicability remain |
+| F003 | Requirement 6 AC3; CP-003 | T014, T007 | verification.md#t014-tree-widget-receiver-lifetime | T014 correction, destroy/recreate/open and queued-work checks pass locally under Memcheck; T007 current broader tree checkpoint passes; T010 final platform applicability remains |
 | F004 | Requirement 4 AC1–AC4; CP-005 | T015, T016, T005 | verification.md#moe-regression-matrix | Bounded parser and CAD identity qualification pending |
-| F005 | Requirement 6 AC1, AC4; CP-003 | T017, T007 | verification.md#t017-tree-restore-completion | T017 local idle restore/load/import/failure completion and observer qualification pass; T007 broader tree and T010 final applicability remain |
+| F005 | Requirement 6 AC1, AC4; CP-003 | T017, T007 | verification.md#t017-tree-restore-completion | T017 local idle restore/load/import/failure completion and observer qualification pass; T007 current broader tree checkpoint passes; T010 final applicability remains |
 | F006 | Requirement 1 AC1–AC3; CP-001 | T018, T002 | verification.md#moe-regression-matrix | Archive-level failure policy/verification pending |
 | F007 | Requirement 3 AC3, AC4 | T020, T004 | verification.md#moe-regression-matrix | End-to-end latency and memory measurements pending |
 | F008 | Requirement 3 AC1–AC5 | T019, T001, T004.3, T010 | verification.md#quality-gates | Initial candidate/policy recorded by T019; D001 protocol complete; per-change comparisons and exact-final evidence remain pending |
@@ -131,9 +131,9 @@ are satisfied; D001 planning is complete.
 
 | Phase | Required active tasks | Optional/routed records | Completion rule |
 | --- | --- | --- | --- |
-| 1 — Planning | T021, T019 retained; T009 scope disposition; T001 complete | D002/B009 proposal stays deferred | D001 resolved; Phase 2B active |
+| 1 — Planning | T021, T019 retained; T009 scope disposition; T001 complete | D002/B009 proposal stays deferred | D001 resolved; Phase 2C next |
 | 2A — Images | T012/T013/T003/T006 and children complete | none | Local lifecycle checkpoint passed; tree subgroup next |
-| 2B — Tree | T014/T017 complete; T007/T007.1 next | T007.2 routed to B011 | Current functional tests required; future optimization profile is owned outside current runtime gate |
+| 2B — Tree | T014/T017/T007/T007.1 complete | T007.2 routed to B011 | Current functional tests required; future optimization profile is owned outside current runtime gate |
 | 2C — CAD maps | T015, T016, T005 | none | Numeric/identity fixtures and checkpoint pass |
 | 2D — Archives | T018, T002 and children | none | Current archive policy/error/compatibility pass |
 | 3 — Performance | T020, T004 and children | T008 routed to B010 | Retained optimization comparisons and predeclared pass rules remain required |
@@ -144,9 +144,10 @@ are satisfied; D001 planning is complete.
 [baseline-status.md](baseline-status.md) preserves the observations formerly
 stored as five partial task states. T002/T003/T005/T006/T007 now represent
 current qualification checkpoints; the replan itself marked none complete. T003/T006
-subsequently completed their local acceptance with scoped runtime receipts. Existing
+subsequently completed their local acceptance with scoped runtime receipts; T007
+has now completed the current tree checkpoint. Existing
 completed T019/T021 evidence and immutable manifests are retained. Requirement
-coverage is complete locally for Requirements 2/5 and partial-blocking elsewhere;
+coverage is complete locally for Requirements 2/5/6 and partial-blocking elsewhere;
 code presence and deferred optional proposals
 do not satisfy runtime criteria. T009 completes only its explicit routing
 acceptance, not Requirement 2/5 runtime evidence.

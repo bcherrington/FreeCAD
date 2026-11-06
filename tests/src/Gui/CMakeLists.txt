@@ -38,6 +38,10 @@ add_executable(Gui_tests_run
 if(NOT WIN32)
     setup_qt_test(TreeWidgetLifetime)
     setup_qt_test(TreeRestore)
+    setup_qt_test(TreeBehavior)
+    target_compile_definitions(TreeBehavior_Tests_run PRIVATE
+        TREE_BEHAVIOR_DATA_DIR="${CMAKE_CURRENT_SOURCE_DIR}/data")
+    set_tests_properties(TreeBehavior_Tests_run PROPERTIES TIMEOUT 300)
     set_tests_properties(TreeRestore_Tests_run PROPERTIES TIMEOUT 120)
     set_tests_properties(TreeWidgetLifetime_Tests_run PROPERTIES TIMEOUT 120)
 endif()
