@@ -96,7 +96,7 @@ T006 now qualifies local Requirement 5 lifecycle. Requirement 6 and exact-final/
 | F002 | blocker | Gui/Document.cpp:2170 clears GUI restoring before finishRestoring; ViewProviderImagePlane.cpp:215–251 can write DPI-derived XSize/YSize during deferred load. Non-default calibration can be lost. | local-developer; T013 then T006 | T013 calibration correction plus T003 fidelity and T006 expanded lifecycle pass locally; T010 final applicability remains |
 | F003 | blocker | Tree.cpp:696–700 captures raw this in application callbacks; destructor at 762–775 omits those connection disconnections; fastsignals::connection destructor is unscoped. | local-developer; T014 then T007 | T014 two disconnections plus real destroy/recreate/open and queued-status Memcheck checks pass locally; T010 final platform applicability remains |
 | F004 | request | ElementMap.cpp:89–105 changes numeric conversion as well as token splitting, with unchecked signed arithmetic; current parser fixtures do not cover all writer/alias/radix/child identity forms. | local-developer; T015, T016 then T005 | Open bounded numeric policy/implementation and CAD identity fixtures |
-| F005 | request | Tree suppression uses broad isRestoring while completion follows application finish-open; idle direct load/restore/import/paste can lack a matched completion. | local-developer; T017 then T007 | Open scheduling contract and idle completion/error tests |
+| F005 | request | Tree suppression uses broad isRestoring while completion follows application finish-open; idle direct load/restore/import/paste can lack a matched completion. | local-developer; T017 then T007 | T017 local idle restore/load/import/error and observer completion pass; T007 broader checkpoint remains |
 | F006 | request | PropertyFile copy errors are caught by XMLReader::readFiles; hook exceptions alone do not establish diagnostic/failure-list/partial-file/continuation behavior. | local-developer; T018 then T002 | Open archive-level outcome table and failure fixtures |
 | F007 | request | Deferred image decode/conversion moves into show; fallback may expand 1/2-component sources to RGBA. Open-only timings can hide first-frame latency or image-memory effects. | local-developer; T020 then T004 | Open comparative frame/show/repeat latency, texture counts and peak memory evidence |
 | F008 | request | Candidate/final revision selection, per-change coverage and benchmark pass rules were insufficiently connected to acceptance; final task assembled timings without explicit evidence invalidation. | local-developer; T019, T001, T004.3, T010 | Open pinned manifest/protocol, per-optimization evidence and exact-final applicability |
@@ -117,7 +117,7 @@ GPU residency claims require separate actual measurements.
 | Calibrated CAD planes | Independently non-default XSize/YSize and placement; visible/hidden reopen, hidden import/paste/show, repeated show, save/reopen; preserve new-image/explicit-resize behavior | T013, T006 | T006 expanded calibrated archive/copy/import/show/edit/error checks pass locally |
 | Receiver lifetime | Actual tree destroy/recreate then start/finish-open; callbacks and queued work cannot access dead receiver | T014, T007 | T014 local receiver lifetime passes; broader T007 tree checkpoint remains pending |
 | Numeric and subelement identity | Signed/unsigned-form tolerance, decimal/hex bounds, malformed/overflow tokens; semicolon/colon/dollar writer forms; multiple aliases/SIDs/shared children; bidirectional lookups after buffers die; dependent CAD target reopen/recompute | T015, T016, T005 | Pending policy, source correction and fixtures |
-| Restore completion | Initially idle timers; app open, direct load/restore, import/paste and failure cleanup; eventual tree population/status/observer work without unrelated edit/open | T017, T007 | Pending scheduling correction and execution |
+| Restore completion | Initially idle timers; app open, direct load/restore, import/paste and failure cleanup; eventual tree population/status/observer work without unrelated edit/open | T017, T007 | T017 local idle restore/load/import/error and observer completion pass; T007 broader checkpoint pending |
 | Archive failures | Empty/nonempty failing first entry plus valid second; read/write/close injection, diagnostics/failure list, partial bytes/permissions and notifications | T018, T002 | Pending approved outcome table and execution |
 | End-to-end performance/resources | Pinned command restore, GUI first-correct-frame, hidden-first-show and repeat-show endpoints; visibility/texture counts; process/decoded/Coin peaks for direct and grayscale/alpha fallback fixtures | T020, T004 | Protocol/initial policy selected; measurements pending |
 | Exact final evidence | Per-optimization inventory for restore/save/parser/conversion/lazy/tree; predeclared pass rules; final-revision automated/manual/archive/lifecycle/benchmark reruns or reviewed equivalence | T019, T001, T010 | Manifest/protocol recorded; exact-final execution pending |
@@ -488,10 +488,78 @@ timers retain their lifetime handling; no new queued callback is introduced.
 T017/T007 remain required. Next: T017 — Match tree restore suppression to all
 completion paths.
 
+## T017 Tree Restore Completion
+
+T017 completes local Requirement 6 AC1/AC4 correction and focused qualification
+on committed T014 root `3587399d1b` / docs `c79bd6e`, plus the exact tracked
+source/registration and new-test diff in [t017-validation.json](t017-validation.json).
+Prior receipts, benchmark protocol, manifest and completed task records remain
+unchanged. Tree.h, App/Gui document ordering/flags, public API and layout are
+inspected unchanged.
+
+The final old-code run has five Qt passes and seven failures: direct restore,
+Python doc.load(), delayed restore, zero-timeout restore, merge import all leave
+objects unpopulated; empty app-open and failed-direct restore leave observers
+unattached. Populated app-open, copy/paste and failed app-open are passing
+controls. The initial Python C-API harness omitted the GIL and crashed in the
+Python allocator; GDB identified that harness fault. Final red/green runs acquire
+the GIL and release owned references correctly. Import sources stay alive during
+completion checks so closing a source cannot trigger the target scheduler.
+
+T017 keeps broad restore guards against processing, while retaining one pending
+flag and one existing owned status QTimer. Requests during restore schedule the
+timer instead of stranding it; a configured zero retry timeout becomes 1ms while
+restoring. App finish-open preserves the pending flag until an immediate flush
+runs. Direct restore/import/failure exits resume through the timer after their
+global guards unwind. Successful processing clears pending and stops the timer.
+New restoring document items request a pass even with no queued objects so the
+completion pass attaches deferred change/touch observers. No additional signal
+subscription, timer or document lifecycle change is introduced.
+
+| Entry point / outcome | Current result |
+| --- | --- |
+| Populated and empty App open | Synchronous population and observer attachment at completion |
+| Direct restore, real Python load, delayed restore/afterRestore | Event loop alone completes population and attaches observers from idle timers |
+| Zero configured timeout | Restored tree completes; no processing while restoring and no continuing ticks after completion |
+| Copy/paste and MergeDocuments archive import | Target populates without closing source or another edit/open |
+| Failed direct restore after controller recreation | Invalid-file exception unwinds; empty tree attaches change/touch observers without another operation |
+| Failed App open | Restoring guard exits; scheduler becomes idle without another operation |
+
+All **ten functional rows** pass (12 Qt passes including setup/cleanup), zero
+failures/skips. Direct/Python/delayed/zero-timeout hooks pump Qt events while the
+restore guard is active and confirm no premature population. Final checks
+observe child counts, Gui change/App touch subscriber counts, timer stopping and
+no later ticks; a label edit only after completion confirms observer delivery.
+Memcheck repeats all 12 Qt passes with zero errors and one pre-existing exact
+libunwind startup-probe suppression; no tree/Qt/Python lifetime error is
+suppressed. Leak/undefined-value checks are disabled; compose input-method
+profile is explicit, and default IBus/final-platform applicability remains T010.
+
+Full `pixi run --locked build -j 2`, scoped pre-commit and six CTest targets pass:
+TreeRestore, TreeWidgetLifetime, ObjectSelection, SelectionView, ImagePlane and
+ImagePlaneRender. The receipt binds actual patch/source/build/runtime/log hashes,
+seven clean dependency heads and 510 matching package identities. Tree.cpp CRLF
+is retained. The new test has a 120-second bound and shares T014's non-Windows
+registration because internal TreeWidget has no DLL export.
+
+Small empty/one-object/invalid-file fixtures qualify this correction; they do not
+complete T007's larger-model, selection/focus or per-object-effect acceptance.
+Broader malformed-archive outcome policy remains T018/T002. No performance,
+resource-budget, interactive/native viewer, cross-platform or final PR acceptance
+is claimed. Guarded completion leaves 15 complete, 23 pending and two routed
+follow-ups, with zero partial/in-progress records and all 40 IDs retained. Lint
+reports zero diagnostics; preflight selects T007 with satisfied dependencies,
+zero context gaps and no open decisions. The direct checker verifies exact
+receipt hashes, 90 local links/anchors, all 14 prior completed task records,
+frozen artifacts, CRLF and the unrelated console edit. Agent Workbench remains
+navigation-only at the nested docs authority boundary; direct checks and executed
+commands establish the evidence above.
+Next: T007 — Validate tree status batching and larger-model behavior.
+
 ## Next Actions
 
-1. **Next: T017 — Match tree restore suppression to all completion paths.**
-   Phase 2A and T014 receiver lifetime are complete; retain D001/T019 applicability rules.
+1. **Next: T007 — Validate tree status batching and larger-model behavior.**
+   Phase 2A and T014/T017 tree corrections are complete; retain D001/T019 applicability rules.
 2. Follow [the explicit Phase 2 subgroups](tasks.md#execution-order): images,
    tree lifecycle, CAD maps, then archives; finish each fix's focused regression
    and subgroup qualification before advancing.
@@ -509,7 +577,7 @@ completion paths.
 | Candidate and final evidence applicability | yes | partial | T019 initial manifest/policy recorded; actual new-build/runtime receipts and T010 final reconciliation pending |
 | Predeclared per-optimization performance/resource acceptance | yes | pending | T001 protocol complete; T020/T004 and final T010 evidence pending |
 | Complete task/criterion evidence | yes | pending | tasks.md; traceability.md |
-| Focused current correctness and failure tests | yes | pending | T003/T006 current image fidelity/lifecycle pass; T002/T005/T007 qualification remains pending |
+| Focused current correctness and failure tests | yes | pending | T003/T006 image fidelity/lifecycle and T014/T017 tree corrections pass locally; T002/T005/T007 qualification remains pending |
 | Current measurements and platform/manual acceptance | yes | pending | Historical observations are insufficient |
 | Durable promotion and residual ownership | yes | pending | requirements.md durable impact |
 | Review and closure metadata | yes | pending | No closure claimed |
@@ -626,7 +694,8 @@ executed. Runtime regression evidence for F001–F008 remains pending.
 
 - F001/T012, F002/T013 and F003/T014 are locally corrected/qualified. T003 image
   fidelity, T006 lifecycle and T014 receiver lifetime pass on their recorded
-  profiles. T017/T007 still own broader tree scheduling/object semantics. Final
+  profiles. T017 small-document completion also passes; T007 still owns larger-model
+  and object semantics qualification. Final
   runtime/platform applicability, including default Qt/IBus startup diagnosis,
   remains T010; the T014 compose profile does not certify default IBus or T006.
 - Malformed numeric tokens, archive-level error outcomes and broader restore paths require
@@ -647,8 +716,8 @@ this migration.
 
 ## Readiness Decision
 
-- Ready to implement: T017 — Match tree restore suppression to all completion paths; T014 and Phase 2A complete.
-- Ready to validate: local images and receiver lifetime qualified by T003/T006/T014; T017 implementation comes next. Whole-package acceptance still requires pending completion/map/archive/performance checkpoints and T010 final/platform applicability.
+- Ready to implement: T007 — Validate tree status batching and larger-model behavior; T014/T017 and Phase 2A complete.
+- Ready to validate: T007 tree checkpoint after qualified T014/T017 corrections; local images remain qualified by T003/T006. Whole-package acceptance still requires tree/map/archive/performance checkpoints and T010 final/platform applicability.
 - Ready to close: no.
 - Ready to archive: no.
 - Cleanup action: keep active, draft.

@@ -33,7 +33,7 @@ that explicit routing verified.
 | --- | --- | --- |
 | 1 — Planning | T021/T019 retained; T009 scope disposition; T001 complete | D001 protocol approved before source work |
 | 2A — Images | T012/T013/T003/T006 complete | Safe conversion and calibrated lifecycle qualified |
-| 2B — Tree | T014 complete → **T017 next** → T007 | Receiver/completion fixes and current functional qualification |
+| 2B — Tree | T014/T017 complete → **T007 next** | Receiver/completion fixes and current functional qualification |
 | 2C — CAD maps | T015 → T016 → T005 | Bounded parsing and CAD reference identity qualified |
 | 2D — Archives | T018 → T002 | Archive error outcomes and compatibility qualified |
 | 3 — Performance | T020 → T004 | Predeclared latency/memory/per-change acceptance satisfied |
@@ -74,8 +74,8 @@ none -> T008
 ## Phase 1 — Finish Planning
 
 Exit satisfied: T021/T019 evidence retained, T009 scope disposition recorded, and T001
-resolves D001 with the benchmark protocol. **Next action: T017 — Match tree restore suppression to all completion paths
-(Phase 2B; T014 receiver lifetime complete).**
+resolves D001 with the benchmark protocol. **Next action: T007 — Validate tree status batching and larger-model behavior
+(Phase 2B; T014/T017 corrections complete).**
 
 - [x] T021 Expose lifecycle decisions and verify execution guardrails.
   - Depends on: none
@@ -370,12 +370,12 @@ routing, with no new optimization claim.
     remain unchanged. See verification.md#t014-tree-widget-receiver-lifetime and t014-validation.json.
 
   - Status: Completed local Requirement 6 AC3 receiver-lifetime correction and qualification; F003 locally resolved. Next T017; T007 broader tree and T010 final/platform acceptance remain required.
-- [ ] T017 Match tree restore suppression to all completion paths.
+- [x] T017 Match tree restore suppression to all completion paths.
   - Depends on: T014
   - Requirements: Requirement 6 AC1, AC4
   - Design: design.md#moe-safety-and-compatibility-contracts
-  - Files: `src/Gui/Tree.cpp`, `src/Gui/Tree.h`, `src/App/Document.cpp`, `src/Gui/Document.cpp`,
-    `verification.md`
+  - Files: `src/Gui/Tree.cpp`, `tests/src/Gui/TreeRestore.cpp`, `tests/src/Gui/CMakeLists.txt`,
+    `t017-validation.json`, `verification.md`
   - Acceptance: Define matching completion or safe rescheduling for app open, direct
     doc.load/doc.restore, import/copy-paste and failed restore. Narrow suppression to an owned
     operation or provide broader completion hooks based on source evidence. With timers initially
@@ -384,14 +384,18 @@ routing, with no new optimization claim.
   - Validation: Run the focused regression cases in acceptance on the T019 pinned revision; record
     commands, results and limits in verification.md.
   - Evidence mode: artifact
-  - Evidence: Pending.
+  - Evidence: 2026-11-06: t017-validation.json and verification.md#t017-tree-restore-completion bind committed T014 root 3587399d1b/docs c79bd6e plus exact Tree.cpp/CMake/new-test diff, source/build/runtime/log hashes, 7 clean dependencies and 510 matching packages. Final old-code matrix has 5 Qt passes/7 failures (zero-timeout, empty-app-open, direct/Python/delayed restore, merge import, failed-direct observer cleanup); populated app-open, copy-paste and failed-app-open controls pass. Initial C-API harness GIL fault was diagnosed/corrected before final red run; import source remains alive during completion assertions. Existing owned timer now remains scheduled during suppression, minimum 1ms retry while restoring; app finish-open preserves pending until actual flush, and restoring document creation schedules observer-only completion. No Tree.h, App/Gui document ordering/flags, public API/layout or extra subscription change. All 10 functional rows (12 Qt passes) pass normally and under Memcheck with zero memory-access errors and one exact existing libunwind probe suppression; leak/undefined-value checks disabled. Full pixi build, 6 focused CTest targets and scoped pre-commit pass. Direct checker verifies hashes, 40 stable IDs, 14 prior completed task records, 90 links/anchors, frozen receipts/artifacts, CRLF and unrelated console preservation; lint/context zero diagnostics/gaps. Larger-model, selection/focus/per-object qualification remains T007; final/default-IBus/Windows platform applicability T010.
   - Owner: local-developer
   - Properties: CP-003
   - Candidate manifest: spec003-linux-x86_64-debug-candidate-20261106-v1; see validation-manifest.md
     and record actual execution provenance.
-  - Context evidence: F005 static review found isRestoring suppression broader than app finish-open
-    flushing; user-visible starvation has not been reproduced.
+  - Context evidence: F005 reproduced from idle timers: final old-code matrix has 5 passes and
+    7 failures across direct/load/delayed/import/zero-timeout, empty-document observer attachment
+    and failed-direct cleanup. Existing owned timer now resumes after restore guards exit, with
+    immediate app-open flush retained. App/Gui document ordering, Tree.h and public API unchanged.
+    See verification.md#t017-tree-restore-completion and t017-validation.json.
 
+  - Status: Completed local Requirement 6 AC1/AC4 correction and focused idle restore/load/import/error completion; F005 locally qualified. Next T007; broader tree, archive and final-platform/performance gates remain required.
 - [ ] T007 Validate tree status batching and larger-model behavior.
   - Depends on: T014, T017
   - Requirements: Requirement 6 (all acceptance criteria)

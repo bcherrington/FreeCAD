@@ -31,7 +31,7 @@ review gates. Keep compact rail geometry in package 002.
 | --- | --- | --- | --- |
 | CP-001 | Buffered restore preserves bytes, entry boundaries, permissions and notifications with defined document-level failure outcomes. | T018, T002; archive-level failure and compatibility fixtures | Source correction/qualification pending |
 | CP-002 | Image conversion and texture-only materialization preserve pixel semantics, original source, independently calibrated dimensions and placement. | T013, T003, T006; calibrated reopen/import/show/save fixtures | T013/T003/T006 local qualification complete; final T010 applicability remains |
-| CP-003 | Tree batching preserves per-object effects, ends callbacks with receiver lifetime and completes every suppressed restore path. | T014, T017, T007; destruction and idle restore-path regressions | T014 receiver lifetime qualified; T017/T007 completion/semantics pending |
+| CP-003 | Tree batching preserves per-object effects, ends callbacks with receiver lifetime and completes every suppressed restore path. | T014, T017, T007; destruction and idle restore-path regressions | T014 lifetime and T017 completion locally qualified; T007 broader semantics pending |
 | CP-004 | Image extents, allocation lengths and offsets are checked before narrowing or writing; unsupported input is rejected safely. | T012, T003; null/slender boundary tests and sanitizer-equivalent checks | Source correction/qualification pending |
 | CP-005 | Numeric conversion is bounded and element-map aliases, child IDs and dependent CAD reference identities survive restore/recompute. | T015, T016, T005; numeric/writer/identity fixture matrix | Source correction/qualification pending |
 
@@ -59,9 +59,10 @@ instead of temporary split vectors; bounded numeric compatibility remains
 T015/T016. `src/Gui/BitmapFactory.cpp`: direct 32-bit conversion plus Qt fallback.
 `src/Gui/ViewProviderImagePlane.cpp`: pending full-resolution texture lifecycle.
 `src/Gui/Tree.cpp`/`Tree.h`: pending restore status scheduling and receiver-owned
-application subscriptions. T014 qualifies widget teardown; T017 must reconcile
-all suppressed restore completion paths. Application finish-open alone is not a
-complete scheduling contract.
+application subscriptions. T014 qualifies widget teardown. T017 keeps the owned
+status timer scheduled during suppression so direct restore/import can resume
+after guards exit, while retaining immediate application finish-open flushing.
+Empty restored documents also receive an observer-attachment completion pass.
 
 ### Data Models And Flow
 
@@ -167,7 +168,8 @@ invalidation and diagnostic contracts.
   document open after deletion, repeated replacement, and queued status work pass
   under Memcheck. This preserves the existing GUI-thread dispatch assumption;
   no concurrent signal/teardown contract or broader scheduler change is added.
-  Tree.h is inspected unchanged. T017/T007 still own completion and object effects.
+  Tree.h is inspected unchanged. T017 qualifies local completion; T007 still owns
+  the larger-model/object-effects checkpoint.
   The new internal-widget test is registered outside Windows because TreeWidget
   lacks DLL export; no public export is introduced for testing. T010 owns final
   platform/native qualification.
@@ -181,9 +183,18 @@ invalidation and diagnostic contracts.
   after reopening/recomputing. CP-005 records these identity invariants.
 - **Restore completion (F005):** suppression must have a matching completion for
   app open, direct doc.load/doc.restore, import/paste and failure cleanup. T017
-  may narrow suppression to the owned operation or safely schedule broader
-  completion; choose from inspected lifecycle evidence. Idle timers and no later
-  edit/open must still yield eventual tree population/status/observer updates.
+  retains broad isRestoring guards against processing and keeps one existing
+  owned status QTimer scheduled with one pending flag. Immediate requests become
+  delayed during restoration; retry interval is at least 1ms while restoring,
+  including a configured zero timeout. Application finish-open requests a flush
+  without clearing the flag early. Other restore/import exits resume through the
+  timer after the global guard unwinds. The flag clears only when processing
+  proceeds past restore/transaction guards, and successful processing stops the
+  timer. New restoring document items schedule a pass even without queued objects
+  to attach deferred change/touch observers. No App/Gui document signal, flag,
+  archive policy, public API, member layout or additional subscription changes
+  are needed. T017 qualifies small real-document idle-timer/error paths; T007
+  retains larger-model, focus/selection and per-object effects acceptance.
 - **Archive errors (F006):** preserve established compatibility or document an
   approved deliberate change. T018 records empty/nonempty read/write/close
   failures at document level, diagnostics/failure lists, partial-file handling,

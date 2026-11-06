@@ -1179,21 +1179,22 @@ void TreeWidget::_updateStatus(bool delay)
         return;
     }
 
-    if (App::GetApplication().isRestoring()) {
-        if (!ChangedObjects.empty() || !NewObjects.empty()) {
-            statusUpdatePendingAfterRestore = true;
-        }
-        return;
+    const bool restoring = App::GetApplication().isRestoring();
+    if (restoring) {
+        // Direct restore/import has no application finish-open signal. Keep one
+        // owned timer scheduled so work resumes after the restoring guard exits.
+        statusUpdatePendingAfterRestore = true;
+        delay = true;
     }
 
     if (!delay) {
-        if (!ChangedObjects.empty() || !NewObjects.empty()) {
+        if (statusUpdatePendingAfterRestore || !ChangedObjects.empty() || !NewObjects.empty()) {
             onUpdateStatus();
         }
         return;
     }
     int timeout = TreeParams::getStatusTimeout();
-    if (timeout < 0) {
+    if (timeout < 0 || (restoring && timeout == 0)) {
         timeout = 1;
     }
     statusTimer->start(timeout);
@@ -3351,6 +3352,10 @@ void TreeWidget::slotNewDocument(const Gui::Document& Doc, bool isMainDoc)
     item->setBaseIcon(0, *documentPixmap);
     item->setText(0, QString::fromUtf8(Doc.getDocument()->Label.getValue()));
     DocumentMap[&Doc] = item;
+    if (App::GetApplication().isRestoring()) {
+        // Empty documents also need a completion pass to attach their observers.
+        _updateStatus();
+    }
 }
 
 
@@ -3446,7 +3451,6 @@ void TreeWidget::slotFinishOpenDocument()
         return;
     }
 
-    statusUpdatePendingAfterRestore = false;
     _updateStatus(false);
 }
 
@@ -3567,6 +3571,7 @@ void TreeWidget::onUpdateStatus()
         }
     }
 
+    statusUpdatePendingAfterRestore = false;
     FC_LOG("begin update status");
 
     UpdateDisabler disabler(*this, updateBlocked);
