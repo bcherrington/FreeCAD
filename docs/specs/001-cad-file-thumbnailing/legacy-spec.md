@@ -1,12 +1,23 @@
 ---
 title: CAD and mesh file thumbnailing
 doc_type: spec
-status: draft
+status: archived
 owner: local-developer
-last_reviewed: 2026-05-21
+last_reviewed: 2026-11-04
 ---
 
 # CAD And Mesh File Thumbnailing
+
+> Historical migration input, retained on 2026-11-06. Current authority: [requirements.md](requirements.md) and [design.md](design.md).
+> Checkboxes, trace commands and future-tense statements below are historical.
+
+
+## Current Code Reconciliation — 2026-11-04
+
+The FCStd extraction baseline exists; the CAD/mesh rendering extension is
+unimplemented. Five local helper fixture checks passed. See
+[verification.md](verification.md) for the requirement mapping and remaining
+rendering, isolation and desktop integration work.
 
 ## Summary
 

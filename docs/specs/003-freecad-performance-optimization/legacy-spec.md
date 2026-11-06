@@ -1,12 +1,25 @@
 ---
 title: FreeCAD performance optimization
 doc_type: spec
-status: draft
+status: archived
 owner: local-developer
-last_reviewed: 2026-05-22
+last_reviewed: 2026-11-04
 ---
 
 # Feature Specification
+
+> Historical migration input, retained on 2026-11-06. Current authority: [requirements.md](requirements.md) and [design.md](design.md).
+> Checkboxes, trace commands and future-tense statements below are historical.
+
+
+## Current Code Reconciliation — 2026-11-04
+
+Buffered restore, element-map parsing, image conversion, lazy image-plane
+loading and restore-time tree status batching are present in current code.
+See [verification.md](verification.md) for source/commit mappings, fresh focused
+test results and outstanding measurement, visual and review gates. The dated
+May investigation below remains historical; its checked items do not establish
+complete acceptance on the current revision.
 
 ## Summary
 
@@ -22,9 +35,10 @@ document payloads and expensive full-resolution image-plane conversion into
 Coin texture data.
 
 The compact UI viewport layout churn found in the same profiling work is owned
-by [Compact view rails rework](../compact-view-rails-rework/spec.md), because
-the required fix belongs to the compact rail geometry and drag-and-drop
-redesign rather than this general performance package.
+by [Compact view rails rework](../002-compact-view-rails-rework/spec.md), because
+future rail geometry and drag-and-drop work belongs there. The original
+titlebar idle-layout fix has landed and rails have been removed; see that
+package’s reconciliation before planning further viewport work.
 
 ## Goals
 
@@ -41,7 +55,7 @@ redesign rather than this general performance package.
 - Do not keep temporary tracing code as production behavior unless it is
   intentionally designed and reviewed as maintainable diagnostics.
 - Do not implement compact view rail geometry fixes here; those belong in
-  [Compact view rails rework](../compact-view-rails-rework/spec.md).
+  [Compact view rails rework](../002-compact-view-rails-rework/spec.md).
 - Do not optimize startup addons, tree batching, or geometry meshing before the
   higher-confidence findings are addressed.
 
@@ -64,7 +78,7 @@ redesign rather than this general performance package.
 - **Image planes**: Large raster images loaded and converted into `SoSFImage`
   texture data during document restore and display.
 - **Compact rail rework**: The separate feature tracked in
-  [Compact view rails rework](../compact-view-rails-rework/spec.md), which owns
+  [Compact view rails rework](../002-compact-view-rails-rework/spec.md), which owns
   the rail-specific fix for the measured viewport geometry churn.
 
 ## Acceptance Criteria
@@ -132,7 +146,7 @@ before and after optimization.
 ## Related Artifacts
 
 - Compact rail performance follow-up:
-  [../compact-view-rails-rework/spec.md](../compact-view-rails-rework/spec.md)
+  [../002-compact-view-rails-rework/spec.md](../002-compact-view-rails-rework/spec.md)
 - Plan: [plan.md](plan.md)
 - Research: [research.md](research.md)
 - Tasks: [tasks.md](tasks.md)

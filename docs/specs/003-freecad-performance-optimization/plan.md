@@ -1,12 +1,25 @@
 ---
 title: FreeCAD performance optimization plan
 doc_type: spec
-status: draft
+status: archived
 owner: local-developer
-last_reviewed: 2026-05-22
+last_reviewed: 2026-11-04
 ---
 
 # Implementation Plan
+
+> Historical migration input, retained on 2026-11-06. Current authority: [design.md](design.md) and [tasks.md](tasks.md).
+> Checkboxes, trace commands and future-tense statements below are historical.
+
+
+## Current Code Reconciliation — 2026-11-04
+
+Buffered restore, element-map parsing, image conversion, lazy image-plane
+loading and restore-time tree status batching are present in current code.
+See [verification.md](verification.md) for source/commit mappings, fresh focused
+test results and outstanding measurement, visual and review gates. The dated
+May investigation below remains historical; its checked items do not establish
+complete acceptance on the current revision.
 
 ## Summary
 
@@ -19,7 +32,7 @@ normal working mode.
 The source evidence is in [research.md](research.md).
 The compact view rail geometry optimization found during the same profiling
 work is owned by
-[Compact view rails rework](../compact-view-rails-rework/spec.md).
+[Compact view rails rework](../002-compact-view-rails-rework/spec.md).
 
 ## Technical Context
 
@@ -58,7 +71,7 @@ work is owned by
 ### Documentation
 
 ```text
-docs/specs/freecad-performance-optimization/
+docs/specs/003-freecad-performance-optimization/
 |-- spec.md
 |-- plan.md
 |-- research.md
@@ -114,8 +127,7 @@ implementation plan.
   lower-priority investigation work.
 - Prefer correctness-preserving fast paths with fallback behavior over broad
   rewrites. For example, add direct 32-bit `QImage` scanline conversion only
-  for known formats and retain the existing `pixelColor()` path for uncommon
-  formats.
+  for known formats and use Qt conversion to RGBA8888 for uncommon formats.
 
 ## Risks
 
@@ -132,48 +144,24 @@ Each patch should include a before/after measurement using the same workflow,
 plus focused automated or manual validation for the touched subsystem. Broaden
 to `pixi run test` when shared App/Base/Gui behavior is changed.
 
-## Current Temporary Changes
+## Current Instrumentation Status
 
-The current workspace contains temporary opt-in profiling instrumentation. These
-changes are useful for investigation, but should not be treated as production
-implementation unless they are cleaned up and intentionally designed as
-maintainable diagnostics.
-
-Temporary instrumentation added for this performance package:
-
-- `FREECAD_TREE_TRACE=1` in `src/Gui/Tree.cpp`
-  - Counts tree object creation/deletion, status updates, icon generation, and
-    bulk document open/close behavior.
-  - Showed tree churn is frequent but tens of milliseconds for the tested
-    document.
-- `FREECAD_RESTORE_TRACE=1` in `src/App/Document.cpp` and
-  `src/Base/Reader.cpp`
-  - Breaks document restore into XML/object restore, embedded-file restore, and
-    postprocess hooks.
-  - Showed `Base::XMLReader::readFiles()` dominates the tested document open.
-- `FREECAD_IMAGE_TRACE=1` in `src/Gui/BitmapFactory.cpp` and
-  `src/Gui/ViewProviderImagePlane.cpp`
-  - Counts icon/pixmap cache behavior, SVG renders, pixmap loads, pixmap
-    composition, and `QImage`/`SoSFImage` conversion.
-  - Showed document-open image cost is dominated by large image-plane decode
-    and conversion, not toolbar icon cache misses.
-
-Before merging production optimization work, decide whether to:
-
-- Remove temporary trace code after each investigation.
-- Keep a smaller maintained diagnostic path behind a developer preference or
-  compile-time flag.
-- Move repeated trace helpers into a shared utility instead of leaving several
-  local ad hoc implementations.
+The temporary `FREECAD_TREE_TRACE`, `FREECAD_RESTORE_TRACE`,
+`FREECAD_IMAGE_TRACE`, `FREECAD_COMPACT_LAYOUT_TRACE` and
+`FREECAD_QUARTER_GL_TRACE` switches were absent from the reviewed source and
+tests. Trace commands below describe the historical investigation and will not
+produce those counters on this revision. A new investigation needs explicit
+instrumentation or another reproducible measurement method.
 
 ## Moved: Compact Layout / OpenGL FBO Churn
 
 The compact layout and OpenGL framebuffer churn finding is still important, but
 its implementation work belongs to
-[Compact view rails rework](../compact-view-rails-rework/spec.md). That spec
-owns the rail geometry contract, drag-and-drop replacement, and validation
-requirements for `FREECAD_QUARTER_GL_TRACE=1`,
-`FREECAD_COMPACT_LAYOUT_TRACE=1`, and GL framebuffer allocation comparisons.
+[Compact view rails rework](../002-compact-view-rails-rework/spec.md). That spec
+owns the proposed rail geometry contract and drag-and-drop feature. Current
+code has removed rails and fixed the titlebar idle loop; rail reintroduction
+and GL framebuffer comparison remain separate future work. The historical
+trace switches below are unavailable in this revision.
 
 ## Priority 1: Document Restore Embedded Payloads
 

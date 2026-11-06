@@ -1,12 +1,25 @@
 ---
 title: FreeCAD profiling findings
 doc_type: spec
-status: draft
+status: archived
 owner: local-developer
-last_reviewed: 2026-05-22
+last_reviewed: 2026-11-04
 ---
 
 # Research: FreeCAD Profiling Findings
+
+> Historical migration input, retained on 2026-11-06. Current authority: [design.md](design.md) and [verification.md](verification.md).
+> Checkboxes, trace commands and future-tense statements below are historical.
+
+
+## Current Code Reconciliation — 2026-11-04
+
+Buffered restore, element-map parsing, image conversion, lazy image-plane
+loading and restore-time tree status batching are present in current code.
+See [verification.md](verification.md) for source/commit mappings, fresh focused
+test results and outstanding measurement, visual and review gates. The dated
+May investigation below remains historical; its checked items do not establish
+complete acceptance on the current revision.
 
 ## Question
 

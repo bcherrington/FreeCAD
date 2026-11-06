@@ -1,6 +1,7 @@
 ---
 title: Feature tasks title
 doc_type: spec
+artifact_type: tasks
 status: draft
 owner: team-or-person
 last_reviewed: YYYY-MM-DD
@@ -8,92 +9,73 @@ last_reviewed: YYYY-MM-DD
 
 # Tasks
 
-**Input**: Design documents from `docs/specs/[###-feature-name]/`
-**Prerequisites**: `plan.md` and `spec.md`; include `research.md`, `design.md`, `quickstart.md`, and `contracts/` when applicable.
+## Context And Execution
 
-**Tests**: Add test tasks for behavior changes. API-facing changes should include auth failure, input validation, and success-path coverage.
+Read requirements.md, design.md, traceability.md and verification.md before
+implementation. Resolve the selected task's blocking decisions and obtain task
+context. Use stable task IDs as identities; file lines are navigation only.
+Normally mark one implementation task `[~]` before coding. Preserve unrelated
+work and split tasks that mix independent implementation/evidence outcomes.
 
-**Organization**: Group tasks by user story so each story can be implemented and tested independently.
+Markers: `[ ]` pending, `[~]` in progress, `[/]` partial, `[>]` routed,
+`[-]` deferred/no-op, `[?]` decision required, `[!]` attention, `[x]` complete.
+Use `[P]` only for work without dependency or file conflicts. Every completed
+task needs acceptance evidence. Evidence modes: command, artifact, manual,
+reasoned, external. Pending or blocked evidence cannot complete implementation.
 
-## Format: `[ID] [P?] [Story] Description`
+## Task Dependency Graph
 
-- **[P]**: Can run in parallel because it touches different files and has no dependency on another task.
-- **[Story]**: User story label such as US1, US2, or US3.
-- Include exact file paths in task descriptions.
+```text
+T001 -> T002 -> T003 -> T004
+```
 
-## Phase 1: Setup
+## Delivery Slices
 
-**Purpose**: Project initialization and shared preparation.
+- [ ] T001 Resolve design and validation contracts.
+  - Depends on: none
+  - Requirements: Requirement 1 AC1, AC2
+  - Design: design.md#low-level-design
+  - Files: design.md, verification.md
+  - Acceptance: Scope, failure/compatibility rules, validation and blocking decisions are resolved for T002.
+  - Validation: Review the selected design/requirement criteria and evidence plan.
+  - Evidence mode: artifact
+  - Evidence: Pending.
 
-- [ ] T001 Create or update feature documentation structure under `docs/specs/[###-feature-name]/`
-- [ ] T002 Identify source and test files affected by the plan
-- [ ] T003 [P] Configure or update local validation helpers if needed
+- [ ] T002 Implement the independently testable user story.
+  - Depends on: T001
+  - Requirements: Requirement 1 AC1, AC2
+  - Properties: CP-001, when defined
+  - Design: design.md#low-level-design
+  - Files: Replace with exact source and test paths before implementation.
+  - Acceptance: Success, failure and regression criteria pass without changing unrelated behavior.
+  - Validation: Replace with focused repository commands or bounded manual checks.
+  - Evidence mode: command
+  - Evidence: Pending.
+  - [ ] T002.1 Add meaningful behavior/failure coverage.
+  - [ ] T002.2 Implement the scoped behavior.
+  - [ ] T002.3 Verify linked properties with existing conventional/property tests or justified manual checks.
 
-## Phase 2: Foundational Prerequisites
+- [ ] T003 Checkpoint - Validate selected scope and resolve review findings.
+  - Depends on: T002
+  - Requirements: Requirement 1 AC1, AC2
+  - Files: verification.md, traceability.md
+  - Acceptance: Required checks and review are recorded; broader requirement/design coverage has explicit complete, partial-blocking, partial-routed, not-covered or out-of-scope dispositions.
+  - Validation: Run focused checks; broaden under AGENTS.md according to changed boundaries.
+  - Evidence mode: command
+  - Evidence: Pending.
 
-**Purpose**: Shared work that must be complete before user-story implementation.
+- [ ] T004 Promote durable truth, route residuals and record closure.
+  - Depends on: T003
+  - Requirements: Requirement 1 AC1, AC2
+  - Files: Exact durable targets, closure log and archive index.
+  - Acceptance: Durable docs match accepted behavior, residual work has owned destinations, and closure/cleanup commits reflect actual Git evidence.
+  - Validation: Check promotion, coverage and closure metadata; structural lint alone does not satisfy the gate.
+  - Evidence mode: artifact
+  - Evidence: Pending.
 
-- [ ] T004 Define shared contracts, schemas, or data-model changes
-- [ ] T005 [P] Implement shared validation or parsing helpers
-- [ ] T006 [P] Implement shared auth, routing, configuration, or error-handling changes
-- [ ] T007 Add logging, observability, or operational guardrails required by all stories
+## Related Artifacts
 
-**Checkpoint**: Foundation ready; user-story work can proceed.
-
-## Phase 3: User Story 1 - Title (Priority: P1)
-
-**Goal**: Brief description of what this story delivers.
-
-**Independent Test**: How to verify this story works on its own.
-
-### Tests For User Story 1
-
-- [ ] T008 [P] [US1] Add unit coverage in `tests/...`
-- [ ] T009 [P] [US1] Add integration or contract coverage in `tests/...`
-
-### Implementation For User Story 1
-
-- [ ] T010 [P] [US1] Implement model or helper changes in `path/to/file`
-- [ ] T011 [US1] Implement service or handler changes in `path/to/file`
-- [ ] T012 [US1] Add validation, error handling, and logging
-
-**Checkpoint**: User Story 1 is independently functional and testable.
-
-## Phase 4: User Story 2 - Title (Priority: P2)
-
-**Goal**: Brief description of what this story delivers.
-
-**Independent Test**: How to verify this story works on its own.
-
-### Tests For User Story 2
-
-- [ ] T013 [P] [US2] Add unit coverage in `tests/...`
-- [ ] T014 [P] [US2] Add integration or contract coverage in `tests/...`
-
-### Implementation For User Story 2
-
-- [ ] T015 [P] [US2] Implement model or helper changes in `path/to/file`
-- [ ] T016 [US2] Implement service or handler changes in `path/to/file`
-- [ ] T017 [US2] Integrate with User Story 1 components if needed
-
-**Checkpoint**: User Stories 1 and 2 both work independently.
-
-## Phase 5: Polish And Cross-Cutting Concerns
-
-- [ ] T018 [P] Update relevant docs in `docs/`
-- [ ] T019 Code cleanup and refactoring
-- [ ] T020 Verify performance budget against the plan
-- [ ] T021 [P] Review UX consistency across endpoints and user flows
-- [ ] T022 Run required validation commands
-
-## Rollout
-
-- [ ] Deployment or migration step
-
-## Dependencies And Execution Order
-
-- Setup starts first.
-- Foundational prerequisites block user-story work.
-- User stories proceed in priority order unless the plan explicitly allows parallel implementation.
-- Polish and rollout happen after selected user stories are complete.
-- Tests for a user story should be written before implementation where practical and must map to changed behavior.
+- [Requirements](requirements.md)
+- [Design](design.md)
+- [Traceability](traceability.md)
+- [Verification](verification.md)

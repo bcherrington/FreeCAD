@@ -1,16 +1,29 @@
 ---
 title: FreeCAD performance optimization tasks
 doc_type: spec
-status: draft
+status: archived
 owner: local-developer
-last_reviewed: 2026-05-22
+last_reviewed: 2026-11-04
 ---
 
 # Task Breakdown
 
+> Historical migration input, retained on 2026-11-06. Current authority: [tasks.md](tasks.md).
+> Checkboxes, trace commands and future-tense statements below are historical.
+
+
 This checklist tracks implementation-sized work for the performance
 optimization package. The detailed rationale and validation expectations are in
 [plan.md](plan.md); source evidence is in [research.md](research.md).
+
+## Current Code Reconciliation — 2026-11-04
+
+Buffered restore, element-map parsing, image conversion, lazy image-plane
+loading and restore-time tree status batching are present in current code.
+See [verification.md](verification.md) for source/commit mappings, fresh focused
+test results and outstanding measurement, visual and review gates. The dated
+May investigation below remains historical; its checked items do not establish
+complete acceptance on the current revision.
 
 ## P1: Restore Baseline And Buffered Included Files
 
@@ -141,7 +154,7 @@ Validation notes:
   and alpha handling for `Format_ARGB32`, `Format_RGB32`, `Format_RGBA8888`,
   and `Format_RGBX8888`.
 - Premultiplied, indexed, grayscale, 64-bit, SVG-rendered, and other uncommon
-  formats still use the existing `pixelColor()` fallback path.
+  formats now use Qt conversion to RGBA8888 followed by vertical flip.
 - SVG image planes are unaffected by the fast path until their rendered
   `QImage` is one of the explicitly handled 32-bit formats.
 
@@ -155,9 +168,9 @@ Validation notes:
       be deferred.
 - [x] Implement the parser-level shape-map restore fast path as a separate
       production patch.
-- [ ] Add narrow `Gui::Document::RestoreDocFile()` and view-provider timings if
+- [ ] **Conditional measurement:** Add narrow `Gui::Document::RestoreDocFile()` and view-provider timings if
       `GuiDocument.xml` remains a major restore bucket after buffered copy.
-- [ ] Scope any GUI restore work to the dominant measured sub-step.
+- [ ] **Conditional measurement:** Scope any GUI restore work to the dominant measured sub-step.
 
 ### Restore Follow-Up Measurement - 2026-05-22
 
@@ -222,7 +235,7 @@ Validation:
       retried, or left alone as low-cost noise.
 - [x] Prototype lazy full-resolution texture creation only after the direct
       conversion fast path is measured.
-- [ ] Prototype reduced-resolution initial textures only as a separate behavior
+- [ ] **Design decision required:** Prototype reduced-resolution initial textures only as a separate behavior
       decision that preserves source image semantics.
 
 ### Image-Plane Restore Lifecycle - 2026-05-22
@@ -332,14 +345,14 @@ Validation:
 
 ## Cleanup And Review Gates
 
-- [ ] Remove one-off trace code from production optimization patches, or split
+- [x] Remove one-off trace code from production optimization patches, or split
       maintained diagnostics into a separate opt-in review.
-- [ ] Keep restore, image conversion, lifecycle, tree, and startup changes in
+- [x] Keep restore, image conversion, lifecycle, tree, and startup changes in
       separate reviewable patches.
-- [ ] Commit changes with coherent boundaries so production fixes can be
+- [x] Commit changes with coherent boundaries so production fixes can be
       cherry-picked into a later PR without unrelated tracing or follow-up work.
-- [ ] Run `pixi run build -j 2` for production code changes.
-- [ ] Run focused CTest coverage for touched subsystems; broaden to
+- [ ] **Current revision gate unverified:** Run `pixi run build -j 2` for production code changes.
+- [ ] **Partial (focused suites passed):** Run focused CTest coverage for touched subsystems; broaden to
       `pixi run test` when shared Base/App/Gui behavior changes.
-- [ ] Include exact commands, before/after timings, manual validation notes,
+- [ ] **PR evidence unverified:** Include exact commands, before/after timings, manual validation notes,
       and remaining hotspots in each PR description.

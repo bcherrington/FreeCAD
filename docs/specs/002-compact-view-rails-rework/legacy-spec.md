@@ -1,31 +1,41 @@
 ---
 title: Compact view rails rework
 doc_type: spec
-status: draft
+status: archived
 owner: local-developer
-last_reviewed: 2026-05-22
+last_reviewed: 2026-11-04
 ---
 
 # Feature Specification
 
+> Historical migration input, retained on 2026-11-06. Current authority: [requirements.md](requirements.md) and [design.md](design.md).
+> Checkboxes, trace commands and future-tense statements below are historical.
+
+
+## Current Code Reconciliation — 2026-11-04
+
+The current compact titlebar contains no panel rails. Rail removal and the
+idle-layout fix have landed; the explicit-slot feature below remains proposed.
+See [verification.md](verification.md) for requirement dispositions and tests.
+
 ## Summary
 
-Rework the compact view side rails from transitional toolbar-based drop zones
+Reintroduce compact view side rails, replacing the former toolbar-based drop zones
 into explicit rail slot containers with stable geometry, visible drag targets,
 and layout behavior that does not trigger repeated 3D viewport resize churn.
 
 ## Problem
 
-The current compact rail prototype works as a first pass, but its rail
-drag-and-drop behavior is still transitional. Each side uses one vertical
+The former compact rail prototype worked as a first pass, but its rail
+drag-and-drop behavior is still transitional. Each side used one vertical
 toolbar and derives logical drop zones from pointer position, which makes lower
 and bottom targets implicit instead of visible.
 
-Profiling also found a more serious layout issue: compact chrome currently
-shrinks the `QMainWindow` central widget after Qt has laid it out. That causes
+Historical profiling also found a layout issue: compact chrome then
+shrinks the `QMainWindow` central widget after Qt has laid it out. That caused
 the 3D viewport to oscillate between widths that differ by the rail reservation
-width. The oscillation reaches Qt's `QOpenGLWidget` backing framebuffer path and
-causes repeated full-size multisampled framebuffer allocation.
+width. The oscillation reached Qt's `QOpenGLWidget` backing framebuffer path and
+caused repeated full-size multisampled framebuffer allocation.
 
 ## Goals
 
@@ -207,9 +217,9 @@ overlay mode, and workbench switches.
 
 - Design: [Compact UI design](../../design/jetbrains-style-compact-ui.md)
 - Performance spec:
-  [FreeCAD performance optimization](../freecad-performance-optimization/spec.md)
+  [FreeCAD performance optimization](../003-freecad-performance-optimization/spec.md)
 - Performance research:
-  [FreeCAD profiling findings](../freecad-performance-optimization/research.md)
+  [FreeCAD profiling findings](../003-freecad-performance-optimization/research.md)
 - Code: `src/Gui/CompactMainWindowChrome.cpp`,
   `src/Gui/CompactMainWindowChrome.h`, `src/Gui/MainWindow.cpp`,
   `src/Gui/DockWindowManager.cpp`, `src/Gui/OverlayWidgets.h`,
