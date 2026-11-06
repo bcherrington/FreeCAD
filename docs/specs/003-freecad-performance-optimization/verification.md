@@ -98,7 +98,7 @@ source correction and meaningful regression checks exist.
 | F006 | request | PropertyFile copy errors are caught by XMLReader::readFiles; hook exceptions alone do not establish diagnostic/failure-list/partial-file/continuation behavior. | local-developer; T018 then T002 | Open archive-level outcome table and failure fixtures |
 | F007 | request | Deferred image decode/conversion moves into show; fallback may expand 1/2-component sources to RGBA. Open-only timings can hide first-frame latency or image-memory effects. | local-developer; T020 then T004 | Open comparative frame/show/repeat latency, texture counts and peak memory evidence |
 | F008 | request | Candidate/final revision selection, per-change coverage and benchmark pass rules were insufficiently connected to acceptance; final task assembled timings without explicit evidence invalidation. | local-developer; T019, T001, T004.3, T010 | Open pinned manifest/protocol, per-optimization evidence and exact-final applicability |
-| F009 | suggestion | spec_open_decisions returned no records for embedded D001–D003, while task_context retained references; advisory ready packets describe context availability. | local-developer; T021 | Discovery/guardrails verified; D001 open, D002 routed to B009, D003 initial policy resolved |
+| F009 | suggestion | spec_open_decisions returned no records for embedded D001–D003, while task_context retained references; advisory ready packets describe context availability. | local-developer; T021 | Discovery/guardrails verified; D001 protocol resolved, D002 routed to B009, D003 initial policy resolved |
 
 All findings stay in this active package because they change its existing
 contracts and acceptance. No source finding is merely routed to an unowned
@@ -117,14 +117,58 @@ GPU residency claims require separate actual measurements.
 | Numeric and subelement identity | Signed/unsigned-form tolerance, decimal/hex bounds, malformed/overflow tokens; semicolon/colon/dollar writer forms; multiple aliases/SIDs/shared children; bidirectional lookups after buffers die; dependent CAD target reopen/recompute | T015, T016, T005 | Pending policy, source correction and fixtures |
 | Restore completion | Initially idle timers; app open, direct load/restore, import/paste and failure cleanup; eventual tree population/status/observer work without unrelated edit/open | T017, T007 | Pending scheduling correction and execution |
 | Archive failures | Empty/nonempty failing first entry plus valid second; read/write/close injection, diagnostics/failure list, partial bytes/permissions and notifications | T018, T002 | Pending approved outcome table and execution |
-| End-to-end performance/resources | Pinned command restore, GUI first-correct-frame, hidden-first-show and repeat-show endpoints; visibility/texture counts; process/decoded/Coin peaks for direct and grayscale/alpha fallback fixtures | T020, T004 | Pending D001/D003 and measurements |
-| Exact final evidence | Per-optimization inventory for restore/save/parser/conversion/lazy/tree; predeclared pass rules; final-revision automated/manual/archive/lifecycle/benchmark reruns or reviewed equivalence | T019, T001, T010 | Pending manifest, owner decisions and execution |
+| End-to-end performance/resources | Pinned command restore, GUI first-correct-frame, hidden-first-show and repeat-show endpoints; visibility/texture counts; process/decoded/Coin peaks for direct and grayscale/alpha fallback fixtures | T020, T004 | Protocol/initial policy selected; measurements pending |
+| Exact final evidence | Per-optimization inventory for restore/save/parser/conversion/lazy/tree; predeclared pass rules; final-revision automated/manual/archive/lifecycle/benchmark reruns or reviewed equivalence | T019, T001, T010 | Manifest/protocol recorded; exact-final execution pending |
 | Decision discovery | MCP exposes D001/D002/D003, owners and blockers; task contexts agree; context readiness does not overrule status/dependencies | T021 | Passed documentation/tool checks; no product decision resolved |
+
+## T001 Protocol Definition — 2026-11-06
+
+D001 is resolved as delegated technical selection under the user's instruction to
+complete T001; local-developer owns the decision. The authoritative
+[benchmark protocol](benchmark-protocol.md), [numeric plan](benchmark-plan.json)
+and [bounded collector](benchmark-runner.py) fix eight exact optimization source
+origin pairs, primary/control fixture identities, matched optimized profile,
+endpoints, 20 measured pairs, statistics, variability and pass rules. The source
+origins are historical lineage; future corrected arms must preserve Phase 2 fixes
+and freeze exact commits/build/probe/generated-fixture receipts before sampling.
+The T019 Debug intake snapshot remains immutable. No unsafe historical tree is
+approved as a runtime comparison arm.
+
+Executed checks:
+
+- `python3 docs/specs/003-freecad-performance-optimization/benchmark-runner.py --check --self-test`
+  passed: eight comparison origins reachable from intake, eight public fixture
+  hashes, manifest/source/recipe identities, 24-pair schedule with 20 measured,
+  and synthetic success, timeout, output-limit and failed-worker handling.
+- `python3 docs/specs/003-freecad-performance-optimization/benchmark-runner.py --schedule`
+  emitted the prescribed diagnostic/warm-up/measured AB/BA schedule. A synthetic
+  execution request was rejected at the incomplete T012 qualification gate,
+  without creating an output/sample file.
+- `black --line-length 100` formatted the collector. Python AST parsing and the
+  bounded direct artifact checker passed: all 40 task identities, completed
+  T019/T021/T009 evidence, immutable manifests/historical artifacts and baseline
+  inventory preserved; 79 local links resolved; private document plus three
+  bounded PNG payload hashes/sizes/dimensions match; production source/config
+  unchanged. The private path/payloads were not copied into this package.
+- MCP `spec_open_decisions` returned no unresolved decisions;
+  `task_context(T001)` returned zero gaps and no open decisions;
+  `lint_spec_package` returned zero diagnostics. Final `active_spec_preflight`
+  selects T012 with satisfied dependencies, zero context gaps and no open decisions.
+  Root/nested-docs whitespace
+  checks passed. Workbench could not traverse the nested docs authority boundary;
+  direct reads/Git/hash checks and lifecycle tools supplied the actual evidence.
+
+T001 is a planning completion only. No FreeCAD build, GUI execution, corrective
+regression or real performance sample was run. Actual probes, generated fallback
+outputs, qualified same-base arms, statistical assessor and application results
+remain T020/T004 responsibilities after Phase 2. F001–F008 runtime/final gates,
+platform confirmation and durable promotion remain open. Next: T012 — Guard
+bitmap dimensions and conversion arithmetic.
 
 ## Next Actions
 
-1. **Next: T001 — Fix the current benchmark protocol and baseline revisions.**
-   Resolve D001 with the T019 candidate/receipt rules and predeclared pass criteria.
+1. **Next: T012 — Guard bitmap dimensions and conversion arithmetic.**
+   T001 resolves D001; apply its protocol and T019 receipt rules throughout execution.
 2. Follow [the explicit Phase 2 subgroups](tasks.md#execution-order): images,
    tree lifecycle, CAD maps, then archives; finish each fix's focused regression
    and subgroup qualification before advancing.
@@ -137,10 +181,10 @@ GPU residency claims require separate actual measurements.
 
 | Gate | Required? | Status | Evidence |
 | --- | --- | --- | --- |
-| Requirements and decisions accepted | yes | partial | D001 Phase 1 protocol pending; D002 routes to B009; D003 initial policy recorded; final T010.1 confirmation pending |
+| Requirements and decisions accepted | yes | partial | D001 protocol recorded; D002 routes to B009; D003 initial policy recorded; final T010.1 confirmation pending |
 | MoE source-safety blockers resolved | yes | blocked | F001/F002/F003; T012/T013/T014 and regression matrix |
 | Candidate and final evidence applicability | yes | partial | T019 initial manifest/policy recorded; actual new-build/runtime receipts and T010 final reconciliation pending |
-| Predeclared per-optimization performance/resource acceptance | yes | pending | D001/T001, T020/T004 and final T010 evidence |
+| Predeclared per-optimization performance/resource acceptance | yes | pending | T001 protocol complete; T020/T004 and final T010 evidence pending |
 | Complete task/criterion evidence | yes | pending | tasks.md; traceability.md |
 | Focused current correctness and failure tests | yes | pending | Baseline code/dates are inventory; T002/T003/T005/T006/T007 await current qualification |
 | Current measurements and platform/manual acceptance | yes | pending | Historical observations are insufficient |
@@ -277,8 +321,8 @@ this migration.
 
 ## Readiness Decision
 
-- Ready to implement: Phase 1 planning only; complete T001/D001 before starting any Phase 2 source correction.
-- Ready to validate: whole-package acceptance blocked by F001/F002/F003; Phase 2 reproductions follow the planning gate and named current build receipts.
+- Ready to implement: T012 — Guard bitmap dimensions and conversion arithmetic; Phase 1 complete.
+- Ready to validate: whole-package acceptance blocked by F001/F002/F003; Phase 2 reproductions require named current build receipts.
 - Ready to close: no.
 - Ready to archive: no.
 - Cleanup action: keep active, draft.

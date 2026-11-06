@@ -12,7 +12,8 @@ last_reviewed: 2026-11-06
 ## Purpose
 
 This ledger is authoritative for unresolved decision IDs/status/ownership. Design
-and traceability explain their implementation impact. D001 remains open; D002 is resolved as an owned optional backlog route.
+and traceability explain their implementation impact. No active decision remains open.
+D001 is resolved by T001; D002 is resolved as an owned optional backlog route.
 D003 is resolved for initial local candidate/provenance policy under the user
 instruction to complete T019; final production confirmation remains T010.1.
 
@@ -20,15 +21,36 @@ instruction to complete T019; final production confirmation remains T010.1.
 
 | ID | Decision Needed | Options | Owner | Needed By | Status |
 | --- | --- | --- | --- | --- | --- |
-| D001 | Approve comparative benchmark fixtures, endpoints, per-optimization coverage, statistics, variability and improvement/non-regression rules before collecting acceptance samples | Candidate protocol with explicit numeric gates; revise fixtures/protocol before measurement | local-developer | T001 Phase 1 exit before Phase 2 source work and Phase 3 measurement | open |
 
 ## Blocking Impact
 
 | Decision ID | Blocks | Impact If Unresolved |
 | --- | --- | --- |
-| D001 | Requirement 3 AC1, AC3, AC4; T001 output, Phase 2 entry, T020/T004 and final acceptance | Metrics, endpoints and pass rules are not approved; no current speedup acceptance |
 
 ## Resolved Decisions
+
+### D001 — Predeclare comparative benchmark protocol
+
+- **Status:** resolved on 2026-11-06 for Phase 1 planning.
+- **Owner:** local-developer; recorded by Codex under the user's instruction to
+  complete T001, as delegated technical selection, not independent human or
+  maintainer approval.
+- **Chosen option:** [benchmark-protocol.md](benchmark-protocol.md) and
+  [benchmark-plan.json](benchmark-plan.json), `spec003-benchmark-20261106-v1`.
+  Eight exact optimization origin pairs, per-change primary/control fixture
+  identities and recipes, matched RelWithDebInfo arms, 20 paired measured runs,
+  fixed warm-ups/order/cache policy, bootstrap/variability rules, improvement,
+  non-regression, first-show/repeat-show and resource budgets are predeclared.
+- **Rationale:** separate each retained optimization's evidence and detect work
+  shifted to first display or larger decoded/Coin storage. Historical unsafe
+  trees are lineage only; both runtime arms must preserve Phase 2 fixes.
+- **Execution boundary:** exact corrected arm commits/build/probe/generated-output
+  receipts are frozen before Phase 3 samples using the fixed construction rule.
+  T020/T004 implement probes/assessment and collect results; T010 confirms final
+  applicability. No runtime acceptance or performance result is approved here.
+- **Change rule:** failed/noisy/missing coverage stays failed/inconclusive/blocked.
+  Changed thresholds, fixtures or isolation require a dated owner decision and
+  new samples; retain prior evidence. Do not waive safety or reinterpret results.
 
 ### D002 — Preserve Current Full Resolution; Route Exploration
 
@@ -66,8 +88,8 @@ instruction to complete T019; final production confirmation remains T010.1.
   affected automated/manual/archive/calibration/lifecycle/benchmark checks or
   have explicit reviewed equivalence. Record actual new source/binary receipts;
   final cherry-pick/rebase selection is checked at T010.1.
-- **Still open:** D001's comparison metrics/pass rules, fresh builds/runtime
-  receipts, source fixes and platform gates. The later D002 routing decision is
+- **Remaining execution:** fresh builds/runtime receipts, source fixes and
+  platform gates; D001 protocol is resolved separately above. The later D002 routing decision is
   recorded above; this does not rewrite the immutable T019 intake snapshot.
 
 Resolve future decisions only with owner, date, chosen option, rationale and

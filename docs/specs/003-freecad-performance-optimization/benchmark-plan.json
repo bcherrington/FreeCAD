@@ -1,0 +1,965 @@
+{
+  "schema": "freecad-spec003-benchmark/v1",
+  "protocol_id": "spec003-benchmark-20261106-v1",
+  "task": "T001",
+  "decision": "D001",
+  "status": "predeclared-protocol-no-performance-results",
+  "candidate_manifest": "validation-manifest.json",
+  "candidate_manifest_sha256": "2ceaf3dbe3d474f4bb8d70ae6706218ddffdd3616473a1c13a55133611a19d01",
+  "intake_revision": "4e96936bb453c23bbfd29af711955b060cdf8b77",
+  "intake_source_tree": "5d04131f65f14d62edf08d265bc470c6d701f7e9",
+  "intake_docs_revision": "f52a5c068c01b4f6755b5c62296f0ff760d0b74d",
+  "candidate_manifest_id": "spec003-linux-x86_64-debug-candidate-20261106-v1",
+  "profile": {
+    "preset": "conda-linux-rel-with-deb-info",
+    "build_type": "RelWithDebInfo",
+    "flags": "CXX/C -O2 -g -DNDEBUG; effective per-target command/compile_commands hash required",
+    "environment_package_identity_sha256": "27048ce62e5ad835811cb32e58d11ee775f304c81bfef5235bbdd397c3e59d28",
+    "pixi_lock_sha256": "45727758e595efad731c9bc71e429719040b1509ad686d762ad52ba84e44ec5c",
+    "sanitizers": false,
+    "gui_backend": "native-X11",
+    "viewport_physical_pixels": [
+      1280,
+      720
+    ],
+    "device_pixel_ratio": 1.0,
+    "msaa_samples": 8,
+    "compact_mode": false,
+    "profile_config_sha256_required": true,
+    "renderer_receipt_sha256_required_for_gui": true
+  },
+  "sampling": {
+    "first_request_pairs_diagnostic_only": 1,
+    "warmup_pairs_discarded": 3,
+    "measured_pairs": 20,
+    "order": "AB for even pair index, BA for odd; A=baseline/B=change",
+    "worker_process": "new process per arm per observation; primitive timing excludes setup; open timing excludes process startup",
+    "filesystem_cache": "ordinary warmed filesystem; no drop_caches or privileged host changes; first request is not a controlled cold-cache claim",
+    "worker_timeout_seconds": 60.0,
+    "cell_timeout_seconds": 1200.0,
+    "worker_stream_limit_bytes": 262144,
+    "bootstrap_resamples": 20000,
+    "bootstrap_seed": 3001,
+    "confidence_interval": "paired-median-ratio percentile bootstrap 95%; fixed seed and sample count",
+    "dispersion_limit_iqr_over_median": 0.1,
+    "no_retries_or_posthoc_exclusions": true
+  },
+  "comparisons": [
+    {
+      "id": "P01",
+      "title": "Buffered included-file restore",
+      "baseline_origin_commit": "770015798fe093670caed018fb84ba30499ccf50",
+      "optimized_origin_commit": "a93b54fb63d305b8a37654aacac2713458e0e924",
+      "alternate_origin_commits": [
+        "57a9b795e82afc8b81d9cebda3edc40ff319c1f4"
+      ],
+      "source_delta_allowlist": [
+        "src/App/PropertyFile.cpp"
+      ],
+      "primary_fixture_ids": [
+        "gridfinity-drawer-v1.3"
+      ],
+      "control_fixture_ids": [
+        "BIMExample",
+        "ArchDetail",
+        "EngineBlock",
+        "PartDesignExample"
+      ],
+      "owner_task": "T004.1",
+      "metrics": {
+        "restore_payload_ms": {
+          "kind": "improve",
+          "minimum_gain_fraction": 0.05,
+          "minimum_saved_ms": 2.0,
+          "bootstrap_ratio_upper_must_be_below": 1.0
+        },
+        "document_open_ms": {
+          "kind": "non_regression",
+          "median_fraction": 0.05,
+          "median_floor_ms": 2.0,
+          "p95_fraction": 0.1,
+          "p95_floor_ms": 5.0
+        },
+        "peak_rss_bytes": {
+          "kind": "resource",
+          "fraction": 0.1,
+          "floor_bytes": 16777216
+        },
+        "coin_image_bytes": {
+          "kind": "resource",
+          "fraction": 0.0,
+          "floor_bytes": 1048576
+        },
+        "decoded_image_bytes": {
+          "kind": "resource",
+          "fraction": 0.0,
+          "floor_bytes": 1048576
+        }
+      },
+      "control_timing_rule": {
+        "kind": "non_regression",
+        "median_fraction": 0.05,
+        "median_floor_ms": 2.0,
+        "p95_fraction": 0.1,
+        "p95_floor_ms": 5.0
+      },
+      "construction": "same-qualified-base-performance-only-delta",
+      "origin_pair_is_qualified_runtime_evidence": false,
+      "control_metrics": {
+        "restore_payload_ms": {
+          "kind": "non_regression",
+          "median_fraction": 0.05,
+          "median_floor_ms": 2.0,
+          "p95_fraction": 0.1,
+          "p95_floor_ms": 5.0
+        },
+        "document_open_ms": {
+          "kind": "non_regression",
+          "median_fraction": 0.05,
+          "median_floor_ms": 2.0,
+          "p95_fraction": 0.1,
+          "p95_floor_ms": 5.0
+        },
+        "peak_rss_bytes": {
+          "kind": "resource",
+          "fraction": 0.1,
+          "floor_bytes": 16777216
+        },
+        "coin_image_bytes": {
+          "kind": "resource",
+          "fraction": 0.0,
+          "floor_bytes": 1048576
+        },
+        "decoded_image_bytes": {
+          "kind": "resource",
+          "fraction": 0.0,
+          "floor_bytes": 1048576
+        }
+      }
+    },
+    {
+      "id": "P02",
+      "title": "Buffered included-file save",
+      "baseline_origin_commit": "a93b54fb63d305b8a37654aacac2713458e0e924",
+      "optimized_origin_commit": "eff963284de72063969ce98d14f73d7574ea1d1e",
+      "alternate_origin_commits": [],
+      "source_delta_allowlist": [
+        "src/App/PropertyFile.cpp"
+      ],
+      "primary_fixture_ids": [
+        "gridfinity-drawer-v1.3"
+      ],
+      "control_fixture_ids": [
+        "ProjectTest",
+        "PartDesignExample"
+      ],
+      "owner_task": "T004.3",
+      "metrics": {
+        "save_payload_ms": {
+          "kind": "improve",
+          "minimum_gain_fraction": 0.05,
+          "minimum_saved_ms": 2.0,
+          "bootstrap_ratio_upper_must_be_below": 1.0
+        },
+        "document_save_ms": {
+          "kind": "non_regression",
+          "median_fraction": 0.05,
+          "median_floor_ms": 2.0,
+          "p95_fraction": 0.1,
+          "p95_floor_ms": 5.0
+        },
+        "peak_rss_bytes": {
+          "kind": "resource",
+          "fraction": 0.1,
+          "floor_bytes": 16777216
+        },
+        "coin_image_bytes": {
+          "kind": "resource",
+          "fraction": 0.0,
+          "floor_bytes": 1048576
+        },
+        "decoded_image_bytes": {
+          "kind": "resource",
+          "fraction": 0.0,
+          "floor_bytes": 1048576
+        }
+      },
+      "control_timing_rule": {
+        "kind": "non_regression",
+        "median_fraction": 0.05,
+        "median_floor_ms": 2.0,
+        "p95_fraction": 0.1,
+        "p95_floor_ms": 5.0
+      },
+      "construction": "same-qualified-base-performance-only-delta",
+      "origin_pair_is_qualified_runtime_evidence": false,
+      "control_metrics": {
+        "save_payload_ms": {
+          "kind": "non_regression",
+          "median_fraction": 0.05,
+          "median_floor_ms": 2.0,
+          "p95_fraction": 0.1,
+          "p95_floor_ms": 5.0
+        },
+        "document_save_ms": {
+          "kind": "non_regression",
+          "median_fraction": 0.05,
+          "median_floor_ms": 2.0,
+          "p95_fraction": 0.1,
+          "p95_floor_ms": 5.0
+        },
+        "peak_rss_bytes": {
+          "kind": "resource",
+          "fraction": 0.1,
+          "floor_bytes": 16777216
+        },
+        "coin_image_bytes": {
+          "kind": "resource",
+          "fraction": 0.0,
+          "floor_bytes": 1048576
+        },
+        "decoded_image_bytes": {
+          "kind": "resource",
+          "fraction": 0.0,
+          "floor_bytes": 1048576
+        }
+      }
+    },
+    {
+      "id": "P03",
+      "title": "Element-map parser",
+      "baseline_origin_commit": "0e407927105623a454077881e7e032c45238f0af",
+      "optimized_origin_commit": "e093a1f66b3f921961c7a936924f58b88637bef8",
+      "alternate_origin_commits": [],
+      "source_delta_allowlist": [
+        "src/App/ElementMap.cpp"
+      ],
+      "primary_fixture_ids": [
+        "BIMExample",
+        "ArchDetail"
+      ],
+      "control_fixture_ids": [
+        "EngineBlock",
+        "PartDesignExample",
+        "draft_test_objects"
+      ],
+      "owner_task": "T004.3",
+      "metrics": {
+        "map_restore_ms": {
+          "kind": "improve",
+          "minimum_gain_fraction": 0.05,
+          "minimum_saved_ms": 1.0,
+          "bootstrap_ratio_upper_must_be_below": 1.0
+        },
+        "document_open_ms": {
+          "kind": "non_regression",
+          "median_fraction": 0.05,
+          "median_floor_ms": 2.0,
+          "p95_fraction": 0.1,
+          "p95_floor_ms": 5.0
+        },
+        "peak_rss_bytes": {
+          "kind": "resource",
+          "fraction": 0.1,
+          "floor_bytes": 16777216
+        },
+        "coin_image_bytes": {
+          "kind": "resource",
+          "fraction": 0.0,
+          "floor_bytes": 1048576
+        },
+        "decoded_image_bytes": {
+          "kind": "resource",
+          "fraction": 0.0,
+          "floor_bytes": 1048576
+        }
+      },
+      "control_timing_rule": {
+        "kind": "non_regression",
+        "median_fraction": 0.05,
+        "median_floor_ms": 2.0,
+        "p95_fraction": 0.1,
+        "p95_floor_ms": 5.0
+      },
+      "construction": "same-qualified-base-performance-only-delta",
+      "origin_pair_is_qualified_runtime_evidence": false,
+      "control_metrics": {
+        "map_restore_ms": {
+          "kind": "non_regression",
+          "median_fraction": 0.05,
+          "median_floor_ms": 2.0,
+          "p95_fraction": 0.1,
+          "p95_floor_ms": 5.0
+        },
+        "document_open_ms": {
+          "kind": "non_regression",
+          "median_fraction": 0.05,
+          "median_floor_ms": 2.0,
+          "p95_fraction": 0.1,
+          "p95_floor_ms": 5.0
+        },
+        "peak_rss_bytes": {
+          "kind": "resource",
+          "fraction": 0.1,
+          "floor_bytes": 16777216
+        },
+        "coin_image_bytes": {
+          "kind": "resource",
+          "fraction": 0.0,
+          "floor_bytes": 1048576
+        },
+        "decoded_image_bytes": {
+          "kind": "resource",
+          "fraction": 0.0,
+          "floor_bytes": 1048576
+        }
+      }
+    },
+    {
+      "id": "P04",
+      "title": "Direct 32-bit bitmap conversion",
+      "baseline_origin_commit": "57a9b795e82afc8b81d9cebda3edc40ff319c1f4",
+      "optimized_origin_commit": "f7227a6621832f869cab6a1bd4c028e89ce66551",
+      "alternate_origin_commits": [],
+      "source_delta_allowlist": [
+        "src/Gui/BitmapFactory.cpp"
+      ],
+      "primary_fixture_ids": [
+        "gridfinity-raster-a",
+        "gridfinity-raster-b"
+      ],
+      "control_fixture_ids": [
+        "gridfinity-raster-c"
+      ],
+      "owner_task": "T004.2",
+      "metrics": {
+        "convert_ms": {
+          "kind": "improve",
+          "minimum_gain_fraction": 0.05,
+          "minimum_saved_ms": 0.5,
+          "bootstrap_ratio_upper_must_be_below": 1.0
+        },
+        "peak_rss_bytes": {
+          "kind": "resource",
+          "fraction": 0.1,
+          "floor_bytes": 16777216
+        },
+        "coin_image_bytes": {
+          "kind": "resource",
+          "fraction": 0.0,
+          "floor_bytes": 1048576
+        },
+        "decoded_image_bytes": {
+          "kind": "resource",
+          "fraction": 0.0,
+          "floor_bytes": 1048576
+        }
+      },
+      "control_timing_rule": {
+        "kind": "non_regression",
+        "median_fraction": 0.05,
+        "median_floor_ms": 2.0,
+        "p95_fraction": 0.1,
+        "p95_floor_ms": 5.0
+      },
+      "construction": "same-qualified-base-performance-only-delta",
+      "origin_pair_is_qualified_runtime_evidence": false,
+      "control_metrics": {
+        "convert_ms": {
+          "kind": "non_regression",
+          "median_fraction": 0.05,
+          "median_floor_ms": 2.0,
+          "p95_fraction": 0.1,
+          "p95_floor_ms": 5.0
+        },
+        "peak_rss_bytes": {
+          "kind": "resource",
+          "fraction": 0.1,
+          "floor_bytes": 16777216
+        },
+        "coin_image_bytes": {
+          "kind": "resource",
+          "fraction": 0.0,
+          "floor_bytes": 1048576
+        },
+        "decoded_image_bytes": {
+          "kind": "resource",
+          "fraction": 0.0,
+          "floor_bytes": 1048576
+        }
+      }
+    },
+    {
+      "id": "P05",
+      "title": "Qt fallback bitmap conversion",
+      "baseline_origin_commit": "fa8659635e4b1f74220d1f0f6909185c777e55b0",
+      "optimized_origin_commit": "7252af06fb8900eb44f3b086c1b51adc23f5459b",
+      "alternate_origin_commits": [],
+      "source_delta_allowlist": [
+        "src/Gui/BitmapFactory.cpp"
+      ],
+      "primary_fixture_ids": [
+        "generated-fallback-large-v1"
+      ],
+      "control_fixture_ids": [
+        "generated-fallback-small-v1"
+      ],
+      "owner_task": "T004.2",
+      "metrics": {
+        "convert_ms": {
+          "kind": "improve",
+          "minimum_gain_fraction": 0.05,
+          "minimum_saved_ms": 0.5,
+          "bootstrap_ratio_upper_must_be_below": 1.0
+        },
+        "peak_rss_bytes": {
+          "kind": "resource",
+          "fraction": 0.1,
+          "floor_bytes": 16777216
+        },
+        "coin_image_bytes": {
+          "kind": "resource",
+          "fraction": 0.0,
+          "floor_bytes": 1048576
+        },
+        "decoded_image_bytes": {
+          "kind": "resource",
+          "fraction": 0.0,
+          "floor_bytes": 1048576
+        }
+      },
+      "control_timing_rule": {
+        "kind": "non_regression",
+        "median_fraction": 0.05,
+        "median_floor_ms": 2.0,
+        "p95_fraction": 0.1,
+        "p95_floor_ms": 5.0
+      },
+      "construction": "same-qualified-base-performance-only-delta",
+      "origin_pair_is_qualified_runtime_evidence": false,
+      "control_metrics": {
+        "convert_ms": {
+          "kind": "non_regression",
+          "median_fraction": 0.05,
+          "median_floor_ms": 2.0,
+          "p95_fraction": 0.1,
+          "p95_floor_ms": 5.0
+        },
+        "peak_rss_bytes": {
+          "kind": "resource",
+          "fraction": 0.1,
+          "floor_bytes": 16777216
+        },
+        "coin_image_bytes": {
+          "kind": "resource",
+          "fraction": 0.0,
+          "floor_bytes": 1048576
+        },
+        "decoded_image_bytes": {
+          "kind": "resource",
+          "fraction": 0.0,
+          "floor_bytes": 1048576
+        }
+      }
+    },
+    {
+      "id": "P06",
+      "title": "Deferred pre-restore image loads",
+      "baseline_origin_commit": "e093a1f66b3f921961c7a936924f58b88637bef8",
+      "optimized_origin_commit": "cdf2a84f4ba36518c3cd5de977a20ef6c98721a4",
+      "alternate_origin_commits": [],
+      "source_delta_allowlist": [
+        "src/Gui/ViewProviderImagePlane.cpp",
+        "src/Gui/ViewProviderImagePlane.h"
+      ],
+      "primary_fixture_ids": [
+        "gridfinity-drawer-v1.3"
+      ],
+      "control_fixture_ids": [
+        "ProjectTest",
+        "PartDesignExample"
+      ],
+      "owner_task": "T020",
+      "metrics": {
+        "failed_pre_restore_loads": {
+          "kind": "zero",
+          "baseline_must_be_positive": true
+        },
+        "gui_open_frame_ms": {
+          "kind": "non_regression",
+          "median_fraction": 0.05,
+          "median_floor_ms": 2.0,
+          "p95_fraction": 0.1,
+          "p95_floor_ms": 5.0
+        },
+        "peak_rss_bytes": {
+          "kind": "resource",
+          "fraction": 0.1,
+          "floor_bytes": 16777216
+        },
+        "coin_image_bytes": {
+          "kind": "resource",
+          "fraction": 0.0,
+          "floor_bytes": 1048576
+        },
+        "decoded_image_bytes": {
+          "kind": "resource",
+          "fraction": 0.0,
+          "floor_bytes": 1048576
+        }
+      },
+      "control_timing_rule": {
+        "kind": "non_regression",
+        "median_fraction": 0.05,
+        "median_floor_ms": 2.0,
+        "p95_fraction": 0.1,
+        "p95_floor_ms": 5.0
+      },
+      "construction": "same-qualified-base-performance-only-delta",
+      "origin_pair_is_qualified_runtime_evidence": false,
+      "control_metrics": {
+        "gui_open_frame_ms": {
+          "kind": "non_regression",
+          "median_fraction": 0.05,
+          "median_floor_ms": 2.0,
+          "p95_fraction": 0.1,
+          "p95_floor_ms": 5.0
+        },
+        "peak_rss_bytes": {
+          "kind": "resource",
+          "fraction": 0.1,
+          "floor_bytes": 16777216
+        },
+        "coin_image_bytes": {
+          "kind": "resource",
+          "fraction": 0.0,
+          "floor_bytes": 1048576
+        },
+        "decoded_image_bytes": {
+          "kind": "resource",
+          "fraction": 0.0,
+          "floor_bytes": 1048576
+        }
+      }
+    },
+    {
+      "id": "P07",
+      "title": "Lazy original-resolution image textures",
+      "baseline_origin_commit": "cdf2a84f4ba36518c3cd5de977a20ef6c98721a4",
+      "optimized_origin_commit": "c1722e4b2c5ab7019cd3fdce08eb7199459de859",
+      "alternate_origin_commits": [],
+      "source_delta_allowlist": [
+        "src/Gui/ViewProviderImagePlane.cpp",
+        "src/Gui/ViewProviderImagePlane.h"
+      ],
+      "primary_fixture_ids": [
+        "gridfinity-drawer-v1.3"
+      ],
+      "control_fixture_ids": [
+        "PartDesignExample",
+        "TestVRMLTextures"
+      ],
+      "owner_task": "T020",
+      "metrics": {
+        "gui_open_frame_ms": {
+          "kind": "improve",
+          "minimum_gain_fraction": 0.05,
+          "minimum_saved_ms": 2.0,
+          "bootstrap_ratio_upper_must_be_below": 1.0
+        },
+        "open_plus_first_show_ms": {
+          "kind": "non_regression",
+          "median_fraction": 0.05,
+          "median_floor_ms": 2.0,
+          "p95_fraction": 0.1,
+          "p95_floor_ms": 5.0
+        },
+        "first_show_frame_ms": {
+          "kind": "budget",
+          "median_ms": 500.0,
+          "p95_ms": 1000.0
+        },
+        "repeat_show_frame_ms": {
+          "kind": "budget",
+          "median_ms": 50.0,
+          "p95_ms": 100.0
+        },
+        "peak_rss_bytes": {
+          "kind": "resource",
+          "fraction": 0.1,
+          "floor_bytes": 16777216
+        },
+        "coin_image_bytes": {
+          "kind": "resource",
+          "fraction": 0.0,
+          "floor_bytes": 1048576
+        },
+        "decoded_image_bytes": {
+          "kind": "resource",
+          "fraction": 0.0,
+          "floor_bytes": 1048576
+        }
+      },
+      "control_timing_rule": {
+        "kind": "non_regression",
+        "median_fraction": 0.05,
+        "median_floor_ms": 2.0,
+        "p95_fraction": 0.1,
+        "p95_floor_ms": 5.0
+      },
+      "construction": "same-qualified-base-performance-only-delta",
+      "origin_pair_is_qualified_runtime_evidence": false,
+      "control_metrics": {
+        "gui_open_frame_ms": {
+          "kind": "non_regression",
+          "median_fraction": 0.05,
+          "median_floor_ms": 2.0,
+          "p95_fraction": 0.1,
+          "p95_floor_ms": 5.0
+        },
+        "peak_rss_bytes": {
+          "kind": "resource",
+          "fraction": 0.1,
+          "floor_bytes": 16777216
+        },
+        "coin_image_bytes": {
+          "kind": "resource",
+          "fraction": 0.0,
+          "floor_bytes": 1048576
+        },
+        "decoded_image_bytes": {
+          "kind": "resource",
+          "fraction": 0.0,
+          "floor_bytes": 1048576
+        }
+      },
+      "primary_context": "restored-hidden-first-show-repeat-v1",
+      "additional_context": "all-visible-open-v1",
+      "primary_context_metrics": {
+        "restored-hidden-first-show-repeat-v1": {
+          "gui_open_frame_ms": {
+            "kind": "improve",
+            "minimum_gain_fraction": 0.05,
+            "minimum_saved_ms": 2.0,
+            "bootstrap_ratio_upper_must_be_below": 1.0
+          },
+          "open_plus_first_show_ms": {
+            "kind": "non_regression",
+            "median_fraction": 0.05,
+            "median_floor_ms": 2.0,
+            "p95_fraction": 0.1,
+            "p95_floor_ms": 5.0
+          },
+          "first_show_frame_ms": {
+            "kind": "budget",
+            "median_ms": 500.0,
+            "p95_ms": 1000.0
+          },
+          "repeat_show_frame_ms": {
+            "kind": "budget",
+            "median_ms": 50.0,
+            "p95_ms": 100.0
+          },
+          "peak_rss_bytes": {
+            "kind": "resource",
+            "fraction": 0.1,
+            "floor_bytes": 16777216
+          },
+          "coin_image_bytes": {
+            "kind": "resource",
+            "fraction": 0.0,
+            "floor_bytes": 1048576
+          },
+          "decoded_image_bytes": {
+            "kind": "resource",
+            "fraction": 0.0,
+            "floor_bytes": 1048576
+          }
+        },
+        "all-visible-open-v1": {
+          "gui_open_frame_ms": {
+            "kind": "non_regression",
+            "median_fraction": 0.05,
+            "median_floor_ms": 2.0,
+            "p95_fraction": 0.1,
+            "p95_floor_ms": 5.0
+          },
+          "peak_rss_bytes": {
+            "kind": "resource",
+            "fraction": 0.1,
+            "floor_bytes": 16777216
+          },
+          "coin_image_bytes": {
+            "kind": "resource",
+            "fraction": 0.0,
+            "floor_bytes": 1048576
+          },
+          "decoded_image_bytes": {
+            "kind": "resource",
+            "fraction": 0.0,
+            "floor_bytes": 1048576
+          }
+        }
+      }
+    },
+    {
+      "id": "P08",
+      "title": "Restore-time tree status coalescing",
+      "baseline_origin_commit": "c1722e4b2c5ab7019cd3fdce08eb7199459de859",
+      "optimized_origin_commit": "00dd158de837fee43074db8b28979e30e4210d11",
+      "alternate_origin_commits": [
+        "61031d7f8a504469c266ff33cfb027b3c099cb29"
+      ],
+      "source_delta_allowlist": [
+        "src/Gui/Tree.cpp",
+        "src/Gui/Tree.h"
+      ],
+      "primary_fixture_ids": [
+        "BIMExample",
+        "ArchDetail"
+      ],
+      "control_fixture_ids": [
+        "EngineBlock",
+        "PartDesignExample",
+        "draft_test_objects"
+      ],
+      "owner_task": "T004.3",
+      "metrics": {
+        "restore_status_schedules": {
+          "kind": "reduction",
+          "minimum_reduction_fraction": 0.5
+        },
+        "gui_open_frame_ms": {
+          "kind": "non_regression",
+          "median_fraction": 0.05,
+          "median_floor_ms": 2.0,
+          "p95_fraction": 0.1,
+          "p95_floor_ms": 5.0
+        },
+        "peak_rss_bytes": {
+          "kind": "resource",
+          "fraction": 0.1,
+          "floor_bytes": 16777216
+        },
+        "coin_image_bytes": {
+          "kind": "resource",
+          "fraction": 0.0,
+          "floor_bytes": 1048576
+        },
+        "decoded_image_bytes": {
+          "kind": "resource",
+          "fraction": 0.0,
+          "floor_bytes": 1048576
+        }
+      },
+      "control_timing_rule": {
+        "kind": "non_regression",
+        "median_fraction": 0.05,
+        "median_floor_ms": 2.0,
+        "p95_fraction": 0.1,
+        "p95_floor_ms": 5.0
+      },
+      "construction": "same-qualified-base-performance-only-delta",
+      "origin_pair_is_qualified_runtime_evidence": false,
+      "control_metrics": {
+        "gui_open_frame_ms": {
+          "kind": "non_regression",
+          "median_fraction": 0.05,
+          "median_floor_ms": 2.0,
+          "p95_fraction": 0.1,
+          "p95_floor_ms": 5.0
+        },
+        "peak_rss_bytes": {
+          "kind": "resource",
+          "fraction": 0.1,
+          "floor_bytes": 16777216
+        },
+        "coin_image_bytes": {
+          "kind": "resource",
+          "fraction": 0.0,
+          "floor_bytes": 1048576
+        },
+        "decoded_image_bytes": {
+          "kind": "resource",
+          "fraction": 0.0,
+          "floor_bytes": 1048576
+        }
+      }
+    }
+  ],
+  "fixtures": {
+    "BIMExample": {
+      "availability": "repository",
+      "path": "data/examples/BIMExample.FCStd",
+      "size_bytes": 2111562,
+      "sha256": "6cb5051734c60cc42cd3f7f07f4815a0cdc084ba54b0c627dab2da7d00744932"
+    },
+    "ArchDetail": {
+      "availability": "repository",
+      "path": "data/examples/ArchDetail.FCStd",
+      "size_bytes": 1897884,
+      "sha256": "f32f367cd46399f7e9072ff9902c658165d71dd05d51b3f6dcbbd2e0ce998cf7"
+    },
+    "EngineBlock": {
+      "availability": "repository",
+      "path": "data/examples/EngineBlock.FCStd",
+      "size_bytes": 86719,
+      "sha256": "9c2d87a893fddbbcc331d2ca29c650d6f564b36265f7ed14b67b251ec0c686b5"
+    },
+    "PartDesignExample": {
+      "availability": "repository",
+      "path": "data/examples/PartDesignExample.FCStd",
+      "size_bytes": 244033,
+      "sha256": "0aa09dac21c19ba07f8abe32ebd7957b8539a430f6832c66ce2e15609d762ac7"
+    },
+    "draft_test_objects": {
+      "availability": "repository",
+      "path": "data/examples/draft_test_objects.FCStd",
+      "size_bytes": 122106,
+      "sha256": "83a0acb2944b163563b4f0afe32f21c362d2b24769bb9e3947fb6dfe48ddd2df"
+    },
+    "AssemblyExample": {
+      "availability": "repository",
+      "path": "data/examples/AssemblyExample.FCStd",
+      "size_bytes": 171924,
+      "sha256": "65f32e1788cdc34d76f2b3d67ada3ff9faa02b1e1f36c1fa6ef7af4b302e5939"
+    },
+    "ProjectTest": {
+      "availability": "repository",
+      "path": "data/tests/ProjectTest.FCStd",
+      "size_bytes": 7486,
+      "sha256": "2b6c02304378da2e75796d5af85dc6a8686d9bc6a5c50b3694a15f639573f7fd"
+    },
+    "TestVRMLTextures": {
+      "availability": "repository",
+      "path": "data/tests/TestVRMLTextures.FCStd",
+      "size_bytes": 35083,
+      "sha256": "7b5ed0e601bda6f1415fdae837211a7308c1d4f4df3cc16d600cbe894db6bc74"
+    },
+    "gridfinity-drawer-v1.3": {
+      "availability": "local-external-not-distributed",
+      "locator_environment_variable": "FREECAD_BENCH_FILE",
+      "path": "local:gridfinity-drawer-v1.3",
+      "size_bytes": 59604909,
+      "sha256": "117095480bd92c7a53811725ecf2194503de45bc15d4e516bac9cb0e0f6f0f0b"
+    },
+    "gridfinity-raster-a": {
+      "availability": "hashed-archive-payload",
+      "archive_fixture_id": "gridfinity-drawer-v1.3",
+      "sha256": "8dea3a5aafcbd33719a87142049fd2025efd72f21d0eea08cde4c9edef97a7ec",
+      "size_bytes": 26002802,
+      "dimensions": [
+        5712,
+        4284
+      ],
+      "entry_selection": "payload SHA-256, not filename",
+      "maximum_entry_bytes": 33554432
+    },
+    "gridfinity-raster-b": {
+      "availability": "hashed-archive-payload",
+      "archive_fixture_id": "gridfinity-drawer-v1.3",
+      "sha256": "54d6565fab1d7d8949cd0c6fcdba5e2b453212990663144484a768c4f8c3304d",
+      "size_bytes": 25753036,
+      "dimensions": [
+        5712,
+        4284
+      ],
+      "entry_selection": "payload SHA-256, not filename",
+      "maximum_entry_bytes": 33554432
+    },
+    "gridfinity-raster-c": {
+      "availability": "hashed-archive-payload",
+      "archive_fixture_id": "gridfinity-drawer-v1.3",
+      "sha256": "a500a37865628fda3b26894581f0d6c1150b64a380f66214a8acdfcd57f36784",
+      "size_bytes": 5490205,
+      "dimensions": [
+        1785,
+        1959
+      ],
+      "entry_selection": "payload SHA-256, not filename",
+      "maximum_entry_bytes": 33554432
+    },
+    "generated-fallback-large-v1": {
+      "availability": "planned-generator",
+      "recipe": {
+        "dimensions": [
+          4096,
+          4096
+        ],
+        "formats": [
+          "Indexed8 grayscale",
+          "grayscale-alpha",
+          "ARGB32_Premultiplied",
+          "Grayscale16",
+          "SVG-rendered RGBA"
+        ],
+        "pixel_recipe": "r=(17*x+3*y)%256;g=(5*x+11*y)%256;b=(x+7*y)%256;a=(13*x+y)%256; grayscale=(x+3*y)%256; use asymmetric corner labels",
+        "normalization": "Record actual QImage format, bytesPerLine, color space and premultiplication; preserve source semantics; no resolution reduction."
+      },
+      "recipe_sha256": "3f5d389b757a2817b81bc4ba82782e494d3a952dc500c420e8e5fff6456144c8",
+      "output_sha256": null,
+      "eligibility": "Materialize and hash generator/test source and actual outputs before the first accepted sample; T001 does not execute the generator."
+    },
+    "generated-fallback-small-v1": {
+      "availability": "planned-generator",
+      "recipe": {
+        "dimensions": [
+          512,
+          512
+        ],
+        "formats": [
+          "Indexed8 grayscale",
+          "grayscale-alpha",
+          "ARGB32_Premultiplied",
+          "Grayscale16",
+          "SVG-rendered RGBA"
+        ],
+        "pixel_recipe": "r=(17*x+3*y)%256;g=(5*x+11*y)%256;b=(x+7*y)%256;a=(13*x+y)%256; grayscale=(x+3*y)%256; use asymmetric corner labels",
+        "normalization": "Record actual QImage format, bytesPerLine, color space and premultiplication; preserve source semantics; no resolution reduction."
+      },
+      "recipe_sha256": "026d05ddf7e560fdb937611fcb2de419570e010a890e7ccfac0bcce36f66beaa",
+      "output_sha256": null,
+      "eligibility": "Materialize and hash generator/test source and actual outputs before the first accepted sample; T001 does not execute the generator."
+    }
+  },
+  "source_gate_tasks": [
+    "T001",
+    "T012",
+    "T013",
+    "T003",
+    "T006",
+    "T014",
+    "T017",
+    "T007",
+    "T015",
+    "T016",
+    "T005",
+    "T018",
+    "T002"
+  ],
+  "qualification": "Both performance arms must use the same safety-qualified Phase 2 common base, source-build receipts and normative fixture checks. Historical origins locate the optimization only; never benchmark unsafe historical trees directly. Freeze exact generated arm commits and receipts before sampling.",
+  "execution_freeze_required": [
+    "protocol_sha256",
+    "comparison_id",
+    "fixture_id",
+    "fixture_sha256",
+    "context",
+    "context_sha256",
+    "qualification_receipt_sha256",
+    "normative_state_sha256",
+    "comparison_base_commit",
+    "performance_delta_sha256",
+    "baseline",
+    "change",
+    "protocol_document_sha256",
+    "collector_sha256"
+  ],
+  "remaining_unexecuted": [
+    "Phase 2 fixes and qualification",
+    "construction and freezing of actual same-base performance arm commits",
+    "fresh optimized builds and worker/frame probes",
+    "planned fixture generation",
+    "real performance/resource samples",
+    "final T010 applicability and platform checks"
+  ]
+}

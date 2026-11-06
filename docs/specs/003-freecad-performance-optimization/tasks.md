@@ -31,7 +31,7 @@ that explicit routing verified.
 
 | Phase | Required sequence | Exit gate |
 | --- | --- | --- |
-| 1 — Planning | T021/T019 retained; T009 scope disposition; **T001 next** | D001 protocol approved before source work |
+| 1 — Planning | T021/T019 retained; T009 scope disposition; T001 complete | D001 protocol approved before source work |
 | 2A — Images | T012 → T013 → T003 → T006 | Safe conversion and calibrated lifecycle qualified |
 | 2B — Tree | T014 → T017 → T007 | Receiver/completion fixes and current functional qualification |
 | 2C — CAD maps | T015 → T016 → T005 | Bounded parsing and CAD reference identity qualified |
@@ -73,9 +73,9 @@ none -> T008
 
 ## Phase 1 — Finish Planning
 
-Exit: T021/T019 evidence retained, T009 scope disposition recorded, and T001 resolves D001 with a
-runnable benchmark/validation contract. **Next action: T001 — Fix the current benchmark protocol and
-baseline revisions.**
+Exit satisfied: T021/T019 evidence retained, T009 scope disposition recorded, and T001
+resolves D001 with the benchmark protocol. **Next action: T012 — Guard bitmap dimensions
+and conversion arithmetic (Phase 2A).**
 
 - [x] T021 Expose lifecycle decisions and verify execution guardrails.
   - Depends on: none
@@ -153,13 +153,13 @@ baseline revisions.**
   - Destination: docs/backlog/spec003-follow-ups.md#b009-reduced-resolution-texture-exploration
 
   - Status: Documentation scope/routing acceptance complete. B009 remains deferred; runtime safety/calibration/performance tasks remain pending.
-- [ ] T001 Fix the current benchmark protocol and baseline revisions.
+- [x] T001 Fix the current benchmark protocol and baseline revisions.
   - Depends on: T019, T021, T009
   - Requirements: Requirement 3 AC1, AC3 (protocol definition); actual measurements remain Phase 3
   - Design: design.md#execution-phases-and-checkpoints;
     design.md#evidence-applicability-and-benchmark-contract
-  - Files: `benchmark-protocol.md` (create in T001), `open-decisions.md`, `verification.md`,
-    `validation-manifest.md`
+  - Files: `benchmark-protocol.md`, `benchmark-plan.json`, `benchmark-runner.py`,
+    `open-decisions.md`, `verification.md`; immutable `validation-manifest.md` is an input
   - Acceptance: D001 approves the candidate manifest, exact baseline/change revisions, fixture
     identities, per-optimization measurement inventory, primary metrics/endpoints, run
     count/statistic, warm-up/exclusion/cache policy, variability handling and
@@ -170,15 +170,15 @@ baseline revisions.**
     cannot start until this task is complete.
   - Validation: Review the protocol against Requirement 3 and T019 applicability; verify D001
     resolution, all four phase gates and baseline/changed composition choices before source work.
-  - Evidence mode: reasoned
-  - Evidence: Pending D001 protocol definition and decision. User-authorized replan selects this Phase 1 planning task next; no benchmark samples or pass criteria are approved yet.
+  - Evidence mode: artifact
+  - Evidence: 2026-11-06: benchmark-protocol.md, benchmark-plan.json and benchmark-runner.py predeclare eight exact source-origin pairs, hashed fixture scope, matched optimized arms, 20 measured pairs, endpoints/statistics/variability and timing/latency/resource gates. Collector --check --self-test and --schedule passed; synthetic timeout/output-cap/failure handling verified. Direct checker passed 40 stable task IDs, 79 local links, completed provenance and immutable/history preservation, eight public fixtures and private document/three bounded PNG identities; source/config unchanged. MCP decisions returns none; task_context(T001) has zero gaps/open decisions; package lint zero diagnostics; root/nested docs whitespace passes. D001 records delegated owner selection. Corrected runtime arms, generated outputs, probes and actual samples remain Phase 3 after Phase 2 qualification.
   - Decision owner: local-developer
-  - Open decisions: D001
+  - Resolved decisions: D001
   - Candidate manifest: spec003-linux-x86_64-debug-candidate-20261106-v1; see validation-manifest.md
     and record actual execution provenance.
   - Context evidence: May timings and transient scripts are historical; a comparable current
-    protocol is absent.
-  - Status: Next executable planning task; its output resolves D001. Phase 2 is blocked until completion.
+    protocol is now predeclared in benchmark-protocol.md; runtime results remain pending.
+  - Status: Completed Phase 1 protocol definition and delegated D001 selection. Next T012; no source correction or runtime/performance acceptance claimed.
 
 ## Phase 2 — Complete Correction And Qualification Slices
 
@@ -564,7 +564,7 @@ non-regression contract. Earlier source-fix tests do not prove speedup.
   - Evidence mode: artifact
   - Evidence: Pending.
   - Owner: local-developer
-  - Open decisions: D001
+  - Resolved decisions: D001
   - Candidate manifest: spec003-linux-x86_64-debug-candidate-20261106-v1; see validation-manifest.md
     and record actual execution provenance.
   - Context evidence: F007: show performs deferred decode/conversion and fallback storage expands
@@ -583,7 +583,7 @@ non-regression contract. Earlier source-fix tests do not prove speedup.
   - Validation: See verification.md#quality-gates and the linked criteria.
   - Evidence mode: command
   - Evidence: Pending.
-  - Open decisions: D001
+  - Resolved decisions: D001
   - Candidate manifest: spec003-linux-x86_64-debug-candidate-20261106-v1; see validation-manifest.md
     and record actual execution provenance.
   - Context evidence: Historical May restore and image improvements cannot establish current
@@ -626,10 +626,10 @@ non-regression contract. Earlier source-fix tests do not prove speedup.
     - Evidence mode: artifact
     - Evidence: Pending.
     - Owner: local-developer
-    - Open decisions: D001
+    - Resolved decisions: D001
     - Candidate manifest: spec003-linux-x86_64-debug-candidate-20261106-v1; see
       validation-manifest.md and record actual execution provenance.
-    - Context evidence: Pending D001 inventory and current comparative measurements.
+    - Context evidence: D001 inventory is predeclared; current comparative measurements remain pending.
 
 ## Phase 4 — Prepare Delivery And Close
 

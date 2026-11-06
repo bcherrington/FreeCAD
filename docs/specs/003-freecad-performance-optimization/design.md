@@ -148,7 +148,8 @@ correctness, archive, calibration, lifecycle, manual/visual and performance chec
 or explicit reviewed equivalence. A build or a final timing assembly does not
 by itself revalidate evidence from a different composition.
 
-D001/T001 must predeclare primary metrics/fixtures, sample count/statistic,
+D001/T001 selects [benchmark-protocol.md](benchmark-protocol.md) and its linked
+JSON/collector. They predeclare primary metrics/fixtures, sample count/statistic,
 warm-up/exclusion/cache policy, variability handling, and improvement and
 non-regression pass rules before samples are collected. Inventory buffered
 restore, any retained buffered-save patch, element-map parsing, image conversion,
@@ -187,7 +188,7 @@ Source implementation facts and dated results remain in
 [baseline-status.md](baseline-status.md); they do not set executable task status.
 
 1. **Planning:** retain T021/T019 evidence, record T009's B009 scope disposition,
-   and complete T001's runnable D001 protocol before any new source work.
+   and retain T001's completed runnable D001 protocol before any new source work.
 2. **Correction/qualification:** finish image safety/calibration/fidelity,
    tree lifetime/completion, parser/CAD identity and archive compatibility in
    that order. Each fix includes its own regression; each subgroup ends with
@@ -229,7 +230,8 @@ until acceptance, reviews, promotion and closure metadata are complete.
 ## Open Questions
 
 The authoritative unresolved decision ledger is [open-decisions.md](open-decisions.md).
-D001 remains the Phase 1 measurement/pass-rule decision. Resolved D002 routes
+D001 is resolved with the predeclared measurement/pass-rule protocol; Phase 1
+is complete and T012 starts Phase 2. Resolved D002 routes
 optional reduced-resolution exploration to B009 while keeping full resolution;
 resolved D003 pins the initial local candidate and applicability policy.
 T010.1 still confirms the exact final production composition and affected evidence. T021 verifies discovery of all three IDs and distinguishes
