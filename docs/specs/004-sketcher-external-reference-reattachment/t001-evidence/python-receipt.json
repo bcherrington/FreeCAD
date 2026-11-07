@@ -1,0 +1,28 @@
+{
+  "names": [
+    "SketcherTests.TestSketcherSolver.TestSketcherSolver.testRecomputeScalarAndListTransactions",
+    "SketcherTests.TestSketcherSolver.TestSketcherSolver.testRecomputeUndoRedoImmediateSolveAndMove",
+    "SketcherTests.TestSketcherSolver.TestSketcherSolver.testLegacyExternalGeometryOrientationMigration",
+    "SketcherTests.TestSketcherSolver.TestSketcherSolver.testReversedExternalGeometryLeavesSketchInPlace",
+    "SketcherTests.TestSketcherSolver.TestSketcherSolver.testSaveLoadWithExternalGeometryReference"
+  ],
+  "run": 5,
+  "failures": 0,
+  "errors": 0,
+  "skips": 0,
+  "FreeCAD": [
+    "27",
+    "1",
+    "0",
+    "Dev Build",
+    "Dev Build",
+    "Dev Build"
+  ],
+  "resource_directory": "/home/bcherrington/Projects/CLion/FreeCAD/build/debug/share/",
+  "test_module": "/home/bcherrington/Projects/CLion/FreeCAD/src/Mod/Sketcher/SketcherTests/TestSketcherSolver.py",
+  "surface": {
+    "addExternal": true,
+    "attachExternal": false,
+    "reattachExternal": false
+  }
+}

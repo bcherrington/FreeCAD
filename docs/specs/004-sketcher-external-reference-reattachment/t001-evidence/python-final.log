@@ -1,0 +1,17 @@
+FreeCAD 27.1.0, Libs: 27.1.0devRDev Build
+(C) 2001-2026 FreeCAD contributors
+FreeCAD is free and open-source software licensed under the terms of LGPL2+ license.
+
+FreeCAD is running in _SAFE_MODE_.
+Safe mode temporarily disables your configurations and addons. Restart the application to exit safe mode.
+
+testRecomputeScalarAndListTransactions (SketcherTests.TestSketcherSolver.TestSketcherSolver.testRecomputeScalarAndListTransactions) ... ok
+testRecomputeUndoRedoImmediateSolveAndMove (SketcherTests.TestSketcherSolver.TestSketcherSolver.testRecomputeUndoRedoImmediateSolveAndMove) ... ok
+testLegacyExternalGeometryOrientationMigration (SketcherTests.TestSketcherSolver.TestSketcherSolver.testLegacyExternalGeometryOrientationMigration) ... ok
+testReversedExternalGeometryLeavesSketchInPlace (SketcherTests.TestSketcherSolver.TestSketcherSolver.testReversedExternalGeometryLeavesSketchInPlace) ... ok
+testSaveLoadWithExternalGeometryReference (SketcherTests.TestSketcherSolver.TestSketcherSolver.testSaveLoadWithExternalGeometryReference) ... ok
+
+----------------------------------------------------------------------
+Ran 5 tests in 1.526s
+
+OK

@@ -39,7 +39,7 @@ it records proposed behavior, not an implemented API or upstream acceptance.
 
 | Term | Definition |
 | --- | --- |
-| Link slot | Position of a source object/subelement pair in ExternalGeometry |
+| Link slot | Position of a native raw source/subelement pair; Python ExternalGeometry groups subelements by object |
 | Geometry index | Negative Sketcher constraint reference index; -3 is the first non-axis external geometry |
 | Native ID | Persistent identity on an external geometry extension; distinct from either slot or index |
 | Ref | Native mapped reference associating a projection with its source link |
@@ -75,11 +75,18 @@ runtime authority. Its reports of bridge fixes do not prove native correctness.
 ## Staged Readiness
 
 - **Current stage:** design/tasks drafted.
-- **Next stage:** T001 contract qualification, then implementation.
+- **Next stage:** T002 native implementation after T001 reconciliation/validation; D001 and D002 are resolved locally.
 - **Ready to design when:** satisfied for the bounded proposed scope below.
 - **Design-first exception:** no; requirements precede the proposed design.
 - **Optional artifacts recommended:** canonical-context.md, traceability.md, verification.md.
-- **Downstream review needed:** resolve D001 and D002 before T002; public API review before delivery.
+- **Downstream review needed:** native/Python implementation review and public API review before delivery.
+
+D001 selects reattachExternal. The user explicitly accepted D002 Option A: normal
+FreeCAD transaction semantics. Preflight rejection and admitted exact no-op are
+unchanged-state operations; unexpected errors after application starts require
+caller recovery. Successful-operation preservation criteria remain intact.
+Executed probes establish the baseline and scope decision, not a new implementation.
+See [T001 qualification](t001-qualification.md).
 
 ## Requirements
 
@@ -127,10 +134,11 @@ constraints, so that downstream modelling intent survives a source selector chan
    signed point-to-line Distance and Tangent orientation.
 5. WHEN the source object changes, THEN native dependency/backlink relationships
    reflect the new link; obsolete dependencies are removed unless another retained
-   reference still requires them. Failure and lifecycle restoration preserve the
-   corresponding InList/OutList and property dependency state.
+   reference still requires them. Preflight rejection, successful return and
+   caller abort/undo/redo/save-reopen must have the corresponding InList/OutList and
+   property dependency state; an unexpected apply failure requires caller recovery.
 
-### Requirement 3: Fail without partial changes
+### Requirement 3: Validate before mutation and report application failures
 
 **User Story:** As an integration author, I want invalid replacements to fail
 predictably, so that I can recover without reconstructing the sketch.
@@ -148,19 +156,24 @@ predictably, so that I can recover without reconstructing the sketch.
    curve, a different analytic type, a degenerate projection, a duplicate destination
    link or ambiguous endpoint mapping, THEN the method rejects the request without
    expanding it to related geometry or removing constraints.
-3. IF projection preparation or application fails, THEN authored state, reference
-   resolution and native lookup/solver consistency are restored; unrelated changes
-   in the caller's transaction are preserved and no transaction is committed or aborted.
-   Document/object/property dirty/touched state, enforced or pending recompute,
-   active/booked transaction identity and contents, and undo/redo availability must
-   match the pre-call state. Tests include an earlier edit to the same affected property.
+3. IF admission or projection preparation fails before application begins, THEN
+   model/dependency state, dirty/touched/recompute state and transaction/undo/redo
+   metadata remain unchanged, including earlier edits to the same property. IF an
+   unexpected error occurs after application begins, THEN it is surfaced as an
+   exception and no success is returned. The API SHALL NOT commit or abort the caller's
+   transaction or retry automatically. Partial changes, dirty state and lost redo
+   history are possible; the caller must abort its transaction or recover a checkpoint.
+   Operation-local rollback and preservation of earlier caller edits on abort are
+   not guaranteed. This recovery boundary SHALL be documented in the public API.
 4. GIVEN an otherwise admitted projection in a supported execution mode and an exact
    already-attached source/selector, WHEN invoked again, THEN the operation is a no-op:
    it emits no change notification, alters no journal entry and preserves clean state.
-5. WHEN any model-change notification is emitted during the operation, THEN a
-   read-only observer sees coherent source links, ExternalTypes, projected geometry,
-   Ref resolution and native IDs. Precondition failures emit no model-change signals.
-   Operation-local restoration cannot be used to retract already published invalid state.
+5. DURING application, ordinary FreeCAD property notifications may expose intermediate
+   link/projection state; they do not indicate completed reattachment. WHEN the method
+   returns successfully, THEN source links, ExternalTypes, projected geometry, Ref/ID
+   mappings and dependencies are coherent. Preflight rejection and admitted exact no-op
+   emit no model-change signals. No atomic multi-property publication mechanism is
+   promised; normal native ownership/lifetime safety still applies.
 
 ### Requirement 4: Transactions, recompute and persistence
 
@@ -175,7 +188,10 @@ edits, so that undo and saved models remain reliable.
    supported without explicitly opening, committing or aborting a top-level transaction,
    saving a file or performing a whole-document recompute; successful edits correctly
    invalidate affected derived state. Normal FreeCAD booked/global transaction
-   materialization is allowed on success; failure and no-op preserve pre-call metadata.
+   materialization is allowed once application starts. Preflight rejection and no-op
+   preserve pre-call metadata; unexpected apply errors require caller recovery and
+   may alter metadata. Dedicated per-operation transactions are recommended; abort
+   of a shared transaction also discards earlier edits in that transaction.
 2. GIVEN a committed replacement, WHEN undo and redo run with normal recomputation,
    THEN both states restore the correct source, native ID, order, authored flags and
    dependent constraint roles; abort restores the original state as well.
@@ -211,7 +227,7 @@ tests, so that existing scripting and model workflows remain stable.
 ## Correctness Properties
 
 - **CP-001:** Successful replacement preserves native identity, both orders, ExternalTypes and authored constraint roles/Orientation.
-- **CP-002:** Failed replacement preserves authored/dependency state, coherent derived lookups, dirty/touched/recompute state and transaction/undo/redo metadata; observers never see inconsistent publication.
+- **CP-002:** Preflight rejection and admitted no-op preserve model/journal state without notifications. Success returns coherent state; unexpected apply errors propagate for caller recovery without implicit commit, abort or retry. Intermediate normal notifications are permitted.
 - **CP-003:** Undo, redo, abort and save/reopen preserve the corresponding semantic state.
 - **CP-004:** New source geometry and dependency/backlink state agree with the preserved reference; unrelated references do not change.
 - **CP-005:** Existing APIs retain their behavior and transaction ownership remains with the caller.

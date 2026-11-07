@@ -12,16 +12,18 @@ last_reviewed: 2026-11-07
 ## Scope
 
 Requirements 1–5, CP-001–CP-005 and T001–T006. This is a proposed validation
-plan plus a spec-authoring record. No native implementation, new regression,
-runtime activation or live model retargeting has been performed by this package.
+plan, spec-authoring record and T001 qualification evidence. Eight standalone
+baseline probes, six existing native cases, five existing Python cases and one
+arc fixture have run. No new API, T002 implementation, operator-runtime activation
+or live model retargeting has been performed.
 
 ## Quality Gates
 
 | Gate | Required? | Status | Evidence |
 | --- | --- | --- | --- |
 | Requirements and proposed design present | yes | drafted; MoE corrections applied | requirements.md; design.md; review disposition below |
-| D001 and D002 qualified before implementation | yes | pending | T001 |
-| Coherent observer publication and full failure-state restoration demonstrated | yes | pending; blocks T002 | D002; V12, V14, V15 |
+| D001 and D002 qualified before implementation | yes | D001 selected locally; user accepted D002 Option A | T001 report, receipts and decision ledger |
+| Preflight/no-op nonmutation, success invariants and caller recovery | yes | contract accepted; new implementation tests pending | D002 Option A; V12, V14, V15 |
 | Native and Python implementation | yes | pending | T002, T003 |
 | Constraint/lifecycle regression matrix | yes | pending | T004 |
 | Compatibility, build and specialist review | yes | pending | T005 |
@@ -40,26 +42,29 @@ state before every operation and assert preservation beyond final solid validity
 | V01 | Two projected circles/arcs with dependent constraints; change the first reference to a different Edge selector, leaving the second in place. Assert new projection, old native ID, both orders, roles, flags and solvability. Include a selector change within the same source and an allowed different source object. | R1 AC1, AC3; R2 AC1–AC3; R4 AC4 | T002, T003, T004 | pending |
 | V02 | Line/arc orientation changes, nonidentity placement and centre/start/end constraints, signed point-to-line Distance and Tangent orientation. Preserve exact Constraint.Orientation and geometric side through two ordinary recomputes, undo/redo and reopen, or reject before mutation. | R2 AC2, AC4; R3 AC2 | T001, T002, T004 | pending |
 | V03 | Axis/internal/out-of-range indices, extreme integers, bool/type errors, missing/null/disallowed/cyclic source, missing/malformed selector, Frozen/Missing/Detached projections, unsupported curve, Intersection/Both modes, grouped projections, type change, degeneration and duplicate destination. Unsupported states/modes reject even for the current source. Assert exceptions and unchanged model/metadata. | R3 AC1, AC2, AC4; R1 AC2 | T002, T003, T004 | pending |
-| V04 | Otherwise admitted exact same-source request is a no-op on a clean saved sketch, with no notifications or journal/dirty change. Inject preparation/application failures and assert the full state oracle plus usable lookups/solve afterward. Cross with V12–V14. | R3 AC3, AC4, AC5 | T002, T004 | pending |
-| V05 | Transaction contains an unrelated earlier edit. Failed reattachment preserves that edit; successful reattachment plus explicit abort restores the transaction. Assert no hidden top-level commit/abort, save or whole-document recompute. | R3 AC3; R4 AC1, AC2 | T002, T004 | pending |
+| V04 | Otherwise admitted exact same-source request is a no-op on a clean sketch, without notifications or dirty/journal change. Preparation failures preserve pre-call state. Unexpected apply failures propagate without implicit retry/commit/abort and require caller recovery; do not assert operation-local full restoration. | R3 AC3, AC4, AC5 | T002, T004 | pending |
+| V05 | A transaction contains an earlier unrelated or same-property edit. Preflight failure preserves it. After an unexpected apply error, assert the transaction remains caller-owned; explicit caller abort restores the whole transaction including the earlier edit. Separately use a dedicated per-operation transaction. No hidden commit/abort/save/recompute. | R3 AC3; R4 AC1, AC2 | T002, T004 | pending |
 | V06 | Commit, undo and redo; compare both states and run immediate solve/edit after each replay to detect stale native maps or solver state. Recompute normally and compare dependent geometry. | R2 AC1, AC2; R4 AC2 | T004 | pending |
 | V07 | Modify the new source, then the previous source, with normal recomputes. Only the expected dependent geometry follows; unrelated external projection remains bound to its own source. | R2 AC3; R4 AC4 | T002, T004 | pending |
 | V08 | Save/reopen original and reattached states in separate disposable files, preserving IDs/order/flags/constraints and correct source resolution; edit the new source after reopening. Do not assume undo history persists in files. | R2 AC1–AC3; R4 AC3, AC4 | T004 | pending |
 | V09 | Existing addExternal/delExternal and grouped native operation remain compatible; generated API docs/signature/errors match the implemented method and Python fixture is registered. | R1 AC2, AC3; R5 AC1, AC2 | T003, T005 | pending |
 | V10 | Focused native/Python suites, pixi build, broader tests and applicable hooks; source/API specialist reviews and platform limits recorded. | R5 AC3, AC4 | T005 | pending |
 | V11 | Durable API/reference examples, requirement/property coverage and closure metadata checked against actual implementation evidence. | R1 AC2; R5 AC4 | T006 | pending |
-| V12 | Read-only document/object/element observers inspect link, ExternalTypes, geometry, Ref and native ID at every notification during success and injected failure. No inconsistent pairings; no signals on admission rejection/no-op. Record which coherent failure notifications are permitted. | R2 AC1, AC3; R3 AC5 | T001, T002, T004 | pending |
-| V13 | Success/no-op/injected failure with no active transaction, active transaction and booked/global transaction. noRecomputes/edit mode rejects before mutation even for same-source input; immediate solve/edit remains usable after rejection. Cross unsupported-state/current-source combinations with V03. | R3 AC1, AC3, AC4; R4 AC1 | T001, T002, T003, T004 | pending |
-| V14 | Compare clean document and object/property touched/enforce/pending-recompute state, active/booked transaction identity and contents, undo/redo counts and actual replay. Inject failures with an empty booked transaction and available redo, and with an earlier edit to the same affected property. Preserve caller state and redo behavior; no-op has identical metadata. | R3 AC3, AC4; R4 AC1, AC2 | T001, T002, T004 | pending |
-| V15 | Preserve entire ordered ExternalTypes vector, including unaffected Intersection/Both neighbours. Check old/new InList/OutList and relevant property dependencies after success, failure, abort, undo/redo and reopen. Delete the old source after successful retargeting in a fixture with no retained link to it; the new reference stays valid. Separately retain a second old-source link and assert its dependency remains. | R2 AC1, AC3, AC5; R3 AC2, AC3; R4 AC2–AC4 | T001, T002, T004 | pending |
+| V12 | Read-only observers record normal property/element notifications during application; intermediate link/projection state is allowed. Require no change events on preflight rejection/no-op, safe native ownership during callbacks, and coherent links/modes/Ref/IDs/dependencies on successful return. Unexpected apply exceptions must propagate rather than claim success. | R2 AC1, AC3; R3 AC5 | T001, T002, T004 | pending |
+| V13 | Success/no-op/preflight rejection/unexpected apply error with no active transaction, active transaction and booked/global transaction. noRecomputes/edit mode rejects before mutation even for same-source input. After apply errors, use explicit caller abort or owned-checkpoint reload before checking subsequent solve/edit. Cross unsupported/current-source combinations with V03. | R3 AC1, AC3, AC4; R4 AC1 | T001, T002, T003, T004 | pending |
+| V14 | Exact dirty/touched/enforce/recompute and transaction/undo/redo comparison for preflight rejection and no-op, including booked-with-redo and earlier same-property edits. After unexpected apply failure, record permitted metadata/redo changes and recover explicitly; do not require discarded redo restoration. Prove caller abort reverts earlier shared-transaction edits too. | R3 AC3, AC4; R4 AC1, AC2 | T001, T002, T004 | pending |
+| V15 | Preserve ordered ExternalTypes including unaffected Intersection/Both neighbours. Check InList/OutList and property dependencies after success, preflight rejection, caller recovery, undo/redo and reopen; after unexpected apply failure recover before asserting graph consistency. Test old-source deletion with no retained link, and preservation when another retained link still needs it. | R2 AC1, AC3, AC5; R3 AC2, AC3; R4 AC2–AC4 | T001, T002, T004 | pending |
 
 ### Comparison Rules
 
 Authored constraints including Orientation, IDs, roles, flags, ExternalTypes and
 order require exact comparisons. Native dependency/backlink sets must match the
-expected reference graph. Failure/no-op compares dirty/touched/enforce/recompute
-state and actual transaction/undo/redo behavior, including earlier same-property
-edits. Observer-sequence checks cannot be replaced by final snapshots.
+expected reference graph on successful/recovered boundaries. Preflight rejection
+and no-op compare dirty/touched/enforce/recompute and transaction/undo/redo state,
+including earlier same-property edits. Apply errors are not no-call operations:
+record partial state, assert no implicit boundary manipulation and recover through
+the caller transaction or checkpoint. Intermediate notification state is permitted;
+observer logs and final successful/recovered snapshots serve different purposes.
 Start with absolute coordinate/radius tolerance 1e-9 mm and angular tolerance
 1e-10 radians on small analytic fixtures; record justification for any change
 before using it for acceptance. Never loosen tolerances to hide endpoint inversion.
@@ -99,10 +104,10 @@ manifest check to the public Python module.
 
 | Requirement | Acceptance criteria covered by plan | Executed implementation evidence | Residual risk |
 | --- | --- | --- | --- |
-| Requirement 1 | AC1, AC2, AC3: V01, V03, V09, V11 | none | Proposed signature unqualified |
+| Requirement 1 | AC1, AC2, AC3: V01, V03, V09, V11 | D001 API boundary selected; public surface absence confirmed | New binding not implemented |
 | Requirement 2 | AC1–AC5: V01, V02, V06–V08, V12, V15 | none | Native identity/orientation/dependency behavior unproven |
-| Requirement 3 | AC1–AC5: V03–V05, V12–V14 | none | Strong exception/publication guarantee unproven |
-| Requirement 4 | AC1–AC4: V01, V05–V08, V13–V15 | none | Lifecycle and transaction metadata reconstruction unproven |
+| Requirement 3 | AC1–AC5: V03–V05, V12–V14 | Option A transaction boundary qualified in T001; no new API | Preflight/success/application-error contract awaits implementation tests |
+| Requirement 4 | AC1–AC4: V01, V05–V08, V13–V15 | Existing transaction/lifecycle runners qualified, new API pending | New implementation lifecycle and caller recovery not yet tested |
 | Requirement 5 | AC1, AC2, AC3, AC4: V09–V11 | none | Compatibility/platform and review evidence pending |
 
 ## Correctness Property Coverage
@@ -110,7 +115,7 @@ manifest check to the public Python module.
 | Property | Covered by | Evidence | Residual risk |
 | --- | --- | --- | --- |
 | CP-001 | V01, V02, V06, V08, V15 | pending | Identity/mode/Orientation preservation unverified |
-| CP-002 | V03–V05, V12–V14 | pending | Native failure/publication restoration unverified |
+| CP-002 | V03–V05, V12–V14 | Option A selected; implementation pending | Preflight nonmutation and caller recovery need new-API tests |
 | CP-003 | V05, V06, V08, V14 | pending | Transaction/persistence unverified |
 | CP-004 | V01, V07, V08, V15 | pending | Propagation and dependency graph unverified |
 | CP-005 | V05, V09–V11, V13, V14 | pending | Existing behavior/review unverified |
@@ -119,10 +124,10 @@ manifest check to the public Python module.
 
 | Field | Evidence | Residual risk |
 | --- | --- | --- |
-| Scope | Requirements and non-goals; proposed native/Python boundaries | D001/D002 require T001 |
+| Scope | D001 native/Python boundary and user-approved D002 Option A | New-API preservation/recovery still requires implementation qualification |
 | Must-read context | canonical-context.md plus requirements/design/tasks/traceability/verification | Reconcile on branch/source changes |
-| Permissions | Spec creation only; implementation requires a later user instruction | No live runtime authority inferred |
-| Validation signals | V01–V15; commands and nonzero intended-case manifest above | Exact runners remain T001 output |
+| Permissions | User authorized T001; owned probes only, not T002 production implementation | No live runtime authority inferred |
+| Validation signals | V01–V15; T001 exact nonempty baseline native/Python manifests | New reattachment cases will be added in T002–T004 |
 | Review | Four simulated expert design reviews; dispositions below | Native implementation and actual human maintainer review pending |
 | Promotion | API .pyi and dedicated durable reference | Not yet implemented/promoted |
 | Repository evidence | Direct source reads; Agent Workbench navigation | Nested docs boundary limits automated validation planning |
@@ -131,7 +136,7 @@ manifest check to the public Python module.
 
 | Task ID | Status | Evidence | Notes |
 | --- | --- | --- | --- |
-| T001 | pending | source baseline only | Qualification not complete |
+| T001 | complete | t001-qualification.md; t001-validation.json; option-a-native-receipt.json | D001 resolved locally; user accepted D002 Option A; caller-abort qualification and reconciliation complete |
 | T002 | pending | none | No native edits |
 | T003 | pending | none | No binding edits |
 | T004 | pending | none | No lifecycle tests |
@@ -152,6 +157,30 @@ manifest check to the public Python module.
 | 2026-11-07 | MoE remediation and independent transaction/test spec re-review | F001–F008 addressed in the specification; re-review found no remaining substantive contradictions in those contracts | Native mechanisms and all six implementation tasks remain unqualified/pending |
 | 2026-11-07 | Revised lint_spec_package | zero errors, warnings and informational findings | Specification structure only; D001/D002 remain open |
 | 2026-11-07 | Revised bounded Markdown/link/criteria/case/task/disposition checks and git -C docs diff --check | Eight Markdown files, 41 local links, new AC/case mappings, six pending tasks and eight dispositions checked; zero errors | Documentation-only validation; no source build or native runtime test |
+| 2026-11-07 | T001 native/API qualification | Seven standalone observations, six focused existing native cases, five existing Python cases and one generated arc save/reopen fixture passed | t001-validation.json binds receipts; these do not establish a new implementation |
+| 2026-11-07 | D002 candidate review | Actual mixed-state notifications, touched-state residue and lost redo history disqualify inspected guards/setter restoration | Contract-direction question pending; strict draft acceptance remains unchanged |
+| 2026-11-07 | User D002 decision | Explicitly accepted Option A and continuation | Requirements/design/tasks/traceability/verification now use normal FreeCAD transaction semantics |
+| 2026-11-07 | Updated native qualification | Exact eight-case discovery/execution passed, including injected application error and explicit caller abort restoring the model and earlier transaction edit | option-a-native-receipt.json; stable source/library hashes; new API still not implemented |
+| 2026-11-07 | Option A reconciliation and T001 completion | Nine Markdown artifacts reconciled; package lint zero findings; 55 local links, Python syntax, exact 8/6/5-case receipts, arc fixture and evidence hashes checked | T001 complete for qualification only; T002–T006 pending |
+
+## T001 Qualification Evidence
+
+See [the qualification report](t001-qualification.md),
+[aggregate receipt](t001-validation.json), and raw logs/receipts in t001-evidence/.
+Exact case manifests, generated fixture recipes, source/library identities and
+runner commands are pinned there. Probe discovery matches execution with nonzero
+counts; the native source/library hashes stayed unchanged during the seven-case run.
+
+Seven passing standalone tests assert existing limitations, including two mixed
+observer notifications and redo count 1 -> 0 after setter-based restoration. They
+are successful observations of behavior that fails the proposed strict contract.
+Existing regressions and the arc fixture qualify the test setup and lifecycle
+baseline, not reattachment acceptance. No fresh full build or platform claim.
+
+D001 selects reattachExternal, the user accepted D002 Option A, and T001 is complete.
+The updated eight-case native run qualifies caller abort after an injected native
+application error. T002 uses the revised normal transaction contract; the superseded
+atomic promises are historical evidence and no longer gate implementation.
 
 ## Scope Reconciliation Before Closure
 
@@ -168,17 +197,19 @@ The user requested corrections after four independent simulated native Sketcher,
 maintainer/API, transaction/observer and test reviews of root42192242fd/docs749b64c.
 These are private design reviews, not actual FreeCAD contributor consultation.
 The rows below resolve specification omissions; none establishes native feasibility
-or completes an implementation task. D001/D002 remain open until T001 evidence exists.
+or completes an implementation task. Both decisions were open at that review
+checkpoint; subsequent T001 evidence resolves D001 locally and the user resolves
+D002 to Option A. Rows F001/F003 below record that explicit scope disposition.
 
 | Finding | Specification correction | Required evidence or remaining gate | Disposition |
 | --- | --- | --- | --- |
-| F001 Observer-visible atomicity | R3 AC5 and design require coherent publication; managedoperation is not assumed to suppress observers | D002/T001 actual mechanism and V12 notification-sequence probes before T002 | Addressed in spec; native proof pending |
+| F001 Observer-visible atomicity | Superseded by user-approved D002 Option A: normal intermediate notifications allowed; final successful state must be coherent | V12 observes notifications and return boundary; no new atomic guard | Explicitly re-scoped by user |
 | F002 Constraint orientation | R2 AC2/AC4 preserve exact Orientation; unsupported reversed mappings reject | V02 signed Distance/Tangent through two recomputes and lifecycle operations | Addressed in spec; tests pending |
-| F003 No-call failure equivalence | R3 AC3 defines dirty/touched/recompute and active/booked/undo/redo state, including earlier same-property edits | V14 plus D002 bounded-restoration feasibility before T002 | Addressed in spec; native proof pending |
+| F003 No-call failure equivalence | User-approved D002 confines no-call guarantees to preflight/no-op; apply errors require caller recovery and may alter dirty/redo metadata | V05/V14 and caller-abort qualification; no operation-local savepoint | Explicitly re-scoped by user |
 | F004 Complete native state oracle | R2 AC1/AC5 and design include ExternalTypes, InList/OutList and property dependencies | V15 mode neighbours, graph preservation and old-source deletion | Addressed in spec; tests pending |
 | F005 Unsupported-state/no-op precedence | R3 AC1/AC4 admit only supported states before no-op detection; Frozen/Missing/Detached and Both/Intersection reject | V03/V04/V13 combinations | Addressed in spec; tests pending |
 | F006 Execution modes | R4 AC1 supports no-active/active/booked transactions; R3 AC1 rejects noRecomputes/edit mode | V13 immediate subsequent solve/edit and metadata checks | Addressed in spec; tests pending |
-| F007 Runner qualification | Exact discovered/intended manifests and nonzero executed counts replace generic filter assumptions | T001 runner record; V09/V10 | Addressed in spec; discovery pending |
+| F007 Runner qualification | Exact discovered/intended manifests and nonzero executed counts replace generic filter assumptions | T001 pinned native/Python baseline receipts; new API cases remain V09/V10 | Baseline runner qualification complete |
 | F008 Shared-worktree workflow | Tasks/design/context keep the current branch and isolate PR preparation in another worktree | Preserve other-agent work; select only feature paths for any authorized commit | Addressed in spec |
 
 ## Manual Or External Verification
@@ -187,6 +218,7 @@ No manual runtime verification, public maintainer agreement or external CI resul
 has been obtained for this feature. Human API/implementation review is required
 before public preparation. Follow current CONTRIBUTING.md and AI_POLICY.md.
 The simulated MoE review and this disposition do not replace those human gates.
+The user's D002 acceptance is a local scope decision, not upstream maintainer approval.
 
 ## Residual Risks
 
@@ -222,14 +254,14 @@ The simulated MoE review and this disposition do not replace those human gates.
 - **Risk level:** medium.
 - **Breaking change:** no intentional break; existing native behavior must be checked.
 - **Blast radius checked:** source inspection only.
-- **Rollback path:** normal caller transactions plus required operation-local exception restoration.
+- **Rollback path:** caller-owned transaction abort or owned checkpoint recovery; no operation-local savepoint or redo restoration promise.
 - **Requires human review:** yes.
 - **Release notes needed:** assess at T005 under current project policy.
 - **Follow-up issue or spec needed:** no additional feature scope committed.
 
 ## Readiness Decision
 
-- **Ready to implement:** T001 qualification only after user requests execution; T002 awaits D001/D002.
+- **Ready to implement:** yes for T002 under user-approved Option A; T001 qualification/reconciliation is complete. Obtain fresh task context before coding.
 - **Ready to validate:** no implementation yet.
 - **Ready for promotion:** no.
 - **Ready for release:** no.

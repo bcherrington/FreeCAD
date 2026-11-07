@@ -1,0 +1,24 @@
+Running main() from /home/conda/feedstock_root/build_artifacts/bld/rattler-build_gtest_1786419392/work/googletest/src/gtest_main.cc
+Note: Google Test filter = T001NativeProbe.*
+[==========] Running 7 tests from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 7 tests from T001NativeProbe
+[ RUN      ] T001NativeProbe.legacyCircleRetargetKeepsIdsButAppendsLink
+[       OK ] T001NativeProbe.legacyCircleRetargetKeepsIdsButAppendsLink (319 ms)
+[ RUN      ] T001NativeProbe.legacyElementObserverSeesMixedState
+[       OK ] T001NativeProbe.legacyElementObserverSeesMixedState (11 ms)
+[ RUN      ] T001NativeProbe.disableNotifyStillPublishesPropertySignal
+[       OK ] T001NativeProbe.disableNotifyStillPublishesPropertySignal (9 ms)
+[ RUN      ] T001NativeProbe.setterRestorationLeavesTouchedState
+[       OK ] T001NativeProbe.setterRestorationLeavesTouchedState (9 ms)
+[ RUN      ] T001NativeProbe.setterRestorationCannotRecoverClearedRedo
+[       OK ] T001NativeProbe.setterRestorationCannotRecoverClearedRedo (11 ms)
+[ RUN      ] T001NativeProbe.legacyDuplicateAdmissionIsNonmutating
+[       OK ] T001NativeProbe.legacyDuplicateAdmissionIsNonmutating (11 ms)
+[ RUN      ] T001NativeProbe.legacyReversedLineReencodesOrientation
+[       OK ] T001NativeProbe.legacyReversedLineReencodesOrientation (15 ms)
+[----------] 7 tests from T001NativeProbe (389 ms total)
+
+[----------] Global test environment tear-down
+[==========] 7 tests from 1 test suite ran. (493 ms total)
+[  PASSED  ] 7 tests.

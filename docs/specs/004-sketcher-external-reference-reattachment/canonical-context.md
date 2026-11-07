@@ -121,27 +121,29 @@ performance or GUI delivery. Spec 004 makes no crash or speedup claim.
 
 ## Decisions and Readiness
 
-D001 and D002 in design.md require T001 qualification. The proposed public method
-is scalar, accepts a negative geometry index, and supports one-to-one compatible
-line/circle/arc projections only. It preserves raw link order as well as projected
-geometry order. Grouped/intersection/ambiguous replacements reject explicitly.
+D001 selects reattachExternal. The user explicitly accepted D002 Option A after
+T001 found that existing guards do not meet strict atomicity. The scalar API takes
+a negative geometry index and admits compatible one-to-one Projection-mode
+line/circle/arc references. Reversed or ambiguous mappings, grouped/intersection
+references and Frozen/Missing/Detached/noRecomputes states reject in preflight.
 
-The MoE-corrected contract also preserves exact Constraint.Orientation, the entire
-ExternalTypes vector and native dependency/backlink state. Only Projection mode is
-admitted. Unsupported Frozen/Missing/Detached and Both/Intersection states reject
-before same-source no-op detection. Calls without an active transaction are
-supported; native noRecomputes/edit mode rejects before mutation. Failure/no-op
-must preserve declared dirty/touched/recompute and transaction/undo/redo metadata.
+On success, native IDs, both orders, flags, ExternalTypes, authored constraints
+including exact Orientation, and Ref/dependency consistency are required. Preflight
+rejection and admitted no-op preserve model/journal state without notifications.
+During application, ordinary intermediate property notifications are allowed.
+Unexpected apply errors propagate for caller-owned transaction abort or checkpoint
+recovery; partial changes and dirty/redo effects are possible. Aborting a shared
+transaction also reverts earlier edits. No operation-local savepoint is promised.
 
-T001 must demonstrate coherent notification-time state and bounded operation-local
-restoration before D002 closes. Existing managedoperation does not establish an
-atomic notification boundary. The review corrections specify required evidence;
-they do not establish a native mechanism or complete T001. See the
-[review disposition](verification.md#moe-review-disposition).
+T001 qualifies the native/API boundary, generated fixtures, exact existing runners
+and ordinary caller abort after an injected native application exception. It does
+not implement or validate the new API. See [the report](t001-qualification.md) and
+[review disposition](verification.md#moe-review-disposition). Generic atomic App
+infrastructure is explicitly outside the user-approved slice.
 
-Creation of this package does not authorize implementing source, installing a
-snapshot, restarting a runtime, changing a live document or submitting upstream.
-Structural lint is independent of ready-to-implement/validate/close/archive gates.
+The user authorized T001 and its Option A reconciliation. Neither authorizes
+installing a snapshot, restarting an operator runtime, changing a live document
+or submitting upstream. Structural lint is distinct from implementation acceptance.
 
 ## Shared-Worktree Execution
 
@@ -168,7 +170,8 @@ must distinguish delivered behavior from unsupported broader integration work.
 
 ## Smallest Next Action
 
-After an implementation instruction, obtain task_context for
-T001 - Qualify the API contract and native preservation mechanism, reconcile this
-baseline, then prove indexing/orientation and atomic application on disposable
-fixtures. No need to open operator CAD or retry an earlier unknown mutation.
+Obtain fresh context for T002 - Implement native admission and in-place identity
+preservation under the accepted Option A contract. Use the pinned fixtures and
+runner manifests from [T001 qualification](t001-qualification.md). Preserve the
+shared branch/file-ownership boundaries; do not open operator CAD or retry an
+earlier unknown mutation.

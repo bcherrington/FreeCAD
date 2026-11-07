@@ -19,9 +19,10 @@ rejects ambiguous or grouped replacements, participates in caller-owned transact
 and is qualified across recompute, abort, undo/redo and save/reopen.
 
 MoE review corrections require exact constraint Orientation, ordered ExternalTypes,
-dependency state, coherent observer publication and complete failure-state checks.
-Ordinary calls need no active transaction; noRecomputes/edit mode and unsupported
-projection states reject before no-op detection. Native feasibility remains T001.
+dependency state, preflight/no-op nonmutation and caller-owned recovery. The user
+accepted D002 Option A: intermediate notifications are allowed during application;
+unexpected apply errors require transaction abort or checkpoint recovery. Ordinary
+calls need no active transaction; unsupported states reject before no-op detection.
 
 ## Read Order And Authority
 
@@ -33,13 +34,15 @@ This brief is navigation; it contains no independent acceptance criteria.
 
 ## Status and Next Action
 
-Draft; source implementation has not started. Six pending tasks cover native
-qualification, implementation, binding, lifecycle tests, review and promotion.
-D001/D002 need qualification before source implementation.
+Draft for implementation acceptance. T001 qualification is complete: eight native
+probes (including injected-failure caller abort), six existing native tests, five
+Python tests and one generated arc save/reopen fixture passed. D001 selects
+reattachExternal and the user accepted D002 Option A. No local design decision remains.
 
-The next task is T001 - Qualify the API contract and native preservation mechanism,
-after the user requests implementation. No operator CAD edits, MCP delivery,
-runtime changes or upstream acceptance are claimed.
+The next task is T002 - Implement native admission and in-place identity preservation.
+See [T001's report](t001-qualification.md) and [the decision ledger](open-decisions.md).
+The new API has not been implemented; no operator CAD edits, MCP delivery, runtime
+replacement or upstream acceptance are claimed.
 
 Implementation will keep the shared checkout on its current branch. PR preparation
 uses a separate worktree after validation; see the

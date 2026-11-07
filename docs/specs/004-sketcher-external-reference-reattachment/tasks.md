@@ -13,8 +13,10 @@ last_reviewed: 2026-11-07
 
 Read requirements.md, design.md, canonical-context.md, traceability.md and
 verification.md before implementation. Obtain task_context for the selected ID;
-normally mark one implementation task in progress. This package is draft: only
-T001 contract qualification is ready to start. All implementation evidence is pending.
+normally mark one implementation task in progress. This package remains draft for
+implementation acceptance. D001 is locally resolved and the user accepted D002
+Option A. T001 qualification/reconciliation establishes the next native slice;
+T002–T006 remain pending until their own evidence is recorded.
 
 Respect AGENTS.md and freecad-project guidance, preserve unrelated work and original
 line endings. Keep the shared worktree on its current branch; do not switch, reset
@@ -22,7 +24,9 @@ or stash it. Agree file ownership for overlapping edits. Once validation is comp
 prepare the clean upstream PR branch in a separate worktree and cherry-pick only
 feature commits, leaving unrelated work here untouched. No operator document mutations, MCP
 repository edits, install, runtime restart, commit or public submission are requested
-by creating this package. Source execution requires the user's implementation instruction.
+by creating this package. The user has authorized T001's disposable qualification
+probes and explicitly accepted D002 Option A. T001 completion does not establish
+new-API acceptance; obtain fresh task context before any T002 implementation.
 
 Markers: `[ ]` pending, `[~]` in progress, `[/]` partial, `[>]` routed,
 `[-]` deferred/no-op, `[?]` decision required, `[!]` attention, `[x]` complete.
@@ -36,25 +40,26 @@ T001 -> T002 -> T003 -> T004 -> T005 -> T006
 
 ## Delivery Slices
 
-- [ ] T001 Qualify the API contract and native preservation mechanism.
+- [x] T001 Qualify the API contract and native preservation mechanism.
   - Depends on: none
   - Requirements: Requirement 1 AC1, AC2, AC3; Requirement 2 AC1, AC2, AC3, AC4, AC5; Requirement 3 AC1, AC2, AC3, AC4, AC5; Requirement 4 AC1; Requirement 5 AC1
   - Properties: CP-001, CP-002, CP-005
-  - Design: design.md#python-interface; design.md#admission-and-application; design.md#error-handling-and-atomicity
+  - Design: design.md#python-interface; design.md#admission-and-application; design.md#error-handling-and-recovery
   - Files: `src/Mod/Sketcher/App/SketchObject.h`, `src/Mod/Sketcher/App/SketchObjectExternal.cpp`, `src/Mod/Sketcher/App/SketchObjectPyImp.cpp`, `src/Mod/Sketcher/App/SketchObject.pyi`, `tests/src/Mod/Sketcher/App/CMakeLists.txt`, `design.md`, `canonical-context.md`, `verification.md`
-  - Acceptance: Resolve D001/D002 using actual callers and disposable probes. Prove exact Constraint.Orientation preservation across normal rebuild, coherent notification-time state, dependency/backlink restoration, and dirty/touched/recompute/transaction/redo restoration in all declared transaction modes. Managedoperation alone is not evidence of atomic publication. If bounded existing mechanisms cannot meet acceptance, record the failed feasibility result and revise all affected artifacts before T002; no generic App redesign. Pin fixtures, native/Python runners, exact discovered case names and nonzero expected counts; record scalar naming and compatibility rationale.
+  - Acceptance: Resolve D001/D002 using actual callers and disposable probes. Pin the scalar/index/native boundary and the admitted-or-reject orientation policy. Record the observed notification/touched/redo limitations and the user's Option A decision; reconcile preflight/no-op nonmutation, successful-operation invariants and caller-owned recovery across every artifact before T002. Qualify ordinary caller abort after a native apply exception; no generic App redesign. Pin generated circle/line/arc fixtures, source/library identities, exact nonempty native/Python runner manifests and scalar naming rationale. New implementation acceptance remains T002–T005.
   - Validation: Targeted source/reference inspection and disposable native qualification probes; reconcile requirements/design/tasks if findings change scope.
   - Evidence mode: artifact
-  - Evidence: Pending.
+  - Evidence: t001-qualification.md and t001-validation.json: D001 API/index/native boundary selected; user explicitly accepted D002 Option A; all affected spec artifacts reconciled. Exact eight-case native probe run passed including injected application error and explicit caller abort restoring model/earlier caller edit; six existing native tests, five Python tests and arc save/reopen fixture passed. Source/library hashes stable; package lint zero findings; 55 local links, evidence hashes and Python syntax checked. No new API implementation acceptance claimed.
   - Owner: local-developer
 
+  - Status: Complete for T001 qualification and user-approved scope reconciliation. T002 is the next pending implementation slice; no production source, shared branch/build, install or operator-document changes.
 - [ ] T002 Implement native admission and in-place identity preservation.
   - Depends on: T001
   - Requirements: Requirement 2 AC1, AC2, AC3, AC4, AC5; Requirement 3 AC1, AC2, AC3, AC4, AC5; Requirement 4 AC1; Requirement 5 AC1
   - Properties: CP-001, CP-002, CP-004, CP-005
-  - Design: design.md#admission-and-application; design.md#error-handling-and-atomicity; design.md#semantic-state-oracle
+  - Design: design.md#admission-and-application; design.md#error-handling-and-recovery; design.md#semantic-state-oracle
   - Files: `src/Mod/Sketcher/App/SketchObject.h`, `src/Mod/Sketcher/App/SketchObjectExternal.cpp`, `tests/src/Mod/Sketcher/App/SketchObject.cpp`, `tests/src/Mod/Sketcher/App/CMakeLists.txt`
-  - Acceptance: Native success preserves IDs, both orders, ExternalTypes and constraints including Orientation. Unsupported projection states/modes and noRecomputes/edit mode reject before no-op detection. Otherwise admitted same-source calls emit no changes. Injected failures restore model, dependency, dirty/recompute and journal state without losing earlier caller edits, including same-property edits. Every emitted observer notification exposes coherent state. Direct C++ calls and no-active-transaction calls meet these guarantees independently of Python; T001/D002 proof is required before starting.
+  - Acceptance: Native success preserves IDs, both orders, ExternalTypes and constraints including Orientation, with coherent Ref/dependency state at return. Unsupported/reversed/ambiguous inputs reject in preflight; admitted same-source calls emit no changes. Preflight failure/no-op preserves model and journal metadata including earlier caller edits. Unexpected apply errors propagate without automatic retry/commit/abort; normal intermediate notifications and dirty/redo effects are allowed and caller recovery is documented. Qualify dedicated caller-transaction abort and no-transaction checkpoint recovery. Direct C++ use meets the accepted contract independently of Python; no generic atomic infrastructure.
   - Validation: Run focused native success, rejection and exception cases from verification.md; immediate subsequent solve/edit must work after failure. Record baseline failures before the fix where practical.
   - Evidence mode: command
   - Evidence: Pending.
@@ -64,7 +69,7 @@ T001 -> T002 -> T003 -> T004 -> T005 -> T006
   - Depends on: T002
   - Requirements: Requirement 1 AC1, AC2, AC3; Requirement 3 AC1, AC2, AC3, AC4, AC5; Requirement 5 AC1, AC2
   - Properties: CP-001, CP-002, CP-005
-  - Design: design.md#python-interface; design.md#error-handling-and-atomicity
+  - Design: design.md#python-interface; design.md#error-handling-and-recovery
   - Files: `src/Mod/Sketcher/App/SketchObject.pyi`, `src/Mod/Sketcher/App/SketchObjectPyImp.cpp`, `src/Mod/Sketcher/SketcherTests/TestSketchExternalReattachment.py`, `src/Mod/Sketcher/TestSketcherApp.py`, `src/Mod/Sketcher/CMakeLists.txt`
   - Acceptance: Generated method is callable with the resolved signature, returns None, documents the negative index contract, validates numeric/type boundaries and translates failures consistently. Public two-reference tests prove selected-only reattachment and unchanged unrelated geometry. No raw read-only property assignment or GUI/MCP dependency is used.
   - Validation: Build generated bindings and run the registered Python cases, including bool/extreme integer/type errors, supported no-op, Frozen/Missing/Detached, Intersection/Both, and execution-mode rejection precedence; assert discovered nonzero test counts.
@@ -78,7 +83,7 @@ T001 -> T002 -> T003 -> T004 -> T005 -> T006
   - Properties: CP-001, CP-002, CP-003, CP-004, CP-005
   - Design: design.md#transaction-and-lifecycle-behavior; design.md#semantic-state-oracle
   - Files: `src/Mod/Sketcher/SketcherTests/TestSketchExternalReattachment.py`, `tests/src/Mod/Sketcher/App/SketchObject.cpp`, `verification.md`, `traceability.md`
-  - Acceptance: Two projected circles/arcs with dependent constraints retain roles across one selector replacement, caller abort, undo/redo and separate before/after save/reopen. Line/arc orientation preserves exact Constraint.Orientation and signed-side meaning across two recomputes or rejects before mutation. ExternalTypes and old/new dependencies are checked through all lifecycle states, including deleting an unreferenced old source. No-transaction, active, empty-booked-with-redo and earlier same-property edit cases preserve their declared metadata; noRecomputes/edit mode and unsupported-state same-source combinations reject cleanly. Notification-sequence observers and subsequent solve/edit verify coherence.
+  - Acceptance: Two projected circles/arcs retain IDs/roles/modes across success, caller abort, undo/redo and save/reopen. Admitted direction preserves exact Orientation through two recomputes; reversed/ambiguous direction rejects in preflight. Verify ExternalTypes and dependency state at successful/recovered boundaries, including old-source deletion. Preflight/no-op preserve dirty/transaction/redo metadata in no-transaction, active/booked and earlier same-property cases. Unexpected apply errors leave the caller boundary open for explicit abort or checkpoint recovery; abort of a shared transaction also reverts earlier edits. Intermediate notifications are permitted; final success/recovered state is coherent and usable for subsequent solve/edit.
   - Validation: Execute V01 through V09 and V12 through V15 in verification.md using disposable files and explicit tolerances; record exact test names, build/source identities and results.
   - Evidence mode: command
   - Evidence: Pending.

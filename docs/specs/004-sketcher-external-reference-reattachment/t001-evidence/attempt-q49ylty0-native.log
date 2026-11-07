@@ -1,0 +1,55 @@
+Running main() from /home/conda/feedstock_root/build_artifacts/bld/rattler-build_gtest_1786419392/work/googletest/src/gtest_main.cc
+Note: Google Test filter = T001NativeProbe.*
+[==========] Running 7 tests from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 7 tests from T001NativeProbe
+[ RUN      ] T001NativeProbe.legacyCircleRetargetKeepsIdsButAppendsLink
+unknown file: Failure
+Unknown C++ exception thrown in SetUp().
+
+[  FAILED  ] T001NativeProbe.legacyCircleRetargetKeepsIdsButAppendsLink (0 ms)
+[ RUN      ] T001NativeProbe.legacyElementObserverSeesMixedState
+unknown file: Failure
+Unknown C++ exception thrown in SetUp().
+
+[  FAILED  ] T001NativeProbe.legacyElementObserverSeesMixedState (0 ms)
+[ RUN      ] T001NativeProbe.disableNotifyStillPublishesPropertySignal
+unknown file: Failure
+Unknown C++ exception thrown in SetUp().
+
+[  FAILED  ] T001NativeProbe.disableNotifyStillPublishesPropertySignal (0 ms)
+[ RUN      ] T001NativeProbe.setterRestorationLeavesTouchedState
+unknown file: Failure
+Unknown C++ exception thrown in SetUp().
+
+[  FAILED  ] T001NativeProbe.setterRestorationLeavesTouchedState (0 ms)
+[ RUN      ] T001NativeProbe.setterRestorationCannotRecoverClearedRedo
+unknown file: Failure
+Unknown C++ exception thrown in SetUp().
+
+[  FAILED  ] T001NativeProbe.setterRestorationCannotRecoverClearedRedo (0 ms)
+[ RUN      ] T001NativeProbe.legacyDuplicateAdmissionIsNonmutating
+unknown file: Failure
+Unknown C++ exception thrown in SetUp().
+
+[  FAILED  ] T001NativeProbe.legacyDuplicateAdmissionIsNonmutating (0 ms)
+[ RUN      ] T001NativeProbe.legacyReversedLineReencodesOrientation
+unknown file: Failure
+Unknown C++ exception thrown in SetUp().
+
+[  FAILED  ] T001NativeProbe.legacyReversedLineReencodesOrientation (0 ms)
+[----------] 7 tests from T001NativeProbe (1 ms total)
+
+[----------] Global test environment tear-down
+[==========] 7 tests from 1 test suite ran. (83 ms total)
+[  PASSED  ] 0 tests.
+[  FAILED  ] 7 tests, listed below:
+[  FAILED  ] T001NativeProbe.legacyCircleRetargetKeepsIdsButAppendsLink
+[  FAILED  ] T001NativeProbe.legacyElementObserverSeesMixedState
+[  FAILED  ] T001NativeProbe.disableNotifyStillPublishesPropertySignal
+[  FAILED  ] T001NativeProbe.setterRestorationLeavesTouchedState
+[  FAILED  ] T001NativeProbe.setterRestorationCannotRecoverClearedRedo
+[  FAILED  ] T001NativeProbe.legacyDuplicateAdmissionIsNonmutating
+[  FAILED  ] T001NativeProbe.legacyReversedLineReencodesOrientation
+
+ 7 FAILED TESTS

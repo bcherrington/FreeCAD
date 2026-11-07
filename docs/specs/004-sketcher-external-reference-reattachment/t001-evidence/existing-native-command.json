@@ -1,0 +1,4 @@
+[
+  "/home/bcherrington/Projects/CLion/FreeCAD/build/debug/tests/Sketcher_tests_run",
+  "--gtest_filter=SketchObjectTest.testAddExternalIncreasesCount:SketchObjectTest.testDelExternalUndef:SketchObjectTest.testDelExternalWhenEmpty:SketchObjectTest.recomputeNoRecomputesRetainsLegacySetups:SketchObjectTest.recomputeDirectSolveAndPropertyChangeRemainImmediate:SketchObjectTest.recomputeMissingExternalIndexRepairsBeforeSolverConsumption"
+]

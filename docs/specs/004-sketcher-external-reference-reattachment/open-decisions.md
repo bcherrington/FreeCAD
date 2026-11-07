@@ -19,33 +19,70 @@ decisions locally before implementation. No extra user approval is implied.
 
 | ID | Decision Needed | Options | Owner | Needed By | Status |
 | --- | --- | --- | --- | --- | --- |
-| D001 | Confirm public signature/indexing and native extension point | Proposed scalar attachExternal with negative geometry index and strict native helper; revise only with explicit compatibility rationale | local-developer | T001 before T002/T003 | open |
-| D002 | Demonstrate exact Orientation preservation, coherent publication and full failure restoration | Stage one compatible projection; prove notification-time links/modes/Ref/IDs, dependencies and dirty/touched/recompute/transaction/redo restoration with bounded native mechanisms; revise the spec explicitly if infeasible | local-developer | T001 before T002 | open |
+
+No open local design decisions remain. Public maintainer agreement and new-API
+acceptance are implementation/review gates, not completed by these decisions.
 
 ## Blocking Impact
 
 | Decision ID | Blocks | Impact If Unresolved |
 | --- | --- | --- |
-| D001 | T002, T003 | Public API and native compatibility contract not ready to implement |
-| D002 | T002, T004 | Exact Orientation, coherent notifications, dependency/backlink and complete failure-state preservation unproven; managedoperation alone is insufficient |
 
-## Contract Refinements From MoE Review
+## Resolved Decisions
 
-The following scope choices address review findings under the user's instruction
-to revise this spec. They define proposed acceptance, not demonstrated native behavior:
+### D001 — Single-reference public API and native boundary
 
-- Preserve Constraint.Orientation exactly in this slice; reject a reversed/ambiguous
-  replacement if that cannot survive normal rebuild and repeated recomputation.
-- Admit only Projection-mode, live, unfrozen, attached one-to-one references.
-  Both/Intersection and Frozen/Missing/Detached states reject before no-op detection.
-- Support calls without an active transaction and with active/booked transactions;
-  permit normal transaction materialization only for successful property edits.
-- Reject native noRecomputes/edit-mode calls, including same-source requests.
-- Require failure/no-op model and journal state preservation. Coherent intermediate
-  failure notifications may be documented; inconsistent publication is prohibited.
-- Prove the publication/restoration mechanism in T001 before closing D002. If it
-  requires a broad App redesign, report infeasibility and revise the contract before
-  implementing; do not silently weaken it or mark this decision resolved.
+- **Status:** resolved locally on 2026-11-07 by T001 qualification; no upstream agreement implied.
+- **Owner:** local-developer, technical selection under the user's instruction to start T001.
+- **Chosen option:** `reattachExternal(geo_id: int, obj_name: str, sub_name: str, /) -> None`.
+  Use a negative current geometry index, same-document name lookup and native Edge
+  resolution. TypeError for invalid types/bool, OverflowError before narrowing, and
+  ValueError for invalid references. Keep native vector attachExternal unchanged.
+- **Rationale:** this is replacement of one live reference, distinct from native
+  grouped attachment/detached-reference behavior. Local source has no consumers of
+  attachExternal beyond its declaration/definition. Python exposes neither name today.
+- **Evidence:** [T001 qualification](t001-qualification.md#d001-qualified-interface-and-extension-point),
+  native receipt and public-surface probe in t001-validation.json.
+- **Limits:** no method has been implemented. D002 determines the accepted failure
+  and notification contract; reversed-orientation acceptance remains unqualified.
+
+### D002 — Normal FreeCAD transaction semantics (Option A)
+
+- **Status:** resolved on 2026-11-07 by explicit user acceptance: "I'm happy with option A, continue".
+- **Owner:** local-developer; user accepted the material contract change.
+- **Chosen option:** preserve model/journal state for preflight rejection and admitted
+  exact no-op. Apply through ordinary native properties; intermediate notifications
+  are allowed. Successful return must satisfy all identity/order/constraint/reference
+  invariants. Unexpected apply errors propagate for caller-owned abort or checkpoint
+  recovery; no automatic commit, abort or retry and no post-application no-call promise.
+- **Rationale:** executed probes observed mixed-state notifications, residual touched
+  state and redo loss under existing setters. A generic atomic multi-property or
+  savepoint infrastructure expansion is not needed for the selected API slice.
+- **Recovery boundary:** caller abort rolls back the entire caller transaction,
+  including earlier edits. Without an active transaction, checkpoint recovery is
+  needed after an unexpected apply error. A dedicated per-operation transaction is
+  recommended when the caller owns the boundary. Dirty/redo history may change once
+  application begins and is not guaranteed to return to pre-call state after recovery.
+- **Retained constraints:** exact Constraint.Orientation on success; preflight rejection
+  of reversed/ambiguous mappings, unsupported modes/states and noRecomputes/edit mode;
+  preservation of native IDs, both orders, flags, ExternalTypes, authored constraints
+  and coherent reference/dependency state on success.
+- **Evidence:** t001-qualification.md; t001-validation.json; the user's Option A
+  instruction. Seven baseline probes, six existing native cases, five Python cases
+  and an arc fixture qualify existing mechanisms and runners, not a new implementation.
+- **Rejected alternative:** strict notification/model/journal atomicity and additional
+  generic native infrastructure. Historical candidate failures remain preserved.
+- **Change rule:** requirements/design/tasks/traceability/verification describe Option A.
+  T002 must verify the selected native implementation and cannot silently weaken
+  preflight/no-op or successful-operation preservation.
+
+## Contract Refinements After Qualification
+
+The MoE preservation and coverage findings remain applicable to preflight/no-op,
+success and supported caller recovery. Their stronger every-notification and
+post-application no-call guarantees were explicitly superseded by D002 Option A.
+Normal intermediate notifications and full caller-transaction abort are documented;
+no new atomic-publication guard or operation-local savepoint is claimed.
 
 ## Resolution Rule
 

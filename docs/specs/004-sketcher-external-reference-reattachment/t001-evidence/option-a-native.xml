@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites tests="8" failures="0" disabled="0" errors="0" time="0.571" timestamp="2026-11-07T15:17:09.958" name="AllTests">
+  <testsuite name="T001NativeProbe" tests="8" failures="0" disabled="0" skipped="0" errors="0" time="0.452" timestamp="2026-11-07T15:17:10.077">
+    <testcase name="legacyCircleRetargetKeepsIdsButAppendsLink" file="/home/bcherrington/Projects/CLion/FreeCAD/docs/specs/004-sketcher-external-reference-reattachment/t001-native-probe.cpp" line="87" status="run" result="completed" time="0.371" timestamp="2026-11-07T15:17:10.077" classname="T001NativeProbe">
+      <properties>
+        <property name="observed_link_order" value="Edge2,Edge3"/>
+      </properties>
+    </testcase>
+    <testcase name="legacyElementObserverSeesMixedState" file="/home/bcherrington/Projects/CLion/FreeCAD/docs/specs/004-sketcher-external-reference-reattachment/t001-native-probe.cpp" line="111" status="run" result="completed" time="0.011" timestamp="2026-11-07T15:17:10.448" classname="T001NativeProbe">
+      <properties>
+        <property name="mixed_notifications" value="2"/>
+        <property name="element_notifications" value="3"/>
+      </properties>
+    </testcase>
+    <testcase name="disableNotifyStillPublishesPropertySignal" file="/home/bcherrington/Projects/CLion/FreeCAD/docs/specs/004-sketcher-external-reference-reattachment/t001-native-probe.cpp" line="131" status="run" result="completed" time="0.009" timestamp="2026-11-07T15:17:10.460" classname="T001NativeProbe">
+      <properties>
+        <property name="property_notifications_with_parent_notify_disabled" value="1"/>
+      </properties>
+    </testcase>
+    <testcase name="setterRestorationLeavesTouchedState" file="/home/bcherrington/Projects/CLion/FreeCAD/docs/specs/004-sketcher-external-reference-reattachment/t001-native-probe.cpp" line="147" status="run" result="completed" time="0.01" timestamp="2026-11-07T15:17:10.469" classname="T001NativeProbe">
+      <properties>
+        <property name="restored_values_but_touched" value="true"/>
+      </properties>
+    </testcase>
+    <testcase name="setterRestorationCannotRecoverClearedRedo" file="/home/bcherrington/Projects/CLion/FreeCAD/docs/specs/004-sketcher-external-reference-reattachment/t001-native-probe.cpp" line="163" status="run" result="completed" time="0.011" timestamp="2026-11-07T15:17:10.480" classname="T001NativeProbe">
+      <properties>
+        <property name="redos_before" value="1"/>
+        <property name="redos_after_value_restore" value="0"/>
+      </properties>
+    </testcase>
+    <testcase name="legacyDuplicateAdmissionIsNonmutating" file="/home/bcherrington/Projects/CLion/FreeCAD/docs/specs/004-sketcher-external-reference-reattachment/t001-native-probe.cpp" line="184" status="run" result="completed" time="0.009" timestamp="2026-11-07T15:17:10.492" classname="T001NativeProbe" />
+    <testcase name="legacyReversedLineReencodesOrientation" file="/home/bcherrington/Projects/CLion/FreeCAD/docs/specs/004-sketcher-external-reference-reattachment/t001-native-probe.cpp" line="198" status="run" result="completed" time="0.014" timestamp="2026-11-07T15:17:10.501" classname="T001NativeProbe">
+      <properties>
+        <property name="orientation_changed" value="true"/>
+      </properties>
+    </testcase>
+    <testcase name="callerAbortRecoversUnexpectedApplyFailure" file="/home/bcherrington/Projects/CLion/FreeCAD/docs/specs/004-sketcher-external-reference-reattachment/t001-native-probe.cpp" line="226" status="run" result="completed" time="0.013" timestamp="2026-11-07T15:17:10.515" classname="T001NativeProbe">
+      <properties>
+        <property name="caller_abort_restored_model_and_earlier_edit" value="true"/>
+      </properties>
+    </testcase>
+  </testsuite>
+</testsuites>

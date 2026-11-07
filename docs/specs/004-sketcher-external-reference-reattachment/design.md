@@ -17,13 +17,20 @@ attachExternal implementation before choosing its internal extension point: it
 currently expands related geometry, removes old links and appends the replacement.
 A thin wrapper alone cannot promise the required slot preservation or failure behavior.
 
+T001 executed baseline and fixture probes. D001 selects reattachExternal; the user
+accepted D002 Option A, normal FreeCAD transaction semantics, after existing guards
+failed the stronger model/journal/publication contract. The implementation below
+uses existing native properties and caller-owned recovery; it introduces no generic
+atomic commit machinery. New-API acceptance remains T002–T005. See
+[the qualification report](t001-qualification.md).
+
 ## Requirement Coverage
 
 | Requirement | Acceptance Criteria | Design Coverage | Validation Approach |
 | --- | --- | --- | --- |
 | Requirement 1 | AC1, AC2, AC3 | Python interface; native ownership | Public Python call and generated documentation |
 | Requirement 2 | AC1, AC2, AC3, AC4, AC5 | Admission and application; semantic state oracle | Two-reference fixture, orientation and dependency cases |
-| Requirement 3 | AC1, AC2, AC3, AC4, AC5 | Error handling; coherent publication | Rejection matrix, fault injection, journal and observer tests |
+| Requirement 3 | AC1, AC2, AC3, AC4, AC5 | Preflight nonmutation; application errors and caller recovery | Rejection/no-op state checks, application fault injection, caller abort and notification observations |
 | Requirement 4 | AC1, AC2, AC3, AC4 | Transaction and lifecycle behavior | Abort, undo/redo, persistence and propagation |
 | Requirement 5 | AC1, AC2, AC3, AC4 | Compatibility; delivery and promotion | Existing regressions, build and specialist review |
 
@@ -32,7 +39,7 @@ A thin wrapper alone cannot promise the required slot preservation or failure be
 | Property | Design Behavior | Validation Direction | Notes |
 | --- | --- | --- | --- |
 | CP-001 | Replace in place using the existing identity | Compare IDs, both orders and constraints | Ref source changes intentionally |
-| CP-002 | Prepare before mutation; restore operation-owned state on failure | Snapshot comparison and immediate subsequent solve/edit | Do not roll back caller edits |
+| CP-002 | Prepare before mutation; propagate unexpected apply errors for caller recovery | Preflight/no-op snapshots; failure propagation and caller abort/checkpoint tests | No automatic rollback or no-call guarantee after application starts |
 | CP-003 | Property-based persistence and caller transaction participation | Both states across lifecycle operations | Semantic comparison |
 | CP-004 | New mapped source with old geometry identity | Change new source, then old source, then recompute | Assert unrelated reference stable |
 | CP-005 | Additive binding and isolated strict native path | Existing API and transaction tests | No legacy grouped behavior change |
@@ -52,7 +59,7 @@ There is no GUI dispatch, transport or MCP component in the implementation.
   name lookup, native invocation and consistent Python exception translation.
 - `src/Mod/Sketcher/App/SketchObject.h` and `SketchObjectExternal.cpp`: bounded
   admission, projection preparation, identity retention, coherent invalidation and
-  failure restoration. Prefer a strict internal overload/helper over duplicating
+  failure reporting. Prefer a bounded internal overload/helper over duplicating
   projection logic or silently changing the existing grouped operation.
 - `src/Mod/Sketcher/SketcherTests/TestSketchExternalReattachment.py` (new),
   `TestSketcherApp.py` and `CMakeLists.txt`: public API/lifecycle regression registration.
@@ -66,7 +73,8 @@ ordered ExternalGeo projections, the parallel persisted ExternalTypes vector,
 each extension's native ID/Ref/flags and transient
 externalGeoRef/externalGeoRefMap/externalGeoMap bookkeeping. Reattachment changes
 the selected source and derived projection while preserving its slot and ID.
-Transient mappings must be regenerated coherently after application and restoration.
+Transient mappings must be coherent on successful return and after supported caller
+abort/undo/redo; an interrupted application may require caller recovery.
 ExternalTypes is per link, distinct from geometry flags: only Projection links
 are admitted for reattachment. Unaffected Intersection/Both entries retain order
 and value. Native object/property dependencies and source backlinks are part of
@@ -85,10 +93,10 @@ Let the caller perform solve/recompute and decide the transaction outcome.
 
 ### Python Interface
 
-Proposed public signature, to be qualified in T001 before implementation:
+Public signature selected locally in D001; not implemented or upstream-approved:
 
 ```python
-def attachExternal(self, geo_id: int, obj_name: str, sub_name: str, /) -> None: ...
+def reattachExternal(self, geo_id: int, obj_name: str, sub_name: str, /) -> None: ...
 ```
 
 `geo_id` is a negative sketch geometry index: -3 is the first non-axis external
@@ -98,6 +106,13 @@ The object name resolves in the sketch's own document, following addExternal.
 `sub_name` is an existing Edge selector resolved by normal native shape APIs.
 Successful calls return None; failure raises. No public preview, bulk form or
 mode booleans are introduced in this slice.
+
+The name distinguishes live single-reference replacement from native vector
+attachExternal's grouped/detached semantics. Use TypeError for invalid types/bool,
+OverflowError for conversion overflow and ValueError for invalid references.
+The Python ExternalGeometry getter groups subelements by object; its tuple count
+is not the native raw link-slot count. Existing getGeometryId is internal-only;
+use external geometry facades for external native-ID assertions.
 
 An active transaction is not a precondition. Ordinary calls without one and calls
 with active or booked/global transactions are supported under the metadata rules
@@ -128,87 +143,116 @@ implementation is introduced by this API.
    only when correspondence is proven; reject ambiguous cases. Full circles have
    a centre role, not line-style start/end roles. Preserve Constraint.Orientation
    exactly in this first slice: do not silently call orientation re-encoding a
-   successful preservation. D002 must prove that normalization survives the normal
-   rebuild/reorientConstraintsOnReversedGeometry path; otherwise reject before mutation.
+   successful preservation. T001 showed that native reversed-line attachment
+   re-encodes Orientation; reject reversed or ambiguous mappings in preflight rather
+   than relying on that path. T002/T004 must qualify admitted same-orientation
+   line/arc projections through normal rebuild and repeated recomputation.
    Signed Distance/Tangent semantics must survive repeated recompute and reopening.
 7. Prepare owned clones and identity/mapping changes before publishing property
    updates. Preserve old link position, native ID, authored flags and all constraints.
    Do not replace the sketch's authored internal geometry as part of this call.
-8. Apply only through the coherent publication mechanism demonstrated by T001/D002.
-   The existing managedoperation flag alone does not suppress App observers or
-   signalElementsChanged; no atomic notification guard is assumed to exist.
-   Reuse the prepared projection rather than letting an unchecked rebuild allocate
-   or delete identities. Rebuilding must enforce the same preservation checks.
+8. Apply through normal native property setters and Sketcher bookkeeping. Ordinary
+   property/element notifications can expose intermediate link/projection state;
+   managedoperation is not an atomic publication guard. Reuse the prepared projection
+   where feasible. Before returning success, verify cardinality, both orders, IDs,
+   flags, constraints, ExternalTypes, Ref resolution and dependency consistency.
+   A rebuild that logs an error or leaves Missing state must not be treated as success.
+   Surface unexpected apply errors for caller recovery; do not retry or manipulate
+   the caller's transaction boundaries.
 9. Mark solver/derived geometry stale through normal Sketcher mechanisms. Do not
    perform document recompute, save, or speculative solver retries.
 
-### Error Handling and Atomicity
+### Error Handling and Recovery
 
 Match nearby TypeError/ValueError conventions for user input and translate native
 projection exceptions consistently. Error messages identify the invalid geometry
 index/source/selector and rejected condition. Missing projections cannot be logged
 and treated as a successful reattachment.
 
-Precondition rejection occurs before observable property mutation or model-change
-signals. For a failure after application begins, restore operation-owned properties,
-Ref/ID/mode associations, dependencies/backlinks and coherent derived mappings,
-plus pre-call dirty/touched/enforce/recompute state and transaction/undo/redo
-metadata. Preserve caller edits, including earlier edits to the same property.
-The strong guarantee is required with no transaction, an empty booked transaction
-with redo available, and an existing populated transaction.
+Preflight rejection and admitted exact no-op occur before observable property
+mutation or model-change signals. All known incompatibilities, including projection
+cardinality/type/direction changes, must be checked before application starts.
+Those paths preserve model, dependencies, dirty/touched/recompute state, booked or
+active transaction contents, and undo/redo behavior.
 
-T001 must demonstrate the actual staging/publication and operation-local restoration
-mechanisms before D002 can close and T002 begin. Ordinary setter-based restoration
-does not establish this guarantee: setters can emit signals, dirty objects and
-materialize a booked transaction or clear redo. Every emitted notification must
-expose coherent links, mode, projection, Ref and IDs. A read-only diagnostic observer
-must verify the sequence during success and injected failure, not just the final
-snapshot. No-op and admission failures emit no model-change notifications.
+Once application starts, normal property and transaction behavior applies. Setters
+may touch the document, materialize a booked/global transaction, clear redo and emit
+intermediate notifications. On successful return, native state must meet every
+success invariant. Unexpected application errors must propagate with a diagnostic;
+never return success, retry, commit or abort automatically. Do not infer unchanged
+state merely from the exception type. No operation-local rollback or restoration
+of dirty/redo metadata is promised after application starts.
 
-External observer side effects cannot be universally undone. Consistent transient
-notifications during a restored application failure are permitted and must be
-documented and sequence-tested; inconsistent notifications are prohibited. CP-002
-therefore concerns restored model/journal state and coherent publication, not an
-impossible promise that every external observer forgets a notification.
-If the proposed guarantee cannot be achieved with bounded existing mechanisms,
-T001 must record that result and revise acceptance/design/traceability before any
-implementation proceeds. Do not introduce generic App transaction or notification
-machinery, weaken checks silently, or present an unproven mechanism as resolved.
+The caller handles recovery: abort its transaction or restore an owned checkpoint
+when no transaction is available. Even if values can be restored, notifications
+and discarded redo history cannot be retracted. This is the explicit user-approved
+D002 Option A scope change, not proof that a stronger atomic mechanism exists.
+Generic App transaction/savepoint/notification infrastructure is out of this slice.
 
 ### Transaction and Lifecycle Behavior
 
-Transaction ownership stays with the caller. The method does not explicitly open,
-commit or abort a top-level transaction. Normal FreeCAD booked/global transaction
-materialization from successful property edits is permitted; it must not be described
-as a hidden wrapper-owned transaction. No active transaction is required. Failure
-and no-op preserve active/booked transaction identity, contents, undo/redo counts
-and actual replay behavior. Test clean/no-transaction, empty booked-with-redo,
-populated transaction and earlier same-property edit states independently.
+Transaction ownership stays with the caller. No active transaction is required;
+the method does not explicitly open, commit or abort one. Normal booked/global
+transaction materialization is allowed once application starts. Admission failure
+and no-op must leave transaction metadata unchanged. After an unexpected apply
+error, the caller must stop using the possibly partial result and recover before
+continuing. There is no automatic retry.
 
-Undo/redo must rebuild transient maps and solver state before the next edit.
-Persistence tests compare before/after states in separate files and separately
-verify undo/redo in memory; an undo stack is not assumed to survive reopening.
-Geometrically compatible references can still create ordinary solver conflicts.
-Those remain the caller's responsibility to observe and resolve/abort normally.
+Prefer one transaction per operation when the caller owns that boundary. An
+illustrative caller-controlled sequence is:
+
+```python
+document.openTransaction("Reattach external reference")
+try:
+    sketch.reattachExternal(-3, "Source", "Edge3")
+    document.recompute()
+    # Validate sketch and dependent features before committing.
+    document.commitTransaction()
+except Exception:
+    document.abortTransaction()
+    raise
+```
+
+A caller already composing edits in a transaction should retain its own boundary;
+the example is not a request to nest transactions. Aborting a transaction also
+reverts earlier edits in it. This operation does not provide a savepoint preserving
+those edits. Without a transaction, use an owned checkpoint for recovery; source
+files and operator documents must not be overwritten to implement this policy.
+
+Undo/redo and caller abort must rebuild transient maps and solver state before
+the next edit. Persistence tests compare before/after states in separate files;
+undo history is not assumed to survive reopening. Reference compatibility does
+not guarantee global solver consistency: the caller observes solve/recompute,
+validates its expected geometry and commits or recovers accordingly.
 
 ### Semantic State Oracle
 
-Compare link order/source/selector, projection order, native IDs, authored flags,
-the entire ordered ExternalTypes vector, Ref resolution, constraint signatures
-including point roles, Orientation, names, driving/active states and expressions.
-Compare old/new source InList/OutList and relevant property dependencies, retaining
-relationships still needed by other references. On failure/no-op compare document,
-object and property dirty/touched/enforce state, pending recompute and transaction
-identity/contents/undo/redo behavior. Observe notification-time state as well as
-post-call state. Assert unaffected source/consumer objects stay unchanged.
-Compare curve type, coordinates and dependent geometry with documented tolerances.
+On successful return, compare link order/source/selector, projection order, native
+IDs, authored flags, the entire ordered ExternalTypes vector, Ref resolution,
+constraint signatures including point roles, Orientation, names, driving/active
+states and expressions. Compare old/new InList/OutList and property dependencies,
+retaining edges still needed by other references. Compare expected dependent
+geometry with documented tolerances and assert unrelated objects stay unchanged.
+
+For preflight rejection and admitted no-op, compare model/dependency state plus
+document/object/property dirty/touched/enforce state, pending recompute and actual
+transaction/undo/redo behavior; assert no change notifications. For unexpected
+apply failure, assert an exception and no implicit transaction commit/abort/retry,
+record partial state, then recover through the caller boundary. Test that caller
+abort restores authored/dependency state and permits subsequent solve/edit; do
+not demand restoration of discarded redo history. Test a no-transaction recovery
+through an owned checkpoint separately.
+
+Observe notification sequences to distinguish ordinary intermediate events from
+successful return. Intermediate coherent multi-property snapshots are not required.
+The implementation must still respect native ownership and lifetime, and the final
+successful state must meet all success invariants.
 
 Do not use ZIP bytes, timestamps, generated Part.Geometry.Tag UUIDs or exact BREP
-serialization as sole fidelity proofs. Any exclusion must be named and narrowly
-justified; authored Ref targets, IDs, flags and constraints cannot be normalized away.
-Native Ref strings may be regenerated by normal mapping provided source resolution
-and identity are proven. Missing/Sync are derived status, not authored flags to preserve
-blindly; successful recompute must report a valid resolved reference.
+serialization as sole fidelity proofs. Name narrowly justified exclusions; authored
+Refs, IDs, flags and constraints cannot be normalized away. Native Ref strings may
+be regenerated if source resolution and identity are proven. Missing/Sync are
+derived status; successful recompute must report a valid resolved reference.
 
 ### Migration and Compatibility
 
@@ -238,7 +282,7 @@ runtime identifiers in the coordination log convey no current authority.
 
 See [verification matrix](verification.md#regression-matrix). Require positive
 circle/arc/line cases, invalid-input and injected-failure cases, exact no-op,
-caller transaction isolation, normal solve/recompute, source propagation, undo/redo
+preflight/no-op transaction isolation, caller recovery, normal solve/recompute, source propagation, undo/redo
 and save/reopen. Test through the public binding and directly at native boundaries
 where Python cannot expose the relevant bookkeeping. Use existing test libraries.
 
@@ -248,7 +292,8 @@ Linux evidence does not certify Windows/macOS. No live operator mutation is need
 
 ## Downstream Task Guidance
 
-T001 resolves signature/indexing and orientation/staging feasibility before T002.
+T001 resolves signature/indexing, bounded orientation admission and D002 failure
+semantics before T002. It records why strict atomicity was not adopted.
 T002 delivers native invariants; T003 exposes the Python method; T004 qualifies
 lifecycle behavior; T005 handles compatibility/review; T006 promotes and closes.
 If qualification disproves a proposed guarantee, update requirements, design,
@@ -272,8 +317,8 @@ This table describes the proposed technical answers and their design impact.
 
 | Decision | Proposed answer | Resolution needed | Owner | Blocks |
 | --- | --- | --- | --- | --- |
-| D001 | attachExternal(geo_id, obj_name, sub_name) returns None; scalar negative geometry index | Confirm naming/signature against all native callers and binding conventions; record rationale | local-developer | T002, T003 |
-| D002 | Preserve Orientation exactly or reject; demonstrate coherent publication and full model/journal restoration | Prove the mechanism with observer-sequence, dirty/redo and dependency probes; revise the spec explicitly if bounded feasibility fails | local-developer | T002, T004 |
+| D001 (resolved locally) | reattachExternal(geo_id, obj_name, sub_name) returns None; scalar negative geometry index | Qualified API/naming boundary; implementation and public review remain pending | local-developer | no remaining local design blocker |
+| D002 (resolved by user) | Option A: normal FreeCAD transaction semantics; unchanged preflight/no-op, success invariants, caller recovery after unexpected application error | User accepted Option A; contract/tests reconciled, implementation remains pending | local-developer | no remaining local design blocker |
 
 Public maintainer agreement has not been obtained. T001 is an executable local
 qualification task; its decisions do not require pausing spec creation for approval.
