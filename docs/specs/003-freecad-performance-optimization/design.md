@@ -4,7 +4,7 @@ doc_type: spec
 artifact_type: design
 status: draft
 owner: local-developer
-last_reviewed: 2026-11-06
+last_reviewed: 2026-11-07
 ---
 
 # Technical Design
@@ -29,7 +29,7 @@ review gates. Keep compact rail geometry in package 002.
 
 | Property | Design Behavior | Validation Direction | Notes |
 | --- | --- | --- | --- |
-| CP-001 | Buffered restore preserves bytes, entry boundaries, permissions and notifications with defined document-level failure outcomes. | T018, T002; archive-level failure and compatibility fixtures | T018 current document-level policy/failure matrix qualified; T002 aggregate checkpoint remains |
+| CP-001 | Buffered restore preserves bytes, entry boundaries, permissions and notifications with defined document-level failure outcomes. | T018, T002; archive-level failure and compatibility fixtures | T018 policy/failure matrix and T002 aggregate compatibility qualified locally; T010 final/platform applicability remains |
 | CP-002 | Image conversion and texture-only materialization preserve pixel semantics, original source, independently calibrated dimensions and placement. | T013, T003, T006; calibrated reopen/import/show/save fixtures | T013/T003/T006 local qualification complete; final T010 applicability remains |
 | CP-003 | Tree batching preserves per-object effects, ends callbacks with receiver lifetime and completes every suppressed restore path. | T014, T017, T007; destruction and idle restore-path regressions | T014/T017 corrections and T007 current local tree checkpoint qualified; final T010 applicability remains |
 | CP-004 | Image extents, allocation lengths and offsets are checked before narrowing or writing; unsupported input is rejected safely. | T012, T003; null/slender boundary tests and sanitizer-equivalent checks | Source correction/qualification pending |
@@ -244,7 +244,7 @@ invalidation and diagnostic contracts.
   notification state and later-entry continuation. XMLReader catches hook
   exceptions, so hook-only assertions cannot prove archive-level acceptance. T018 now
   qualifies the preserved policy through full Document::restore; see the outcome table
-  below. T002 remains the aggregate compatibility gate.
+  below. T002 now completes the local aggregate compatibility gate.
 
 ### Archive Failure Compatibility Policy
 
@@ -253,7 +253,9 @@ under the user-authorized completion instruction. This is a delegated local
 compatibility decision, not a new upstream policy approval. No production
 source, archive format, public API or rollback behavior changes in this task.
 The native document-level matrix qualifies the following outcomes on the
-recorded Linux debug composition. T002 remains the aggregate included-file gate.
+recorded Linux debug composition. T002 completes the aggregate included-file gate
+with explicit ZIP-entry byte/size, normal application-open and direct hook checks.
+T010 retains exact-final/platform applicability.
 
 `Document::restore` catches payload-hook exceptions at the reader boundary,
 continues to the next registered entry, and returns without setting RestoreError

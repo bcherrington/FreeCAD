@@ -4,7 +4,7 @@ doc_type: spec
 artifact_type: tasks
 status: draft
 owner: local-developer
-last_reviewed: 2026-11-06
+last_reviewed: 2026-11-07
 ---
 
 # Tasks
@@ -35,8 +35,8 @@ that explicit routing verified.
 | 2A — Images | T012/T013/T003/T006 complete | Safe conversion and calibrated lifecycle qualified |
 | 2B — Tree | T014/T017/T007 complete | Receiver/completion fixes and current functional qualification |
 | 2C — CAD maps | T015/T016/T005 complete | Bounded parsing and CAD reference identity qualified |
-| 2D — Archives | T018 complete → **T002 next** | Archive error outcomes and compatibility qualified |
-| 3 — Performance | T020 → T004 | Predeclared latency/memory/per-change acceptance satisfied |
+| 2D — Archives | T018/T002/T002.1/T002.2 complete | Archive error outcomes and compatibility qualified |
+| 3 — Performance | **T020 next** → T004 | Predeclared latency/memory/per-change acceptance satisfied |
 | 4 — Delivery | T010 → T011 | Exact final evidence, platform checks, promotion and closure |
 
 Complete each fix and its focused regression before advancing, then close the
@@ -74,8 +74,8 @@ none -> T008
 ## Phase 1 — Finish Planning
 
 Exit satisfied: T021/T019 evidence retained, T009 scope disposition recorded, and T001
-resolves D001 with the benchmark protocol. **Next action: T002 — Verify included-file restore compatibility on the target revision
-(Phase 2D; T018 failure policy/matrix complete).**
+resolves D001 with the benchmark protocol. **Next action: T020 — Measure deferred first-frame latency and image memory
+(Phase 3; all Phase 2 correction/compatibility subgroups complete locally).**
 
 - [x] T021 Expose lifecycle decisions and verify execution guardrails.
   - Depends on: none
@@ -548,7 +548,7 @@ measurements.
     or archive cleanup behavior change. Linux test shim never links to production targets.
 
   - Status: Completed local preserved failure policy/matrix and metadata/save audit. Next T002 aggregate included-file compatibility; Windows/other libc, final production/platform and performance/promotion remain.
-- [ ] T002 Verify included-file restore compatibility on the target revision.
+- [x] T002 Verify included-file restore compatibility on the target revision.
   - Depends on: T018
   - Requirements: Requirement 1 (all acceptance criteria)
   - Design: design.md#high-level-design; design.md#low-level-design
@@ -559,14 +559,14 @@ measurements.
     and later-entry continuation.
   - Validation: See verification.md#quality-gates and the linked criteria.
   - Evidence mode: artifact
-  - Evidence: Pending current qualification. Replanning retained prior implementation and dated test observations in baseline-status.md; no child/current expanded acceptance result is complete.
-  - Status: Remaining execution is pending; source presence/historical results are baseline context, not partial execution.
+  - Evidence: 2026-11-07: T002.1/T002.2 complete. t002-validation.json and verification.md#t002-included-file-compatibility-checkpoint reconcile all Requirement 1 AC1–AC3 and CP-001 at ad1bf7eac8/docs ee77d7f plus exact new-test diff. Four raw ZIP/application-open byte/size boundaries, six direct hook cases and twelve current T018 full-document rows establish bytes, entry boundaries, notifications/read-only behavior, observable failures, partial output and later-entry continuation. 45 integrity/applicability checks bind unchanged production/shim/configuration, retained T018 test bodies/raw artifacts, seven clean dependency heads, 510 packages and frozen current source/binaries/fixtures. Full Pixi build, 310 App cases, 26 Reader cases, 349 CTests and 29 included-file Memcheck cases pass; zero errors with existing libunwind suppression and leak/undefined-value limits. No production behavior/API/archive-policy/performance claim. Local Requirement 1/CP-001/F006 and Phase 2 correctness complete; next T020, with T010 final/platform and T011 promotion pending.
+  - Status: Completed local aggregate included-file compatibility and both child tasks. Phase 2 complete locally; next T020 deferred first-frame latency/image memory under D001/T019. Final production/platform, performance and promotion gates remain.
   - Properties: CP-001
   - Candidate manifest: spec003-linux-x86_64-debug-candidate-20261106-v1; see validation-manifest.md
     and record actual execution provenance.
   - Baseline: baseline-status.md#included-file-restore
 
-  - [ ] T002.1 Verify empty, binary, multi-buffer and multi-entry restored bytes and ZIP boundaries.
+  - [x] T002.1 Verify empty, binary, multi-buffer and multi-entry restored bytes and ZIP boundaries.
     - Depends on: T018
     - Requirements: Requirement 1 (all acceptance criteria)
     - Files: `src/App/PropertyFile.cpp`, `src/Base/Reader.cpp`, `tests/src/App/PropertyFile.cpp`,
@@ -574,11 +574,12 @@ measurements.
     - Acceptance: Verify empty, binary, multi-buffer and multi-entry restored bytes and ZIP
       boundaries.
     - Evidence mode: artifact
-    - Evidence: Pending.
+    - Evidence: 2026-11-07: t002-validation.json and verification.md#t002-included-file-compatibility-checkpoint bind ad1bf7eac8/docs ee77d7f plus exact native-test diff and frozen final source/build/runtime/fixture identities. New archiveBoundariesAndNormalApplicationOpen compares raw ZIP entry sizes/full bytes for 0/65536/65537/131089-byte binary payloads, then normal Application::openDocument restores regular files with exact sizes/bytes and read-only permissions, including empty file. Actual archive and deterministic payload SHA256 identities recorded. Current full Pixi build, 310 App/26 Reader/349 CTest and all 29 included-file Memcheck cases pass; no production/API/format change.
     - Candidate manifest: spec003-linux-x86_64-debug-candidate-20261106-v1; see
       validation-manifest.md and record actual execution provenance.
 
-  - [ ] T002.2 Verify property notifications, read-only destination behavior and read/write/close failures.
+    - Status: Completed current local empty/binary/buffer-boundary/multi-entry byte and ZIP compatibility; final platform applicability remains T010.
+  - [x] T002.2 Verify property notifications, read-only destination behavior and read/write/close failures.
     - Depends on: T002.1
     - Requirements: Requirement 1 (all acceptance criteria)
     - Files: `src/App/PropertyFile.cpp`, `src/Base/Reader.cpp`, `tests/src/App/PropertyFile.cpp`,
@@ -587,10 +588,11 @@ measurements.
       both property-hook checks and T018 document-level failure outcomes; a failing first entry must
       not hide the expected valid second-entry behavior.
     - Evidence mode: artifact
-    - Evidence: Pending.
+    - Evidence: 2026-11-07: t002-validation.json records six new direct PropertyFileIncluded::RestoreDocFile cases for empty/nonempty write/close/bad-reader conditions, observable FileSystemError and payload notifications/regular-file existence/permissions/fault hits. Empty write is a successful zero-write control. All twelve T018 full-document rows rerun on the final frozen binary verify live failure lists, log/error diagnostics, partial outputs and correct later-entry bytes/read-only state; established policy retained. All 29 included-file cases pass normally and under Memcheck (zero errors; one exact libunwind probe suppression, leak/undefined-value checks disabled). Broader 310 App/26 Reader/349 CTest checks pass; receipt binds current fixture/source/build/log identities.
     - Candidate manifest: spec003-linux-x86_64-debug-candidate-20261106-v1; see
       validation-manifest.md and record actual execution provenance.
 
+    - Status: Completed local direct-hook plus document-level failure/notification/read-only compatibility; final platform applicability remains T010.
 ## Phase 3 — Qualify Comparative Performance
 
 Exit: T020/T004 satisfy the predeclared D001 endpoint, latency, memory, per-change and

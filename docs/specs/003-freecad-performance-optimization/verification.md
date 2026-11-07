@@ -4,7 +4,7 @@ doc_type: spec
 artifact_type: verification
 status: code-derived
 owner: local-developer
-last_reviewed: 2026-11-06
+last_reviewed: 2026-11-07
 ---
 
 # Performance Optimization Reconciliation
@@ -894,10 +894,78 @@ preflight selects T002 with satisfied dependencies, zero context gaps and no ope
 decisions. Earlier completed task records, receipts/manifest/protocol, T005’s
 uncommitted result and the unrelated console edit are preserved.
 
+## T002 Included-File Compatibility Checkpoint
+
+2026-11-07: T005/T018 committed as root `ad1bf7eac8` / docs `ee77d7f` under
+the user’s commit instruction. [t002-validation.json](t002-validation.json) binds
+that base, the exact one-file native-test diff and final source/build/runtime/
+fixture identities. Production PropertyFile.cpp/Reader.cpp, existing Linux fault
+shim and test CMake configuration remain unchanged; the T018 helper/test bodies
+are retained verbatim and rerun on the final binary. The selected manifest,
+seven clean dependencies and 510 package identities remain pinned.
+
+T002.1 adds `archiveBoundariesAndNormalApplicationOpen`: a native VarSet document
+contains four included files of 0, 65536, 65537 and 131089 bytes (byte i =
+(i * 37) mod 256). It compares each ZIP entry’s declared size and complete bytes,
+then closes the source document and uses normal `Application::openDocument`.
+Every reopened payload must exist as a regular file, have its exact size/bytes
+and be read-only, including the empty file. This covers the copy-buffer boundary,
+one byte past it and multiple buffers without relying on equal-sized ZIP entries.
+The output archive’s SHA-256 and generator/payload identities are in the receipt.
+No byte-deterministic ZIP ordering or timestamp claim is made.
+
+T002.2 adds six direct `IncludedFileHookTest` cases for empty/nonempty write,
+close and bad-reader conditions. They assert Base::FileSystemError before payload
+completion, payload before/after notifications, regular destination existence,
+permissions and explicit output fault hits. Empty writes correctly attempt no
+write and complete normally. Direct read-error cases begin with badbit; T018’s
+full document rows separately exercise the actual payload stream read boundary.
+All twelve T018 document-level rows are rerun, including live failure-list state,
+diagnostics, partial bytes, permissions, document flags and correct later-entry
+bytes. Existing metadata/missing-save checks and seven traversal-security cases
+also remain in the included-file filter.
+
+| Criterion | Current proof |
+| --- | --- |
+| Requirement 1 AC1 | Four raw ZIP/reopened-file byte/size controls, binary and multi-buffer payloads; current notifications/read-only controls and direct hook observability |
+| Requirement 1 AC2 | Preserved T018 outcome table, twelve current full-document fault/control rows and six direct hook rows; partial bytes/permissions/notifications/diagnostics/failure lists verified |
+| Requirement 1 AC3 | The real document reader continues after the first failure and restores the second payload byte-for-byte/read-only in all twelve rows; no hook-only inference |
+
+| Final check | Result |
+| --- | --- |
+| `pixi run --locked build -j 2` | Passed; existing Pivy stub-generation warnings |
+| Included-file and existing naming/hash App filter | 310/310 passed: 29 included-file cases plus 281 naming/hash cases |
+| `Base_tests_run --gtest_filter=ReaderTest.*` through Pixi | 26/26 passed |
+| Focused included-file/hook/Reader/naming/TopoShape CTests | 349/349 passed |
+| All 29 included-file cases under Memcheck | Passed, zero errors; one existing libunwind startup-probe suppression |
+| Scoped hooks, 45 integrity/applicability checks, package/links/preservation | Passed |
+
+Exact argv, working directories, disposable FREECAD_USER_HOME/DATA/TEMP and XDG
+paths, times, raw gtest properties and log hashes are in the receipt and
+`build/debug/artifacts/spec003-t002/commands.json`. Final source/executable/core/
+shim hashes were frozen unchanged across accepted execution. Earlier receipts
+and completed task records remain immutable and dated; no new runtime result is
+inferred from the commit alone. Memcheck disables leak/undefined-value checks;
+no whole-application ASan/UBSan or loaded-image equivalence is claimed.
+
+Requirement 1, CP-001, F006, T002.1 and T002.2 are complete locally. This is the
+recorded Linux debug composition with the existing Linux-only fault shim, not
+Windows/other-libc or hardware-failure qualification. T010 still owns exact-final
+production/platform applicability and T011 durable promotion. All Phase 2 local
+correctness subgroups are complete; next is T020 under the predeclared D001
+performance contract. Correctness passes do not establish a latency/memory gain.
+
+Guarded completion leaves 24 complete, 14 pending and two follow-ups across all
+40 stable IDs, with no partial/in-progress records. Package lint reports zero
+diagnostics and preflight selects T020 with satisfied dependencies, zero context
+gaps and no open decisions. Earlier completed records, immutable artifacts and
+the unrelated console edit remain preserved. Agent Workbench is navigation-only
+at the nested docs boundary; executed checks and exact identities establish proof.
+
 ## Next Actions
 
-1. **Next: T002 — Verify included-file restore compatibility on the target revision.**
-   T018 preserved policy/failure matrix is complete; retain D001/T019 applicability rules.
+1. **Next: T020 — Measure deferred first-frame latency and image memory.**
+   Phase 2 correctness/compatibility is complete locally; use the D001/T019 protocol and applicability rules.
 2. Follow [the explicit Phase 2 subgroups](tasks.md#execution-order): images,
    tree lifecycle, CAD maps, then archives; finish each fix's focused regression
    and subgroup qualification before advancing.
@@ -915,7 +983,7 @@ uncommitted result and the unrelated console edit are preserved.
 | Candidate and final evidence applicability | yes | partial | T019 initial manifest/policy recorded; actual new-build/runtime receipts and T010 final reconciliation pending |
 | Predeclared per-optimization performance/resource acceptance | yes | pending | T001 protocol complete; T020/T004 and final T010 evidence pending |
 | Complete task/criterion evidence | yes | pending | tasks.md; traceability.md |
-| Focused current correctness and failure tests | yes | pending | T003/T006 image, T007 tree, T015/T016/T005 numeric/identity and T018 failure-matrix checks pass locally; T002 aggregate archive qualification remains |
+| Focused current correctness and failure tests | yes | passed locally | T003/T006 image, T007 tree, T015/T016/T005 numeric/identity and T018/T002 failure/aggregate compatibility checkpoints pass on their recorded profiles; T010 reconfirms final/platform applicability |
 | Current measurements and platform/manual acceptance | yes | pending | Historical observations are insufficient |
 | Durable promotion and residual ownership | yes | pending | requirements.md durable impact |
 | Review and closure metadata | yes | pending | No closure claimed |
@@ -1039,7 +1107,8 @@ executed. Runtime regression evidence for F001–F008 remains pending.
 - T015 numeric safety and T016 writer/alias/child/dependent CAD identity pass locally,
   including the reproduced/corrected missing-hasher child-SID path. Aggregate parser
   compatibility is complete through T005. T018 qualifies the preserved archive-level
-  failure outcomes; T002 aggregate included-file compatibility remains.
+  failure outcomes; T002 completes aggregate included-file compatibility locally.
+  Final production/platform applicability remains T010.
 - Dated tests do not certify the selected final production revision.
 - Unresolved design/budget decisions block dependent implementation/acceptance.
 - Current measurements, desktop/visual/platform coverage and durable promotion
@@ -1056,8 +1125,8 @@ this migration.
 
 ## Readiness Decision
 
-- Ready to implement: T002 — Verify included-file restore compatibility on the target revision; T018 failure-policy qualification and image/tree/CAD-map subgroups complete.
-- Ready to validate: local numeric/identity/aggregate/tree/image corrections qualified by T015/T016/T005/T007/T003/T006. Whole-package acceptance still requires archive/performance checkpoints and T010 final/platform applicability.
+- Ready to implement: T020 — Measure deferred first-frame latency and image memory; all Phase 2 local correction/compatibility subgroups complete.
+- Ready to validate: Phase 2 local correction/compatibility qualified by T015/T016/T005/T007/T003/T006/T018/T002. Whole-package acceptance still requires T020/T004 performance and T010 final/platform applicability.
 - Ready to close: no.
 - Ready to archive: no.
 - Cleanup action: keep active, draft.
