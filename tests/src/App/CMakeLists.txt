@@ -39,3 +39,12 @@ target_link_libraries(App_tests_run PRIVATE
     ${Python3_LIBRARIES}
     FreeCADApp
 )
+
+# Exact-file I/O fault injection belongs to the native tests, never the application.
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    add_library(IncludedFileIOFaults SHARED PropertyFileIOFaults.cpp)
+    set_target_properties(IncludedFileIOFaults PROPERTIES CXX_VISIBILITY_PRESET default)
+    target_link_libraries(IncludedFileIOFaults PRIVATE ${CMAKE_DL_LIBS})
+    target_link_libraries(App_tests_run PRIVATE IncludedFileIOFaults)
+    target_compile_definitions(App_tests_run PRIVATE FC_TEST_INCLUDED_FILE_IO_FAULTS)
+endif()

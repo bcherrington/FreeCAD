@@ -29,11 +29,11 @@ review gates. Keep compact rail geometry in package 002.
 
 | Property | Design Behavior | Validation Direction | Notes |
 | --- | --- | --- | --- |
-| CP-001 | Buffered restore preserves bytes, entry boundaries, permissions and notifications with defined document-level failure outcomes. | T018, T002; archive-level failure and compatibility fixtures | Source correction/qualification pending |
+| CP-001 | Buffered restore preserves bytes, entry boundaries, permissions and notifications with defined document-level failure outcomes. | T018, T002; archive-level failure and compatibility fixtures | T018 current document-level policy/failure matrix qualified; T002 aggregate checkpoint remains |
 | CP-002 | Image conversion and texture-only materialization preserve pixel semantics, original source, independently calibrated dimensions and placement. | T013, T003, T006; calibrated reopen/import/show/save fixtures | T013/T003/T006 local qualification complete; final T010 applicability remains |
 | CP-003 | Tree batching preserves per-object effects, ends callbacks with receiver lifetime and completes every suppressed restore path. | T014, T017, T007; destruction and idle restore-path regressions | T014/T017 corrections and T007 current local tree checkpoint qualified; final T010 applicability remains |
 | CP-004 | Image extents, allocation lengths and offsets are checked before narrowing or writing; unsupported input is rejected safely. | T012, T003; null/slender boundary tests and sanitizer-equivalent checks | Source correction/qualification pending |
-| CP-005 | Numeric conversion is bounded and element-map aliases, child IDs and dependent CAD reference identities survive restore/recompute. | T015, T016, T005; numeric/writer/identity fixture matrix | T015/T016 local numeric/identity qualification complete; T005 aggregate checkpoint and T010 final applicability remain |
+| CP-005 | Numeric conversion is bounded and element-map aliases, child IDs and dependent CAD reference identities survive restore/recompute. | T015, T016, T005; numeric/writer/identity fixture matrix | T015/T016 numeric/identity and T005 aggregate compatibility qualified locally; T010 final applicability remains |
 
 ## High-Level Design
 
@@ -118,8 +118,9 @@ end pointers nor errno. The public API and archive writer/format are unchanged.
 Rejecting structurally invalid metadata and indices formalizes existing type
 preconditions; it does not change valid writer output. General archive allocation
 budgets, locale-specific non-ASCII numeric extensions, malformed-file document
-recovery and Windows/LLP64 qualification are not established here. T016/T005 still
-retain aggregate parser acceptance and final applicability; T016 now qualifies the writer/alias/child-map and dependent CAD identity slice locally.
+recovery and Windows/LLP64 qualification are not established here. T016 and T005
+qualify writer/alias/child-map and dependent CAD identity and aggregate parser acceptance
+locally. T010 retains exact-final/platform applicability.
 
 ### Image Qualification Reference
 
@@ -213,7 +214,9 @@ invalidation and diagnostic contracts.
   Chamfer.Base edges through two map-bearing save/reopen cycles and three forced recomputes.
   Missing child-SID hashers now warn/omit IDs like the mapped-SID path, instead of dereferencing
   null; malformed/unknown IDs retain warning/omission behavior. The writer and public API remain
-  unchanged. CP-005 records these identity invariants; T005 is the aggregate compatibility gate.
+  unchanged. CP-005 records these identity invariants; T005 completes the aggregate local
+  compatibility gate by binding all four criteria to the unchanged tested composition.
+  T010 retains exact-final/platform applicability.
 - **Restore completion (F005):** suppression must have a matching completion for
   app open, direct doc.load/doc.restore, import/paste and failure cleanup. T017
   retains broad isRestoring guards against processing and keeps one existing
@@ -239,7 +242,66 @@ invalidation and diagnostic contracts.
   approved deliberate change. T018 records empty/nonempty read/write/close
   failures at document level, diagnostics/failure lists, partial-file handling,
   notification state and later-entry continuation. XMLReader catches hook
-  exceptions, so hook-only assertions cannot prove archive-level acceptance.
+  exceptions, so hook-only assertions cannot prove archive-level acceptance. T018 now
+  qualifies the preserved policy through full Document::restore; see the outcome table
+  below. T002 remains the aggregate compatibility gate.
+
+### Archive Failure Compatibility Policy
+
+T018 selects preservation of the existing `XMLReader::readFiles` disposition
+under the user-authorized completion instruction. This is a delegated local
+compatibility decision, not a new upstream policy approval. No production
+source, archive format, public API or rollback behavior changes in this task.
+The native document-level matrix qualifies the following outcomes on the
+recorded Linux debug composition. T002 remains the aggregate included-file gate.
+
+`Document::restore` catches payload-hook exceptions at the reader boundary,
+continues to the next registered entry, and returns without setting RestoreError
+or PartialRestore for these included-file failures. A failed **nonempty** entry
+emits an error and is added to `XMLReader::FailedFiles`; a failed **empty** entry
+emits `Skipped empty embedded file` at log level and is not added. Neither case
+is a successful payload completion. The live reader's list is checked from the
+second payload hook; it is not assumed available after the reader is destroyed.
+
+Counts below are payload-phase **before/after** notifications. XML property
+assignment already supplies its own notifications before dispatch and sets the
+property path/basename; it is excluded from these counts. Failure never rolls
+back the path or removes partial output. Successful payloads are made read-only;
+failed ones do not reach that step. All rows restore the valid second payload
+byte-for-byte and read-only, with no second-entry failure.
+
+| Injected operation | Empty first payload | Nonempty first payload | Payload notifications |
+| --- | --- | --- | --- |
+| Success control | Empty file, read-only; no diagnostic/list entry | All 131089 binary bytes, read-only; no diagnostic/list entry | 1/1 |
+| Read error at stream boundary | Empty writable destination; log/absent from failure list | First 65536 bytes retained writable; error/present in failure list | 1/0 |
+| Write error before first output write | No write attempted (zero fault hits); successful empty read-only file | Zero bytes retained writable; error/present in failure list | 1/1 empty; 1/0 nonempty |
+| Close error returned after actual descriptor close/flush | Empty writable file; log/absent from failure list | All test payload bytes retained writable; error/present in failure list | 1/0 |
+| Create/open error (destination is an existing directory) | Directory unchanged; log/absent from failure list | Directory unchanged; error/present in failure list | 0/0 |
+| Existing read-only destination | Existing sentinel retained; no diagnostic/list entry | Existing sentinel retained; no diagnostic/list entry | 0/0 |
+
+Retained byte counts are the observed injection points, not guarantees that
+arbitrary hardware failures retain those amounts. The close injector reports
+failure after releasing the descriptor and flushing known bytes; real failed
+close/flush can leave fewer bytes. Read injection uses a throwing streambuf
+around the actual ZIP payload reader; write/close injection uses a Linux-only,
+thread-local exact-file libc shim linked **only** to App_tests_run. The shim
+stays inactive for all other files/threads and is never linked to FreeCADApp,
+FreeCADBase or installed application targets. Explicit fault-hit assertions
+prevent a nominal failure row from passing without exercising the operation.
+The empty write row intentionally proves absence of writes rather than claiming
+an impossible zero-byte write failure.
+
+Additional compatibility audit:
+
+- A rejected `PropertyFileIncluded::setValue` for a nonexistent source retains
+  the prior value, bytes, read-only state and basename, with no before/after
+  notifications, but changes `getOriginalFileName()` to the rejected path.
+  That metadata update precedes existence validation. It is intentionally
+  recorded as existing nontransactional behavior, not repaired by T018.
+- Saving after removal of an empty or nonempty included payload throws
+  Base::FileSystemError. The previously saved archive remains byte-identical;
+  the failed save leaves a UUID-suffixed temporary archive. The property's path
+  is retained. No automatic temporary cleanup or save rollback policy is added.
 
 ### Evidence Applicability And Benchmark Contract
 

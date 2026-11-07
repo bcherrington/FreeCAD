@@ -34,8 +34,8 @@ that explicit routing verified.
 | 1 — Planning | T021/T019 retained; T009 scope disposition; T001 complete | D001 protocol approved before source work |
 | 2A — Images | T012/T013/T003/T006 complete | Safe conversion and calibrated lifecycle qualified |
 | 2B — Tree | T014/T017/T007 complete | Receiver/completion fixes and current functional qualification |
-| 2C — CAD maps | T015/T016 complete → **T005 next** | Bounded parsing and CAD reference identity qualified |
-| 2D — Archives | T018 → T002 | Archive error outcomes and compatibility qualified |
+| 2C — CAD maps | T015/T016/T005 complete | Bounded parsing and CAD reference identity qualified |
+| 2D — Archives | T018 complete → **T002 next** | Archive error outcomes and compatibility qualified |
 | 3 — Performance | T020 → T004 | Predeclared latency/memory/per-change acceptance satisfied |
 | 4 — Delivery | T010 → T011 | Exact final evidence, platform checks, promotion and closure |
 
@@ -74,8 +74,8 @@ none -> T008
 ## Phase 1 — Finish Planning
 
 Exit satisfied: T021/T019 evidence retained, T009 scope disposition recorded, and T001
-resolves D001 with the benchmark protocol. **Next action: T005 — Verify element-map parser compatibility
-(Phase 2C; T015 numeric safety and T016 identity complete).**
+resolves D001 with the benchmark protocol. **Next action: T002 — Verify included-file restore compatibility on the target revision
+(Phase 2D; T018 failure policy/matrix complete).**
 
 - [x] T021 Expose lifecycle decisions and verify execution guardrails.
   - Depends on: none
@@ -494,7 +494,7 @@ evidenced before T005 sign-off.
     no valid archive writer or public API change. T015 evidence remains historical and unchanged.
 
   - Status: Completed local identity and missing-hasher correction; T005 aggregate compatibility checkpoint is next. No archive format/API or performance claim.
-- [ ] T005 Verify element-map parser compatibility.
+- [x] T005 Verify element-map parser compatibility.
   - Depends on: T015, T016
   - Requirements: Requirement 4 (all acceptance criteria)
   - Design: design.md#high-level-design; design.md#low-level-design
@@ -504,8 +504,8 @@ evidenced before T005 sign-off.
     release and dependent CAD subelement targets after reopen/recompute.
   - Validation: See verification.md#quality-gates and the linked criteria.
   - Evidence mode: artifact
-  - Evidence: Pending current qualification. Replanning retained prior implementation and dated test observations in baseline-status.md; no child/current expanded acceptance result is complete.
-  - Status: Remaining execution is pending; source presence/historical results are baseline context, not partial execution.
+  - Evidence: 2026-11-07: t005-validation.json and verification.md#t005-aggregate-element-map-parser-compatibility record 75 direct identity/integrity/applicability checks at committed T016 root 95d1df147f/docs e3bf027. All Requirement 4 AC1–AC4 and CP-005 local criteria map to executed T015/T016 proof: bounded legacy numeric behavior and unchanged exact-header ASan/UBSan, writer forms/aliases/multiple SIDs/nested shared maps and post-buffer bidirectional lookups, four independent CAD edge targets across two save/reopen cycles and three forced recomputes. Exact committed source diff/final binaries, raw logs/probe, seven clean dependency heads, 510 packages, CMake cache/lock and fixture hashes match. T016 already executed full build, 281 App tests, 294 CTests, 34 Memcheck cases and CAD harness on this unchanged implementation. No new build/runtime rerun or loaded-image equivalence claimed. Requirement 4/CP-005/F004 complete locally; T010 final/platform and T004 performance remain.
+  - Status: Completed aggregate compatibility acceptance; Phase 2C complete. Next T018 document-level archive failure recovery; final production/platform, performance and promotion gates remain.
   - Properties: CP-005
   - Candidate manifest: spec003-linux-x86_64-debug-candidate-20261106-v1; see validation-manifest.md
     and record actual execution provenance.
@@ -516,12 +516,13 @@ evidenced before T005 sign-off.
 Exit: document-level failure outcomes and included-file compatibility pass before comparative
 measurements.
 
-- [ ] T018 Specify and verify document-level archive failure recovery.
+- [x] T018 Specify and verify document-level archive failure recovery.
   - Depends on: T005
   - Requirements: Requirement 1 AC1–AC3
-  - Design: design.md#moe-safety-and-compatibility-contracts
+  - Design: design.md#archive-failure-compatibility-policy
   - Files: `src/App/PropertyFile.cpp`, `src/Base/Reader.cpp`, `tests/src/App/PropertyFile.cpp`,
-    `tests/src/Base/Reader.cpp`, `verification.md`
+    `tests/src/Base/Reader.cpp`, `tests/src/App/PropertyFileIOFaults.cpp`,
+    `tests/src/App/PropertyFileIOFaults.h`, `tests/src/App/CMakeLists.txt`, `verification.md`
   - Acceptance: Record an approved outcome table for empty/nonempty read/write/close failures:
     diagnostics/failure lists, partial destination bytes/permissions, property notifications, and
     later-entry restoration. Exercise a failing first registered entry followed by a valid second at
@@ -530,7 +531,7 @@ measurements.
   - Validation: Run the focused regression cases in acceptance on the T019 pinned revision; record
     commands, results and limits in verification.md.
   - Evidence mode: artifact
-  - Evidence: Pending.
+  - Evidence: 2026-11-07: t018-validation.json and verification.md#t018-document-level-archive-failure-recovery bind root 95d1df147f/docs e3bf027 plus exact test/CMake/Linux shim diff, frozen final source/binary/config/log/fixture identities, seven clean dependencies and 510 packages. Preserved existing policy in design.md#archive-failure-compatibility-policy under delegated local T018 authority; no production/API/format change. Twelve full Document::restore rows cover empty/nonempty read/write/close/create faults, success and read-only reuse; verify real live FailedFiles, log/error diagnostics, partial bytes/permissions, payload notifications, completed restore flags and valid later-entry bytes/read-only state. Fault hits prove actual injection; empty write correctly has zero attempts. Rejected assignment retains bytes/value/permissions/no notifications but updates OriginalName; empty/nonempty missing-payload save throws, preserves old archive/path and leaves UUID temp. Full Pixi build, 303 App cases, 26 Reader cases, 342 CTests and 22 Memcheck cases pass; zero memory errors, one existing libunwind probe suppression, leak/undefined-value checks disabled. Failed reporting build/stale-binary runs explicitly discarded and retained. T005 documentation/receipt and prior history preserved; T002 aggregate compatibility remains next.
   - Owner: local-developer
   - Properties: CP-001
   - Candidate manifest: spec003-linux-x86_64-debug-candidate-20261106-v1; see validation-manifest.md
@@ -542,6 +543,11 @@ measurements.
     unqualified. Include that metadata audit and missing-payload save outcomes here; owner
     local-developer. This is source evidence, not an approved policy change.
 
+  - Audit disposition: Preserve existing rejected-assignment OriginalName update and missing-payload
+    save exception/previous-archive preservation/UUID temporary residue; no transactional metadata
+    or archive cleanup behavior change. Linux test shim never links to production targets.
+
+  - Status: Completed local preserved failure policy/matrix and metadata/save audit. Next T002 aggregate included-file compatibility; Windows/other libc, final production/platform and performance/promotion remain.
 - [ ] T002 Verify included-file restore compatibility on the target revision.
   - Depends on: T018
   - Requirements: Requirement 1 (all acceptance criteria)

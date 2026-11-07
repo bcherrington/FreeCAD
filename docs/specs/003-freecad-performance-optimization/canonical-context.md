@@ -40,7 +40,7 @@ historical notes override code, tests, policy or live evidence.
 | open-decisions.md | Authoritative decision status/ownership | D001–D003 | D001 protocol, D002 routing and D003 initial policy resolved; no runtime/final PR acceptance implied |
 | validation-manifest.md and validation-manifest.json | Candidate identity and evidence applicability | T019 initial local Linux candidate | Historical binaries ineligible; actual new-build/runtime receipt required |
 | benchmark-protocol.md; benchmark-plan.json; benchmark-runner.py | Predeclared measurement contract and bounded collector | T001/D001 | No FreeCAD probe, generated fixture, qualified arm or performance result claimed |
-| tasks.md | Four-phase delivery queue and explicit next action | This package | T012/T013/T003/T006/T014/T017/T007/T015/T016 complete; T005 next; phase order and dependencies govern execution |
+| tasks.md | Four-phase delivery queue and explicit next action | This package | T012/T013/T003/T006/T014/T017/T007/T015/T016/T005/T018 complete; T002 next; phase order and dependencies govern execution |
 | t012-validation.json | Local image extent/access qualification receipt | T012 plus actual working diff/source/binary hashes | No native GUI, calibration, full-format or performance acceptance implied |
 | t013-validation.json | Local calibrated image-plane lifecycle receipt | T013 plus actual source/new-test/diff/binary hashes | No native viewport, broad image qualification or performance acceptance implied |
 | t003-validation.json; t003-render-contact.png | Expanded byte/access/rendered fidelity receipt and visual artifact | T003 plus actual source/binary/context/output identities | Local native-X11 and offscreen software-GL framebuffer correctness; interactive frame/resource/performance and platform gates remain |
@@ -48,8 +48,10 @@ historical notes override code, tests, policy or live evidence.
 | t014-validation.json | Receiver lifetime correction and qualification | T014 plus actual source/new-test/diff/build/runtime identities | Four functional rows pass normally and under Memcheck; no Windows test registration or broad scheduler acceptance |
 | t017-validation.json | Restore scheduler and observer completion receipt | T017 plus exact source/new-test/diff/build/runtime identities | Ten functional rows pass normally and under Memcheck; larger-model/object semantics and final platforms remain T007/T010 |
 | t007-validation.json | Current tree functional qualification and pinned input identity | T007/T007.1 plus actual new-test/registration/fixture/build identities | 25 cases pass natively, seven CTest targets and seven focused Memcheck cases; B011 remains deferred |
-| t015-validation.json | Numeric restoration and boundary ownership correction | T015 plus actual tracked/private-header diff and final App build/runtime identities | Legacy strtol value parity; 277 naming/hash cases, 290 CTests, 30 Memcheck cases and exact-header ASan/UBSan; broader CAD identity remains T016/T005 |
-| t016-validation.json | Writer/alias/child-map and dependent CAD reference qualification | T016 plus exact source/new-test/diff/build/runtime/fixture identities | 281 naming/hash tests, 294 CTests, 34 Memcheck cases; two CAD save/reopen cycles with three forced recomputes; T005 aggregate checkpoint remains |
+| t015-validation.json | Numeric restoration and boundary ownership correction | T015 plus actual tracked/private-header diff and final App build/runtime identities | Legacy strtol value parity; 277 naming/hash cases, 290 CTests, 30 Memcheck cases and exact-header ASan/UBSan; broader identity qualified by T016; T005 records aggregate acceptance |
+| t016-validation.json | Writer/alias/child-map and dependent CAD reference qualification | T016 plus exact source/new-test/diff/build/runtime/fixture identities | 281 naming/hash tests, 294 CTests, 34 Memcheck cases; two CAD save/reopen cycles with three forced recomputes; T005 records aggregate acceptance; T010 confirms final applicability |
+| t005-validation.json | Aggregate Requirement 4 / CP-005 acceptance and applicability audit | T005 at committed T016 root 95d1df147f / docs e3bf027 | 75 identity/integrity checks bind unchanged converter and final T016 source/binaries/dependencies/fixtures; reuses executed T015/T016 evidence; no new runtime pass |
+| t018-validation.json | Included-file document failure policy, injection and metadata/save audit | T018 plus actual test/build/runtime and generated fixture identities | Preserved empty/nonempty reader disposition, partial bytes/permissions/notifications and later-entry restoration; aggregate T002 remains |
 | baseline-status.md | Existing implementation and dated evidence | Baseline inventory only | Source presence does not set execution status |
 | traceability.md | Bidirectional context | This package | Partial coverage blocks closure |
 | verification.md | Revision/date-bound evidence | Named checks only | No blanket readiness inferred |
@@ -87,7 +89,7 @@ artifacts and the immutable manifest. Five old partial task states are pending
 remaining qualification; their imported observations are retained in the
 baseline inventory. T001 resolves D001 with a predeclared protocol; Phase 2
 has completed T012/T013/T003/T006 and the T014/T017/T007 tree subgroup. T015
-has completed numeric safety and T016 has qualified writer/alias/child and dependent CAD identity; T005 is next. Performance sampling still requires
+has completed numeric safety and T016 has qualified writer/alias/child and dependent CAD identity; T005 completes aggregate local compatibility. T018 qualifies the preserved document-level archive failure policy; T002 aggregate included-file compatibility is next. Performance sampling still requires
 the remaining Phase 2 qualification. D002's B009 routing and B010/B011 optional investigations do not
 approve new behavior or waive any current MoE safety/measurement requirement.
 The original manifest's "remaining decisions" prose records its intake time;

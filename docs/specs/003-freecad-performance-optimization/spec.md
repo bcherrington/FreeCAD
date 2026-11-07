@@ -73,7 +73,7 @@ T012 locally qualifies the extent/arithmetic correction; see its
 [execution evidence](verification.md#t012-extent-and-arithmetic-correction--2026-11-06).
 T013 locally qualifies [calibration preservation](verification.md#t013-calibration-preservation).
 T003 locally qualifies [bitmap/rendered fidelity](verification.md#t003-bitmap-and-rendered-fidelity-qualification).
-**Next: T005 — Verify element-map parser compatibility (Phase 2C; T015/T016 complete).**
+**Next: T002 — Verify included-file restore compatibility on the target revision (Phase 2D; T018 complete).**
 [baseline-status.md](baseline-status.md) holds existing implementation facts;
 remaining execution checkpoints are pending until current evidence is recorded.
 Optional new investigations have [owned backlog routes](../../backlog/spec003-follow-ups.md).

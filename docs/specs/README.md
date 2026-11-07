@@ -18,7 +18,7 @@ and historical evidence remain within each package.
 | --- | --- | --- | --- |
 | 001 | [CAD thumbnailing](001-cad-file-thumbnailing/spec.md) | Extraction baseline only | T001 — Resolve STL rendering and resource contracts |
 | 002 | [Compact rails](002-compact-view-rails-rework/spec.md) | Proposed; no current rails | T001 — Decide rail scope, geometry and persistence contracts |
-| 003 | [Performance](003-freecad-performance-optimization/spec.md) | Implemented paths with incomplete acceptance | T005 — Verify element-map parser compatibility (Phase 2C; numeric safety and identity complete) |
+| 003 | [Performance](003-freecad-performance-optimization/spec.md) | Implemented paths with incomplete acceptance | T002 — Verify included-file restore compatibility on the target revision (Phase 2D; T018 complete) |
 
 No execution dependency is established between these packages. Performance
 measurements require an exact chosen source revision and fixture; rail work must

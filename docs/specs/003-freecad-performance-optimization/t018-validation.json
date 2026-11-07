@@ -1,0 +1,547 @@
+{
+  "schema": "freecad-spec003-task-validation/v1",
+  "task": "T018",
+  "criteria": [
+    "Requirement 1 AC1\u2013AC3 (local document failure/continuation matrix)",
+    "CP-001 failure policy portion"
+  ],
+  "captured_at_utc": "2026-11-07T10:50:03.583619+00:00",
+  "manifest_id": "spec003-linux-x86_64-debug-candidate-20261106-v1",
+  "immutable_manifest_sha256": "2ceaf3dbe3d474f4bb8d70ae6706218ddffdd3616473a1c13a55133611a19d01",
+  "actual_root_revision": "95d1df147fd898bcd194801ab348352766750f45",
+  "docs_revision": "e3bf027820fc422cc829ce0310f3f4018463957a",
+  "preexisting_uncommitted_task": "T005 aggregate acceptance documentation/receipt retained; no implicit commit requested.",
+  "working_diff_scope": [
+    "tests/src/App/PropertyFile.cpp",
+    "tests/src/App/CMakeLists.txt",
+    "tests/src/App/PropertyFileIOFaults.cpp",
+    "tests/src/App/PropertyFileIOFaults.h"
+  ],
+  "working_diff_sha256": "95cdeedf2e66fc6a862cfc1850b244f88765af8ce175c8678e6724648207b3ac",
+  "working_diff_encoding": "Two tracked-path git diff --binary HEAD, followed by git diff --no-index --binary /dev/null for cpp and h test shim in listed order.",
+  "source_and_binary_identity": {
+    "tests/src/App/PropertyFile.cpp": {
+      "sha256": "7431eee4d3975704f2a7752c6a2c91986fb27758c078dff5fb46d213b2158312",
+      "size_bytes": 17354
+    },
+    "tests/src/App/CMakeLists.txt": {
+      "sha256": "d831c998aba9832e0eeaf409430af054373764dabf2fa25cf8cdd45877d31a1e",
+      "size_bytes": 1520
+    },
+    "tests/src/App/PropertyFileIOFaults.cpp": {
+      "sha256": "abe87f0c4286288f6a3f1f3dc8b45309572ca4e3b0b48566720504b9972dcaa2",
+      "size_bytes": 2386
+    },
+    "tests/src/App/PropertyFileIOFaults.h": {
+      "sha256": "ae4f1682ea58c3000233a1fe3ab27002563186ad09fbec37d28fac0f38561f8a",
+      "size_bytes": 310
+    },
+    "src/App/PropertyFile.cpp": {
+      "sha256": "46bf1da219e5b02e8da99d2ce7b5ee630b5ef1d60d4032bf759ef47af5fe592f",
+      "size_bytes": 25258
+    },
+    "src/Base/Reader.cpp": {
+      "sha256": "e555237a2c924060fab4d78d8edb4179c10de4762d715e3a2b53d5ebffbb4272",
+      "size_bytes": 22707
+    },
+    "build/debug/tests/App_tests_run": {
+      "sha256": "bad153c3c0695b2ecdccd56072799d262f752b2c2f49bc7a6106735aaf30d0dc",
+      "size_bytes": 16508112
+    },
+    "build/debug/tests/Base_tests_run": {
+      "sha256": "e9325ae1f67c48bbc46d0047e0b4a8c912a214d02271509b8e415cd90aa2324c",
+      "size_bytes": 16490608
+    },
+    "build/debug/tests/src/App/libIncludedFileIOFaults.so": {
+      "sha256": "f971dd7adce03e11d026d24b561b54e7a1d2cf7128dc78297fca651d9e14840d",
+      "size_bytes": 19176
+    },
+    "build/debug/lib/libFreeCADApp.so": {
+      "sha256": "704c79d14c30953110e325ba88838e46cc6c1e79dcc9f2f0f1e704dde6ab412a",
+      "size_bytes": 71816600
+    },
+    "build/debug/lib/libFreeCADBase.so": {
+      "sha256": "04e1e7c5ce58be7a5de3fee0ba2c7fbfde3105a6e7b95378f6c7ba2cf8998b5c",
+      "size_bytes": 25504048
+    }
+  },
+  "submodule_heads_and_dirty_state": {
+    "src/3rdParty/GSL": {
+      "revision": "a75212b9f3b14162edd62d540cbf9273d5a59d20",
+      "status": ""
+    },
+    "src/3rdParty/OndselSolver": {
+      "revision": "4be80eef02a3486cda0d78f3ccbb308d207a9639",
+      "status": ""
+    },
+    "src/3rdParty/coin": {
+      "revision": "50e37f04e7027661ea2318d0425b7836ac819568",
+      "status": ""
+    },
+    "src/3rdParty/coin/cpack.d": {
+      "revision": "118ac5a21bcf57f0f90e2b0e681c9dcbf07074c2",
+      "status": ""
+    },
+    "src/3rdParty/coin/docs/doxygen-awesome": {
+      "revision": "6217657eef6aec24a0e4ecea4695031c1a622cf3",
+      "status": ""
+    },
+    "src/3rdParty/pivy": {
+      "revision": "515f038d32f163a976acd8a8cd9e8d26e1d0b884",
+      "status": ""
+    },
+    "src/Mod/AddonManager": {
+      "revision": "745c1b1ebc8bc684439210c5fa237d2c6287153b",
+      "status": ""
+    }
+  },
+  "pixi_lock_sha256": "45727758e595efad731c9bc71e429719040b1509ad686d762ad52ba84e44ec5c",
+  "installed_package_identity_sha256": "27048ce62e5ad835811cb32e58d11ee775f304c81bfef5235bbdd397c3e59d28",
+  "package_count": 510,
+  "build": {
+    "command": [
+      "pixi",
+      "run",
+      "--locked",
+      "build",
+      "-j",
+      "2"
+    ],
+    "exit_code": 0,
+    "cmake_cache_sha256": "be2075651b61afc4329c8b321c9038c01bf2fc24d9eeda3c0788cdcda9b92ede",
+    "compile_commands_sha256": "7552695ddb2490d5d61343295fa02cabcd3b4ae327abfd1aee1f286b18781587",
+    "test_compile_commands": [
+      {
+        "directory": "/home/bcherrington/Projects/CLion/FreeCAD/build/debug",
+        "command": "/home/bcherrington/Projects/CLion/FreeCAD/.pixi/envs/default/bin/clang++ -DBOOST_ATOMIC_DYN_LINK -DBOOST_ATOMIC_NO_LIB -DBOOST_CHRONO_DYN_LINK -DBOOST_CHRONO_NO_LIB -DBOOST_CONTAINER_DYN_LINK -DBOOST_CONTAINER_NO_LIB -DBOOST_DATE_TIME_DYN_LINK -DBOOST_DATE_TIME_NO_LIB -DBOOST_PP_VARIADICS=1 -DBOOST_PROGRAM_OPTIONS_DYN_LINK -DBOOST_PROGRAM_OPTIONS_NO_LIB -DBOOST_REGEX_DYN_LINK -DBOOST_REGEX_NO_LIB -DBOOST_THREAD_DYN_LINK -DBOOST_THREAD_NO_LIB -DDATADIR=\\\"/home/bcherrington/Projects/CLion/FreeCAD/data\\\" -DFC_TEST_INCLUDED_FILE_IO_FAULTS -DGTEST_LINKED_AS_SHARED_LIBRARY=1 -DHAVE_CONFIG_H -DMINIMUM_CPLUSPLUS_VERSION=202302L -DPYCXX_6_2_COMPATIBILITY -DQT_CORE_LIB -DQT_NO_KEYWORDS -DQT_XML_LIB -DSALOME_USE_64BIT_IDS -D_OCC64 -I/home/bcherrington/Projects/CLion/FreeCAD/build/debug/tests/src/App/App_tests_run_autogen/include -I/home/bcherrington/Projects/CLion/FreeCAD/build/debug -I/home/bcherrington/Projects/CLion/FreeCAD/build/debug/src -I/home/bcherrington/Projects/CLion/FreeCAD/src -I/home/bcherrington/Projects/CLion/FreeCAD/tests -I/home/bcherrington/Projects/CLion/FreeCAD/src/3rdParty/FastSignals/libfastsignals/include -isystem /home/bcherrington/Projects/CLion/FreeCAD/.pixi/envs/default/include/qt6/QtCore -isystem /home/bcherrington/Projects/CLion/FreeCAD/.pixi/envs/default/include/qt6 -isystem /home/bcherrington/Projects/CLion/FreeCAD/.pixi/envs/default/include/qt6/QtXml -isystem /home/bcherrington/Projects/CLion/FreeCAD/src/3rdParty/PyCXX -isystem /home/bcherrington/Projects/CLion/FreeCAD/.pixi/envs/default/include/python3.13 -isystem /home/bcherrington/Projects/CLion/FreeCAD/src/3rdParty -isystem /home/bcherrington/Projects/CLion/FreeCAD/.pixi/envs/default/lib/qt6/mkspecs/linux-g++ -Wall -Wextra -Wpedantic -Wno-write-strings -fdiagnostics-color  -Wno-undefined-var-template -g -O0 -DFC_DEBUG -std=c++23 -fcolor-diagnostics -pthread -fPIC -o tests/src/App/CMakeFiles/App_tests_run.dir/PropertyFile.cpp.o -c /home/bcherrington/Projects/CLion/FreeCAD/tests/src/App/PropertyFile.cpp",
+        "file": "/home/bcherrington/Projects/CLion/FreeCAD/tests/src/App/PropertyFile.cpp",
+        "output": "/home/bcherrington/Projects/CLion/FreeCAD/build/debug/tests/src/App/CMakeFiles/App_tests_run.dir/PropertyFile.cpp.o"
+      },
+      {
+        "directory": "/home/bcherrington/Projects/CLion/FreeCAD/build/debug",
+        "command": "/home/bcherrington/Projects/CLion/FreeCAD/.pixi/envs/default/bin/clang++ -DBOOST_PP_VARIADICS=1 -DHAVE_CONFIG_H -DIncludedFileIOFaults_EXPORTS -DMINIMUM_CPLUSPLUS_VERSION=202302L -DPYCXX_6_2_COMPATIBILITY -DQT_NO_KEYWORDS -DSALOME_USE_64BIT_IDS -D_OCC64 -I/home/bcherrington/Projects/CLion/FreeCAD/build/debug/tests/src/App/IncludedFileIOFaults_autogen/include -I/home/bcherrington/Projects/CLion/FreeCAD/build/debug -I/home/bcherrington/Projects/CLion/FreeCAD/build/debug/src -I/home/bcherrington/Projects/CLion/FreeCAD/src -I/home/bcherrington/Projects/CLion/FreeCAD/tests -Wall -Wextra -Wpedantic -Wno-write-strings -fdiagnostics-color  -Wno-undefined-var-template -g -O0 -DFC_DEBUG -std=c++23 -fPIC -fvisibility=default -fcolor-diagnostics -o tests/src/App/CMakeFiles/IncludedFileIOFaults.dir/PropertyFileIOFaults.cpp.o -c /home/bcherrington/Projects/CLion/FreeCAD/tests/src/App/PropertyFileIOFaults.cpp",
+        "file": "/home/bcherrington/Projects/CLion/FreeCAD/tests/src/App/PropertyFileIOFaults.cpp",
+        "output": "/home/bcherrington/Projects/CLion/FreeCAD/build/debug/tests/src/App/CMakeFiles/IncludedFileIOFaults.dir/PropertyFileIOFaults.cpp.o"
+      }
+    ],
+    "warnings": "Pivy stub generation warnings; no new compiler error in final build."
+  },
+  "reported_ldd_origins": "\tlinux-vdso.so.1 (0x00007b6664429000)\n\tlibgmock_main.so.1.18.0 => ${REPO_ROOT}/.pixi/envs/default/bin/../lib/libgmock_main.so.1.18.0 (0x00007b666441c000)\n\tlibpython3.13.so.1.0 => ${REPO_ROOT}/.pixi/envs/default/bin/../lib/libpython3.13.so.1.0 (0x00007b6663800000)\n\tlibFreeCADApp.so => ${REPO_ROOT}/build/debug/lib/libFreeCADApp.so (0x00007b6662800000)\n\tlibIncludedFileIOFaults.so => ${REPO_ROOT}/build/debug/tests/src/App/libIncludedFileIOFaults.so (0x00007b6664417000)\n\tlibgmock.so.1.18.0 => ${REPO_ROOT}/.pixi/envs/default/bin/../lib/libgmock.so.1.18.0 (0x00007b66643f5000)\n\tlibgtest.so.1.18.0 => ${REPO_ROOT}/.pixi/envs/default/bin/../lib/libgtest.so.1.18.0 (0x00007b6663f84000)\n\tlibFreeCADBase.so => ${REPO_ROOT}/build/debug/lib/libFreeCADBase.so (0x00007b6662000000)\n\tlibxerces-c-3.3.so => ${REPO_ROOT}/.pixi/envs/default/bin/../lib/libxerces-c-3.3.so (0x00007b6661c00000)\n\tlibz.so.1 => ${REPO_ROOT}/.pixi/envs/default/bin/../lib/libz.so.1 (0x00007b66643da000)\n\tlibicuuc.so.78 => ${REPO_ROOT}/.pixi/envs/default/bin/../lib/libicuuc.so.78 (0x00007b6661800000)\n\tlibicui18n.so.78 => ${REPO_ROOT}/.pixi/envs/default/bin/../lib/libicui18n.so.78 (0x00007b6661400000)\n\tlibcpptrace.so.1 => ${REPO_ROOT}/.pixi/envs/default/bin/../lib/libcpptrace.so.1 (0x00007b6663ef8000)\n\tlibutil.so.1 => /lib/x86_64-linux-gnu/libutil.so.1 (0x00007b6663ec1000)\n\tlibdl.so.2 => /lib/x86_64-linux-gnu/libdl.so.2 (0x00007b6663ebc000)\n\tlibboost_program_options.so.1.90.0 => ${REPO_ROOT}/.pixi/envs/default/bin/../lib/libboost_program_options.so.1.90.0 (0x00007b6663e62000)\n\tlibboost_regex.so.1.90.0 => ${REPO_ROOT}/.pixi/envs/default/bin/../lib/libboost_regex.so.1.90.0 (0x00007b6663e17000)\n\tlibboost_thread.so.1.90.0 => ${REPO_ROOT}/.pixi/envs/default/bin/../lib/libboost_thread.so.1.90.0 (0x00007b66637e1000)\n\tlibboost_container.so.1.90.0 => ${REPO_ROOT}/.pixi/envs/default/bin/../lib/libboost_container.so.1.90.0 (0x00007b66637ca000)\n\tlibboost_atomic.so.1.90.0 => ${REPO_ROOT}/.pixi/envs/default/bin/../lib/libboost_atomic.so.1.90.0 (0x00007b6663e0d000)\n\tlibboost_chrono.so.1.90.0 => ${REPO_ROOT}/.pixi/envs/default/bin/../lib/libboost_chrono.so.1.90.0 (0x00007b66637be000)\n\tlibboost_date_time.so.1.90.0 => ${REPO_ROOT}/.pixi/envs/default/bin/../lib/libboost_date_time.so.1.90.0 (0x00007b6663e06000)\n\tlibpthread.so.0 => /lib/x86_64-linux-gnu/libpthread.so.0 (0x00007b66637b9000)\n\tlibQt6Xml.so.6 => ${REPO_ROOT}/.pixi/envs/default/bin/../lib/libQt6Xml.so.6 (0x00007b666378e000)\n\tlibQt6Core.so.6 => ${REPO_ROOT}/.pixi/envs/default/bin/../lib/libQt6Core.so.6 (0x00007b6660c00000)\n\tlibstdc++.so.6 => ${REPO_ROOT}/.pixi/envs/default/bin/../lib/libstdc++.so.6 (0x00007b6660800000)\n\tlibm.so.6 => /lib/x86_64-linux-gnu/libm.so.6 (0x00007b6661b17000)\n\tlibgcc_s.so.1 => ${REPO_ROOT}/.pixi/envs/default/bin/../lib/libgcc_s.so.1 (0x00007b6663760000)\n\tlibc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007b6660400000)\n\t/lib64/ld-linux-x86-64.so.2 (0x00007b666442b000)\n\tlibnsl.so.3 => ${REPO_ROOT}/.pixi/envs/default/bin/../lib/./libnsl.so.3 (0x00007b6663757000)\n\tlibicudata.so.78 => ${REPO_ROOT}/.pixi/envs/default/bin/../lib/./libicudata.so.78 (0x00007b665e400000)\n\tlibdwarf.so.2 => ${REPO_ROOT}/.pixi/envs/default/bin/../lib/./libdwarf.so.2 (0x00007b6661a7d000)\n\tlibunwind.so.8 => ${REPO_ROOT}/.pixi/envs/default/bin/../lib/./libunwind.so.8 (0x00007b666373b000)\n\tlibrt.so.1 => /lib/x86_64-linux-gnu/librt.so.1 (0x00007b6663736000)\n\tlibglib-2.0.so.0 => ${REPO_ROOT}/.pixi/envs/default/bin/../lib/libglib-2.0.so.0 (0x00007b66606a4000)\n\tlibdouble-conversion.so.3 => ${REPO_ROOT}/.pixi/envs/default/bin/../lib/libdouble-conversion.so.3 (0x00007b6663721000)\n\tlibpcre2-16.so.0 => ${REPO_ROOT}/.pixi/envs/default/bin/../lib/libpcre2-16.so.0 (0x00007b6661350000)\n\tlibzstd.so.1 => ${REPO_ROOT}/.pixi/envs/default/bin/../lib/libzstd.so.1 (0x00007b6660ae7000)\n\tlibiconv.so.2 => ${REPO_ROOT}/.pixi/envs/default/bin/../lib/libiconv.so.2 (0x00007b665e2ed000)\n\tlibpcre2-8.so.0 => ${REPO_ROOT}/.pixi/envs/default/bin/../lib/libpcre2-8.so.0 (0x00007b665e22f000)\n",
+  "commands": [
+    {
+      "name": "app-final",
+      "argv": [
+        "pixi",
+        "run",
+        "--locked",
+        "env",
+        "FREECAD_USER_HOME=/home/bcherrington/Projects/CLion/FreeCAD/build/debug/artifacts/spec003-t018/app-final/user",
+        "FREECAD_USER_DATA=/home/bcherrington/Projects/CLion/FreeCAD/build/debug/artifacts/spec003-t018/app-final/data",
+        "FREECAD_USER_TEMP=/home/bcherrington/Projects/CLion/FreeCAD/build/debug/artifacts/spec003-t018/app-final/temp",
+        "XDG_CONFIG_HOME=/home/bcherrington/Projects/CLion/FreeCAD/build/debug/artifacts/spec003-t018/app-final/xdg-config",
+        "XDG_DATA_HOME=/home/bcherrington/Projects/CLion/FreeCAD/build/debug/artifacts/spec003-t018/app-final/xdg-data",
+        "XDG_CACHE_HOME=/home/bcherrington/Projects/CLion/FreeCAD/build/debug/artifacts/spec003-t018/app-final/xdg-cache",
+        "timeout",
+        "120s",
+        "build/debug/tests/App_tests_run",
+        "--gtest_filter=PropertyFileIncludedTest.*:*IncludedFileArchiveTest*:*MissingIncludedPayloadTest*:*ElementMap*:*IndexedName*:*MappedName*:*MappedElement*:*ElementNaming*:*StringHash*:*StringID*",
+        "--gtest_output=xml:/home/bcherrington/Projects/CLion/FreeCAD/build/debug/artifacts/spec003-t018/app-final.xml"
+      ],
+      "cwd": "/home/bcherrington/Projects/CLion/FreeCAD",
+      "exit_code": 0,
+      "started_unix_ms": 1794048308492,
+      "finished_unix_ms": 1794048357220,
+      "log": "/tmp/spec003-t018-app-final.log"
+    },
+    {
+      "name": "reader-final",
+      "argv": [
+        "pixi",
+        "run",
+        "--locked",
+        "env",
+        "FREECAD_USER_HOME=/home/bcherrington/Projects/CLion/FreeCAD/build/debug/artifacts/spec003-t018/reader-final/user",
+        "FREECAD_USER_DATA=/home/bcherrington/Projects/CLion/FreeCAD/build/debug/artifacts/spec003-t018/reader-final/data",
+        "FREECAD_USER_TEMP=/home/bcherrington/Projects/CLion/FreeCAD/build/debug/artifacts/spec003-t018/reader-final/temp",
+        "XDG_CONFIG_HOME=/home/bcherrington/Projects/CLion/FreeCAD/build/debug/artifacts/spec003-t018/reader-final/xdg-config",
+        "XDG_DATA_HOME=/home/bcherrington/Projects/CLion/FreeCAD/build/debug/artifacts/spec003-t018/reader-final/xdg-data",
+        "XDG_CACHE_HOME=/home/bcherrington/Projects/CLion/FreeCAD/build/debug/artifacts/spec003-t018/reader-final/xdg-cache",
+        "timeout",
+        "90s",
+        "build/debug/tests/Base_tests_run",
+        "--gtest_filter=ReaderTest.*",
+        "--gtest_output=xml:/home/bcherrington/Projects/CLion/FreeCAD/build/debug/artifacts/spec003-t018/reader-final.xml"
+      ],
+      "cwd": "/home/bcherrington/Projects/CLion/FreeCAD",
+      "exit_code": 0,
+      "started_unix_ms": 1794048357221,
+      "finished_unix_ms": 1794048404384,
+      "log": "/tmp/spec003-t018-reader-final.log"
+    },
+    {
+      "name": "ctest-final",
+      "argv": [
+        "pixi",
+        "run",
+        "--locked",
+        "env",
+        "FREECAD_USER_HOME=/home/bcherrington/Projects/CLion/FreeCAD/build/debug/artifacts/spec003-t018/ctest-final/user",
+        "FREECAD_USER_DATA=/home/bcherrington/Projects/CLion/FreeCAD/build/debug/artifacts/spec003-t018/ctest-final/data",
+        "FREECAD_USER_TEMP=/home/bcherrington/Projects/CLion/FreeCAD/build/debug/artifacts/spec003-t018/ctest-final/temp",
+        "XDG_CONFIG_HOME=/home/bcherrington/Projects/CLion/FreeCAD/build/debug/artifacts/spec003-t018/ctest-final/xdg-config",
+        "XDG_DATA_HOME=/home/bcherrington/Projects/CLion/FreeCAD/build/debug/artifacts/spec003-t018/ctest-final/xdg-data",
+        "XDG_CACHE_HOME=/home/bcherrington/Projects/CLion/FreeCAD/build/debug/artifacts/spec003-t018/ctest-final/xdg-cache",
+        "ctest",
+        "--test-dir",
+        "build/debug",
+        "-R",
+        "PropertyFileIncludedTest|IncludedFileArchiveTest|MissingIncludedPayloadTest|ReaderTest|ElementMap|IndexedName|MappedName|MappedElement|ElementNaming|StringHasher|StringID",
+        "--output-on-failure"
+      ],
+      "cwd": "/home/bcherrington/Projects/CLion/FreeCAD",
+      "exit_code": 0,
+      "started_unix_ms": 1794048404385,
+      "finished_unix_ms": 1794048441971,
+      "log": "/tmp/spec003-t018-ctest-final.log"
+    },
+    {
+      "name": "memcheck-tests-final",
+      "argv": [
+        "pixi",
+        "run",
+        "--locked",
+        "env",
+        "FREECAD_USER_HOME=/home/bcherrington/Projects/CLion/FreeCAD/build/debug/artifacts/spec003-t018/memcheck-tests-final/user",
+        "FREECAD_USER_DATA=/home/bcherrington/Projects/CLion/FreeCAD/build/debug/artifacts/spec003-t018/memcheck-tests-final/data",
+        "FREECAD_USER_TEMP=/home/bcherrington/Projects/CLion/FreeCAD/build/debug/artifacts/spec003-t018/memcheck-tests-final/temp",
+        "XDG_CONFIG_HOME=/home/bcherrington/Projects/CLion/FreeCAD/build/debug/artifacts/spec003-t018/memcheck-tests-final/xdg-config",
+        "XDG_DATA_HOME=/home/bcherrington/Projects/CLion/FreeCAD/build/debug/artifacts/spec003-t018/memcheck-tests-final/xdg-data",
+        "XDG_CACHE_HOME=/home/bcherrington/Projects/CLion/FreeCAD/build/debug/artifacts/spec003-t018/memcheck-tests-final/xdg-cache",
+        "timeout",
+        "240s",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--undef-value-errors=no",
+        "--exit-on-first-error=yes",
+        "--error-exitcode=99",
+        "--suppressions=/tmp/spec003-t012-libunwind.supp",
+        "--log-file=/tmp/spec003-t018-memcheck-final.log",
+        "build/debug/tests/App_tests_run",
+        "--gtest_filter=PropertyFileIncludedTest.*:*IncludedFileArchiveTest*:*MissingIncludedPayloadTest*"
+      ],
+      "cwd": "/home/bcherrington/Projects/CLion/FreeCAD",
+      "exit_code": 0,
+      "started_unix_ms": 1794048441971,
+      "finished_unix_ms": 1794048455732,
+      "log": "/tmp/spec003-t018-memcheck-tests-final.log"
+    }
+  ],
+  "fixture_recipe": {
+    "document": "Native App::VarSet, default empty File plus AFirst/ZSecond included properties; real document saveAs then fresh target Document::restore; no operator fixture.",
+    "payloads": [
+      {
+        "size_bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "size_bytes": 37,
+        "sha256": "113f387d48a5ff15b80ca1812acec3a4bc26c4e56151e711791d4ae824f96a55"
+      },
+      {
+        "size_bytes": 8193,
+        "sha256": "53fde2ccf9f237d33be96736c2a4dbfeeb1c0ff1e0287507d135070378a1a515"
+      },
+      {
+        "size_bytes": 131089,
+        "sha256": "1f9e7825bd1efa82bcd46eae8745d356ebd1afd1b5a3bff6db5cafd3ab2dd97a"
+      }
+    ],
+    "readonly_control": {
+      "bytes": "preexisting",
+      "size_bytes": 11,
+      "sha256": "492997986dd5c1ae015ae1402d597fd1ecea467328fc1187cd2b585afc7855d7"
+    },
+    "archive_identities": "Actual per-row archive SHA256 recorded below. Temporary test archives removed by QTemporaryDir; generator and payload identities are retained, not byte-order determinism."
+  },
+  "archive_matrix": [
+    {
+      "fault_mode": "0",
+      "empty_payload": "0",
+      "payload_bytes": "131089",
+      "archive_sha256": "8249d1da4c139a34935e740f4a78fad2b53934302452dcb4d84572dc0bfc090d",
+      "io_fault_hits": "0",
+      "read_fault_hits": "0",
+      "failed_files_first": "0",
+      "before_notifications": "1",
+      "after_notifications": "1",
+      "later_entry_restored": "1",
+      "retained_destination_bytes": "131089",
+      "destination_writable": "0",
+      "test": "EmptyAndNonempty/IncludedFileArchiveTest.PreservesDocumentFailurePolicyAndLaterEntry/0",
+      "result": "completed"
+    },
+    {
+      "fault_mode": "0",
+      "empty_payload": "1",
+      "payload_bytes": "0",
+      "archive_sha256": "105b8253b776f276b5a7f78eac2b694ec55345fd3d127f2cfe45618c8cc31aac",
+      "io_fault_hits": "0",
+      "read_fault_hits": "0",
+      "failed_files_first": "0",
+      "before_notifications": "1",
+      "after_notifications": "1",
+      "later_entry_restored": "1",
+      "retained_destination_bytes": "0",
+      "destination_writable": "0",
+      "test": "EmptyAndNonempty/IncludedFileArchiveTest.PreservesDocumentFailurePolicyAndLaterEntry/1",
+      "result": "completed"
+    },
+    {
+      "fault_mode": "1",
+      "empty_payload": "0",
+      "payload_bytes": "131089",
+      "archive_sha256": "f6cbbe1602eea0f17d2da5aa0045e87c50ee38ba440de7f16c01fc24eec5e28d",
+      "io_fault_hits": "1",
+      "read_fault_hits": "0",
+      "failed_files_first": "1",
+      "before_notifications": "1",
+      "after_notifications": "0",
+      "later_entry_restored": "1",
+      "retained_destination_bytes": "0",
+      "destination_writable": "1",
+      "test": "EmptyAndNonempty/IncludedFileArchiveTest.PreservesDocumentFailurePolicyAndLaterEntry/2",
+      "result": "completed"
+    },
+    {
+      "fault_mode": "1",
+      "empty_payload": "1",
+      "payload_bytes": "0",
+      "archive_sha256": "c31176c5b77c79b2eeee4c7b02a1194f655f5b20388d49747b610e833db71c4a",
+      "io_fault_hits": "0",
+      "read_fault_hits": "0",
+      "failed_files_first": "0",
+      "before_notifications": "1",
+      "after_notifications": "1",
+      "later_entry_restored": "1",
+      "retained_destination_bytes": "0",
+      "destination_writable": "0",
+      "test": "EmptyAndNonempty/IncludedFileArchiveTest.PreservesDocumentFailurePolicyAndLaterEntry/3",
+      "result": "completed"
+    },
+    {
+      "fault_mode": "2",
+      "empty_payload": "0",
+      "payload_bytes": "131089",
+      "archive_sha256": "00bc8c64fbd8a93325ac6271bf6c8a3065cafcbedd848337c26db74bda7d3d32",
+      "io_fault_hits": "1",
+      "read_fault_hits": "0",
+      "failed_files_first": "1",
+      "before_notifications": "1",
+      "after_notifications": "0",
+      "later_entry_restored": "1",
+      "retained_destination_bytes": "131089",
+      "destination_writable": "1",
+      "test": "EmptyAndNonempty/IncludedFileArchiveTest.PreservesDocumentFailurePolicyAndLaterEntry/4",
+      "result": "completed"
+    },
+    {
+      "fault_mode": "2",
+      "empty_payload": "1",
+      "payload_bytes": "0",
+      "archive_sha256": "021273658b32f2fd7f9685015c210dd031ee9eecdd2515e2b5e5ccd210fb5585",
+      "io_fault_hits": "1",
+      "read_fault_hits": "0",
+      "failed_files_first": "0",
+      "before_notifications": "1",
+      "after_notifications": "0",
+      "later_entry_restored": "1",
+      "retained_destination_bytes": "0",
+      "destination_writable": "1",
+      "test": "EmptyAndNonempty/IncludedFileArchiveTest.PreservesDocumentFailurePolicyAndLaterEntry/5",
+      "result": "completed"
+    },
+    {
+      "fault_mode": "3",
+      "empty_payload": "0",
+      "payload_bytes": "131089",
+      "archive_sha256": "9b92977e4c9b86b6e14a3132b299f4f2d8b4f5a407871b8a543668771af82f5e",
+      "io_fault_hits": "0",
+      "read_fault_hits": "1",
+      "failed_files_first": "1",
+      "before_notifications": "1",
+      "after_notifications": "0",
+      "later_entry_restored": "1",
+      "retained_destination_bytes": "65536",
+      "destination_writable": "1",
+      "test": "EmptyAndNonempty/IncludedFileArchiveTest.PreservesDocumentFailurePolicyAndLaterEntry/6",
+      "result": "completed"
+    },
+    {
+      "fault_mode": "3",
+      "empty_payload": "1",
+      "payload_bytes": "0",
+      "archive_sha256": "2ff1d9132113143dfc3ea43d40520b2a4d79d8719f583c07c53a17df895bfc6d",
+      "io_fault_hits": "0",
+      "read_fault_hits": "1",
+      "failed_files_first": "0",
+      "before_notifications": "1",
+      "after_notifications": "0",
+      "later_entry_restored": "1",
+      "retained_destination_bytes": "0",
+      "destination_writable": "1",
+      "test": "EmptyAndNonempty/IncludedFileArchiveTest.PreservesDocumentFailurePolicyAndLaterEntry/7",
+      "result": "completed"
+    },
+    {
+      "fault_mode": "4",
+      "empty_payload": "0",
+      "payload_bytes": "131089",
+      "archive_sha256": "905a5defb0a3dde5c9d7479412aa7248b62a0e0289978e91f2f3581908b8418e",
+      "io_fault_hits": "0",
+      "read_fault_hits": "0",
+      "failed_files_first": "1",
+      "before_notifications": "0",
+      "after_notifications": "0",
+      "later_entry_restored": "1",
+      "test": "EmptyAndNonempty/IncludedFileArchiveTest.PreservesDocumentFailurePolicyAndLaterEntry/8",
+      "result": "completed"
+    },
+    {
+      "fault_mode": "4",
+      "empty_payload": "1",
+      "payload_bytes": "0",
+      "archive_sha256": "304ee8adf08deb3f928c5478e79c54dbd5592336e2b708f060cd3bf033a15646",
+      "io_fault_hits": "0",
+      "read_fault_hits": "0",
+      "failed_files_first": "0",
+      "before_notifications": "0",
+      "after_notifications": "0",
+      "later_entry_restored": "1",
+      "test": "EmptyAndNonempty/IncludedFileArchiveTest.PreservesDocumentFailurePolicyAndLaterEntry/9",
+      "result": "completed"
+    },
+    {
+      "fault_mode": "5",
+      "empty_payload": "0",
+      "payload_bytes": "131089",
+      "archive_sha256": "027d004fcd872146c2bbd9fb84b4a29ab9f396bd892880f484d83f2e9534839c",
+      "io_fault_hits": "0",
+      "read_fault_hits": "0",
+      "failed_files_first": "0",
+      "before_notifications": "0",
+      "after_notifications": "0",
+      "later_entry_restored": "1",
+      "retained_destination_bytes": "11",
+      "destination_writable": "0",
+      "test": "EmptyAndNonempty/IncludedFileArchiveTest.PreservesDocumentFailurePolicyAndLaterEntry/10",
+      "result": "completed"
+    },
+    {
+      "fault_mode": "5",
+      "empty_payload": "1",
+      "payload_bytes": "0",
+      "archive_sha256": "85d4d9523f8d58c549b4c35582c77442116c5985f0cc4452446219aaa079d382",
+      "io_fault_hits": "0",
+      "read_fault_hits": "0",
+      "failed_files_first": "0",
+      "before_notifications": "0",
+      "after_notifications": "0",
+      "later_entry_restored": "1",
+      "retained_destination_bytes": "11",
+      "destination_writable": "0",
+      "test": "EmptyAndNonempty/IncludedFileArchiveTest.PreservesDocumentFailurePolicyAndLaterEntry/11",
+      "result": "completed"
+    }
+  ],
+  "results": {
+    "app_cases": 303,
+    "reader_cases": 26,
+    "ctest_cases": 342,
+    "focused_memcheck_cases": 22,
+    "memcheck_errors": 0,
+    "archive_matrix_rows": 12,
+    "metadata_rejected_assignment_cases": 1,
+    "missing_payload_save_cases": 2,
+    "failures": 0,
+    "skips": 0
+  },
+  "policy": {
+    "decision": "Preserve existing source behavior under user-authorized T018 completion; delegated local compatibility disposition, no independent upstream/human policy approval claimed.",
+    "empty_hook_failure": "Log skipped-empty; absent from FailedFiles; no completed payload notification; later entries continue.",
+    "nonempty_hook_failure": "Error plus FailedFiles; no completed payload notification; later entries continue.",
+    "document": "Document::restore returns without RestoreError/PartialRestore/Restoring for included-file hook failures; live FailedFiles observed from second hook.",
+    "partial_outputs": "Retain bytes written before fault; no rollback/removal or read-only transition on failure. Specific injected amounts and notification counts recorded in matrix.",
+    "empty_write": "Zero writes, zero injected hits; successful empty read-only file. This is an absence-of-operation control, not an executed write failure.",
+    "close": "Shim reports fclose failure after real descriptor release and flush; observed full bytes for this injector are not a general guarantee on hardware failure.",
+    "rejected_assignment": "Value/bytes/read-only state and notifications retained; OriginalName updates to rejected path before existence validation. Basename retention also follows source ordering. No metadata transactionality fix.",
+    "missing_payload_save": "Empty/nonempty missing source throws FileSystemError, preserves previous archive bytes and property path, leaves UUID temporary archive. No new cleanup policy."
+  },
+  "logs": {
+    "/tmp/spec003-t018-build-final.log": {
+      "sha256": "0746c74cbcc08968a6010ce052f15d91881a7bbdd9b6b6f2db982f53f5648b12",
+      "size_bytes": 639
+    },
+    "/tmp/spec003-t018-precommit-final.log": {
+      "sha256": "c08cb8962660457decc327fae80aea7a8edb2b1b0e4fe80551122eb1f027ce38",
+      "size_bytes": 720
+    },
+    "/tmp/spec003-t018-precommit-code.log": {
+      "sha256": "c08cb8962660457decc327fae80aea7a8edb2b1b0e4fe80551122eb1f027ce38",
+      "size_bytes": 720
+    },
+    "/tmp/spec003-t018-memcheck-final.log": {
+      "sha256": "0b3fbb7b05833c7e21d18cfba0571aa378382d3a7fb677dd32fc1d8551d3f676",
+      "size_bytes": 832
+    },
+    "/home/bcherrington/Projects/CLion/FreeCAD/build/debug/artifacts/spec003-t018/commands.json": {
+      "sha256": "e35c1fd4ec907f1844630328b1a6fc81691a35255ead46392781f06fb38266ab",
+      "size_bytes": 5609
+    },
+    "/home/bcherrington/Projects/CLion/FreeCAD/build/debug/artifacts/spec003-t018/app-final.xml": {
+      "sha256": "e8abadb0bd1310a055b3179f0a4e83125e9a01d6f74effe05454b7d6e01f6613",
+      "size_bytes": 86766
+    },
+    "/home/bcherrington/Projects/CLion/FreeCAD/build/debug/artifacts/spec003-t018/reader-final.xml": {
+      "sha256": "31b0fa4c4693ea4b19c575930113ce3c6a79e3031be939747ae03008c5c15bc2",
+      "size_bytes": 6423
+    },
+    "/tmp/spec003-t018-app-final.log": {
+      "sha256": "b4372e5906f85e10498962f24d36dacbe56cd03862642ef7ff49934682279333",
+      "size_bytes": 37554
+    },
+    "/tmp/spec003-t018-reader-final.log": {
+      "sha256": "581666ebc7ba693e7f72d05f388a6d3e5a835c19ad03b7e018f27c8e3749ca89",
+      "size_bytes": 3319
+    },
+    "/tmp/spec003-t018-ctest-final.log": {
+      "sha256": "77c98b2415e7609286feb17230668677dfabf9451046cec95cd908c18d84a9f0",
+      "size_bytes": 69501
+    },
+    "/tmp/spec003-t018-memcheck-tests-final.log": {
+      "sha256": "3b836cb495e52c7476794f1c2f3288a7779a8bc79041903905ef7d9ea036b97c",
+      "size_bytes": 4931
+    }
+  },
+  "memcheck": {
+    "errors": 0,
+    "suppressed_contexts": 1,
+    "leak_check": false,
+    "undefined_value_check": false,
+    "suppression_path": "/tmp/spec003-t012-libunwind.supp",
+    "suppression_sha256": "52d015f82c97cef29511f2806d369739dbf556bcb4b9a7ab52b95b1aed4b6c09"
+  },
+  "discarded_execution": {
+    "directory": "/home/bcherrington/Projects/CLion/FreeCAD/build/debug/artifacts/spec003-t018/discarded-reporting-build-failure",
+    "reason": "Report extension lacked QCryptographicHash include; a validation pass was incorrectly started after failed build and used prior binary (302 App/341 CTest/21 Memcheck). Discarded; source-frozen check failed after include correction. Raw build/error/prior-run evidence retained separately. No result from that directory is acceptance evidence."
+  },
+  "limits": [
+    "Linux-only thread-local exact-file libc shim linked solely into App_tests_run. No production source/public API/format change; no Windows/other libc or hardware failure qualification.",
+    "Read injection wraps the actual ZIP entry reader with a throwing streambuf. Write/fclose interception is real output-file I/O reporting; shim always releases descriptors. Counters prove exercised operations.",
+    "Property XML assignment notifications precede the measured payload phase; matrix before/after counts exclude that assignment.",
+    "Existing ReaderTest cases are rerun; full document fixtures directly cover XMLReader dispatch/failure lists, so no separate Base Reader test source changes are needed.",
+    "The test-only CMake definition/shim changes App test build identity; final source/binary hashes are frozen across validation, and 281 prior naming/hash tests are rerun in the 303-case total. Prior receipts remain immutable and dated.",
+    "Memcheck uses one existing exact libunwind startup-probe suppression, with leak and undefined-value checks disabled. No whole-application ASan/UBSan, performance, installed runtime or final production acceptance.",
+    "T002 remains the aggregate included-file compatibility checkpoint; T010 confirms final composition/platform applicability and T011 owns durable promotion. Disk origins/hashes do not prove loaded-image equivalence."
+  ]
+}

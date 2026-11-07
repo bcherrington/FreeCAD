@@ -25,7 +25,7 @@ last_reviewed: 2026-11-06
 | T004.1 | Requirement 1, Requirement 2, Requirement 3 | Requirement 1, Requirement 2, Requirement 3 (all acceptance criteria) | design.md#low-level-design | requirements.md#durable-impact | verification.md#quality-gates | docs/reference/document-open-performance.md; docs/runbooks/freecad-performance-optimization.md | none |
 | T004.2 | Requirement 1, Requirement 2, Requirement 3 | Requirement 1, Requirement 2, Requirement 3 (all acceptance criteria) | design.md#low-level-design | requirements.md#durable-impact | verification.md#quality-gates | docs/reference/document-open-performance.md; docs/runbooks/freecad-performance-optimization.md | none |
 | T004.3 | Requirement 3, Requirement 4, Requirement 6 | Requirement 3 AC1–AC5; Requirement 4 AC1–AC4; Requirement 6 AC1–AC4 | design.md#evidence-applicability-and-benchmark-contract | requirements.md#durable-impact | verification.md#quality-gates | docs/reference/document-open-performance.md; docs/runbooks/freecad-performance-optimization.md | none |
-| T005 | Requirement 4 | Requirement 4 (all acceptance criteria) | design.md#high-level-design; design.md#low-level-design | requirements.md#durable-impact | verification.md#quality-gates | docs/reference/document-open-performance.md; docs/runbooks/freecad-performance-optimization.md | none |
+| T005 | Requirement 4 | Requirement 4 (all acceptance criteria) | design.md#high-level-design; design.md#low-level-design | requirements.md#durable-impact | verification.md#t005-aggregate-element-map-parser-compatibility | docs/reference/document-open-performance.md; docs/runbooks/freecad-performance-optimization.md | none |
 | T006 | Requirement 2, Requirement 5 | Requirement 2, Requirement 5 (all acceptance criteria) | design.md#high-level-design; design.md#low-level-design | requirements.md#durable-impact | verification.md#quality-gates | docs/reference/document-open-performance.md; docs/runbooks/freecad-performance-optimization.md | none |
 | T006.1 | Requirement 2, Requirement 5 | Requirement 2, Requirement 5 (all acceptance criteria) | design.md#low-level-design | requirements.md#durable-impact | verification.md#quality-gates | docs/reference/document-open-performance.md; docs/runbooks/freecad-performance-optimization.md | none |
 | T006.2 | Requirement 2, Requirement 5 | Requirement 2, Requirement 5 (all acceptance criteria) | design.md#low-level-design | requirements.md#durable-impact | verification.md#quality-gates | docs/reference/document-open-performance.md; docs/runbooks/freecad-performance-optimization.md | none |
@@ -49,7 +49,7 @@ last_reviewed: 2026-11-06
 | T015 | Requirement 4 | Requirement 4 AC1, AC2 | design.md#moe-safety-and-compatibility-contracts | requirements.md#durable-impact | verification.md#quality-gates | docs/reference/document-open-performance.md; docs/runbooks/freecad-performance-optimization.md | none |
 | T016 | Requirement 4 | Requirement 4 AC1, AC3, AC4 | design.md#moe-safety-and-compatibility-contracts | requirements.md#durable-impact | verification.md#quality-gates | docs/reference/document-open-performance.md; docs/runbooks/freecad-performance-optimization.md | none |
 | T017 | Requirement 6 | Requirement 6 AC1, AC4 | design.md#moe-safety-and-compatibility-contracts | requirements.md#durable-impact | verification.md#quality-gates | docs/reference/document-open-performance.md; docs/runbooks/freecad-performance-optimization.md | none |
-| T018 | Requirement 1 | Requirement 1 AC1–AC3 | design.md#moe-safety-and-compatibility-contracts | requirements.md#durable-impact | verification.md#quality-gates | docs/reference/document-open-performance.md; docs/runbooks/freecad-performance-optimization.md | none |
+| T018 | Requirement 1 | Requirement 1 AC1–AC3 | design.md#archive-failure-compatibility-policy | requirements.md#durable-impact | verification.md#t018-document-level-archive-failure-recovery | docs/reference/document-open-performance.md; docs/runbooks/freecad-performance-optimization.md | none |
 | T019 | Requirement 3 | Requirement 3 AC1, AC2, AC5 | design.md#evidence-applicability-and-benchmark-contract | requirements.md#durable-impact | verification.md#quality-gates | docs/reference/document-open-performance.md; docs/runbooks/freecad-performance-optimization.md | none |
 | T020 | Requirement 2, Requirement 3, Requirement 5 | Requirement 3 AC3, AC4; Requirement 2 AC1; Requirement 5 AC1–AC4 | design.md#evidence-applicability-and-benchmark-contract | requirements.md#durable-impact | verification.md#quality-gates | docs/reference/document-open-performance.md; docs/runbooks/freecad-performance-optimization.md | none |
 | T021 | Requirement 3 | Requirement 3 AC6 | design.md#open-questions | requirements.md#durable-impact | verification.md#quality-gates | docs/reference/document-open-performance.md; docs/runbooks/freecad-performance-optimization.md | none |
@@ -61,7 +61,7 @@ last_reviewed: 2026-11-06
 | Requirement 1 | must-have | AC1, AC2, AC3 | design.md#low-level-design | T002, T004, T010, T011, T018 | verification.md | docs/reference/document-open-performance.md | partial-blocking | tasks.md (T002); local-developer |
 | Requirement 2 | must-have | AC1, AC2, AC3 | design.md#low-level-design | T003, T004, T006, T009, T010, T011, T012, T013, T020 | verification.md | docs/reference/document-open-performance.md | complete | none for local Requirement 2; T010 reconfirms final/platform applicability |
 | Requirement 3 | must-have | AC1, AC2, AC3, AC4, AC5, AC6 | design.md#low-level-design | T001, T004, T008, T010, T011, T019, T020, T021 | verification.md | docs/reference/document-open-performance.md | partial-blocking | tasks.md (T020/T004/T010); local-developer |
-| Requirement 4 | must-have | AC1, AC2, AC3, AC4 | design.md#low-level-design | T004, T005, T010, T011, T015, T016 | verification.md | docs/reference/document-open-performance.md | partial-blocking | tasks.md (T005); local-developer |
+| Requirement 4 | must-have | AC1, AC2, AC3, AC4 | design.md#low-level-design | T004, T005, T010, T011, T015, T016 | verification.md#t005-aggregate-element-map-parser-compatibility | docs/reference/document-open-performance.md | complete | none for local Requirement 4; T010 reconfirms final/platform applicability |
 | Requirement 5 | must-have | AC1, AC2, AC3, AC4 | design.md#low-level-design | T004, T006, T009, T010, T011, T013, T020 | verification.md#t006-deferred-image-plane-lifecycle | docs/reference/document-open-performance.md | complete | none for local Requirement 5; T010 reconfirms final/platform applicability |
 | Requirement 6 | must-have | AC1, AC2, AC3, AC4 | design.md#low-level-design | T004, T007, T010, T011, T014, T017 | verification.md#t007-tree-functional-qualification | docs/reference/document-open-performance.md | complete | none for local Requirement 6; T010 reconfirms final/platform applicability |
 
@@ -69,11 +69,11 @@ last_reviewed: 2026-11-06
 
 | Property | Requirements | Design Sections | Tasks | Tests Or Verification | Residual Risk |
 | --- | --- | --- | --- | --- | --- |
-| CP-001 | Requirement 1 | design.md#moe-safety-and-compatibility-contracts | T002, T018 | verification.md#moe-regression-matrix | Source corrections and runtime regressions pending |
+| CP-001 | Requirement 1 | design.md#moe-safety-and-compatibility-contracts | T002, T018 | verification.md#t018-document-level-archive-failure-recovery | T018 preserved policy/failure matrix and metadata/missing-payload save outcomes qualified; T002 aggregate compatibility remains |
 | CP-002 | Requirement 2, Requirement 5 | design.md#moe-safety-and-compatibility-contracts | T003, T006, T013 | verification.md#t006-deferred-image-plane-lifecycle | T013/T003/T006 pass locally; final applicability and Qt/IBus memory-profile diagnosis remain T010 |
 | CP-003 | Requirement 6 | design.md#moe-safety-and-compatibility-contracts | T007, T014, T017 | verification.md#t014-tree-widget-receiver-lifetime | T014/T017 corrections and T007 small/larger pinned-document tree qualification pass locally; T010 final/platform applicability remains |
 | CP-004 | Requirement 2 | design.md#moe-safety-and-compatibility-contracts | T003, T012 | verification.md#t012-extent-and-arithmetic-correction--2026-11-06 | T012 correction plus T003 expanded format/extent/access/render matrix pass locally |
-| CP-005 | Requirement 4 | design.md#moe-safety-and-compatibility-contracts | T005, T015, T016 | verification.md#t016-element-map-and-dependent-cad-identity | T015 numeric safety and T016 writer/alias/child/dependent CAD identity qualified locally; T005 aggregate checkpoint and T010 final applicability remain |
+| CP-005 | Requirement 4 | design.md#moe-safety-and-compatibility-contracts | T005, T015, T016 | verification.md#t005-aggregate-element-map-parser-compatibility | T015/T016 and T005 aggregate numeric/identity acceptance complete locally; T010 final applicability remains |
 
 ## Design To Implementation Matrix
 
@@ -120,9 +120,9 @@ are satisfied; D001 planning is complete.
 | F001 | Requirement 2 AC2, AC3; CP-004 | T012, T003 | verification.md#t012-extent-and-arithmetic-correction--2026-11-06 | T012 correction and T003 current local fidelity/access qualification complete; T010 final applicability remains |
 | F002 | Requirement 5 AC2–AC4; CP-002 | T013, T006 | verification.md#t006-deferred-image-plane-lifecycle | T013 correction and T006 current local lifecycle qualification complete; T010 final applicability remains |
 | F003 | Requirement 6 AC3; CP-003 | T014, T007 | verification.md#t014-tree-widget-receiver-lifetime | T014 correction, destroy/recreate/open and queued-work checks pass locally under Memcheck; T007 current broader tree checkpoint passes; T010 final platform applicability remains |
-| F004 | Requirement 4 AC1–AC4; CP-005 | T015, T016, T005 | verification.md#moe-regression-matrix | T015 bounded numeric policy/correction and T016 CAD identity/missing-hasher correction qualified; T005 aggregate checkpoint remains |
+| F004 | Requirement 4 AC1–AC4; CP-005 | T015, T016, T005 | verification.md#t005-aggregate-element-map-parser-compatibility | T015/T016 correction/identity and T005 all-criterion aggregate acceptance complete locally; T010 final/platform gate remains |
 | F005 | Requirement 6 AC1, AC4; CP-003 | T017, T007 | verification.md#t017-tree-restore-completion | T017 local idle restore/load/import/failure completion and observer qualification pass; T007 current broader tree checkpoint passes; T010 final applicability remains |
-| F006 | Requirement 1 AC1–AC3; CP-001 | T018, T002 | verification.md#moe-regression-matrix | Archive-level failure policy/verification pending |
+| F006 | Requirement 1 AC1–AC3; CP-001 | T018, T002 | verification.md#t018-document-level-archive-failure-recovery | T018 preserved document-level empty/nonempty failure policy, continuation and metadata/save audit qualified; T002 aggregate checkpoint remains |
 | F007 | Requirement 3 AC3, AC4 | T020, T004 | verification.md#moe-regression-matrix | End-to-end latency and memory measurements pending |
 | F008 | Requirement 3 AC1–AC5 | T019, T001, T004.3, T010 | verification.md#quality-gates | Initial candidate/policy recorded by T019; D001 protocol complete; per-change comparisons and exact-final evidence remain pending |
 | F009 | Requirement 3 AC6 | T021 | verification.md#moe-review-findings | Documentation discovery/guardrails verified; owner decisions remain open |
@@ -131,11 +131,11 @@ are satisfied; D001 planning is complete.
 
 | Phase | Required active tasks | Optional/routed records | Completion rule |
 | --- | --- | --- | --- |
-| 1 — Planning | T021, T019 retained; T009 scope disposition; T001 complete | D002/B009 proposal stays deferred | D001 resolved; Phase 2C active |
+| 1 — Planning | T021, T019 retained; T009 scope disposition; T001 complete | D002/B009 proposal stays deferred | D001 resolved; Phase 2D active |
 | 2A — Images | T012/T013/T003/T006 and children complete | none | Local lifecycle checkpoint passed; tree subgroup next |
 | 2B — Tree | T014/T017/T007/T007.1 complete | T007.2 routed to B011 | Current functional tests required; future optimization profile is owned outside current runtime gate |
-| 2C — CAD maps | T015/T016 complete; T005 next | none | Numeric/identity fixtures and checkpoint pass |
-| 2D — Archives | T018, T002 and children | none | Current archive policy/error/compatibility pass |
+| 2C — CAD maps | T015/T016/T005 complete | none | Numeric/identity fixtures and checkpoint pass |
+| 2D — Archives | T018 complete; T002 and children next | none | Current archive policy/error/compatibility pass |
 | 3 — Performance | T020, T004 and children | T008 routed to B010 | Retained optimization comparisons and predeclared pass rules remain required |
 | 4 — Delivery | T010/T011 and children | Audit B009/B010/B011 ownership | Exact final evidence/platform gates, promotion and closure |
 

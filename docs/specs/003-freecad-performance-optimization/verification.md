@@ -762,10 +762,142 @@ blocks, immutable receipts/protocol/manifest, original line endings and the
 unrelated console documentation diff. Agent Workbench remains stale/navigation
 evidence only; executed commands and direct identities establish these results.
 
+## T005 Aggregate Element-Map Parser Compatibility
+
+2026-11-07: T016 committed as root `95d1df147f` / docs `e3bf027` after the
+user’s commit instruction. [t005-validation.json](t005-validation.json) records
+75 direct identity, integrity and applicability checks at that committed
+composition and reconciles all Requirement 4 criteria and CP-005. T005 changes
+spec/evidence only; it adds no runtime code and reports no fresh build/test run.
+
+| Criterion | Accepted local evidence |
+| --- | --- |
+| Requirement 4 AC1: existing dot-entry/map semantics and format | T015 actual restore callers and numeric policy; T016 real writer semicolon/colon/dollar-hash forms, decimal child/hexadecimal mapped SIDs and nested/shared maps |
+| Requirement 4 AC2: bounded, compatible numeric conversion | T015 unchanged exact production header with libc strtol differential cases, boundary/storage/caller tests and exact-header ASan/UBSan; all numeric/caller regressions rerun by T016’s final App/Memcheck checks |
+| Requirement 4 AC3: aliases/SIDs/children and storage lifetime | T016 writerFormsAliasesAndMultipleSidsRoundTrip and nestedSharedChildrenAndDecimalSidsRoundTrip; semantic save/restore/save/restore, bidirectional lookups after stream destruction, SID metadata and shared-child identity |
+| Requirement 4 AC4: dependent CAD targets across reopen/recompute | T016 checksum-pinned legacy ModelFromV021.FCStd: four independently specified Chamfer.Base edge targets, two map-bearing save/reopen cycles, three explicitly dirtied recomputes and six snapshots |
+
+The exact T016 source/test diff is now committed unchanged. The audit verifies
+all recorded final source and App/Base/Part/PartDesign binary hashes, 13 T016 raw
+artifact hashes, retained T015 raw logs/probe, unchanged related naming/hash/build
+sources, seven clean dependency revisions, 510 matching installed package
+identities, lockfile/CMake cache and original/generated CAD fixture hashes.
+The T015 numeric tests remain intact before the appended T016 tests. The sole
+production delta after T015 is the four-line child-SID null-hasher guard; it does
+not change the numeric converter, valid writer output, table bounds or prefix
+ownership. Its missing-hasher and malformed-ID behavior is covered by T016.
+
+This establishes applicability of T016’s executed full build, 281 App regressions,
+294 CTests, 34 Memcheck cases and CAD round trips to the committed source. T015’s
+exact-header ASan/UBSan applies to the unchanged converter; no whole-application
+sanitizer or loaded-image equivalence is inferred. Fresh runtime reruns would
+add no changed-source coverage here and are intentionally omitted. The input
+receipts, commands and original counts remain immutable and retain their dates.
+
+Local Requirement 4, CP-005 and F004 are complete. One Linux LP64 debug profile,
+one legacy CAD model and the existing Memcheck suppression/checking limits do
+not certify other platforms, final production composition or performance. T010
+retains final applicability/platform checks, T004 owns comparisons and T011 owns
+durable promotion. Phase 2C is complete; T018 archive failure recovery is next.
+
+Guarded completion leaves 20 complete, 18 pending and two follow-ups across the
+40 stable IDs, with no partial/in-progress records. Package lint has zero
+diagnostics; preflight selects T018 with satisfied dependencies, zero context
+gaps and no open decisions. Evidence-quality inspection classifies T005 as
+concrete. Its three existing advisory warnings concern retained historical
+verification rows/the table separator, which are not T005 acceptance evidence.
+Agent Workbench remains bounded by the nested docs authority; explicit lifecycle
+checks, source reads and the direct 75-check audit establish this completion.
+
+## T018 Document-Level Archive Failure Recovery
+
+2026-11-07: [t018-validation.json](t018-validation.json) records root `95d1df147f`
+/docs `e3bf027` plus the exact test/CMake/shim diff and actual new configuration,
+compile commands, binaries, libraries, seven clean dependency commits and 510
+matching packages. T005’s uncommitted documentation/receipt is preserved.
+Production PropertyFile.cpp/Reader.cpp bytes, public API and archive format remain
+unchanged. The delegated compatibility decision preserves the existing source
+policy in [the outcome table](design.md#archive-failure-compatibility-policy).
+This is local compatibility qualification, not independent upstream approval.
+
+`IncludedFileArchiveTest` executes full `Document::saveAs` / fresh target
+`Document::restore` with two registered included files. It injects the first
+failure and observes the live XMLReader FailedFiles list while the second entry
+restores; it also checks document status, diagnostics, exact destination bytes,
+permissions and payload-phase before/after notifications. Twelve rows cover
+empty/nonempty success, read/write/close/create errors and preexisting read-only
+files. Binary payloads use byte i = (i * 37) mod 256, sizes 0/131089 followed by
+8193 bytes; generator/payload identities and each actual archive hash are retained
+in the receipt and gtest XML. Temporary native archives are cleaned by the test.
+
+Read errors are injected at the real payload streambuf boundary, after zero or
+65536 bytes. Linux-only write/close interception is thread-local and restricted
+to the exact temporary destination; the shim is linked solely to App_tests_run.
+Write failures retain zero bytes in this injection; close failures retain all
+known flushed bytes but return failure after releasing the descriptor. Neither
+is a general hardware byte-retention guarantee. Fault-hit assertions establish
+that read/write/close error rows were exercised. Empty payloads perform no write:
+that row has zero write hits and is a successful empty-file control, not an
+invented failure. The second entry restores correctly and read-only in every row.
+
+Source-observed empty/nonempty asymmetry is retained: empty hook failures log
+`Skipped empty embedded file`, remain absent from FailedFiles and emit no completed
+payload notification; nonempty failures emit an error and enter FailedFiles.
+Payload faults leave the partial destination writable and do not set the document’s
+RestoreError/PartialRestore status; restore finishes and continues. Create errors
+have no payload notifications and retain the directory obstacle. Existing read-only
+payloads retain their sentinel with no copy notifications. XML path assignment
+notifications occur earlier and are excluded from payload-phase counts.
+
+Additional native checks establish that rejected external assignment retains value,
+bytes/read-only state and emits neither notification, but updates OriginalName
+before existence validation. Basename retention is also source-inspected. Two
+missing-payload save cases (empty/nonempty) throw FileSystemError, preserve the
+previous archive byte-for-byte and property path, and leave one UUID temporary
+archive. T018 documents these existing behaviors without adding rollback/cleanup.
+
+| Final check | Result |
+| --- | --- |
+| `pixi run --locked build -j 2` | Passed; expected Pivy stub-generation warnings |
+| App included-file/matrix/missing-save plus existing naming/hash filters | 303/303 passed, including 22 included-file cases and 281 naming/hash regressions |
+| `Base_tests_run --gtest_filter=ReaderTest.*` through Pixi | 26/26 passed |
+| Focused included-file/Reader/naming/TopoShape CTests through Pixi | 342/342 passed |
+| All 22 included-file cases under Memcheck | Passed, zero errors; one exact libunwind startup-probe suppression |
+| Scoped hooks, source/binary/log/fixture identities, package/traceability checks | Passed |
+
+Exact argv, working directories, isolation locations, times and gtest properties
+are in the receipt and `build/debug/artifacts/spec003-t018/commands.json`. Each
+run uses its own disposable FREECAD_USER_HOME/DATA/TEMP and XDG directories.
+Memcheck disables leak/undefined-value checks; no whole-FreeCAD sanitizer claim.
+The Linux shim uses dlsym/proc file-descriptor resolution and is not registered on
+other platforms. Existing Base Reader tests are rerun; the new App fixture directly
+covers the real document/reader boundary, so no Base Reader test-source change is
+needed. No operator model/configuration or installed runtime is changed.
+
+A reporting extension initially missed its QCryptographicHash include. A validation
+pass was incorrectly started after that failed build and used the preceding
+binary (302 App/341 CTest/21 Memcheck); it is explicitly discarded. Its raw logs,
+commands, failure and not-qualified marker are retained under
+`build/debug/artifacts/spec003-t018/discarded-reporting-build-failure/`.
+The final rebuilt source/binaries are frozen unchanged across all accepted runs;
+the receipt accepts only the final 303/26/342/22 results. The diagnostic collector
+also uses the repository’s mutex-protected observer pattern.
+
+T018 completes the local policy/failure matrix and metadata/save audit. Requirement
+1/CP-001 remain partial-blocking until T002’s aggregate byte/ZIP/permission/
+notification compatibility checkpoint. Final production/platform applicability,
+performance and durable promotion remain T010/T004/T011.
+
+Guarded completion leaves 21 complete, 17 pending and two follow-ups, retaining
+all 40 IDs with no partial/in-progress records. Package lint has zero diagnostics;
+preflight selects T002 with satisfied dependencies, zero context gaps and no open
+decisions. Earlier completed task records, receipts/manifest/protocol, T005’s
+uncommitted result and the unrelated console edit are preserved.
+
 ## Next Actions
 
-1. **Next: T005 — Verify element-map parser compatibility.**
-   T015 numeric safety and T016 identity are complete; retain D001/T019 applicability rules.
+1. **Next: T002 — Verify included-file restore compatibility on the target revision.**
+   T018 preserved policy/failure matrix is complete; retain D001/T019 applicability rules.
 2. Follow [the explicit Phase 2 subgroups](tasks.md#execution-order): images,
    tree lifecycle, CAD maps, then archives; finish each fix's focused regression
    and subgroup qualification before advancing.
@@ -783,7 +915,7 @@ evidence only; executed commands and direct identities establish these results.
 | Candidate and final evidence applicability | yes | partial | T019 initial manifest/policy recorded; actual new-build/runtime receipts and T010 final reconciliation pending |
 | Predeclared per-optimization performance/resource acceptance | yes | pending | T001 protocol complete; T020/T004 and final T010 evidence pending |
 | Complete task/criterion evidence | yes | pending | tasks.md; traceability.md |
-| Focused current correctness and failure tests | yes | pending | T003/T006 image, T007 tree and T015/T016 numeric/identity checks pass locally; T005 aggregate and T002 archive qualification remain |
+| Focused current correctness and failure tests | yes | pending | T003/T006 image, T007 tree, T015/T016/T005 numeric/identity and T018 failure-matrix checks pass locally; T002 aggregate archive qualification remains |
 | Current measurements and platform/manual acceptance | yes | pending | Historical observations are insufficient |
 | Durable promotion and residual ownership | yes | pending | requirements.md durable impact |
 | Review and closure metadata | yes | pending | No closure claimed |
@@ -906,7 +1038,8 @@ executed. Runtime regression evidence for F001–F008 remains pending.
   remains T010; the T014 compose profile does not certify default IBus or T006.
 - T015 numeric safety and T016 writer/alias/child/dependent CAD identity pass locally,
   including the reproduced/corrected missing-hasher child-SID path. Aggregate parser
-  compatibility remains T005; archive-level outcomes remain T018/T002.
+  compatibility is complete through T005. T018 qualifies the preserved archive-level
+  failure outcomes; T002 aggregate included-file compatibility remains.
 - Dated tests do not certify the selected final production revision.
 - Unresolved design/budget decisions block dependent implementation/acceptance.
 - Current measurements, desktop/visual/platform coverage and durable promotion
@@ -923,8 +1056,8 @@ this migration.
 
 ## Readiness Decision
 
-- Ready to implement: T005 — Verify element-map parser compatibility; T015/T016 and image/tree subgroups complete.
-- Ready to validate: local numeric/identity/tree/image corrections qualified by T015/T016/T007/T003/T006; T005 aggregate parser compatibility comes next. Whole-package acceptance still requires identity/archive/performance checkpoints and T010 final/platform applicability.
+- Ready to implement: T002 — Verify included-file restore compatibility on the target revision; T018 failure-policy qualification and image/tree/CAD-map subgroups complete.
+- Ready to validate: local numeric/identity/aggregate/tree/image corrections qualified by T015/T016/T005/T007/T003/T006. Whole-package acceptance still requires archive/performance checkpoints and T010 final/platform applicability.
 - Ready to close: no.
 - Ready to archive: no.
 - Cleanup action: keep active, draft.
