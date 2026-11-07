@@ -330,3 +330,15 @@ qualification task; its decisions do not require pausing spec creation for appro
 - [Traceability](traceability.md)
 - [Verification](verification.md)
 - [Canonical context](canonical-context.md)
+
+## T002 Native Implementation Record
+
+The additive C++ method and direct native tests are implemented as described in
+[t002-implementation.md](t002-implementation.md). Preparation reuses processEdge;
+application retains normal property notifications and caller-owned recovery.
+The admitted native sources are live Part feature edges; circular planes must
+be parallel, bounded parameter directions must agree beyond angular tolerance,
+and pending Sync is unsupported. The Python binding remains T003.
+
+T004 must triage the centre-Coincident solver finding reproduced on both new and
+legacy retarget paths; this is not a change to the preservation requirements.

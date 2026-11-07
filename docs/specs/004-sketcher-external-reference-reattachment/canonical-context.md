@@ -170,8 +170,9 @@ must distinguish delivered behavior from unsupported broader integration work.
 
 ## Smallest Next Action
 
-Obtain fresh context for T002 - Implement native admission and in-place identity
-preservation under the accepted Option A contract. Use the pinned fixtures and
-runner manifests from [T001 qualification](t001-qualification.md). Preserve the
-shared branch/file-ownership boundaries; do not open operator CAD or retry an
-earlier unknown mutation.
+T002's native implementation and direct C++ evidence are recorded in
+[t002-implementation.md](t002-implementation.md) and
+[t002-validation.json](t002-validation.json). Obtain fresh context for T003 -
+Expose and document the public Python binding. Preserve the shared branch/file
+ownership boundaries. T004 also owns the recorded baseline Coincident solver
+finding; do not infer whole-feature qualification from T002 native test passes.

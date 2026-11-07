@@ -74,8 +74,8 @@ runtime authority. Its reports of bridge fixes do not prove native correctness.
 
 ## Staged Readiness
 
-- **Current stage:** design/tasks drafted.
-- **Next stage:** T002 native implementation after T001 reconciliation/validation; D001 and D002 are resolved locally.
+- **Current stage:** T002 native implementation verified; whole API qualification remains incomplete.
+- **Next stage:** T003 public Python binding; T004 owns the recorded branch-baseline Coincident solver finding. D001 and D002 are resolved locally.
 - **Ready to design when:** satisfied for the bounded proposed scope below.
 - **Design-first exception:** no; requirements precede the proposed design.
 - **Optional artifacts recommended:** canonical-context.md, traceability.md, verification.md.
@@ -85,7 +85,9 @@ D001 selects reattachExternal. The user explicitly accepted D002 Option A: norma
 FreeCAD transaction semantics. Preflight rejection and admitted exact no-op are
 unchanged-state operations; unexpected errors after application starts require
 caller recovery. Successful-operation preservation criteria remain intact.
-Executed probes establish the baseline and scope decision, not a new implementation.
+T001 probes establish the baseline and scope decision. T002 native implementation
+and bounded evidence are recorded in t002-implementation.md; the Python entry
+point and full lifecycle qualification remain T003–T005.
 See [T001 qualification](t001-qualification.md).
 
 ## Requirements

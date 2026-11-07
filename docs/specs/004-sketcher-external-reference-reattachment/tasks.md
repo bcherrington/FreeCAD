@@ -15,8 +15,8 @@ Read requirements.md, design.md, canonical-context.md, traceability.md and
 verification.md before implementation. Obtain task_context for the selected ID;
 normally mark one implementation task in progress. This package remains draft for
 implementation acceptance. D001 is locally resolved and the user accepted D002
-Option A. T001 qualification/reconciliation establishes the next native slice;
-T002–T006 remain pending until their own evidence is recorded.
+Option A. T001 qualification/reconciliation and T002 native implementation are
+complete for their bounded slices; T003–T006 remain pending.
 
 Respect AGENTS.md and freecad-project guidance, preserve unrelated work and original
 line endings. Keep the shared worktree on its current branch; do not switch, reset
@@ -26,7 +26,8 @@ feature commits, leaving unrelated work here untouched. No operator document mut
 repository edits, install, runtime restart, commit or public submission are requested
 by creating this package. The user has authorized T001's disposable qualification
 probes and explicitly accepted D002 Option A. T001 completion does not establish
-new-API acceptance; obtain fresh task context before any T002 implementation.
+new-API acceptance. The user subsequently authorized T002 production changes and
+local commits. Obtain fresh task context before each subsequent slice.
 
 Markers: `[ ]` pending, `[~]` in progress, `[/]` partial, `[>]` routed,
 `[-]` deferred/no-op, `[?]` decision required, `[!]` attention, `[x]` complete.
@@ -52,19 +53,20 @@ T001 -> T002 -> T003 -> T004 -> T005 -> T006
   - Evidence: t001-qualification.md and t001-validation.json: D001 API/index/native boundary selected; user explicitly accepted D002 Option A; all affected spec artifacts reconciled. Exact eight-case native probe run passed including injected application error and explicit caller abort restoring model/earlier caller edit; six existing native tests, five Python tests and arc save/reopen fixture passed. Source/library hashes stable; package lint zero findings; 55 local links, evidence hashes and Python syntax checked. No new API implementation acceptance claimed.
   - Owner: local-developer
 
-  - Status: Complete for T001 qualification and user-approved scope reconciliation. T002 is the next pending implementation slice; no production source, shared branch/build, install or operator-document changes.
-- [ ] T002 Implement native admission and in-place identity preservation.
+  - Status: Complete for T001 qualification and user-approved scope reconciliation. T001 introduced no production source, shared branch/build, install or operator-document changes. T002 now implements the native slice separately.
+- [x] T002 Implement native admission and in-place identity preservation.
   - Depends on: T001
   - Requirements: Requirement 2 AC1, AC2, AC3, AC4, AC5; Requirement 3 AC1, AC2, AC3, AC4, AC5; Requirement 4 AC1; Requirement 5 AC1
   - Properties: CP-001, CP-002, CP-004, CP-005
   - Design: design.md#admission-and-application; design.md#error-handling-and-recovery; design.md#semantic-state-oracle
-  - Files: `src/Mod/Sketcher/App/SketchObject.h`, `src/Mod/Sketcher/App/SketchObjectExternal.cpp`, `tests/src/Mod/Sketcher/App/SketchObject.cpp`, `tests/src/Mod/Sketcher/App/CMakeLists.txt`
+  - Files: `src/Mod/Sketcher/App/SketchObject.h`, `src/Mod/Sketcher/App/SketchObjectExternal.cpp`, `tests/src/Mod/Sketcher/App/SketchObjectReattach.cpp`, `tests/src/Mod/Sketcher/App/CMakeLists.txt`
   - Acceptance: Native success preserves IDs, both orders, ExternalTypes and constraints including Orientation, with coherent Ref/dependency state at return. Unsupported/reversed/ambiguous inputs reject in preflight; admitted same-source calls emit no changes. Preflight failure/no-op preserves model and journal metadata including earlier caller edits. Unexpected apply errors propagate without automatic retry/commit/abort; normal intermediate notifications and dirty/redo effects are allowed and caller recovery is documented. Qualify dedicated caller-transaction abort and no-transaction checkpoint recovery. Direct C++ use meets the accepted contract independently of Python; no generic atomic infrastructure.
   - Validation: Run focused native success, rejection and exception cases from verification.md; immediate subsequent solve/edit must work after failure. Record baseline failures before the fix where practical.
-  - Evidence mode: command
-  - Evidence: Pending.
+  - Evidence mode: artifact
+  - Evidence: t002-implementation.md and t002-validation.json: additive native reattachExternal implemented; 13/13 new direct C++ cases and 162/162 total Sketcher cases pass, pixi run build -j 2 passes, scoped hooks/clang-format 23.1.0 and CRLF checks pass. Identity/orders/modes/constraint fields/Ref dependencies, preflight/no-op journal nonmutation and caller abort/checkpoint recovery qualified. Existing centre-Coincident solver movement issue reproduced with legacy attachExternal is routed to T004; requirements unchanged. Python remains T003.
   - Owner: local-developer
 
+  - Status: Complete for the bounded native C++ slice. Public Python is T003; full lifecycle/Coincident solver disposition is T004. Shared branch and unrelated GUI/spec003 changes preserved.
 - [ ] T003 Expose and document the public Python binding.
   - Depends on: T002
   - Requirements: Requirement 1 AC1, AC2, AC3; Requirement 3 AC1, AC2, AC3, AC4, AC5; Requirement 5 AC1, AC2
@@ -88,6 +90,8 @@ T001 -> T002 -> T003 -> T004 -> T005 -> T006
   - Evidence mode: command
   - Evidence: Pending.
   - Owner: local-developer
+
+  - Status: T002 found a fully constrained centre-Coincident movement failure reproduced with legacy attachExternal on this branch. T004 must triage and disposition this before full API qualification; see t002-implementation.md. No acceptance criterion is waived.
 
 - [ ] T005 Validate compatibility and resolve specialist review findings.
   - Depends on: T004

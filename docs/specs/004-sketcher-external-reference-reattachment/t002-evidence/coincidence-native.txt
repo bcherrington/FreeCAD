@@ -1,0 +1,26 @@
+Running main() from /home/conda/feedstock_root/build_artifacts/bld/rattler-build_gtest_1786419392/work/googletest/src/gtest_main.cc
+Note: Google Test filter = SketchObjectReattach.Circles*
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from SketchObjectReattach
+[ RUN      ] SketchObjectReattach.CirclesPreserveIdentityOrderModesAndConstraints
+DEBUG c1 0 3 -3 3 active 1 type 1 valid 1 external 40
+DEBUG DOF 0 external 40 internal 0
+/home/bcherrington/Projects/CLion/FreeCAD/tests/src/Mod/Sketcher/App/SketchObjectReattach.cpp:193: Failure
+The difference between sketch->getGeometry<Part::GeomCircle>(0)->getCenter().x and 40 is 40, which exceeds 1e-7, where
+sketch->getGeometry<Part::GeomCircle>(0)->getCenter().x evaluates to 0,
+40 evaluates to 40, and
+1e-7 evaluates to 9.9999999999999995e-08.
+
+DEBUG AFTER RECOMPUTE 0
+DEBUG AFTER RECOMPUTE 0
+[  FAILED  ] SketchObjectReattach.CirclesPreserveIdentityOrderModesAndConstraints (455 ms)
+[----------] 1 test from SketchObjectReattach (455 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (602 ms total)
+[  PASSED  ] 0 tests.
+[  FAILED  ] 1 test, listed below:
+[  FAILED  ] SketchObjectReattach.CirclesPreserveIdentityOrderModesAndConstraints
+
+ 1 FAILED TEST

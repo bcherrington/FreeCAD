@@ -2305,6 +2305,226 @@ void processFace (const Rotation& invRot,
 
 }  // anonymous namespace
 
+void SketchObject::reattachExternal(int geoId, App::DocumentObject* obj, const char* subName)
+{
+    // Admission and projection are read-only. In particular, do not use addExternal()
+    // or rebuildExternalGeometry() here: both can publish changes before rejecting.
+    if (noRecomputes || managedoperation || isRestoring()) {
+        throw Base::ValueError("External reattachment is unavailable in this execution mode");
+    }
+    if (!getDocument() || !obj || !obj->getNameInDocument() || !subName || !*subName
+        || obj->getDocument() != getDocument() || !testIfLinkDAGCompatible(obj)
+        || !isExternalAllowed(getDocument(), obj)) {
+        throw Base::ValueError("External reattachment requires an allowed same-document source");
+    }
+    // Check before negating, including INT_MIN. ExternalGeo includes the two axes.
+    if (geoId > GeoEnum::RefExt || geoId < -ExternalGeo.getSize()) {
+        throw Base::ValueError("Expected a current user external geometry index (at most -3)");
+    }
+    const int index = -geoId - 1;
+    const auto* old = ExternalGeo[index];
+    const auto oldFacade = ExternalGeometryFacade::getFacade(old);
+    const auto id = oldFacade->getId();
+    const auto flags = oldFacade->getFlags();
+    const auto ref = oldFacade->getRef();
+    if (ref.empty() || oldFacade->testFlag(ExternalGeometryExtension::Frozen)
+        || oldFacade->testFlag(ExternalGeometryExtension::Missing)
+        || oldFacade->testFlag(ExternalGeometryExtension::Detached)
+        || oldFacade->testFlag(ExternalGeometryExtension::Sync)) {
+        throw Base::ValueError("Expected a live, unfrozen external projection");
+    }
+    auto objects = ExternalGeometry.getValues();
+    auto subs = ExternalGeometry.getSubValues();
+    const auto types = ExternalTypes.getValues();
+    const auto related = externalGeoRefMap.find(ref);
+    const auto mapping = externalGeoMap.find(id);
+    if (objects.size() != subs.size() || objects.size() != externalGeoRef.size()
+        || std::count(externalGeoRef.begin(), externalGeoRef.end(), ref) != 1
+        || related == externalGeoRefMap.end() || related->second.size() != 1
+        || related->second.front() != id || mapping == externalGeoMap.end()
+        || mapping->second != index) {
+        throw Base::ValueError("External reattachment requires a one-to-one reference");
+    }
+    const auto slot = std::distance(
+        externalGeoRef.begin(),
+        std::find(externalGeoRef.begin(), externalGeoRef.end(), ref)
+    );
+    // Missing legacy mode entries mean Projection; never resize the stored vector.
+    if (slot < static_cast<decltype(slot)>(types.size())
+        && types[slot] != static_cast<long>(ExtType::Projection)) {
+        throw Base::ValueError("Only Projection external references can be reattached");
+    }
+    auto edgeOf = [](App::DocumentObject* source, const std::string& sub) {
+        auto* feature = freecad_cast<Part::Feature*>(source);
+        if (!feature || !source->getNameInDocument()) {
+            throw Base::ValueError("External reattachment requires a live Part feature edge");
+        }
+        auto shape = feature->Shape.getShape().getSubShape(sub.c_str());
+        if (shape.IsNull() || shape.ShapeType() != TopAbs_EDGE) {
+            throw Base::ValueError("External reattachment requires a single edge");
+        }
+        return TopoDS::Edge(shape);
+    };
+
+    std::unique_ptr<Part::Geometry> prepared;
+    try {
+        // Resolve the old link as well, so an unmarked missing source cannot be a no-op.
+        edgeOf(objects[slot], subs[slot]);
+        const auto edge = edgeOf(obj, subName);
+        BRepAdaptor_Curve curve(edge);
+        if (curve.GetType() != GeomAbs_Line && curve.GetType() != GeomAbs_Circle) {
+            throw Base::ValueError("Only line segments, circles and circular arcs are supported");
+        }
+        for (std::size_t i = 0; i < objects.size(); ++i) {
+            if (i != static_cast<std::size_t>(slot) && objects[i] == obj
+                && (subs[i] == subName || edgeOf(objects[i], subs[i]).IsSame(edge))) {
+                throw Base::ValueError("The destination already has an external reference");
+            }
+        }
+
+        const auto placement = Placement.getValue();
+        const auto position = placement.getPosition();
+        const auto rotation = placement.getRotation();
+        const auto invRot = rotation.inverse();
+        const auto invPlm = placement.inverse();
+        const auto matrix = invPlm.toMatrix();
+        Base::Vector3d normal(0, 0, 1), xAxis(1, 0, 0);
+        rotation.multVec(normal, normal);
+        rotation.multVec(xAxis, xAxis);
+        gp_Trsf mov;
+        mov.SetValues(
+            matrix[0][0],
+            matrix[0][1],
+            matrix[0][2],
+            matrix[0][3],
+            matrix[1][0],
+            matrix[1][1],
+            matrix[1][2],
+            matrix[1][3],
+            matrix[2][0],
+            matrix[2][1],
+            matrix[2][2],
+            matrix[2][3]
+        );
+        gp_Ax3 axes(
+            gp_Pnt(position.x, position.y, position.z),
+            gp_Dir(normal.x, normal.y, normal.z),
+            gp_Dir(xAxis.x, xAxis.y, xAxis.z)
+        );
+        gp_Pln plane(axes);
+        Handle(Geom_Plane) surface = new Geom_Plane(plane);
+        TopoDS_Shape face = BRepBuilderAPI_MakeFace(plane).Shape();
+        // A tilted circle can project to a line or ellipse. Such a change of endpoint
+        // meaning is outside this API even if the old projection happened to be a line.
+        if (curve.GetType() == GeomAbs_Circle
+            && !plane.Axis().Direction().IsParallel(
+                curve.Circle().Axis().Direction(),
+                Precision::Angular()
+            )) {
+            throw Base::ValueError("Circular sources must be parallel to the sketch plane");
+        }
+        std::vector<std::unique_ptr<Part::Geometry>> projected;
+        processEdge(edge, projected, surface, invPlm, mov, plane, invRot, axes, face);
+        if (projected.size() != 1 || projected.front()->getTypeId() != old->getTypeId()) {
+            throw Base::ValueError("Reattachment must preserve the analytic projection type");
+        }
+        const auto* replacement = projected.front().get();
+        // Clone the authored geometry, including ALL its extensions/modes, and replace
+        // only the curve handle. Endpoint roles follow native parameterization, never
+        // nearest-point matching. Reversed and perpendicular directions are rejected.
+        prepared.reset(old->clone());
+        if (auto* line = freecad_cast<Part::GeomLineSegment*>(prepared.get())) {
+            const auto* next = static_cast<const Part::GeomLineSegment*>(replacement);
+            const auto direction = line->getEndPoint() - line->getStartPoint();
+            const auto nextDirection = next->getEndPoint() - next->getStartPoint();
+            if (direction.Length() <= Precision::Confusion()
+                || nextDirection.Length() <= Precision::Confusion()
+                || direction.Dot(nextDirection)
+                    <= Precision::Angular() * direction.Length() * nextDirection.Length()) {
+                throw Base::ValueError("Reversed or ambiguous line direction");
+            }
+            line->setHandle(Handle(Geom_TrimmedCurve)::DownCast(next->handle()));
+        }
+        else if (auto* arc = freecad_cast<Part::GeomArcOfCircle*>(prepared.get())) {
+            const auto* next = static_cast<const Part::GeomArcOfCircle*>(replacement);
+            const auto direction = arc->getEndPoint() - arc->getStartPoint();
+            const auto nextDirection = next->getEndPoint() - next->getStartPoint();
+            if (arc->getRadius() <= Precision::Confusion()
+                || next->getRadius() <= Precision::Confusion()
+                || direction.Length() <= Precision::Confusion()
+                || nextDirection.Length() <= Precision::Confusion()
+                || arc->getAxisDirection().Dot(next->getAxisDirection()) <= 0.0
+                || direction.Dot(nextDirection)
+                    <= Precision::Angular() * direction.Length() * nextDirection.Length()) {
+                throw Base::ValueError("Reversed or ambiguous circular arc direction");
+            }
+            arc->setHandle(Handle(Geom_TrimmedCurve)::DownCast(next->handle()));
+        }
+        else if (auto* circle = freecad_cast<Part::GeomCircle*>(prepared.get())) {
+            const auto* next = static_cast<const Part::GeomCircle*>(replacement);
+            if (circle->getRadius() <= Precision::Confusion()
+                || next->getRadius() <= Precision::Confusion()) {
+                throw Base::ValueError("Degenerate circular projection");
+            }
+            circle->setHandle(Handle(Geom_Circle)::DownCast(next->handle()));
+        }
+        else {
+            throw Base::ValueError("Unsupported external projection type");
+        }
+    }
+    catch (const Standard_Failure&) {
+        throw Base::ValueError("Cannot prepare the external edge projection");
+    }
+    catch (const Base::Exception& error) {
+        throw Base::ValueError(error.what());
+    }
+    if (objects[slot] == obj && subs[slot] == subName) {
+        return;
+    }
+
+    const auto constraints = Constraints.getValuesForce();
+    const auto internalGeometry = Geometry.getValues();
+    const int geometryCount = ExternalGeo.getSize();
+    std::vector<long> geometryIds;
+    geometryIds.reserve(geometryCount);
+    for (const auto* geometry : ExternalGeo.getValues()) {
+        geometryIds.push_back(ExternalGeometryFacade::getFacade(geometry)->getId());
+    }
+    // Application has normal observable intermediate states. Do not catch exceptions
+    // here or attempt property replay: only the caller owns the recovery boundary.
+    Base::StateLocker lock(managedoperation, true);
+    objects[slot] = obj;
+    subs[slot] = subName;
+    ExternalGeometry.setValues(objects, subs);
+    if (externalGeoRef.size() != objects.size()) {
+        throw Base::RuntimeError("External reference mapping changed during reattachment");
+    }
+    auto facade = ExternalGeometryFacade::getFacade(prepared.get());
+    facade->setRef(externalGeoRef[slot]);
+    facade->setRefIndex(-1);  // export-only cache; Save() regenerates this
+    ExternalGeo.set1Value(index, std::move(prepared));
+    rebuildVertexIndex();
+    solverNeedsUpdate = true;
+    Constraints.acceptGeometry(getCompleteGeometry());
+    if (ExternalGeo.getSize() != geometryCount || externalGeoRef.size() != objects.size()) {
+        throw Base::RuntimeError("External geometry cardinality changed during reattachment");
+    }
+    for (int i = 0; i < geometryCount; ++i) {
+        if (ExternalGeometryFacade::getFacade(ExternalGeo[i])->getId() != geometryIds[i]) {
+            throw Base::RuntimeError("External geometry identity changed during reattachment");
+        }
+    }
+    const auto current = ExternalGeometryFacade::getFacade(ExternalGeo[index]);
+    const auto updated = externalGeoRefMap.find(current->getRef());
+    if (ExternalGeometry.getValues() != objects || ExternalGeometry.getSubValues() != subs
+        || ExternalTypes.getValues() != types || Constraints.getValuesForce() != constraints
+        || Geometry.getValues() != internalGeometry || current->getId() != id
+        || current->getFlags() != flags || current->getRef() != externalGeoRef[slot]
+        || updated == externalGeoRefMap.end() || updated->second != std::vector<long> {id}) {
+        throw Base::RuntimeError("External reattachment did not produce a coherent reference");
+    }
+}
+
 void SketchObject::rebuildExternalGeometry(std::optional<ExternalToAdd> extToAdd)
 {
     Base::StateLocker lock(managedoperation, true); // no need to check input data validity as this is an sketchobject managed operation.

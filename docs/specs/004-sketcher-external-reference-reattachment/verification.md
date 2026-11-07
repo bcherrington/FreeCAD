@@ -91,9 +91,10 @@ manifest check to the public Python module.
 | --- | --- | --- | --- |
 | MCP lint_spec_package for spec 004 | Spec structure and cross-artifact checks | passed, zero errors/warnings | Evidence Log |
 | git -C docs diff --check | Docs whitespace | passed | Evidence Log |
-| pixi run build -j 2 | Build affected application and generated bindings | not run; implementation pending | T005 |
-| build/debug/tests/Sketcher_tests_run --gtest_list_tests | Discover native case names | not run; qualify runner in T001 | T001 |
-| build/debug/tests/Sketcher_tests_run --gtest_filter='*ExternalReattach*' | Proposed focused native cases | not run; name cases in T002 | T002, T004 |
+| pixi run build -j 2 | Build affected application | passed for T002 native source | t002-validation.json; generated Python method remains T003 |
+| build/debug/tests/Sketcher_tests_run --gtest_list_tests | Discover native case names | 162 discovered, including 13 new cases | t002-evidence/manifest.txt |
+| build/debug/tests/Sketcher_tests_run --gtest_filter='SketchObjectReattach.*' | Focused native cases | 13 passed, nonzero discovery/execution matched | t002-validation.json |
+| build/debug/tests/Sketcher_tests_run --gtest_filter='*' | All native Sketcher cases | 162 passed | t002-validation.json |
 | Owned built FreeCAD Python runner, unittest module SketcherTests.TestSketchExternalReattachment | Public Python and persistence matrix | not run; exact invocation required in T001 | T003, T004 |
 | ctest --test-dir build/debug -N | Discover platform-specific registered case names | not run; required to select exact filters | T001, T005 |
 | CTest filter derived from the pinned intended/discovered case manifest | Execute every intended affected native case; require nonzero counts | not run; generic Sketcher filter is not acceptance evidence | T005 |
@@ -105,29 +106,29 @@ manifest check to the public Python module.
 | Requirement | Acceptance criteria covered by plan | Executed implementation evidence | Residual risk |
 | --- | --- | --- | --- |
 | Requirement 1 | AC1, AC2, AC3: V01, V03, V09, V11 | D001 API boundary selected; public surface absence confirmed | New binding not implemented |
-| Requirement 2 | AC1–AC5: V01, V02, V06–V08, V12, V15 | none | Native identity/orientation/dependency behavior unproven |
-| Requirement 3 | AC1–AC5: V03–V05, V12–V14 | Option A transaction boundary qualified in T001; no new API | Preflight/success/application-error contract awaits implementation tests |
-| Requirement 4 | AC1–AC4: V01, V05–V08, V13–V15 | Existing transaction/lifecycle runners qualified, new API pending | New implementation lifecycle and caller recovery not yet tested |
-| Requirement 5 | AC1, AC2, AC3, AC4: V09–V11 | none | Compatibility/platform and review evidence pending |
+| Requirement 2 | AC1–AC5: V01, V02, V06–V08, V12, V15 | T002 native identity/orders/modes/constraints and dependency tests | Full lifecycle and Coincident solver qualification remain T004 |
+| Requirement 3 | AC1–AC5: V03–V05, V12–V14 | T002 native rejection/no-op/journal and caller recovery tests | Python input validation and full lifecycle remain T003/T004 |
+| Requirement 4 | AC1–AC4: V01, V05–V08, V13–V15 | T002 native caller abort/checkpoint recovery and repeated recompute | Success undo/redo/save-reopen matrix remains T004 |
+| Requirement 5 | AC1, AC2, AC3, AC4: V09–V11 | T002 standard build and all 162 native Sketcher cases pass | Public compatibility/platform/review/promotion remain T003–T006 |
 
 ## Correctness Property Coverage
 
 | Property | Covered by | Evidence | Residual risk |
 | --- | --- | --- | --- |
-| CP-001 | V01, V02, V06, V08, V15 | pending | Identity/mode/Orientation preservation unverified |
-| CP-002 | V03–V05, V12–V14 | Option A selected; implementation pending | Preflight nonmutation and caller recovery need new-API tests |
-| CP-003 | V05, V06, V08, V14 | pending | Transaction/persistence unverified |
-| CP-004 | V01, V07, V08, V15 | pending | Propagation and dependency graph unverified |
-| CP-005 | V05, V09–V11, V13, V14 | pending | Existing behavior/review unverified |
+| CP-001 | V01, V02, V06, V08, V15 | T002 native preservation tests | Full lifecycle and Coincident solver qualification remain T004 |
+| CP-002 | V03–V05, V12–V14 | T002 native nonmutation and explicit caller recovery tests | Python/full matrix remains T003/T004 |
+| CP-003 | V05, V06, V08, V14 | T002 native caller-abort/checkpoint recovery | Success undo/redo/save-reopen matrix remains T004 |
+| CP-004 | V01, V07, V08, V15 | T002 native Ref/dependency and old-source deletion tests | Persistence/undo/redo boundaries remain T004 |
+| CP-005 | V05, V09–V11, V13, V14 | Additive native path; all 162 Sketcher cases pass | Public compatibility/review remain T003–T005 |
 
 ## Agent Readiness Evidence
 
 | Field | Evidence | Residual risk |
 | --- | --- | --- |
-| Scope | D001 native/Python boundary and user-approved D002 Option A | New-API preservation/recovery still requires implementation qualification |
+| Scope | D001 native/Python boundary and user-approved D002 Option A; T002 native slice implemented | Public/full lifecycle qualification remains T003–T005 |
 | Must-read context | canonical-context.md plus requirements/design/tasks/traceability/verification | Reconcile on branch/source changes |
-| Permissions | User authorized T001; owned probes only, not T002 production implementation | No live runtime authority inferred |
-| Validation signals | V01–V15; T001 exact nonempty baseline native/Python manifests | New reattachment cases will be added in T002–T004 |
+| Permissions | User authorized T001/T002 and local commits | No operator-document or runtime replacement authority inferred |
+| Validation signals | T001 baseline plus T002 exact 13/162-case manifests and source/build hashes | T003/T004 public/lifecycle matrix pending |
 | Review | Four simulated expert design reviews; dispositions below | Native implementation and actual human maintainer review pending |
 | Promotion | API .pyi and dedicated durable reference | Not yet implemented/promoted |
 | Repository evidence | Direct source reads; Agent Workbench navigation | Nested docs boundary limits automated validation planning |
@@ -137,10 +138,10 @@ manifest check to the public Python module.
 | Task ID | Status | Evidence | Notes |
 | --- | --- | --- | --- |
 | T001 | complete | t001-qualification.md; t001-validation.json; option-a-native-receipt.json | D001 resolved locally; user accepted D002 Option A; caller-abort qualification and reconciliation complete |
-| T002 | pending | none | No native edits |
+| T002 | complete | t002-implementation.md; t002-validation.json | Native implementation, 13 focused/162 total cases and standard build pass |
 | T003 | pending | none | No binding edits |
-| T004 | pending | none | No lifecycle tests |
-| T005 | pending | none | No implementation build/review |
+| T004 | pending | T002 native recovery baseline | Full lifecycle and Coincident solver disposition pending |
+| T005 | pending | T002 build and native suite baseline | Broader compatibility/platform/implementation review pending |
 | T006 | pending | targets identified | No promotion/closure |
 
 ## Evidence Log
@@ -162,6 +163,7 @@ manifest check to the public Python module.
 | 2026-11-07 | User D002 decision | Explicitly accepted Option A and continuation | Requirements/design/tasks/traceability/verification now use normal FreeCAD transaction semantics |
 | 2026-11-07 | Updated native qualification | Exact eight-case discovery/execution passed, including injected application error and explicit caller abort restoring the model and earlier transaction edit | option-a-native-receipt.json; stable source/library hashes; new API still not implemented |
 | 2026-11-07 | Option A reconciliation and T001 completion | Nine Markdown artifacts reconciled; package lint zero findings; 55 local links, Python syntax, exact 8/6/5-case receipts, arc fixture and evidence hashes checked | T001 complete for qualification only; T002–T006 pending |
+| 2026-11-07 | T002 native implementation and guarded task completion | pixi run build -j 2, 13 focused and 162 total native Sketcher cases pass; t002-validation.json pins exact receipts/hashes | Native slice complete; Python/full lifecycle remain T003–T005, including T004 Coincident solver disposition |
 
 ## T001 Qualification Evidence
 
@@ -182,11 +184,28 @@ The updated eight-case native run qualifies caller abort after an injected nativ
 application error. T002 uses the revised normal transaction contract; the superseded
 atomic promises are historical evidence and no longer gate implementation.
 
+## T002 Native Evidence
+
+The additive native method and thirteen direct C++ cases are described in
+[t002-implementation.md](t002-implementation.md).
+[t002-validation.json](t002-validation.json) pins the exact commands, source/build
+identities and raw receipts: thirteen focused cases and all 162 native Sketcher
+cases pass; the normal `pixi run build -j 2` passes. Source/test scoped hooks and
+inserted-region clang-format 23.1.0 checks pass with existing CRLF retained.
+
+This establishes native admission/no-op nonmutation, successful return-state
+preservation, direction rejection, immediate dependency updates and explicit
+caller abort/checkpoint recovery. It does not complete the public Python, full
+success lifecycle, cross-platform or expert-review gates. T004 must triage the
+fully constrained centre-Coincident movement failure observed with both native
+and legacy retargeting on this branch. Native preservation passes do not certify
+that separate solver behavior.
+
 ## Scope Reconciliation Before Closure
 
 | Target | Implemented in this spec | Coverage state | Destination | Blocks closure? | Evidence |
 | --- | --- | --- | --- | --- | --- |
-| Requirements 1–5, bounded API | none | not-covered | T002–T006 | yes | planning only |
+| Requirements 1–5, bounded API | T002 native slice | partial-blocking | T003–T006, including T004 Coincident solver disposition | yes | t002-implementation.md and t002-validation.json |
 | Bulk/grouped/intersection retargeting | none | out-of-scope | Explicit rejection in durable reference | no | requirements non-goals |
 | MCP and live D600 integration | none | out-of-scope | External modelling repository owns integration | no | ownership boundary |
 | Historical crashes/performance | none | out-of-scope | Existing investigations remain independent | no | no causal claim |
@@ -261,8 +280,8 @@ The user's D002 acceptance is a local scope decision, not upstream maintainer ap
 
 ## Readiness Decision
 
-- **Ready to implement:** yes for T002 under user-approved Option A; T001 qualification/reconciliation is complete. Obtain fresh task context before coding.
-- **Ready to validate:** no implementation yet.
+- **Ready to implement:** yes for T003 after fresh task context; T001/T002 are complete for their bounded slices under user-approved Option A.
+- **Ready to validate:** native T002 validated; public and full lifecycle implementation/qualification remain T003–T005.
 - **Ready for promotion:** no.
 - **Ready for release:** no.
 - **Ready for closure:** no.

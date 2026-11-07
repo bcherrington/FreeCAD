@@ -257,6 +257,14 @@ public:
     int delExternal(const std::vector<int>& ExtGeoIds);
     /// attach a link reference to an external geometry
     int attachExternal(const std::vector<int>& geoIds, App::DocumentObject* Obj, const char* SubName);
+    /** Retarget one live, one-to-one analytic projection without changing its identity.
+     * geoId is the current negative geometry index (-3 is the first user external).
+     * Unsupported input and exact no-ops do not change properties or transactions.
+     * Application uses ordinary property notifications. Unexpected application errors
+     * propagate; the caller must abort its own transaction or reload its checkpoint.
+     * This method never opens, commits or aborts a transaction, solves or recomputes.
+     */
+    void reattachExternal(int geoId, App::DocumentObject* obj, const char* subName);
     int detachExternal(const std::vector<int>& geoIds);
 
     /** deletes all external geometry */

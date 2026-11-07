@@ -8,6 +8,7 @@ add_executable(Sketcher_tests_run
         SketchObjectDiagnosis.cpp
         SketcherTrace.cpp
         SketchObjectRecompute.cpp
+        SketchObjectReattach.cpp
         SketchObjectSymmetric.cpp
 )
 
