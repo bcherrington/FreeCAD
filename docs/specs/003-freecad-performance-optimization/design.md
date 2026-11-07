@@ -94,6 +94,33 @@ placeholders are not implemented. Tree restore batches status scheduling only;
 _slotDeleteObject still preserves per-object focus, selection, children and map
 side effects. Any bulk-delete bypass needs a separate measured proposal.
 
+### Element-Map Numeric Restoration Policy
+
+T015 preserves the values produced by the five pre-optimization strtol call sites
+at `8dc855b1948^`. The private ElementMapRestore.h implementation reads bounded
+string_views, uses checked unsigned magnitude and constructs LONG_MIN without
+signed negation overflow. It allocates no conversion buffer and exposes neither
+end pointers nor errno. The public API and archive writer/format are unchanged.
+
+| Input / field | Accepted or rejected behavior |
+| --- | --- |
+| Radix | Child SIDs remain decimal; mapped prefix/index/postfix/SID fields remain hexadecimal, including the legacy accidental decimal child-SID format |
+| Leading whitespace/sign | C whitespace classification through unsigned char, then one optional plus/minus; normal archive stream extraction still separates whitespace before dot-tokenization |
+| Hex prefix | Optional 0x/0X in base16; explicit decimal base does not switch radix |
+| Empty, sign-only, no digits | Value zero, matching legacy conversion; each caller applies its existing zero/ID/table policy |
+| Invalid suffix or NUL | Longest valid numeric prefix; bounded view may be non-terminated. This is intentional legacy tolerance, not strict full-token validation |
+| Long limits and overflow | LONG_MIN/LONG_MAX accepted exactly; out-of-range magnitudes saturate to the corresponding limit, never wrap |
+| Table/SID context | Invalid name table indices reject; invalid postfix indices warn/omit; missing SIDs retain existing warning/ignore behavior. Saturation cannot wrap into a valid table/ID alias |
+| Mapped element index | Existing IndexedName nonnegative-int domain is enforced before narrowing: 0 through INT_MAX accepted, other values raise Base::RuntimeError. Zero still formats without a numeric suffix |
+| Metadata counts/ranges | Negative counts, nonpositive MapCount, and child interval/cumulative-size arithmetic outside the existing representable domain reject before allocation/arithmetic |
+| Prefix ownership | Compact colon names before temporary prefix-table storage dies; this fixes the raw-data lifetime at mapped index zero and adds no copy for already-owned positive-index names |
+
+Rejecting structurally invalid metadata and indices formalizes existing type
+preconditions; it does not change valid writer output. General archive allocation
+budgets, locale-specific non-ASCII numeric extensions, malformed-file document
+recovery and Windows/LLP64 qualification are not established here. T016/T005 still
+qualify full writer/alias/child-map identity and dependent CAD references.
+
 ### Image Qualification Reference
 
 T003 compares canonical RGBA8 against an independent QColor/pixelColor scalar
@@ -176,7 +203,8 @@ invalidation and diagnostic contracts.
 - **Numeric and CAD identity (F004):** tokenization and numeric conversion are
   both implementation changes. T015 defines bounded numeric conversion and
   legacy tolerance for signs, whitespace, prefixes, invalid suffixes and range
-  limits. T016 covers semicolon/colon/dollar-hashed forms, decimal child SIDs
+  limits, now locally qualified with actual restore and sanitizer checks. See
+  the numeric policy below. T016 covers semicolon/colon/dollar-hashed forms, decimal child SIDs
   versus hexadecimal mapped SIDs, multiple aliases/SIDs and nested/shared maps.
   Compare semantic save/restore/save and bidirectional name lookup after input
   buffers die; a dependent-feature CAD fixture must retain referenced targets

@@ -95,7 +95,7 @@ T006 qualifies local Requirement 5 lifecycle; T007 now qualifies local Requireme
 | F001 | blocker | BitmapFactory.cpp:64–98 allocates using narrowed SbVec2s dimensions but writes original dimensions; inspected Linux 65537x1 becomes a 1x1 allocation. Null/extent/arithmetic policy was missing. | local-developer; T012 then T003 | T012 correction plus T003 current format/render/access qualification pass; final T010 applicability remains |
 | F002 | blocker | Gui/Document.cpp:2170 clears GUI restoring before finishRestoring; ViewProviderImagePlane.cpp:215–251 can write DPI-derived XSize/YSize during deferred load. Non-default calibration can be lost. | local-developer; T013 then T006 | T013 calibration correction plus T003 fidelity and T006 expanded lifecycle pass locally; T010 final applicability remains |
 | F003 | blocker | Tree.cpp:696–700 captures raw this in application callbacks; destructor at 762–775 omits those connection disconnections; fastsignals::connection destructor is unscoped. | local-developer; T014 then T007 | T014 two disconnections plus real destroy/recreate/open and queued-status Memcheck checks pass locally; T010 final platform applicability remains |
-| F004 | request | ElementMap.cpp:89–105 changes numeric conversion as well as token splitting, with unchecked signed arithmetic; current parser fixtures do not cover all writer/alias/radix/child identity forms. | local-developer; T015, T016 then T005 | Open bounded numeric policy/implementation and CAD identity fixtures |
+| F004 | request | ElementMap.cpp:89–105 changes numeric conversion as well as token splitting, with unchecked signed arithmetic; current parser fixtures do not cover all writer/alias/radix/child identity forms. | local-developer; T015, T016 then T005 | T015 numeric/range/prefix-ownership correction qualified; T016 identity fixtures and T005 checkpoint remain |
 | F005 | request | Tree suppression uses broad isRestoring while completion follows application finish-open; idle direct load/restore/import/paste can lack a matched completion. | local-developer; T017 then T007 | T017 correction and T007 current broader tree checkpoint pass locally; T010 final applicability remains |
 | F006 | request | PropertyFile copy errors are caught by XMLReader::readFiles; hook exceptions alone do not establish diagnostic/failure-list/partial-file/continuation behavior. | local-developer; T018 then T002 | Open archive-level outcome table and failure fixtures |
 | F007 | request | Deferred image decode/conversion moves into show; fallback may expand 1/2-component sources to RGBA. Open-only timings can hide first-frame latency or image-memory effects. | local-developer; T020 then T004 | Open comparative frame/show/repeat latency, texture counts and peak memory evidence |
@@ -116,7 +116,7 @@ GPU residency claims require separate actual measurements.
 | Image extent/arithmetic | Null, valid edge and slender 32767/32768/65537 inputs; safe documented rejection, checked offsets; sanitizer-equivalent checks where available | T012, T003 | T003 current 82-case expanded byte/access matrix and real rendered-plane qualification pass |
 | Calibrated CAD planes | Independently non-default XSize/YSize and placement; visible/hidden reopen, hidden import/paste/show, repeated show, save/reopen; preserve new-image/explicit-resize behavior | T013, T006 | T006 expanded calibrated archive/copy/import/show/edit/error checks pass locally |
 | Receiver lifetime | Actual tree destroy/recreate then start/finish-open; callbacks and queued work cannot access dead receiver | T014, T007 | T014 and current T007 receiver-lifetime reruns pass; T010 final applicability remains |
-| Numeric and subelement identity | Signed/unsigned-form tolerance, decimal/hex bounds, malformed/overflow tokens; semicolon/colon/dollar writer forms; multiple aliases/SIDs/shared children; bidirectional lookups after buffers die; dependent CAD target reopen/recompute | T015, T016, T005 | Pending policy, source correction and fixtures |
+| Numeric and subelement identity | Signed/unsigned-form tolerance, decimal/hex bounds, malformed/overflow tokens; semicolon/colon/dollar writer forms; multiple aliases/SIDs/shared children; bidirectional lookups after buffers die; dependent CAD target reopen/recompute | T015, T016, T005 | T015 numeric correction and local tests pass; broader writer/child/CAD identity remains T016/T005 |
 | Restore completion | Initially idle timers; app open, direct load/restore, import/paste and failure cleanup; eventual tree population/status/observer work without unrelated edit/open | T017, T007 | T017 correction and T007 small/larger idle restore/load/import/error and observer completion pass locally |
 | Archive failures | Empty/nonempty failing first entry plus valid second; read/write/close injection, diagnostics/failure list, partial bytes/permissions and notifications | T018, T002 | Pending approved outcome table and execution |
 | End-to-end performance/resources | Pinned command restore, GUI first-correct-frame, hidden-first-show and repeat-show endpoints; visibility/texture counts; process/decoded/Coin peaks for direct and grayscale/alpha fallback fixtures | T020, T004 | Protocol/initial policy selected; measurements pending |
@@ -622,10 +622,76 @@ remains navigation-only at its nested docs authority boundary; direct checks and
 executed commands establish this evidence.
 Next: T015 — Bound element-map numeric parsing and define compatibility.
 
+## T015 Element-Map Numeric Restoration
+
+T015 qualifies local Requirement 4 AC1/AC2 numeric behavior on root `09c9edc703`
+/docs `a38de02`, plus the exact tracked/private-header diff and final App
+build/runtime identities in [t015-validation.json](t015-validation.json).
+Broader Requirement 4 and CP-005 identity acceptance remains T016/T005.
+
+The [numeric policy](design.md#element-map-numeric-restoration-policy) preserves
+legacy strtol values from the five old call sites at `8dc855b1948^`: explicit
+decimal child IDs, hexadecimal mapped fields, signs, leading whitespace, optional
+hex prefix, numeric-prefix/suffix tolerance, no-digits zero and range saturation.
+Checked unsigned accumulation handles LONG_MIN without positive signed overflow.
+The converter is in a private implementation header so the exact implementation
+can be tested without loading unsanitized App/Qt libraries; no public API or
+writer-format change is introduced.
+
+The initial old-algorithm run failed seven of eight new cases; UBSan reproduces
+signed addition overflow at LONG_MIN. Caller tests then reproduced an assertion
+abort for indices outside IndexedName's nonnegative-int domain, two failed
+range/count tests (with valid controls), and Memcheck found a freed-prefix-vector
+read for a colon name at mapped index zero. Zero's expected formatting was
+corrected in the fixture to Face, not Face0, before the final caller-count run.
+The fixes reject unrepresentable indices/counts/ranges before narrowing or
+allocation and compact colon names before the temporary prefix vector dies.
+Saturated bad postfix/SIDs cannot wrap into valid aliases; existing warning and
+ignore policies remain for those fields.
+
+| Check | Final outcome |
+| --- | --- |
+| Decimal/hex boundary and tolerance oracle | Explicit long/int limits, signs, whitespace, prefix/suffix, embedded NUL/high byte, 4096-byte inputs; 2048 deterministic comparisons per base against std::strtol |
+| Bounded storage | Non-terminated stack/heap views and empty one-past-end view; no conversion buffer allocation |
+| Actual restore callers | Valid 0/INT_MAX, rejected mapped indices, saturated IDs/postfix, invalid child interval/count metadata; zero-index name read after prefix-table destruction |
+| Focused current ElementMap tests | 30 cases pass normally and under Memcheck; zero access errors, one exact existing libunwind startup probe suppression |
+| Broader regression | 277 App naming/hash/mapping cases and 290 matching CTests, including TopoShape element-map cases, pass |
+| Exact-converter sanitizer probe | ASan/UBSan exit zero with no diagnostic, including 65536-byte tokens; old code produced UBSan overflow |
+
+Full `pixi run --locked build -j 2`, scoped pre-commit and whitespace checks pass.
+Final source and App binary hashes were frozen before validation and remain
+unchanged. The App/test compilation uses Debug -g/-O0/FC_DEBUG with assertions
+active; the library itself is not sanitizer-instrumented. The standalone probe
+uses the same private header under ASan/UBSan; Memcheck tests actual restore with
+leak/undefined-value checks disabled. No parser/name access is suppressed.
+The receipt binds seven clean dependency heads, 510 matching package identities,
+legacy/current source, compile/cache/runtime/library/log/probe hashes and its
+reproducible probe text. Previous receipts/manifests/protocol remain unchanged.
+
+The shared external COORDINATION.txt supplied by the user now records this work's
+scope and status, preserving earlier investigation evidence. Its D600 native
+geometry-read profiling request remains separate and unexecuted; no live
+operator document, MCP mutation/restart, installed snapshot or external MCP
+source/workflow was touched. No geometry-read/solver performance, native crash
+resolution, Windows/LLP64 or final PR acceptance is claimed. T016/T005 retain
+writer/alias/child/shared-map and dependent CAD reference qualification; T010
+retains exact-final/platform applicability. Next: T016 — Qualify element-map and
+dependent CAD reference identity.
+
+Guarded completion leaves 18 complete, 20 pending and two follow-ups, with zero
+partial/in-progress records and all 40 IDs retained. Lint reports zero diagnostics;
+preflight selects T016 with satisfied dependencies, zero context gaps and no open
+decisions. Direct checks verify exact source/diff/binary/log/probe identities,
+93 links/anchors, 17 prior completed task records, frozen artifacts and original
+line endings, plus preservation of the unrelated console edit. Agent Workbench
+remains navigation-only at the nested docs authority boundary; executed checks
+and direct evidence above establish qualification. The shared coordination file
+has a dated T015 completion note; earlier content was preserved.
+
 ## Next Actions
 
-1. **Next: T015 — Bound element-map numeric parsing and define compatibility.**
-   Phase 2A/2B image and tree subgroups are complete; retain D001/T019 applicability rules.
+1. **Next: T016 — Qualify element-map and dependent CAD reference identity.**
+   Phase 2A/2B and T015 numeric safety are complete; retain D001/T019 applicability rules.
 2. Follow [the explicit Phase 2 subgroups](tasks.md#execution-order): images,
    tree lifecycle, CAD maps, then archives; finish each fix's focused regression
    and subgroup qualification before advancing.
@@ -643,7 +709,7 @@ Next: T015 — Bound element-map numeric parsing and define compatibility.
 | Candidate and final evidence applicability | yes | partial | T019 initial manifest/policy recorded; actual new-build/runtime receipts and T010 final reconciliation pending |
 | Predeclared per-optimization performance/resource acceptance | yes | pending | T001 protocol complete; T020/T004 and final T010 evidence pending |
 | Complete task/criterion evidence | yes | pending | tasks.md; traceability.md |
-| Focused current correctness and failure tests | yes | pending | T003/T006 image and T007 tree checkpoints pass locally; T002/T005 map/archive qualification remains pending |
+| Focused current correctness and failure tests | yes | pending | T003/T006 image, T007 tree and T015 numeric checks pass locally; T016/T005 identity and T002 archive qualification remain |
 | Current measurements and platform/manual acceptance | yes | pending | Historical observations are insufficient |
 | Durable promotion and residual ownership | yes | pending | requirements.md durable impact |
 | Review and closure metadata | yes | pending | No closure claimed |
@@ -764,8 +830,9 @@ executed. Runtime regression evidence for F001–F008 remains pending.
   documents. Mixed-workbench integration and final
   runtime/platform applicability, including default Qt/IBus startup diagnosis,
   remains T010; the T014 compose profile does not certify default IBus or T006.
-- Malformed numeric tokens, archive-level error outcomes and broader restore paths require
-  explicit compatibility decisions and regression evidence.
+- T015 defines numeric conversion/range rejection and qualifies its local boundary/ownership
+  cases. Broader writer/alias/child identity, missing-hasher handling and dependent CAD
+  references remain T016/T005; archive-level outcomes remain T018/T002.
 - Dated tests do not certify the selected final production revision.
 - Unresolved design/budget decisions block dependent implementation/acceptance.
 - Current measurements, desktop/visual/platform coverage and durable promotion
@@ -782,8 +849,8 @@ this migration.
 
 ## Readiness Decision
 
-- Ready to implement: T015 — Bound element-map numeric parsing and define compatibility; image/tree subgroups complete.
-- Ready to validate: local tree/image checkpoints qualified by T007/T003/T006; T015 implementation comes next. Whole-package acceptance still requires map/archive/performance checkpoints and T010 final/platform applicability.
+- Ready to implement: T016 — Qualify element-map and dependent CAD reference identity; T015 and image/tree subgroups complete.
+- Ready to validate: local numeric/tree/image corrections qualified by T015/T007/T003/T006; T016 identity qualification comes next. Whole-package acceptance still requires identity/archive/performance checkpoints and T010 final/platform applicability.
 - Ready to close: no.
 - Ready to archive: no.
 - Cleanup action: keep active, draft.

@@ -40,7 +40,7 @@ historical notes override code, tests, policy or live evidence.
 | open-decisions.md | Authoritative decision status/ownership | D001–D003 | D001 protocol, D002 routing and D003 initial policy resolved; no runtime/final PR acceptance implied |
 | validation-manifest.md and validation-manifest.json | Candidate identity and evidence applicability | T019 initial local Linux candidate | Historical binaries ineligible; actual new-build/runtime receipt required |
 | benchmark-protocol.md; benchmark-plan.json; benchmark-runner.py | Predeclared measurement contract and bounded collector | T001/D001 | No FreeCAD probe, generated fixture, qualified arm or performance result claimed |
-| tasks.md | Four-phase delivery queue and explicit next action | This package | T012/T013/T003/T006/T014/T017/T007 complete; T015 next; phase order and dependencies govern execution |
+| tasks.md | Four-phase delivery queue and explicit next action | This package | T012/T013/T003/T006/T014/T017/T007/T015 complete; T016 next; phase order and dependencies govern execution |
 | t012-validation.json | Local image extent/access qualification receipt | T012 plus actual working diff/source/binary hashes | No native GUI, calibration, full-format or performance acceptance implied |
 | t013-validation.json | Local calibrated image-plane lifecycle receipt | T013 plus actual source/new-test/diff/binary hashes | No native viewport, broad image qualification or performance acceptance implied |
 | t003-validation.json; t003-render-contact.png | Expanded byte/access/rendered fidelity receipt and visual artifact | T003 plus actual source/binary/context/output identities | Local native-X11 and offscreen software-GL framebuffer correctness; interactive frame/resource/performance and platform gates remain |
@@ -48,6 +48,7 @@ historical notes override code, tests, policy or live evidence.
 | t014-validation.json | Receiver lifetime correction and qualification | T014 plus actual source/new-test/diff/build/runtime identities | Four functional rows pass normally and under Memcheck; no Windows test registration or broad scheduler acceptance |
 | t017-validation.json | Restore scheduler and observer completion receipt | T017 plus exact source/new-test/diff/build/runtime identities | Ten functional rows pass normally and under Memcheck; larger-model/object semantics and final platforms remain T007/T010 |
 | t007-validation.json | Current tree functional qualification and pinned input identity | T007/T007.1 plus actual new-test/registration/fixture/build identities | 25 cases pass natively, seven CTest targets and seven focused Memcheck cases; B011 remains deferred |
+| t015-validation.json | Numeric restoration and boundary ownership correction | T015 plus actual tracked/private-header diff and final App build/runtime identities | Legacy strtol value parity; 277 naming/hash cases, 290 CTests, 30 Memcheck cases and exact-header ASan/UBSan; broader CAD identity remains T016/T005 |
 | baseline-status.md | Existing implementation and dated evidence | Baseline inventory only | Source presence does not set execution status |
 | traceability.md | Bidirectional context | This package | Partial coverage blocks closure |
 | verification.md | Revision/date-bound evidence | Named checks only | No blanket readiness inferred |
@@ -85,11 +86,22 @@ artifacts and the immutable manifest. Five old partial task states are pending
 remaining qualification; their imported observations are retained in the
 baseline inventory. T001 resolves D001 with a predeclared protocol; Phase 2
 has completed T012/T013/T003/T006 and the T014/T017/T007 tree subgroup. T015
-starts the CAD-map subgroup next. Performance sampling still requires
+has completed numeric safety in the CAD-map subgroup; T016 identity qualification is next. Performance sampling still requires
 the remaining Phase 2 qualification. D002's B009 routing and B010/B011 optional investigations do not
 approve new behavior or waive any current MoE safety/measurement requirement.
 The original manifest's "remaining decisions" prose records its intake time;
 current status is always the active decision ledger.
+
+## Shared Coordination Handoff
+
+The user-supplied external handoff is
+`../../ie/skunk-works/freecad-modelling-mcp/artifacts/freecad-crash-coordination/COORDINATION.txt`,
+resolved from the FreeCAD repository root. It records chronological shared
+investigation evidence, not canonical spec/source or fresh live-runtime authority.
+Append dated, scoped findings and preserve previous evidence. Spec 003 progress
+has been acknowledged there. Its separate D600 native geometry-read profiling
+request remains unexecuted by T015; parser/tree qualification does not establish
+a native profiling result, MCP crash fix or installed operator-runtime update.
 
 ## Promotion Map
 

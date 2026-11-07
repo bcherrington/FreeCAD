@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: LGPL-2.1-or-later
 
 #include <algorithm>
+#include <limits>
 #include <unordered_map>
 #ifndef FC_DEBUG
 #include <random>
@@ -8,6 +9,7 @@
 #include <string_view>
 
 #include "ElementMap.h"
+#include "ElementMapRestore.h"
 #include "ElementNamingUtils.h"
 
 #include "App/Application.h"
@@ -72,38 +74,7 @@ std::size_t countDotSuffixTokens(std::string_view text)
     return static_cast<std::size_t>(std::count(text.begin(), text.end(), '.'));
 }
 
-int digitValue(char ch)
-{
-    if (ch >= '0' && ch <= '9') {
-        return ch - '0';
-    }
-    if (ch >= 'a' && ch <= 'z') {
-        return ch - 'a' + 10;
-    }
-    if (ch >= 'A' && ch <= 'Z') {
-        return ch - 'A' + 10;
-    }
-    return -1;
-}
-
-long parseRestoreLong(std::string_view token, int base)
-{
-    bool negative = false;
-    if (!token.empty() && (token.front() == '-' || token.front() == '+')) {
-        negative = token.front() == '-';
-        token.remove_prefix(1);
-    }
-
-    long value = 0;
-    for (char ch : token) {
-        const int digit = digitValue(ch);
-        if (digit < 0 || digit >= base) {
-            break;
-        }
-        value = value * base + digit;
-    }
-    return negative ? -value : value;
-}
+using detail::parseRestoreLong;
 
 MappedName restoreMappedNameToken(std::string_view token)
 {
@@ -335,7 +306,7 @@ ElementMapPtr ElementMap::restore(::App::StringHasherRef hasherRef, std::istream
     unsigned id = 0;
     int count = 0;
     std::string tmp;
-    if (!(stream >> id >> tmp >> count) || tmp != "PostfixCount") {
+    if (!(stream >> id >> tmp >> count) || tmp != "PostfixCount" || count < 0) {
         FC_THROWM(Base::RuntimeError, msg);  // NOLINT
     }
 
@@ -354,7 +325,7 @@ ElementMapPtr ElementMap::restore(::App::StringHasherRef hasherRef, std::istream
     std::vector<ElementMapPtr> childMaps;
     count = 0;
     constexpr int practicalMaximum {(1 << 30) / sizeof(ElementMapPtr)};  // a 1GB child map vector: almost certainly a bug
-    if (!(stream >> tmp >> count) || tmp != "MapCount" || count == 0 || count > practicalMaximum) {
+    if (!(stream >> tmp >> count) || tmp != "MapCount" || count <= 0 || count > practicalMaximum) {
         FC_THROWM(Base::RuntimeError, msg);  // NOLINT
     }
     childMaps.reserve(count - 1);
@@ -408,7 +379,7 @@ ElementMapPtr ElementMap::restore(::App::StringHasherRef hasherRef,
         }
         IndexedName idx(tmp.c_str(), 1);
 
-        if (!(stream >> tmp >> outerCount) || tmp != "ChildCount") {
+        if (!(stream >> tmp >> outerCount) || tmp != "ChildCount" || outerCount < 0) {
             FC_THROWM(Base::RuntimeError, "missing element child count");  // NOLINT
         }
 
@@ -430,6 +401,13 @@ ElementMapPtr ElementMap::restore(::App::StringHasherRef hasherRef,
             }
             if (mapIndex >= index || mapIndex < 0 || mapIndex > (int)childMaps.size()) {
                 FC_THROWM(Base::RuntimeError, "Invalid element child map index");  // NOLINT
+            }
+            const auto maximumIndex = std::numeric_limits<int>::max();
+            if (count < 0 || cIndex > maximumIndex - offset
+                || cIndex + offset > maximumIndex - count
+                || this->childElementSize > std::numeric_limits<std::size_t>::max()
+                        - static_cast<std::size_t>(count)) {
+                FC_THROWM(Base::RuntimeError, "Invalid element child range");
             }
             auto& child = indices.children[cIndex + offset + count];
             child.indexedName = IndexedName::fromConst(idx.getType(), cIndex);
@@ -473,7 +451,7 @@ ElementMapPtr ElementMap::restore(::App::StringHasherRef hasherRef,
             }
         }
 
-        if (!(stream >> tmp >> outerCount) || tmp != "NameCount") {
+        if (!(stream >> tmp >> outerCount) || tmp != "NameCount" || outerCount < 0) {
             FC_THROWM(Base::RuntimeError, "missing element name outerCount");  // NOLINT
         }
 
@@ -518,9 +496,14 @@ ElementMapPtr ElementMap::restore(::App::StringHasherRef hasherRef,
                             FC_THROWM(Base::RuntimeError, "Invalid element name index");  // NOLINT
                         }
                         long elementIndex = parseRestoreLong(secondToken, hexBase);
+                        if (elementIndex < 0 || elementIndex > std::numeric_limits<int>::max()) {
+                            FC_THROWM(Base::RuntimeError, "Invalid mapped element index");
+                        }
                         ref->name = MappedName(
                             IndexedName::fromConst(postfixes[elementNameIndex - 1].c_str(),
                                                    static_cast<int>(elementIndex)));
+                        // A zero index leaves MappedName borrowing the temporary prefix table.
+                        ref->name.compact();
                         break;
                     }
                     case '$':

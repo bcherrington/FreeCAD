@@ -34,7 +34,7 @@ that explicit routing verified.
 | 1 — Planning | T021/T019 retained; T009 scope disposition; T001 complete | D001 protocol approved before source work |
 | 2A — Images | T012/T013/T003/T006 complete | Safe conversion and calibrated lifecycle qualified |
 | 2B — Tree | T014/T017/T007 complete | Receiver/completion fixes and current functional qualification |
-| 2C — CAD maps | T015 → T016 → T005 | Bounded parsing and CAD reference identity qualified |
+| 2C — CAD maps | T015 complete → **T016 next** → T005 | Bounded parsing and CAD reference identity qualified |
 | 2D — Archives | T018 → T002 | Archive error outcomes and compatibility qualified |
 | 3 — Performance | T020 → T004 | Predeclared latency/memory/per-change acceptance satisfied |
 | 4 — Delivery | T010 → T011 | Exact final evidence, platform checks, promotion and closure |
@@ -74,8 +74,8 @@ none -> T008
 ## Phase 1 — Finish Planning
 
 Exit satisfied: T021/T019 evidence retained, T009 scope disposition recorded, and T001
-resolves D001 with the benchmark protocol. **Next action: T015 — Bound element-map numeric parsing and define compatibility
-(Phase 2C; image and tree subgroups complete).**
+resolves D001 with the benchmark protocol. **Next action: T016 — Qualify element-map and dependent CAD reference identity
+(Phase 2C; T015 numeric safety complete).**
 
 - [x] T021 Expose lifecycle decisions and verify execution guardrails.
   - Depends on: none
@@ -444,11 +444,12 @@ it is excluded from this parent's current runtime completion gate.
 Exit: bounded conversion, writer/alias/child identity and dependent CAD target qualification are
 evidenced before T005 sign-off.
 
-- [ ] T015 Bound element-map numeric parsing and define compatibility.
+- [x] T015 Bound element-map numeric parsing and define compatibility.
   - Depends on: T007
   - Requirements: Requirement 4 AC1, AC2
   - Design: design.md#moe-safety-and-compatibility-contracts
-  - Files: `src/App/ElementMap.cpp`, `tests/src/App/ElementMap.cpp`
+  - Files: `src/App/ElementMap.cpp`, `src/App/ElementMapRestore.h`,
+    `tests/src/App/ElementMap.cpp`, `t015-validation.json`, `design.md`, `verification.md`
   - Acceptance: Document numeric conversion as part of the change; preserve approved legacy strtol
     tolerance or record an intentional compatibility decision. Test decimal/hex limits,
     LONG_MIN/LONG_MAX, overflow, signs, prefixes, whitespace, invalid suffixes and oversized tokens;
@@ -456,14 +457,17 @@ evidenced before T005 sign-off.
   - Validation: Run the focused regression cases in acceptance on the T019 pinned revision; record
     commands, results and limits in verification.md.
   - Evidence mode: artifact
-  - Evidence: Pending.
+  - Evidence: 2026-11-06: t015-validation.json and verification.md#t015-element-map-numeric-restoration bind root 09c9edc703/docs a38de02 plus exact tracked/private-header diff, legacy strtol source, final source/build/runtime/probe/log hashes, 7 clean dependencies and 510 matching packages. Old converter reproduced 7/8 new-case failures and UBSan signed overflow at LONG_MIN; caller regressions reproduced an IndexedName assertion abort and failed child/count validation; Memcheck exposed a zero-index colon name borrowing freed prefix storage. Checked unsigned conversion preserves legacy whitespace/sign/hex-prefix/numeric-suffix/zero/range-clamp values without unbounded reads. Unrepresentable indices/counts/ranges reject before narrowing/arithmetic/allocation; colon name compact fixes lifetime. Final full pixi build, 277 naming/hash tests, 290 CTests, all 30 focused cases under Memcheck (zero errors; one exact libunwind probe suppression; leak/undefined-value checks disabled), exact-header ASan/UBSan and scoped pre-commit pass. Final sources/binaries unchanged across validation. Direct checker passes 40 stable IDs, 17 prior completed records, 93 links/anchors, immutable artifacts/receipts/protocol, original line endings and unrelated console preservation; lint/context zero diagnostics/gaps. Shared external coordination path recorded/acknowledged; native geometry-read profiling remains separate. Broader writer/alias/child/dependent CAD identity remains T016/T005; no format migration, installed-runtime or performance fix claim.
   - Owner: local-developer
   - Properties: CP-005
   - Candidate manifest: spec003-linux-x86_64-debug-candidate-20261106-v1; see validation-manifest.md
     and record actual execution provenance.
-  - Context evidence: F004 source review found unchecked multiplication/addition in
-    parseRestoreLong; no malformed-token runtime test or correction yet.
+  - Context evidence: F004 numeric overflow reproduced by UBSan and legacy-oracle tests; mapped
+    index narrowing asserted, invalid child ranges/counts escaped validation, and zero-index colon
+    names borrowed a freed prefix vector under Memcheck. T015 corrects/qualifies these bounds and
+    ownership paths without changing valid writer format. Broader identity remains T016/T005.
 
+  - Status: Completed local numeric compatibility, range and boundary-ownership correction for Requirement 4 AC1/AC2; F004 broader identity remains open. Next T016; final platform/composition and performance gates remain required.
 - [ ] T016 Qualify element-map and dependent CAD reference identity.
   - Depends on: T015
   - Requirements: Requirement 4 AC1, AC3, AC4
@@ -483,6 +487,11 @@ evidenced before T005 sign-off.
     and record actual execution provenance.
   - Context evidence: F004 fixture review found current one-child parser regression does not
     establish all writer forms or dependent-feature identity.
+
+  - Additional audit: Verify child-SID hasher preconditions/error handling; the child-SID loop
+    dereferences hasherRef unlike the mapped-SID missing-hasher branch. This is a source-observed
+    question, not a reproduced failure or a T015 fix. Include malformed/missing-hasher coverage
+    before the identity checkpoint; owner local-developer.
 
 - [ ] T005 Verify element-map parser compatibility.
   - Depends on: T015, T016

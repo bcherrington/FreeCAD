@@ -4,9 +4,15 @@
 
 #include <App/Application.h>
 #include <App/ElementMap.h>
+#include <App/ElementMapRestore.h>
+#include <Base/Exception.h>
 #include <src/App/InitApplication.h>
 
 #include <iomanip>
+#include <climits>
+#include <cstdlib>
+#include <limits>
+#include <vector>
 #include <sstream>
 
 // NOLINTBEGIN(readability-magic-numbers)
@@ -603,5 +609,275 @@ TEST_F(ElementMapTest, restoreParsesDotSeparatedEntriesWithoutBoostSplit)
     EXPECT_EQ(childElements.front().indexedName.toString(), "Face3");
     ASSERT_EQ(childElements.front().sids.size(), 1);
     EXPECT_EQ(childElements.front().sids.front().value(), childSid.value());
+}
+namespace
+{
+std::string formatRestoreLong(long value, int base)
+{
+    // Stream formatting negative hex values emits unsigned representations.
+    const auto magnitude = value < 0 ? 0UL - static_cast<unsigned long>(value)
+                                     : static_cast<unsigned long>(value);
+    std::ostringstream out;
+    if (value < 0) {
+        out << '-';
+    }
+    out << std::setbase(base) << magnitude;
+    return out.str();
+}
+
+std::vector<std::string> numericRestoreTokens(int base)
+{
+    const auto maximum = formatRestoreLong(LONG_MAX, base);
+    const auto minimum = formatRestoreLong(LONG_MIN, base);
+    std::vector<std::string> tokens {
+        "",
+        "0",
+        "00",
+        "+0",
+        "-0",
+        "1",
+        "-1",
+        "+1",
+        " 1",
+        "\t-1",
+        "\n+1",
+        "\v1",
+        "\f1",
+        "\r1",
+        "1suffix",
+        "1 2",
+        "1+2",
+        "1-2",
+        "bad",
+        "+",
+        "-",
+        "--1",
+        "+-1",
+        "0x",
+        "-0x",
+        "0x1",
+        "+0Xf",
+        "-0xf",
+        "0xg",
+        "012",
+        "08",
+        "a",
+        "A",
+        "fF",
+        "fftail",
+        "g1",
+        "0b11",
+        maximum,
+        "+" + maximum,
+        minimum,
+        maximum + "0",
+        minimum + "0",
+        std::string(4096, '9'),
+        "-" + std::string(4096, '9'),
+        std::string(4096, '0') + "1",
+        maximum + "suffix",
+        minimum + "suffix",
+        std::string("12\0ffff", 7),
+        std::string(
+            "\xff"
+            "1",
+            2
+        ),
+        formatRestoreLong(INT_MAX, base),
+        formatRestoreLong(INT_MIN, base)
+    };
+    if (base == 16) {
+        tokens.push_back("0x" + maximum);
+        tokens.push_back("-0X" + minimum.substr(1));
+        tokens.push_back("0x" + std::string(4096, 'f'));
+    }
+    else {
+        tokens.push_back("9223372036854775808");
+        tokens.push_back("-9223372036854775809");
+        tokens.push_back("2147483648");
+        tokens.push_back("-2147483649");
+    }
+    return tokens;
+}
+}  // namespace
+
+class ElementMapRestoreNumberTest: public ::testing::TestWithParam<int>
+{
+};
+
+TEST_P(ElementMapRestoreNumberTest, MatchesLegacyStrtolValues)
+{
+    const int base = GetParam();
+    for (const auto& token : numericRestoreTokens(base)) {
+        SCOPED_TRACE(
+            ::testing::Message() << "base=" << base << " size=" << token.size()
+                                 << " prefix=" << token.substr(0, 80)
+        );
+        const long expected = std::strtol(token.c_str(), nullptr, base);
+        EXPECT_EQ(Data::detail::parseRestoreLong(token, base), expected);
+    }
+}
+
+TEST_P(ElementMapRestoreNumberTest, BoundedViewsNeedNoNullTerminator)
+{
+    const int base = GetParam();
+    const char bytes[] {' ', '-', '1', '2', '3'};
+    EXPECT_EQ(Data::detail::parseRestoreLong(std::string_view(bytes, 3), base), -1);
+    EXPECT_EQ(Data::detail::parseRestoreLong(std::string_view(bytes, 0), base), 0);
+    auto storage = std::make_unique<char[]>(3);
+    storage[0] = '+';
+    storage[1] = '1';
+    storage[2] = '2';
+    EXPECT_EQ(
+        Data::detail::parseRestoreLong(std::string_view(storage.get(), 3), base),
+        base == 16 ? 18 : 12
+    );
+}
+
+TEST_P(ElementMapRestoreNumberTest, DifferentialTokenCorpus)
+{
+    const int base = GetParam();
+    // Deterministic token construction; the oracle is the legacy C-library conversion.
+    const std::string alphabet = "0123456789abcdefABCDEFxX+- \t_z";
+    unsigned long state = 0x5eedUL;
+    for (int i = 0; i < 2048; ++i) {
+        std::string token;
+        const int length = i % 48;
+        for (int j = 0; j < length; ++j) {
+            state = state * 1664525UL + 1013904223UL;
+            token.push_back(alphabet[(state >> 8) % alphabet.size()]);
+        }
+        SCOPED_TRACE(::testing::Message() << "base=" << base << " row=" << i << " token=" << token);
+        EXPECT_EQ(
+            Data::detail::parseRestoreLong(token, base),
+            std::strtol(token.c_str(), nullptr, base)
+        );
+    }
+}
+
+INSTANTIATE_TEST_SUITE_P(DecimalAndHex, ElementMapRestoreNumberTest, ::testing::Values(10, 16));
+
+TEST_F(ElementMapTest, restoreNumericPrefixCompatibility)
+{
+    auto sid = _hasher->getID("numeric-sid");
+    const std::string sidDecimal = std::to_string(sid.value());
+    const auto sidHex = formatRestoreLong(sid.value(), 16);
+    std::stringstream stream;
+    stream << "987655 PostfixCount 1\nFace\nMapCount 1\n"
+           << "ElementMap 1 987655 1\nFace\nChildCount 1\n"
+           << "3 0 2 7 0 ChildPostfix 0.+" << sidDecimal << "suffix\n"
+           << "NameCount 2\n0\n:0X1.+0x2.0.+0x" << sidHex << "tail 0\nEndMap\n";
+    auto map = std::make_shared<Data::ElementMap>()->restore(_hasher, stream);
+    Data::ElementIDRefs sids;
+    EXPECT_EQ(map->find(Data::IndexedName("Face", 1), &sids).toString(), "Face2");
+    ASSERT_EQ(sids.size(), 1);
+    EXPECT_EQ(sids.front().value(), sid.value());
+    const auto children = map->getChildElements();
+    ASSERT_EQ(children.size(), 1);
+    ASSERT_EQ(children.front().sids.size(), 1);
+    EXPECT_EQ(children.front().sids.front().value(), sid.value());
+}
+
+TEST_F(ElementMapTest, restoreRejectsOverflowedNameIndex)
+{
+    std::stringstream stream;
+    stream << "987656 PostfixCount 1\nFace\nMapCount 1\n"
+           << "ElementMap 1 987656 1\nFace\nChildCount 0\nNameCount 1\n:"
+           << formatRestoreLong(LONG_MAX, 16) << "f.1.0 0\nEndMap\n";
+    EXPECT_THROW(std::make_shared<Data::ElementMap>()->restore(_hasher, stream), Base::RuntimeError);
+}
+TEST_F(ElementMapTest, restoreRejectsUnrepresentableMappedIndices)
+{
+    std::ostringstream outsideInt;
+    outsideInt << std::hex << static_cast<unsigned long>(INT_MAX) + 1UL;
+    std::vector<std::string> tokens {
+        "-1",
+        outsideInt.str(),
+        formatRestoreLong(LONG_MIN, 16),
+        std::string(4096, 'f')
+    };
+    unsigned id = 988000;
+    for (const auto& token : tokens) {
+        SCOPED_TRACE(token.substr(0, 80));
+        ++id;
+        std::stringstream input;
+        input << id << " PostfixCount 1\nFace\nMapCount 1\nElementMap 1 " << id
+              << " 1\nFace\nChildCount 0\nNameCount 2\n0\n:1." << token << ".0 0\nEndMap\n";
+        EXPECT_THROW(std::make_shared<Data::ElementMap>()->restore(_hasher, input), Base::RuntimeError);
+    }
+}
+
+TEST_F(ElementMapTest, restoreAcceptsRepresentableMappedIndexLimits)
+{
+    unsigned id = 988100;
+    for (int value : {0, INT_MAX}) {
+        ++id;
+        std::stringstream input;
+        input << id << " PostfixCount 1\nFace\nMapCount 1\nElementMap 1 " << id
+              << " 1\nFace\nChildCount 0\nNameCount 2\n0\n:1." << formatRestoreLong(value, 16)
+              << ".0 0\nEndMap\n";
+        auto map = std::make_shared<Data::ElementMap>()->restore(_hasher, input);
+        EXPECT_EQ(
+            map->find(Data::IndexedName("Face", 1)).toString(),
+            value == 0 ? "Face" : "Face" + std::to_string(value)
+        );
+    }
+}
+
+TEST_F(ElementMapTest, restoreSaturatedIdsDoNotAliasValidIds)
+{
+    auto sid = _hasher->getID("range-control");
+    const std::string oversizedHex = "1" + std::string(sizeof(long) * 2 - 1, '0') + "1";
+    const std::string oversizedDec(4096, '9');
+    std::stringstream input;
+    input << "988200 PostfixCount 1\n;Unexpected\nMapCount 1\nElementMap 1 988200 1\nFace\n"
+          << "ChildCount 1\n3 0 2 7 0 ChildPostfix 0." << oversizedDec << '.' << sid.value()
+          << "\nNameCount 2\n0\n;Raw." << oversizedHex << '.' << oversizedHex << '.'
+          << formatRestoreLong(sid.value(), 16) << " 0\nEndMap\n";
+    auto map = std::make_shared<Data::ElementMap>()->restore(_hasher, input);
+    Data::ElementIDRefs ids;
+    EXPECT_EQ(map->find(Data::IndexedName("Face", 1), &ids).toString(), "Raw");
+    ASSERT_EQ(ids.size(), 1);
+    EXPECT_EQ(ids.front().value(), sid.value());
+    auto children = map->getChildElements();
+    ASSERT_EQ(children.size(), 1);
+    ASSERT_EQ(children.front().sids.size(), 1);
+    EXPECT_EQ(children.front().sids.front().value(), sid.value());
+}
+
+TEST_F(ElementMapTest, restoreRejectsInvalidChildRanges)
+{
+    const std::vector<std::string> ranges {
+        std::to_string(INT_MAX) + " 1 1",
+        "0 " + std::to_string(INT_MAX) + " 1",
+        "1 0 -1"
+    };
+    unsigned id = 988300;
+    for (const auto& range : ranges) {
+        SCOPED_TRACE(range);
+        ++id;
+        std::stringstream input;
+        input << id << " PostfixCount 0\nMapCount 1\nElementMap 1 " << id
+              << " 1\nFace\nChildCount 1\n"
+              << range << " 7 0 ChildPostfix 0\nNameCount 0\nEndMap\n";
+        EXPECT_THROW(std::make_shared<Data::ElementMap>()->restore(_hasher, input), Base::RuntimeError);
+    }
+}
+
+TEST_F(ElementMapTest, restoreRejectsNegativeMetadataCounts)
+{
+    const std::vector<std::string> inputs {
+        "988400 PostfixCount -1\n",
+        "988401 PostfixCount 0\nMapCount -1\n",
+        "988402 PostfixCount 0\nMapCount 1\nElementMap 1 988402 1\nFace\nChildCount -1\nNameCount "
+        "0\nEndMap\n",
+        "988403 PostfixCount 0\nMapCount 1\nElementMap 1 988403 1\nFace\nChildCount 0\nNameCount "
+        "-1\nEndMap\n"
+    };
+    for (const auto& text : inputs) {
+        SCOPED_TRACE(text);
+        std::stringstream input(text);
+        EXPECT_THROW(std::make_shared<Data::ElementMap>()->restore(_hasher, input), Base::RuntimeError);
+    }
 }
 // NOLINTEND(readability-magic-numbers)
