@@ -18,6 +18,11 @@ source object/Edge selector. It supports compatible line, circle and arc project
 rejects ambiguous or grouped replacements, participates in caller-owned transactions
 and is qualified across recompute, abort, undo/redo and save/reopen.
 
+MoE review corrections require exact constraint Orientation, ordered ExternalTypes,
+dependency state, coherent observer publication and complete failure-state checks.
+Ordinary calls need no active transaction; noRecomputes/edit mode and unsupported
+projection states reject before no-op detection. Native feasibility remains T001.
+
 ## Read Order And Authority
 
 [Requirements](requirements.md) -> [Design](design.md) -> [Tasks](tasks.md) ->
@@ -35,6 +40,10 @@ D001/D002 need qualification before source implementation.
 The next task is T001 - Qualify the API contract and native preservation mechanism,
 after the user requests implementation. No operator CAD edits, MCP delivery,
 runtime changes or upstream acceptance are claimed.
+
+Implementation will keep the shared checkout on its current branch. PR preparation
+uses a separate worktree after validation; see the
+[shared-worktree agreement](canonical-context.md#shared-worktree-execution).
 
 ## Durable Impact
 

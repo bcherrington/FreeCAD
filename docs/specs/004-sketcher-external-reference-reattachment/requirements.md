@@ -111,16 +111,24 @@ constraints, so that downstream modelling intent survives a source selector chan
 
 1. WHEN a compatible replacement succeeds, THEN the selected projected geometry
    retains its native ID, negative index and persistent authored flags; both link
-   slot order and projected geometry order remain unchanged.
+   slot order and projected geometry order remain unchanged. The ordered ExternalTypes
+   vector is preserved, including every unaffected Projection, Intersection or Both entry.
 2. WHEN replacement succeeds, THEN every constraint retains its type, ordered
    geometry references, point roles, name, value and driving/active state; constraint
-   expressions and unrelated internal/external geometry remain unchanged.
+   expressions, Constraint.Orientation and unrelated internal/external geometry remain
+   unchanged. The initial API does not silently re-encode signed-side semantics.
 3. WHEN replacement succeeds and the document is recomputed, THEN its Ref resolves
    to the new source and the projected geometry matches that source in sketch coordinates;
    no stale old reference or Missing state is accepted as success.
 4. GIVEN compatible line segments or circular arcs, WHEN their source orientation
    differs, THEN start/end roles retain a proven correspondence or the request is
-   rejected; silent endpoint inversion or geometry reordering is prohibited.
+   rejected; silent endpoint inversion or geometry reordering is prohibited. This
+   guarantee must survive a second ordinary recompute and save/reopen, including
+   signed point-to-line Distance and Tangent orientation.
+5. WHEN the source object changes, THEN native dependency/backlink relationships
+   reflect the new link; obsolete dependencies are removed unless another retained
+   reference still requires them. Failure and lifecycle restoration preserve the
+   corresponding InList/OutList and property dependency state.
 
 ### Requirement 3: Fail without partial changes
 
@@ -134,6 +142,8 @@ predictably, so that I can recover without reconstructing the sketch.
 1. IF the index is an axis, internal geometry, out of range or not a supported
    external edge, or the source is absent, disallowed, cyclic, malformed or null,
    THEN the method raises a documented Python exception before persistent mutation.
+   Frozen, Missing or Detached projections, Intersection or Both link modes, and
+   noRecomputes/edit-mode operation are unsupported and reject before no-op detection.
 2. IF a source link yields multiple projections, an intersection, an unsupported
    curve, a different analytic type, a degenerate projection, a duplicate destination
    link or ambiguous endpoint mapping, THEN the method rejects the request without
@@ -141,8 +151,16 @@ predictably, so that I can recover without reconstructing the sketch.
 3. IF projection preparation or application fails, THEN authored state, reference
    resolution and native lookup/solver consistency are restored; unrelated changes
    in the caller's transaction are preserved and no transaction is committed or aborted.
-4. GIVEN an exact already-attached source/selector, WHEN invoked again, THEN the
-   operation is a no-op and does not reorder links or dirty an otherwise clean sketch.
+   Document/object/property dirty/touched state, enforced or pending recompute,
+   active/booked transaction identity and contents, and undo/redo availability must
+   match the pre-call state. Tests include an earlier edit to the same affected property.
+4. GIVEN an otherwise admitted projection in a supported execution mode and an exact
+   already-attached source/selector, WHEN invoked again, THEN the operation is a no-op:
+   it emits no change notification, alters no journal entry and preserves clean state.
+5. WHEN any model-change notification is emitted during the operation, THEN a
+   read-only observer sees coherent source links, ExternalTypes, projected geometry,
+   Ref resolution and native IDs. Precondition failures emit no model-change signals.
+   Operation-local restoration cannot be used to retract already published invalid state.
 
 ### Requirement 4: Transactions, recompute and persistence
 
@@ -153,9 +171,11 @@ edits, so that undo and saved models remain reliable.
 
 #### Acceptance Criteria
 
-1. WHEN called within an existing document transaction, THEN the method participates
-   without opening, committing or aborting a top-level transaction, saving a file or
-   performing a whole-document recompute; it correctly invalidates affected derived state.
+1. WHEN called with or without an active document transaction, THEN the method is
+   supported without explicitly opening, committing or aborting a top-level transaction,
+   saving a file or performing a whole-document recompute; successful edits correctly
+   invalidate affected derived state. Normal FreeCAD booked/global transaction
+   materialization is allowed on success; failure and no-op preserve pre-call metadata.
 2. GIVEN a committed replacement, WHEN undo and redo run with normal recomputation,
    THEN both states restore the correct source, native ID, order, authored flags and
    dependent constraint roles; abort restores the original state as well.
@@ -190,10 +210,10 @@ tests, so that existing scripting and model workflows remain stable.
 
 ## Correctness Properties
 
-- **CP-001:** Successful replacement preserves the native identity, both orders and authored constraint roles.
-- **CP-002:** Failed replacement is semantically equivalent to no call, including coherent derived lookups.
+- **CP-001:** Successful replacement preserves native identity, both orders, ExternalTypes and authored constraint roles/Orientation.
+- **CP-002:** Failed replacement preserves authored/dependency state, coherent derived lookups, dirty/touched/recompute state and transaction/undo/redo metadata; observers never see inconsistent publication.
 - **CP-003:** Undo, redo, abort and save/reopen preserve the corresponding semantic state.
-- **CP-004:** New source geometry propagates through the preserved reference; unrelated references do not change.
+- **CP-004:** New source geometry and dependency/backlink state agree with the preserved reference; unrelated references do not change.
 - **CP-005:** Existing APIs retain their behavior and transaction ownership remains with the caller.
 
 Use deterministic fixtures and table-driven conventional tests; no new property-test dependency.

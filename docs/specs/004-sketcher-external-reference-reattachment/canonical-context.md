@@ -126,9 +126,32 @@ is scalar, accepts a negative geometry index, and supports one-to-one compatible
 line/circle/arc projections only. It preserves raw link order as well as projected
 geometry order. Grouped/intersection/ambiguous replacements reject explicitly.
 
+The MoE-corrected contract also preserves exact Constraint.Orientation, the entire
+ExternalTypes vector and native dependency/backlink state. Only Projection mode is
+admitted. Unsupported Frozen/Missing/Detached and Both/Intersection states reject
+before same-source no-op detection. Calls without an active transaction are
+supported; native noRecomputes/edit mode rejects before mutation. Failure/no-op
+must preserve declared dirty/touched/recompute and transaction/undo/redo metadata.
+
+T001 must demonstrate coherent notification-time state and bounded operation-local
+restoration before D002 closes. Existing managedoperation does not establish an
+atomic notification boundary. The review corrections specify required evidence;
+they do not establish a native mechanism or complete T001. See the
+[review disposition](verification.md#moe-review-disposition).
+
 Creation of this package does not authorize implementing source, installing a
 snapshot, restarting a runtime, changing a live document or submitting upstream.
 Structural lint is independent of ready-to-implement/validate/close/archive gates.
+
+## Shared-Worktree Execution
+
+Another agent is working in this checkout. Keep the currently checked-out branch;
+do not switch, reset or stash it for this feature. Agree file ownership before any
+overlapping source edits and preserve unrelated work. After implementation and
+validation, prepare the clean upstream PR branch in a separate Git worktree,
+cherry-picking only feature commits. Spec 004 remains local delivery scaffolding
+unless separately selected for public documentation. This records the user's
+explicit workflow correction and supersedes generic named-branch wording.
 
 ## Promotion Map
 
