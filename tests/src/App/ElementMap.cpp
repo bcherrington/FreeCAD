@@ -880,4 +880,169 @@ TEST_F(ElementMapTest, restoreRejectsNegativeMetadataCounts)
         EXPECT_THROW(std::make_shared<Data::ElementMap>()->restore(_hasher, input), Base::RuntimeError);
     }
 }
+
+namespace
+{
+std::vector<long> sidValues(const Data::ElementIDRefs& refs)
+{
+    std::vector<long> values;
+    for (const auto& ref : refs) {
+        values.push_back(ref.value());
+    }
+    return values;
+}
+
+Data::ElementMapPtr restoreOwnedMap(const std::string& archive, App::StringHasherRef hasher)
+{
+    // Neither the stream nor any of its backing strings survive this helper.
+    std::istringstream input(archive);
+    return std::make_shared<Data::ElementMap>()->restore(hasher, input);
+}
+
+void expectSameMap(const Data::ElementMapPtr& expected, const Data::ElementMapPtr& actual)
+{
+    auto entries = expected->getAll();
+    ASSERT_EQ(actual->getAll().size(), entries.size());
+    for (const auto& entry : entries) {
+        SCOPED_TRACE(entry.name.toString());
+        Data::ElementIDRefs before, after;
+        EXPECT_EQ(expected->find(entry.name, &before), entry.index);
+        EXPECT_EQ(actual->find(entry.name, &after), entry.index);
+        EXPECT_EQ(sidValues(before), sidValues(after));
+        EXPECT_EQ(actual->find(entry.index), expected->find(entry.index));
+        const auto aliases = expected->findAll(entry.index);
+        const auto restoredAliases = actual->findAll(entry.index);
+        ASSERT_EQ(aliases.size(), restoredAliases.size());
+        for (std::size_t i = 0; i < aliases.size(); ++i) {
+            EXPECT_EQ(aliases[i].first, restoredAliases[i].first);
+            EXPECT_EQ(sidValues(aliases[i].second), sidValues(restoredAliases[i].second));
+        }
+    }
+    const auto before = expected->getChildElements();
+    const auto after = actual->getChildElements();
+    ASSERT_EQ(before.size(), after.size());
+    // Child iteration is a QHash; compare by postfix rather than iteration order.
+    for (const auto& child : before) {
+        auto found = std::find_if(after.begin(), after.end(), [&](const auto& other) {
+            return child.postfix == other.postfix;
+        });
+        ASSERT_NE(found, after.end());
+        EXPECT_EQ(found->indexedName, child.indexedName);
+        EXPECT_EQ(found->count, child.count);
+        EXPECT_EQ(found->offset, child.offset);
+        EXPECT_EQ(found->tag, child.tag);
+        EXPECT_EQ(sidValues(found->sids), sidValues(child.sids));
+        ASSERT_EQ(bool(found->elementMap), bool(child.elementMap));
+        if (child.elementMap) {
+            expectSameMap(child.elementMap, found->elementMap);
+        }
+    }
+}
+
+std::string saveMap(const Data::ElementMapPtr& map, App::StringHasherRef hasher)
+{
+    map->beforeSave(hasher);
+    std::ostringstream output;
+    map->save(output);
+    return output.str();
+}
+}  // namespace
+
+TEST_F(ElementMapTest, writerFormsAliasesAndMultipleSidsRoundTrip)
+{
+    std::vector<App::StringIDRef> ids;
+    for (int i = 0; i < 20; ++i) {
+        ids.push_back(_hasher->getID(("identity-sid-" + std::to_string(i)).c_str()));
+    }
+    ASSERT_GT(ids[10].value(), 9);
+    auto original = std::make_shared<Data::ElementMap>();
+    original->hasher = _hasher;
+    const Data::ElementIDRefs refs {ids[10], ids[12]};
+    Data::MappedName literal("CustomMapped");
+    literal += ";Postfix";
+    original->setElementName(Data::IndexedName("Edge", 1), literal, 0, &refs);
+    original->setElementName(Data::IndexedName("Edge", 1), Data::MappedName("Alias"), 0, &refs);
+    original->setElementName(Data::IndexedName("Face", 1), Data::MappedName("Face12"), 0, &refs);
+    Data::MappedName hashed(ids[10].toString());
+    hashed += ";HashPostfix";
+    original->setElementName(Data::IndexedName("Edge", 2), hashed, 0, &refs);
+    const auto first = saveMap(original, _hasher);
+    EXPECT_NE(first.find(";CustomMapped."), std::string::npos);
+    EXPECT_NE(first.find(":"), std::string::npos);
+    EXPECT_NE(first.find("$" + ids[10].toString() + "."), std::string::npos);
+    std::ostringstream sidSuffix;
+    sidSuffix << std::hex << '.' << ids[10].value() << '.' << ids[12].value();
+    EXPECT_NE(first.find(sidSuffix.str()), std::string::npos);
+    auto restored = restoreOwnedMap(first, _hasher);
+    // Churn freed parser buffers before checking both lookup directions and SIDs.
+    const std::vector<std::string> churn(100, std::string(4096, 'x'));
+    expectSameMap(original, restored);
+    const auto second = saveMap(restored, _hasher);
+    auto twice = restoreOwnedMap(second, _hasher);
+    expectSameMap(restored, twice);
+    EXPECT_EQ(twice->findAll(Data::IndexedName("Edge", 1)).size(), 2);
+}
+
+TEST_F(ElementMapTest, nestedSharedChildrenAndDecimalSidsRoundTrip)
+{
+    std::vector<App::StringIDRef> ids;
+    for (int i = 0; i < 20; ++i) {
+        ids.push_back(_hasher->getID(("child-identity-" + std::to_string(i)).c_str()));
+    }
+    std::ostringstream archive;
+    archive
+        << "991600 PostfixCount 1\nFace\nMapCount 3\n"
+        << "ElementMap 1 991601 1\nFace\nChildCount 0\nNameCount 3\n0\n:1.1.0 0\n:1.2.0 0\nEndMap\n"
+        << "ElementMap 2 991602 1\nFace\nChildCount 1\n"
+        << "1 0 2 21 1 ;:H15:0,F 0." << ids[10].value() << '.' << ids[12].value()
+        << "\nNameCount 0\nEndMap\n"
+        << "ElementMap 3 991600 1\nFace\nChildCount 2\n"
+        << "1 0 2 22 2 ;:H16:0,F 0." << ids[10].value() << '\n'
+        << "1 2 2 23 2 ;:H17:0,F 0." << ids[12].value() << "\nNameCount 0\nEndMap\n";
+    auto original = restoreOwnedMap(archive.str(), _hasher);
+    const auto children = original->getChildElements();
+    ASSERT_EQ(children.size(), 2);
+    ASSERT_EQ(children[0].elementMap, children[1].elementMap);
+    const auto nested = children[0].elementMap->getChildElements();
+    ASSERT_EQ(nested.size(), 1);
+    EXPECT_EQ(sidValues(nested[0].sids), (std::vector<long> {ids[10].value(), ids[12].value()}));
+    auto saved = saveMap(original, _hasher);
+    std::ostringstream decimal;
+    decimal << "0." << ids[10].value() << '.' << ids[12].value();
+    EXPECT_NE(saved.find(decimal.str()), std::string::npos);
+    auto restored = restoreOwnedMap(saved, _hasher);
+    expectSameMap(original, restored);
+    const auto restoredChildren = restored->getChildElements();
+    ASSERT_EQ(restoredChildren.size(), 2);
+    EXPECT_EQ(restoredChildren[0].elementMap, restoredChildren[1].elementMap);
+    EXPECT_EQ(restored->getAll().size(), 4);
+    auto twice = restoreOwnedMap(saveMap(restored, _hasher), _hasher);
+    expectSameMap(restored, twice);
+}
+
+TEST_F(ElementMapTest, restoreChildSidsWithoutHasher)
+{
+    auto restored = restoreOwnedMap(
+        "991610 PostfixCount 0\nMapCount 1\nElementMap 1 991610 1\nFace\nChildCount 1\n"
+        "1 0 2 0 0 Child 0.11.13\nNameCount 0\nEndMap\n",
+        {}
+    );
+    const auto children = restored->getChildElements();
+    ASSERT_EQ(children.size(), 1);
+    EXPECT_TRUE(children[0].sids.empty());
+    EXPECT_EQ(children[0].count, 2);
+}
+
+TEST_F(ElementMapTest, restoreMissingAndMalformedChildSids)
+{
+    auto sid = _hasher->getID("valid-child");
+    std::ostringstream archive;
+    archive << "991611 PostfixCount 0\nMapCount 1\nElementMap 1 991611 1\nFace\nChildCount 1\n"
+            << "1 0 2 0 0 Child 0.999999.bad..-1." << sid.value() << "\nNameCount 0\nEndMap\n";
+    auto restored = restoreOwnedMap(archive.str(), _hasher);
+    const auto children = restored->getChildElements();
+    ASSERT_EQ(children.size(), 1);
+    EXPECT_EQ(sidValues(children[0].sids), (std::vector<long> {sid.value()}));
+}
+
 // NOLINTEND(readability-magic-numbers)

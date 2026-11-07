@@ -34,7 +34,7 @@ that explicit routing verified.
 | 1 — Planning | T021/T019 retained; T009 scope disposition; T001 complete | D001 protocol approved before source work |
 | 2A — Images | T012/T013/T003/T006 complete | Safe conversion and calibrated lifecycle qualified |
 | 2B — Tree | T014/T017/T007 complete | Receiver/completion fixes and current functional qualification |
-| 2C — CAD maps | T015 complete → **T016 next** → T005 | Bounded parsing and CAD reference identity qualified |
+| 2C — CAD maps | T015/T016 complete → **T005 next** | Bounded parsing and CAD reference identity qualified |
 | 2D — Archives | T018 → T002 | Archive error outcomes and compatibility qualified |
 | 3 — Performance | T020 → T004 | Predeclared latency/memory/per-change acceptance satisfied |
 | 4 — Delivery | T010 → T011 | Exact final evidence, platform checks, promotion and closure |
@@ -74,8 +74,8 @@ none -> T008
 ## Phase 1 — Finish Planning
 
 Exit satisfied: T021/T019 evidence retained, T009 scope disposition recorded, and T001
-resolves D001 with the benchmark protocol. **Next action: T016 — Qualify element-map and dependent CAD reference identity
-(Phase 2C; T015 numeric safety complete).**
+resolves D001 with the benchmark protocol. **Next action: T005 — Verify element-map parser compatibility
+(Phase 2C; T015 numeric safety and T016 identity complete).**
 
 - [x] T021 Expose lifecycle decisions and verify execution guardrails.
   - Depends on: none
@@ -468,11 +468,12 @@ evidenced before T005 sign-off.
     ownership paths without changing valid writer format. Broader identity remains T016/T005.
 
   - Status: Completed local numeric compatibility, range and boundary-ownership correction for Requirement 4 AC1/AC2; F004 broader identity remains open. Next T016; final platform/composition and performance gates remain required.
-- [ ] T016 Qualify element-map and dependent CAD reference identity.
+- [x] T016 Qualify element-map and dependent CAD reference identity.
   - Depends on: T015
   - Requirements: Requirement 4 AC1, AC3, AC4
   - Design: design.md#moe-safety-and-compatibility-contracts
-  - Files: `src/App/ElementMap.cpp`, `tests/src/App/ElementMap.cpp`, `verification.md`
+  - Files: `src/App/ElementMap.cpp`, `tests/src/App/ElementMap.cpp`,
+    `tests/src/Mod/PartDesign/App/ElementMapDocumentIdentity.py`, `verification.md`
   - Acceptance: Cover semicolon/colon/dollar-hashed forms, decimal child SIDs versus hexadecimal
     mapped SIDs above nine, multiple IDs/aliases and nested/shared children. Verify semantic
     save–restore–save, both lookup directions after input buffers die, and an existing CAD document
@@ -480,7 +481,7 @@ evidenced before T005 sign-off.
   - Validation: Run the focused regression cases in acceptance on the T019 pinned revision; record
     commands, results and limits in verification.md.
   - Evidence mode: artifact
-  - Evidence: Pending.
+  - Evidence: 2026-11-07: t016-validation.json and verification.md#t016-element-map-and-dependent-cad-identity bind b086a0bb2f/docs 7ff7e15 plus exact C++/new Python diff, source/build/runtime/fixture identities, seven clean dependencies and 510 matching packages. Four new cases qualify writer semicolon/colon/dollar-hash forms, IDs 11/13, aliases/multiple SIDs, nested/shared maps, semantic roundtrips and both lookup directions after stream buffers die. Missing child-SID hasher reproduced SIGSEGV (-11); guarded warning/omission now matches mapped SIDs. Unknown/malformed child IDs preserve valid IDs. Checksum-pinned ModelFromV021.FCStd retains four independently specified Chamfer.Base edge targets across two map-bearing save/reopen cycles and three explicitly dirtied recomputes. Final full Pixi build, 281 App tests, 294 CTests, CAD harness, 34 Memcheck cases (zero errors; one exact libunwind probe suppression; leaks/undefined-value checks disabled) and scoped pre-commit pass. Requirement 4/CP-005 aggregate checkpoint remains T005; final/platform/performance gates remain.
   - Owner: local-developer
   - Properties: CP-005
   - Candidate manifest: spec003-linux-x86_64-debug-candidate-20261106-v1; see validation-manifest.md
@@ -488,11 +489,11 @@ evidenced before T005 sign-off.
   - Context evidence: F004 fixture review found current one-child parser regression does not
     establish all writer forms or dependent-feature identity.
 
-  - Additional audit: Verify child-SID hasher preconditions/error handling; the child-SID loop
-    dereferences hasherRef unlike the mapped-SID missing-hasher branch. This is a source-observed
-    question, not a reproduced failure or a T015 fix. Include malformed/missing-hasher coverage
-    before the identity checkpoint; owner local-developer.
+  - Additional audit disposition: T016 reproduced a missing child-SID hasher SIGSEGV, then
+    added warning/omission handling matching mapped SIDs. Missing/malformed-ID regressions pass;
+    no valid archive writer or public API change. T015 evidence remains historical and unchanged.
 
+  - Status: Completed local identity and missing-hasher correction; T005 aggregate compatibility checkpoint is next. No archive format/API or performance claim.
 - [ ] T005 Verify element-map parser compatibility.
   - Depends on: T015, T016
   - Requirements: Requirement 4 (all acceptance criteria)

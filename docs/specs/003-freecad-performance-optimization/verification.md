@@ -688,10 +688,84 @@ remains navigation-only at the nested docs authority boundary; executed checks
 and direct evidence above establish qualification. The shared coordination file
 has a dated T015 completion note; earlier content was preserved.
 
+## T016 Element-Map And Dependent CAD Identity
+
+2026-11-07: [t016-validation.json](t016-validation.json) binds root `b086a0bb2f` /
+docs `7ff7e15`, the exact two-file C++ diff plus new Python harness bytes, final
+source/executable/core/Part/PartDesign hashes, actual App compile command,
+CMake cache/lockfile, seven clean dependency commits and 510 installed packages
+matching the selected manifest. This is actual local working-tree evidence;
+the immutable T019 intake and prior receipts remain unchanged.
+
+Four new C++ cases in `tests/src/App/ElementMap.cpp` qualify:
+
+- Real writer semicolon/colon/dollar-hashed output, IDs 11/13 above nine,
+  multiple marked SIDs, postfixes and two aliases. Numeric field domains remain
+  decimal child SIDs and hexadecimal mapped SIDs. Stream/token storage dies
+  before lookup, followed by allocation churn and semantic save/restore/save/restore.
+- A literal three-map fixture with a nested leaf and the same middle map shared
+  by two root ranges. Recursive metadata, SID values, both lookup directions,
+  aliases, four resulting elements and shared-pointer identity survive roundtrips.
+  Child iteration is compared by postfix, not QHash order; no byte-order promise.
+- Missing hasher and missing/nondigit/empty/negative child-SID handling. The
+  missing-hasher case reproduced SIGSEGV (-11) before correction. A null guard
+  now emits the existing hasher warning and omits unavailable SIDs while retaining
+  child metadata, matching mapped-SID behavior. Valid writer output is unchanged.
+
+The standalone harness
+`tests/src/Mod/PartDesign/App/ElementMapDocumentIdentity.py` uses the existing
+`TestModels/ModelFromV021.FCStd` (SHA-256
+`b173cdc3cf25b50375c4779a459b90484586e42caa69a69c792b313766d627a5`).
+It verifies Chamfer.Base still targets Revolution’s four top square edges,
+independently checking their expected endpoints (x/y ±20, z 10) and length 40.
+It also compares valid final shape, face count and volume, across two map-bearing
+save/reopen cycles and three explicitly dirtied recomputes. Each saved archive
+contains nonempty Revolution/Chamfer map entries and a StringHasher table;
+output hashes and six snapshots are recorded in the receipt. The original
+fixture hash remains unchanged. This is one legacy model’s target identity,
+not general feature/workbench or byte-identical serialization qualification.
+
+Final execution uses separate disposable FREECAD_USER_HOME/DATA/TEMP and XDG
+paths per run. The CAD report records its selected user/system config files.
+Exact argv, working directory, start/end times and log hashes are in the receipt
+and `build/debug/artifacts/spec003-t016/commands.json`:
+
+| Check | Result |
+| --- | --- |
+| `pixi run --locked build -j 2` after formatting | Passed |
+| App naming/hash/element-map filter from T015, plus four new cases | 281/281 passed |
+| `ctest --test-dir build/debug -R 'ElementMap\|IndexedName\|MappedName\|MappedElement\|ElementNaming\|StringHasher\|StringID' --output-on-failure` through Pixi | 294/294 passed |
+| Standalone CAD harness through Pixi Python with built module on PYTHONPATH | Passed both save/reopen cycles and three forced recomputes |
+| `valgrind ... --gtest_filter=*ElementMapRestoreNumberTest*:ElementMapTest.*` through Pixi | 34/34 passed; zero errors |
+| Scoped pre-commit, source/diff/binary/fixture/log identity checks | Passed |
+
+Memcheck uses the existing exact libunwind startup-probe suppression; one context
+suppressed, leak/undefined-value checks disabled. No whole-application sanitizer,
+Windows/LLP64, native geometry-read profiling or performance result is claimed.
+An initial diagnostic module import used default settings and is excluded from
+qualification. Initial CAD harness runs exposed import-namespace interference and
+that `force=True` permits rather than dirties recompute; final imports run after
+module initialization and explicitly enforce feature recompute. The latter raw
+failure is retained. Red executable hashes were not captured; red source/argv/exit
+and final source/binary identities are recorded without inferring image equivalence.
+
+T016 completes this bounded local identity/correction slice. T005 is next to
+reconcile all Requirement 4 criteria and CP-005 against T015/T016 evidence;
+Requirement 4 stays partial-blocking until that checkpoint. T010 still confirms
+final production composition/platform applicability.
+
+Guarded completion leaves 19 complete, 19 pending and two follow-ups across the
+40 stable IDs, with no partial/in-progress records. Package lint reports zero
+diagnostics and preflight selects T005 with satisfied dependencies, zero gaps
+and no open decisions. Direct checks preserve all 18 earlier completed task
+blocks, immutable receipts/protocol/manifest, original line endings and the
+unrelated console documentation diff. Agent Workbench remains stale/navigation
+evidence only; executed commands and direct identities establish these results.
+
 ## Next Actions
 
-1. **Next: T016 — Qualify element-map and dependent CAD reference identity.**
-   Phase 2A/2B and T015 numeric safety are complete; retain D001/T019 applicability rules.
+1. **Next: T005 — Verify element-map parser compatibility.**
+   T015 numeric safety and T016 identity are complete; retain D001/T019 applicability rules.
 2. Follow [the explicit Phase 2 subgroups](tasks.md#execution-order): images,
    tree lifecycle, CAD maps, then archives; finish each fix's focused regression
    and subgroup qualification before advancing.
@@ -709,7 +783,7 @@ has a dated T015 completion note; earlier content was preserved.
 | Candidate and final evidence applicability | yes | partial | T019 initial manifest/policy recorded; actual new-build/runtime receipts and T010 final reconciliation pending |
 | Predeclared per-optimization performance/resource acceptance | yes | pending | T001 protocol complete; T020/T004 and final T010 evidence pending |
 | Complete task/criterion evidence | yes | pending | tasks.md; traceability.md |
-| Focused current correctness and failure tests | yes | pending | T003/T006 image, T007 tree and T015 numeric checks pass locally; T016/T005 identity and T002 archive qualification remain |
+| Focused current correctness and failure tests | yes | pending | T003/T006 image, T007 tree and T015/T016 numeric/identity checks pass locally; T005 aggregate and T002 archive qualification remain |
 | Current measurements and platform/manual acceptance | yes | pending | Historical observations are insufficient |
 | Durable promotion and residual ownership | yes | pending | requirements.md durable impact |
 | Review and closure metadata | yes | pending | No closure claimed |
@@ -830,9 +904,9 @@ executed. Runtime regression evidence for F001–F008 remains pending.
   documents. Mixed-workbench integration and final
   runtime/platform applicability, including default Qt/IBus startup diagnosis,
   remains T010; the T014 compose profile does not certify default IBus or T006.
-- T015 defines numeric conversion/range rejection and qualifies its local boundary/ownership
-  cases. Broader writer/alias/child identity, missing-hasher handling and dependent CAD
-  references remain T016/T005; archive-level outcomes remain T018/T002.
+- T015 numeric safety and T016 writer/alias/child/dependent CAD identity pass locally,
+  including the reproduced/corrected missing-hasher child-SID path. Aggregate parser
+  compatibility remains T005; archive-level outcomes remain T018/T002.
 - Dated tests do not certify the selected final production revision.
 - Unresolved design/budget decisions block dependent implementation/acceptance.
 - Current measurements, desktop/visual/platform coverage and durable promotion
@@ -849,8 +923,8 @@ this migration.
 
 ## Readiness Decision
 
-- Ready to implement: T016 — Qualify element-map and dependent CAD reference identity; T015 and image/tree subgroups complete.
-- Ready to validate: local numeric/tree/image corrections qualified by T015/T007/T003/T006; T016 identity qualification comes next. Whole-package acceptance still requires identity/archive/performance checkpoints and T010 final/platform applicability.
+- Ready to implement: T005 — Verify element-map parser compatibility; T015/T016 and image/tree subgroups complete.
+- Ready to validate: local numeric/identity/tree/image corrections qualified by T015/T016/T007/T003/T006; T005 aggregate parser compatibility comes next. Whole-package acceptance still requires identity/archive/performance checkpoints and T010 final/platform applicability.
 - Ready to close: no.
 - Ready to archive: no.
 - Cleanup action: keep active, draft.

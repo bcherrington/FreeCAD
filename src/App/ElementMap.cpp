@@ -430,6 +430,10 @@ ElementMapPtr ElementMap::restore(::App::StringHasherRef hasherRef,
 
             const auto childSidCount = countDotSuffixTokens(viewOf(tmp));
             if (childSidCount > 0) {
+                if (!hasherRef) {
+                    hasherWarn = "No hasherRef";
+                    continue;
+                }
                 child.sids.reserve(static_cast<int>(childSidCount));
                 DotTokenReader childSidTokens(viewOf(tmp));
                 std::string_view childSidToken;

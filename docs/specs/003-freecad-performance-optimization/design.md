@@ -33,7 +33,7 @@ review gates. Keep compact rail geometry in package 002.
 | CP-002 | Image conversion and texture-only materialization preserve pixel semantics, original source, independently calibrated dimensions and placement. | T013, T003, T006; calibrated reopen/import/show/save fixtures | T013/T003/T006 local qualification complete; final T010 applicability remains |
 | CP-003 | Tree batching preserves per-object effects, ends callbacks with receiver lifetime and completes every suppressed restore path. | T014, T017, T007; destruction and idle restore-path regressions | T014/T017 corrections and T007 current local tree checkpoint qualified; final T010 applicability remains |
 | CP-004 | Image extents, allocation lengths and offsets are checked before narrowing or writing; unsupported input is rejected safely. | T012, T003; null/slender boundary tests and sanitizer-equivalent checks | Source correction/qualification pending |
-| CP-005 | Numeric conversion is bounded and element-map aliases, child IDs and dependent CAD reference identities survive restore/recompute. | T015, T016, T005; numeric/writer/identity fixture matrix | Source correction/qualification pending |
+| CP-005 | Numeric conversion is bounded and element-map aliases, child IDs and dependent CAD reference identities survive restore/recompute. | T015, T016, T005; numeric/writer/identity fixture matrix | T015/T016 local numeric/identity qualification complete; T005 aggregate checkpoint and T010 final applicability remain |
 
 ## High-Level Design
 
@@ -119,7 +119,7 @@ Rejecting structurally invalid metadata and indices formalizes existing type
 preconditions; it does not change valid writer output. General archive allocation
 budgets, locale-specific non-ASCII numeric extensions, malformed-file document
 recovery and Windows/LLP64 qualification are not established here. T016/T005 still
-qualify full writer/alias/child-map identity and dependent CAD references.
+retain aggregate parser acceptance and final applicability; T016 now qualifies the writer/alias/child-map and dependent CAD identity slice locally.
 
 ### Image Qualification Reference
 
@@ -208,7 +208,12 @@ invalidation and diagnostic contracts.
   versus hexadecimal mapped SIDs, multiple aliases/SIDs and nested/shared maps.
   Compare semantic save/restore/save and bidirectional name lookup after input
   buffers die; a dependent-feature CAD fixture must retain referenced targets
-  after reopening/recomputing. CP-005 records these identity invariants.
+  after reopening/recomputing. T016 locally qualifies these invariants with 20-ID writer forms,
+  aliases and nested/shared-map semantic roundtrips plus the checksum-pinned v0.21 model’s four
+  Chamfer.Base edges through two map-bearing save/reopen cycles and three forced recomputes.
+  Missing child-SID hashers now warn/omit IDs like the mapped-SID path, instead of dereferencing
+  null; malformed/unknown IDs retain warning/omission behavior. The writer and public API remain
+  unchanged. CP-005 records these identity invariants; T005 is the aggregate compatibility gate.
 - **Restore completion (F005):** suppression must have a matching completion for
   app open, direct doc.load/doc.restore, import/paste and failure cleanup. T017
   retains broad isRestoring guards against processing and keeps one existing
