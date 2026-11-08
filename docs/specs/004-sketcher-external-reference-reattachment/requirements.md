@@ -2,7 +2,7 @@
 title: Sketcher external reference reattachment requirements
 doc_type: spec
 artifact_type: requirements
-status: draft
+status: archived
 owner: local-developer
 last_reviewed: 2026-11-08
 ---
@@ -76,8 +76,8 @@ runtime authority. Its reports of bridge fixes do not prove native correctness.
 
 ## Staged Readiness
 
-- **Current stage:** local implementation/qualification complete; durable promotion and closure metadata being reconciled.
-- **Next stage:** T006 local closure; B014 owns separate upstream delivery. D001/D002 and the T004 solver finding are resolved.
+- **Current stage:** completed local implementation/qualification, promoted and retained as history.
+- **Next stage:** B014 separate upstream delivery; no local implementation stage remains. D001/D002 and the solver finding are resolved.
 - **Ready to design when:** satisfied for the bounded proposed scope below.
 - **Design-first exception:** no; requirements precede the proposed design.
 - **Optional artifacts recommended:** canonical-context.md, traceability.md, verification.md.

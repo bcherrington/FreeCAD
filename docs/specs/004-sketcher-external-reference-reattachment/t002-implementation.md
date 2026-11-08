@@ -2,12 +2,16 @@
 title: Native Sketcher reattachment implementation and evidence
 doc_type: spec
 artifact_type: verification
-status: draft
+status: archived
 owner: local-developer
 last_reviewed: 2026-11-07
 ---
 
 # T002 Native Implementation
+
+Historical slice: T004 subsequently resolved the solver finding below through
+42144bc1e9 and extended lifecycle qualification. See t004-qualification.md and
+completion-validation.json for final results.
 
 T002 adds `SketchObject::reattachExternal(int, App::DocumentObject*, const char*)`
 and direct C++ regressions. The public Python binding remains T003. This is local

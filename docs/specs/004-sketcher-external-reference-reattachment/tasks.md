@@ -2,7 +2,7 @@
 title: Sketcher external reference reattachment tasks
 doc_type: spec
 artifact_type: tasks
-status: draft
+status: archived
 owner: local-developer
 last_reviewed: 2026-11-08
 ---
@@ -15,8 +15,8 @@ Read requirements.md, design.md, canonical-context.md, traceability.md and
 verification.md before implementation. Obtain task_context for the selected ID;
 normally mark one implementation task in progress. This package remains draft for
 implementation acceptance. D001 is locally resolved and the user accepted D002
-Option A. T001–T005 implementation, qualification and review are complete. T006 durable
-promotion and final commit/archive metadata are reconciled below.
+Option A. T001–T006 implementation, qualification, review and durable promotion are complete.
+Actual archive commit metadata is reconciled after commit creation.
 
 Respect AGENTS.md and freecad-project guidance, preserve unrelated work and original
 line endings. Keep the shared worktree on its current branch; do not switch, reset
@@ -106,7 +106,7 @@ T001 -> T002 -> T003 -> T004 -> T005 -> T006
   - Owner: local-developer
 
   - Status: Complete for local compatibility/validation and review. Whole-project CTest is explicitly non-green; unrelated failures and external delivery gates have named owners/destinations.
-- [~] T006 Promote the accepted API contract and record closure.
+- [x] T006 Promote the accepted API contract and record closure.
   - Depends on: T005
   - Requirements: Requirement 1 AC2; Requirement 5 AC3, AC4
   - Properties: CP-005
@@ -115,9 +115,10 @@ T001 -> T002 -> T003 -> T004 -> T005 -> T006
   - Acceptance: Durable reference and binding docs describe implemented supported cases, errors, indexing and caller transaction/recompute example. Every requirement/property has evidence or an explicit owned disposition. Record actual source/docs commit identities, package disposition and external integration boundary. Closure does not claim bridge delivery, snapshot activation or live D600 retargeting.
   - Validation: Package lint, traceability review, local link/whitespace checks and lifecycle closure checks; human review and disclosure obligations before any separately authorized public submission.
   - Evidence mode: artifact
-  - Evidence: Durable reference/generated help, private delivery review and owned B012-B014 follow-ups are present and lint clean. Final code/evidence commit and actual history/archive metadata reconciliation in progress; shared branch preserved.
+  - Evidence: Promoted docs/reference/sketcher-external-reference-reattachment.md and generated SketchObject.pyi; completed durable private review and owned B012-B014 follow-ups. Root implementation commit 96924c50a2, solver fix 42144bc1e9 and nested docs promotion 6bfa619 exist. Requirements/properties, V01-V15, exact test/hash receipts, package/reference lint and 88 local links reconciled. Chosen disposition is retained-as-history; actual cleanup commit references are reconciled after archive commit creation, without claiming a future hash.
   - Owner: local-developer
 
+  - Status: Complete local implementation, qualification, promotion and acceptance. Archive commit self-reference bookkeeping follows completion; B012-B014 remain explicitly owned external delivery work.
 ## Related Artifacts
 
 - [Requirements](requirements.md)

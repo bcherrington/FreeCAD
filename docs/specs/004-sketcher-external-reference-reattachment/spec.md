@@ -2,7 +2,7 @@
 title: Sketcher external reference reattachment
 doc_type: spec
 artifact_type: brief
-status: draft
+status: archived
 owner: local-developer
 last_reviewed: 2026-11-08
 ---
@@ -46,7 +46,8 @@ Current behavior is promoted to
 and generated help. See [T004 qualification](t004-qualification.md),
 [the completion receipt](completion-validation.json), and
 [the private delivery review](../../reviews/sketcher-reattachment-delivery-review.md).
-T006 is finalizing commit/history metadata before retaining this package as history.
+This package is retained in place as history; T006 is reconciling the actual
+archive commit metadata. The current API contract belongs in the durable reference.
 B014 owns separate-worktree/human/platform upstream preparation. The shared
 checkout and unrelated work remain preserved. No actual maintainer acceptance,
 MCP bridge delivery or released upstream API is claimed.

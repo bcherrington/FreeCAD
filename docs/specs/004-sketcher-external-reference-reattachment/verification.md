@@ -2,7 +2,7 @@
 title: Sketcher external reference reattachment verification
 doc_type: spec
 artifact_type: verification
-status: draft
+status: archived
 owner: local-developer
 last_reviewed: 2026-11-08
 ---
@@ -186,8 +186,8 @@ into those items, and no release/upstream acceptance is inferred.
 
 ## Readiness Decision
 
-Local implementation and validation complete. Ready for local promotion/closure
-once actual commit/history metadata is reconciled. Whole-project green CI and
+Local implementation, validation and promotion complete. Package retained as
+history; actual cleanup commit metadata is reconciled through T006. Whole-project green CI and
 upstream release acceptance are not claimed; B012–B014 own those delivery gates.
 
 ## Related Artifacts

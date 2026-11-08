@@ -2,7 +2,7 @@
 title: Sketcher external reference reattachment canonical context
 doc_type: spec
 artifact_type: canonical-context
-status: draft
+status: archived
 owner: local-developer
 last_reviewed: 2026-11-08
 ---
@@ -179,7 +179,8 @@ are authoritative. No actual maintainer/upstream release approval is implied.
 
 ## Smallest Next Action
 
-Finish T006 commit/history reconciliation, then retain this package as history.
+Retain this package as historical evidence; reconcile actual archive metadata
+through T006 and use the promoted reference for current behavior.
 B012/B013 own the unrelated full-project test failures and B014 owns human,
 platform and clean separate-worktree PR preparation. Preserve the shared branch
 and unrelated work. No remaining local API implementation task is hidden in

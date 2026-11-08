@@ -2,7 +2,7 @@
 title: Sketcher reattachment T001 native qualification
 doc_type: spec
 artifact_type: research
-status: draft
+status: archived
 owner: local-developer
 last_reviewed: 2026-11-07
 ---
