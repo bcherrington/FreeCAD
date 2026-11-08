@@ -848,6 +848,9 @@ QPixmap BitmapFactoryInst::empty(QSize size) const
 
 void BitmapFactoryInst::convert(const QImage& p, SoSFImage& img) const
 {
+#ifdef FC_IMAGE_PERFORMANCE_TRACE
+    ImagePerformanceTrace::Interval traceConvert(ImagePerformanceTrace::Phase::Convert);
+#endif
     const int width = p.width();
     const int height = p.height();
     constexpr int numcomponents = 4;

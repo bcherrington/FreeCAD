@@ -1,0 +1,25 @@
+{
+  "schema": "freecad-spec003-p07-diagnostic-public-evidence/v1",
+  "files": {
+    "audit-after.json": {
+      "sha256": "3a46b999258bcc2a874f5ef0a0e088f5c407de529ca23eafffe9952e5f910c0a",
+      "size_bytes": 286
+    },
+    "audit-before.json": {
+      "sha256": "bacd0aa451fa7265b85021954bda3a28df4ba5d2747e727602c944cd855ef42e",
+      "size_bytes": 284
+    },
+    "host-summary.json": {
+      "sha256": "4f9a9171764e1f7543366eae31269c4d82eb19e9dd1b22afa6cda6e954180d83",
+      "size_bytes": 668
+    },
+    "native-qualification-summary.json": {
+      "sha256": "1250a7b43d9c28d3698e0ab81375ec5642b587c147294014d6f27c4a6f704844",
+      "size_bytes": 4611
+    },
+    "observations.jsonl": {
+      "sha256": "efc63456a21851e1737c1af03a9a66eca51581972248c1024271563c71a55bf5",
+      "size_bytes": 34824
+    }
+  }
+}

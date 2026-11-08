@@ -1,0 +1,9 @@
+{
+  "passed": true,
+  "checked_hashes": 39985,
+  "cache_file_counts": {
+    "baseline": 39,
+    "change": 39
+  },
+  "scope": "Full frozen inputs/scoped runtime inventories, source/dependency identity, installed environment; initial caches checked before and mutations recorded after"
+}

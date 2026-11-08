@@ -1,0 +1,157 @@
+{
+  "final_cases": 408,
+  "status": "passed",
+  "checks": [
+    {
+      "arm": "change",
+      "target": "ImagePerformanceTraceTest_Tests_run",
+      "exit_code": 0,
+      "counts": {
+        "tests": 25,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "disabled": 0,
+        "skip_elements": 0
+      },
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "xml_sha256": "dd7dc551d9d62e578ecb5d5df51cb7e1f591e7b44078421a84a078a221805c96"
+    },
+    {
+      "arm": "change",
+      "target": "ImagePlane_Tests_run",
+      "exit_code": 0,
+      "counts": {
+        "tests": 24,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "disabled": 0,
+        "skip_elements": 0
+      },
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "xml_sha256": "17c59688ad67eec7bf69eafdf43c92cb98bf3083390dfc1becae0ad7cabdf3a9"
+    },
+    {
+      "arm": "change",
+      "target": "ImagePlaneRender_Tests_run",
+      "exit_code": 0,
+      "counts": {
+        "tests": 42,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "disabled": 0,
+        "skip_elements": 0
+      },
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "xml_sha256": "739049f6b0d5cca3beae0ec54c738efa84000c6b7f7cd88baf1419bde34d11cb"
+    },
+    {
+      "arm": "change",
+      "target": "Gui_tests_run",
+      "exit_code": 0,
+      "counts": {
+        "tests": 82,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "disabled": 0,
+        "skip_elements": 0
+      },
+      "log_sha256": "08f21d41adc84fe785226be848f732c3e0801083ca2337dbeeca05d8020e30fa",
+      "xml_sha256": "e1500ca06c7891b5b70cb65dc7cd260f330674ea78021092d0cda1a7631658c6"
+    },
+    {
+      "arm": "change",
+      "target": "App_tests_run",
+      "exit_code": 0,
+      "counts": {
+        "tests": 31,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "disabled": 0,
+        "skip_elements": 0
+      },
+      "log_sha256": "83b698c0ffd2c25b8f890806f2e810aea74527593e005395dfddd6fb8491f814",
+      "xml_sha256": "4547a0e49f3b8aea3ebb9403d4edd18ab121fe1d9bdbe13bee0b26d3545b492e"
+    },
+    {
+      "arm": "baseline",
+      "target": "ImagePerformanceTraceTest_Tests_run",
+      "exit_code": 0,
+      "counts": {
+        "tests": 25,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "disabled": 0,
+        "skip_elements": 0
+      },
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "xml_sha256": "f50984402733f1240d2483a954d4809001cb518425f542461f0063823154d63f"
+    },
+    {
+      "arm": "baseline",
+      "target": "ImagePlane_Tests_run",
+      "exit_code": 0,
+      "counts": {
+        "tests": 24,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "disabled": 0,
+        "skip_elements": 0
+      },
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "xml_sha256": "e8c5f17902ca4ee05be6fb7e4e63bef5be523414a1672eceb09f9b3cf68cf1c1"
+    },
+    {
+      "arm": "baseline",
+      "target": "ImagePlaneRender_Tests_run",
+      "exit_code": 0,
+      "counts": {
+        "tests": 42,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "disabled": 0,
+        "skip_elements": 0
+      },
+      "log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "xml_sha256": "65699ac921d240480d074f1c4b9501d8983bdc7fb0f2cfaf4c92e1a9a9f4673c"
+    },
+    {
+      "arm": "baseline",
+      "target": "Gui_tests_run",
+      "exit_code": 0,
+      "counts": {
+        "tests": 82,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "disabled": 0,
+        "skip_elements": 0
+      },
+      "log_sha256": "03eb00a2884aacbb8fab2329219006c526ea74538003d9537c742eee08e89e52",
+      "xml_sha256": "89e3d83273000d19871f991dc3eb28c97c447444c8f265afdd8e45a938e01f8b"
+    },
+    {
+      "arm": "baseline",
+      "target": "App_tests_run",
+      "exit_code": 0,
+      "counts": {
+        "tests": 31,
+        "failures": 0,
+        "errors": 0,
+        "skipped": 0,
+        "disabled": 0,
+        "skip_elements": 0
+      },
+      "log_sha256": "c8308728e07ec6e1c9171095d32ca0d2fcc6c299fd18578daee30634d63e30d9",
+      "xml_sha256": "4ece2d93ee5042c7c4ea2a46fef9d8cfaa9b4b04ddd6ffa6c50ca475858a53d4"
+    }
+  ],
+  "prior_attempts": "Preserved: missing eager test-mode configuration, corrected before final native qualification; no production expectation relaxed"
+}

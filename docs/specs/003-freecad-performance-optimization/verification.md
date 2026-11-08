@@ -1125,7 +1125,10 @@ lasting knowledge and update docs/history/spec-closure-log.md and the archive
 index with actual final/cleanup commit references. No cleanup commit exists for
 this migration.
 
-## Readiness Decision
+## Historical Readiness Decision — Before T022/D005 Resolution
+
+This checkpoint predates T004 implementation. For current readiness, see the
+T004.2 P07 corrected diagnostic section below and the active queue in tasks.md.
 
 - Ready to implement: T022 decision/plan work only; T004 is blocked by T022/D005. T020 measurement/disposition is complete.
 - Ready to validate: T020 evidence is complete and P07 is not accepted. New implementation/sampling needs T022/D005 scope, source composition and affected revalidation; whole-package acceptance still requires T004/T010.
@@ -1336,3 +1339,61 @@ state is consistent. t004-p01-validation.json records final checks. Scoped hooks
 and CRLF-aware diff checks pass; the original private fixture hash is unchanged.
 The external chronological coordination file was appended with this scoped
 result, explicitly preserving separate D600/live-model/crash investigation scope.
+
+
+### T004.2 Host Telemetry Preparation (2026-11-08)
+
+Shared one-second host/owned-process telemetry is implemented. The preparation
+report is [t004-p07-diagnostic-preparation.md](t004-p07-diagnostic-preparation.md);
+[t004-telemetry-qualification.json](t004-telemetry-qualification.json) binds its
+smoke and source. Fifteen focused Python tests pass, including cross-session
+cleanup, identity races, unknown executable identity, explicit raw counter units
+and terminal failure evidence. These are harness checks using Python surrogates,
+not new FreeCAD observations. Native timing instrumentation/build qualification,
+the fixed 16-worker P07 diagnostic and P04/P05 comparisons remain pending. The
+subsequent verified storage retirement reclaimed 16.54 GiB and resolved the space
+blocker; see storage-retirement-20261108.json and the storage runbook. T004.2 stays in progress;
+P01/P07 acceptance and original evidence remain unchanged.
+
+
+### Benchmark Storage Retirement (2026-11-08)
+
+User-requested cleanup retired exactly two redundant compiler caches and four
+completed T020 output trees after independent retention review. All 9,732 retiring
+output-manifest entries matched before removal. All 1,155 retained evidence-file
+hashes, 3,788 P01 output hashes/inodes and six source checkouts/refs were verified
+afterwards. The six targets are absent; 17,755,156,480 allocated bytes were
+reclaimed. Normal debug development and the user compiler cache were untouched.
+T020 live native replay/audits now require reconstruction; original evidence and
+acceptance classifications did not change. The dated retirement record is separate
+from immutable campaign receipts.
+
+
+### T004.2 P07 Corrected Diagnostic
+
+2026-11-08: the corrected, independently frozen exploratory run completed16fresh
+GUI workers across hidden/visible/PartDesign/VRML contexts, AB thenBA percontext.
+All normative model/payload/calibration/frame/profile/lifecycle/runtime checks
+passed. Both full39,985-binding audits passed; zero worker failures, retries,
+replacements, exclusions or pooling. Finalnativequalification:408cases, zero
+failures/skips. Source branches differ only in the reviewed eager/lazy condition;
+all other App/Gui objects matched after proven shared RCC timestamp input
+normalization and independent no-cache recompilation.
+
+[Results](t004-p07-diagnostic-results.md), [machine data](t004-p07-diagnostic-results.json),
+[validation](t004-p07-diagnostic-validation.json) and the sanitized evidence manifest
+record source/freeze identities, all16descriptive rows and198hostsamples. Raw
+absolute clocks, owned PIDs, local traces and fixture locators remain private.
+
+Prior attempts remain separate: zero-GUI unsupported-Pixi-observer preflight; one
+closed eager worker with stale mapped-resource expectations and15unexecuted;
+two bounded forensic qualification processes with no timing values accepted or
+reported. Forensics found only Arch_rc.rcc/Draft_rc.rcc additions, both qualified
+hashes, no missing or changed original native mappings. The correction retained
+strict equality and all old fidelity witnesses; no library was ignored.
+
+P07firstshow is primarily read/decode (~80% in two lazy observations); hidden open
+and memory benefits remain descriptive. Control variation and median28.6ms
+collectorCPU/sample prevent causal claims about old BIMp95 or acceptance. P01/P07
+remain unaccepted; T004.2 stays inprogress for P04/P05 comparisons. No original
+protocol, assessor, result or acceptance receipt changed.

@@ -696,19 +696,28 @@ non-regression contract. Earlier source-fix tests do not prove speedup.
       validation-manifest.md and record actual execution provenance.
 
         - Status: Completed comparable measurement/disposition only. P01 NOT ACCEPTED overall; T004 remains in progress and owns P01 acceptance residual. Next T004.2; P07 remains retained/unaccepted.
-  - [ ] T004.2 Record comparable image conversion/lifecycle timings and remaining bottlenecks under D001.
+  - [~] T004.2 Record comparable image conversion/lifecycle timings and remaining bottlenecks under D001.
     - Depends on: T004.1, T020
     - Requirements: Requirement 1, Requirement 2, Requirement 3 (all acceptance criteria)
-    - Files: `verification.md`, `benchmark-protocol.md`, `performance-results.md`, `performance-results.json`
+    - Files: `verification.md`, `performance-results.md`, `t004-p07-diagnostic-results.md/json`,
+      `t004-p07-diagnostic-validation.json`, `t004-p07-diagnostic-evidence/`,
+      `t004-p07-first-show-breakdown.svg`, `t004-p07-corrected-diagnostic-plan.md`,
+      `t004-runtime-forensics-plan.md`, `t004-runtime-forensics-results.json`,
+      `src/Gui/BitmapFactory.cpp`, `src/Gui/ViewProviderImagePlane.cpp`,
+      `tests/src/Gui/ImagePerformanceTrace.h/.cpp`, `ImagePerformanceTraceTest.cpp`,
+      `ImagePerformanceProbe.py`, `benchmark_host_telemetry.py`, `run_image_diagnostic.py`,
+      `launch_image_diagnostic.py`, associated focused Python tests,
+      `storage-retirement-20261108.json`, `docs/runbooks/freecad-benchmark-storage.md`
     - Acceptance: Record comparable conversion and T020 GUI
       first-frame/hidden-first-show/repeat-show latency, initial visibility, pending/materialized
       texture counts, process/decoded/Coin image memory and D001 non-regression decisions for direct
       and 1/2-component fallback fixtures.
     - Evidence mode: artifact
-    - Evidence: Pending.
+    - Evidence: 2026-11-08: corrected exploratory P07 diagnostic completed exactly16 fresh GUI workers, all full fidelity/runtime checks passed, both39,985-binding audits passed, no retries/replacements/exclusions/pooling. Final408 native cases pass. Hidden eager/lazy medians: open4094/2071ms, firstshow85/1012ms, open+show4179/3082ms, RSS932/845MiB; lazy firstshow~80% read/decode. Earlier one-worker abort retained with15unexecuted; separate bounded2-process forensics proved only2knownRCC resource additions, no missing/changed native mappings; strict context equality corrected in newfreeze. Full raw/private data and sanitized reports retained. Hosttelemetry198samples; load/observercost limits explicit. This is NOT acceptance; original D001/results unchanged. P04/P05 comparative conversion evidence remains pending.
     - Candidate manifest: spec003-linux-x86_64-debug-candidate-20261106-v1; see
       validation-manifest.md and record actual execution provenance.
 
+    - Status: P07 diagnostic stage complete; T004.2 remains in progress. Next P04 direct/P05 fallback comparative construction and qualification; P01/P07 acceptance remains outstanding.
   - [ ] T004.3 Record per-change parser and tree comparison or reviewed exclusions.
     - Depends on: T004.2, T005, T007
     - Requirements: Requirement 3 AC1–AC5; Requirement 4 AC1–AC4; Requirement 6 AC1–AC4

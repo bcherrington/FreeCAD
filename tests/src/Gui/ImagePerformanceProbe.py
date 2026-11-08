@@ -29,6 +29,100 @@ def require(condition, message):
         raise RuntimeError(message)
 
 
+class RuntimeReceiptError(RuntimeError):
+    """Preserve the observed module difference when qualification fails late."""
+
+    def __init__(self, observed, expected):
+        super().__init__("Loaded arm libraries differ from qualification")
+        self.receipt = {
+            "stage": "runtime-provenance",
+            "observed_module_sha256": observed,
+            "expected_module_sha256": expected,
+            "additional_modules": sorted(observed.keys() - expected.keys()),
+            "missing_modules": sorted(expected.keys() - observed.keys()),
+            "changed_modules": sorted(
+                name
+                for name in observed.keys() & expected.keys()
+                if observed[name] != expected[name]
+            ),
+            "scope": "build-relative file names and hashes; no model values or absolute locators",
+        }
+
+
+def verify_runtime_modules(observed, expected):
+    if observed != expected:
+        raise RuntimeReceiptError(observed, expected)
+
+
+def diagnostic_frame_timing(points, before, after):
+    """Disjoint wall partitions and inclusive native spans, never a GPU upload claim."""
+    order = (
+        "started",
+        "operation_returned",
+        "redraw_requested",
+        "swap_callback",
+        "glfinish_started",
+        "finished",
+    )
+    require(
+        all(points[a] <= points[b] for a, b in zip(order, order[1:])),
+        "Diagnostic clock order changed",
+    )
+    require(after["diagnostic_active_intervals"] == 0, "Native diagnostic interval still active")
+    native = {}
+    for phase in ("load", "decode", "convert", "render"):
+        for suffix in ("ns", "calls"):
+            key = "diagnostic_" + phase + "_" + suffix
+            value = after[key] - before[key]
+            require(value >= 0, "Native diagnostic counter moved backwards")
+            native[phase + "_" + suffix] = value
+    attempts = after["load_attempts"] - before["load_attempts"]
+    empty = after["empty_load_calls"] - before["empty_load_calls"]
+    require(attempts >= 0 and empty >= 0, "Image lifecycle counter moved backwards")
+    require(native["render_calls"] > 0, "Native render diagnostic hook has no coverage")
+    require(
+        native["load_calls"] == attempts + empty
+        and native["decode_calls"] == attempts
+        and native["convert_calls"] == attempts + empty,
+        "Native image diagnostic hooks differ from lifecycle coverage",
+    )
+    require(
+        all(
+            native[p + "_calls"] == 0 or native[p + "_ns"] > 0
+            for p in ("load", "decode", "convert", "render")
+        ),
+        "Native diagnostic hook has no elapsed time",
+    )
+    wall = {
+        name: (points[b] - points[a]) / 1e6
+        for name, a, b in (
+            ("synchronous_operation_ms", "started", "operation_returned"),
+            ("setup_to_redraw_ms", "operation_returned", "redraw_requested"),
+            ("redraw_to_swap_callback_ms", "redraw_requested", "swap_callback"),
+            ("callback_to_completed_frame_ms", "swap_callback", "finished"),
+        )
+    }
+    wall["glfinish_ms"] = (points["finished"] - points["glfinish_started"]) / 1e6
+    total = (points["finished"] - points["started"]) / 1e6
+    overlap = after["diagnostic_nested_same_phase"] or after["diagnostic_render_image_overlap"]
+    # load includes decode and convert; glFinish is within the final wall partition.
+    # Only non-overlapping native decode/conversion/render spans enter this residual.
+    residual = (
+        total
+        - (native["decode_ns"] + native["convert_ns"] + native["render_ns"]) / 1e6
+        - wall["glfinish_ms"]
+    )
+    return {
+        "clock_points_ns": points,
+        "wall_partitions_ms": wall,
+        "native_inclusive_counters": native,
+        "frame_ms": total,
+        "overlapping_native_spans": overlap,
+        "unattributed_ms": residual if not overlap and residual >= 0 else None,
+        "scope": "load contains decode/conversion; render is Coin CPU/driver submission, not GPU duration; residual includes other CPU/Qt/events/waits; open rendering before observer registration is unobserved",
+    }
+
+
 def runtime_receipt(context, qualification):
     """Bind observed application libraries and namespace to the frozen arm."""
     source = Path(os.environ["SPEC003_SOURCE_ROOT"])
@@ -104,10 +198,7 @@ def runtime_receipt(context, qualification):
             namespace_sha == context["namespace_sha256"][arm],
             "Namespace differs from qualification",
         )
-        require(
-            modules == context["runtime_module_sha256"][arm],
-            "Loaded arm libraries differ from qualification",
-        )
+        verify_runtime_modules(modules, context["runtime_module_sha256"][arm])
     return {"namespace_sha256": namespace_sha, "runtime_module_sha256": modules}
 
 
@@ -334,6 +425,7 @@ def run():
         value = json.loads(raw)
         require(value["storage_trace_balanced"], "Storage trace lost ownership identity")
         require(value["live_decoded_bytes"] == 0, "Image decode still live at boundary")
+        require(value["diagnostic_active_intervals"] == 0, "Diagnostic interval still active")
         return value
 
     # Quarter constructs a QSurfaceFormat rather than using defaultFormat().
@@ -391,7 +483,7 @@ def run():
     app.processEvents()
     visibility = context["initial_image_visibility"]
     require(trace.fc_image_trace_begin(visibility), "Trace initialization failed")
-    stages, frames, metrics = {}, {}, {}
+    stages, frames, metrics, diagnostics = {}, {}, {}, {}
     # Allocate and touch the single persistent CPU readback buffer before the
     # measurement window, so earlier stage captures cannot raise later RSS.
     pixels = (ctypes.c_ubyte * (1280 * 720 * 4))()
@@ -498,8 +590,9 @@ def run():
                 gl.glBindBuffer(0x88EB, buffer)
         return hashlib.sha256(pixels).hexdigest()
 
-    def completed_frame(label, started):
+    def completed_frame(label, started, operation_returned, before):
         finished, errors, accepting = [], [], [False]
+        points = {"started": started, "operation_returned": operation_returned}
         preceding = trace.fc_image_trace_render_count()
         ready = [bool(texture.getImage().hasData()) for texture in vrml_textures]
         readiness_render = [preceding]
@@ -526,6 +619,7 @@ def run():
             ):
                 return
             accepting[0] = True
+            points["swap_callback"] = time.perf_counter_ns()
             try:
                 with native_context():
                     require(
@@ -533,8 +627,10 @@ def run():
                         == QtOpenGLWidgets.QOpenGLWidget.UpdateBehavior.PartialUpdate,
                         "Post-swap capture requires preserved native framebuffer",
                     )
+                    points["glfinish_started"] = time.perf_counter_ns()
                     gl.glFinish()
                     finished.append(time.perf_counter_ns())
+                    points["finished"] = finished[0]
                     require(textures_ready(), "Required texture lost readiness")
                     require(native.isVisible() and main.isVisible(), "Native view is hidden")
                     require(native.devicePixelRatioF() == 1, "DPR must be one")
@@ -567,6 +663,7 @@ def run():
 
         native.frameSwapped.connect(callback, QtCore.Qt.ConnectionType.DirectConnection)
         try:
+            points["redraw_requested"] = time.perf_counter_ns()
             view.redraw()
             deadline = time.monotonic() + 10
             while not finished and not errors:
@@ -574,6 +671,7 @@ def run():
                 app.processEvents(QtCore.QEventLoop.ProcessEventsFlag.AllEvents, 5)
             if errors:
                 raise errors[0]
+            diagnostics[label] = diagnostic_frame_timing(points, before, stages[label])
             frames[label] = hash_captured_frame()
             return (finished[0] - started) / 1e6
         finally:
@@ -581,8 +679,10 @@ def run():
             for sensor in sensors:
                 sensor.detach()
 
+    before_open = snapshot()
     started = time.perf_counter_ns()
     doc = App.openDocument(str(fixture))
+    open_returned = time.perf_counter_ns()
     require(
         doc is not None and not doc.Restoring and not doc.Recomputing and not doc.mustExecute(),
         "Document restore/recompute did not complete",
@@ -645,7 +745,7 @@ def run():
             len(vrml_textures) == context["required_vrml_textures"], "VRML texture coverage changed"
         )
     require(trace.fc_image_trace_flush_tree(), "Final tree flush failed")
-    metrics["gui_open_frame_ms"] = completed_frame("open", started)
+    metrics["gui_open_frame_ms"] = completed_frame("open", started, open_returned, before_open)
     require(stages["open"]["restore_finished_signals"] == 1, "Missing restore completion")
     require(stages["open"]["open_finished_signals"] == 1, "Missing open completion")
     require(stages["open"]["required_tree_flushes"] == 1, "Missing required tree flush")
@@ -656,14 +756,22 @@ def run():
         )
     if context["scenario"] == "hidden-first-show-repeat":
         require(target is not None and not target.ViewObject.Visibility, "Hidden target required")
+        before_show = snapshot()
         started = time.perf_counter_ns()
         target.ViewObject.Visibility = True
-        metrics["first_show_frame_ms"] = completed_frame("first_show", started)
+        shown = time.perf_counter_ns()
+        metrics["first_show_frame_ms"] = completed_frame("first_show", started, shown, before_show)
+        before_hide = snapshot()
+        hide_started = time.perf_counter_ns()
         target.ViewObject.Visibility = False
-        completed_frame("repeat_hide", time.perf_counter_ns())
+        completed_frame("repeat_hide", hide_started, time.perf_counter_ns(), before_hide)
+        before_repeat = snapshot()
         started = time.perf_counter_ns()
         target.ViewObject.Visibility = True
-        metrics["repeat_show_frame_ms"] = completed_frame("repeat_show", started)
+        shown = time.perf_counter_ns()
+        metrics["repeat_show_frame_ms"] = completed_frame(
+            "repeat_show", started, shown, before_repeat
+        )
         metrics["open_plus_first_show_ms"] = (
             metrics["gui_open_frame_ms"] + metrics["first_show_frame_ms"]
         )
@@ -758,7 +866,9 @@ def run():
                 trace.fc_image_trace_replace_field(field, width, height, changed, len(changed)),
                 "Coverage texture replacement failed",
             )
-            completed_frame("coverage_witness", time.perf_counter_ns())
+            witness_before = snapshot()
+            witness_started = time.perf_counter_ns()
+            completed_frame("coverage_witness", witness_started, witness_started, witness_before)
             require(
                 frames["coverage_witness"] != original,
                 "Selected image does not contribute to native frame",
@@ -768,7 +878,11 @@ def run():
                 trace.fc_image_trace_replace_field(field, width, height, expected, len(expected)),
                 "Reference texture replacement failed",
             )
-        completed_frame("independent_reference", time.perf_counter_ns())
+        reference_before = snapshot()
+        reference_started = time.perf_counter_ns()
+        completed_frame(
+            "independent_reference", reference_started, reference_started, reference_before
+        )
         require(
             frames["independent_reference"] == original,
             "Independent native reference frame differs",
@@ -841,6 +955,10 @@ def run():
             "scope": "driver allocation effects included in final process RSS; no GPU residency claim",
         },
         boundary_snapshots=stages,
+        diagnostic_only=True,
+        acceptance_eligible=False,
+        diagnostic_timeline=diagnostics,
+        owned_namespace_pid=os.getpid(),
         frame_sha256=frames,
         qualification_only=qualification,
         effective_configuration=configuration,
@@ -921,6 +1039,8 @@ def main_command():
             "exception_type": type(exc).__name__,
             "qualification_only": True,
         }
+        if isinstance(exc, RuntimeReceiptError):
+            result["runtime_failure_receipt"] = exc.receipt
     Path(os.environ["SPEC003_RESULT_FILE"]).write_text(json.dumps(result, indent=2) + "\n")
 
 
@@ -942,6 +1062,8 @@ def main():
             "exception_type": type(exc).__name__,
             "qualification_only": True,
         }
+        if isinstance(exc, RuntimeReceiptError):
+            result["runtime_failure_receipt"] = exc.receipt
         code = 1
     library = ctypes.CDLL(os.environ["SPEC003_TRACE_LIBRARY"])
     library.fc_image_trace_watch_renderer.argtypes = [ctypes.c_void_p]

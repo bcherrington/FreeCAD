@@ -1,0 +1,46 @@
+{
+  "schema": "freecad-spec003-runtime-forensics-results/v1",
+  "status": "complete",
+  "processes": 2,
+  "retries": 0,
+  "performance_values_accepted_or_reported": false,
+  "conclusion": "Stale mapped-runtime expectation omitted two known Qt resource collections; no missing or changed original native mappings",
+  "additional_resources": [
+    "Mod/BIM/Arch_rc.rcc",
+    "Mod/Draft/Draft_rc.rcc"
+  ],
+  "arms": {
+    "baseline": {
+      "additional_files": [
+        "Mod/BIM/Arch_rc.rcc",
+        "Mod/Draft/Draft_rc.rcc"
+      ],
+      "missing_files": [],
+      "changed_files": [],
+      "observed_file_count": 16,
+      "all_observed_files_match_qualified_build": true,
+      "resource_sha256": {
+        "Mod/BIM/Arch_rc.rcc": "5c3a89e808e859d9bea5fc14cf306bd980912733fc4e82738a5476da46ffdbe6",
+        "Mod/Draft/Draft_rc.rcc": "fd427a9cabd67571c95da984c2e8a8974f7a41380708407e9b07263ca6c9109b"
+      }
+    },
+    "change": {
+      "additional_files": [
+        "Mod/BIM/Arch_rc.rcc",
+        "Mod/Draft/Draft_rc.rcc"
+      ],
+      "missing_files": [],
+      "changed_files": [],
+      "observed_file_count": 16,
+      "all_observed_files_match_qualified_build": true,
+      "resource_sha256": {
+        "Mod/BIM/Arch_rc.rcc": "5c3a89e808e859d9bea5fc14cf306bd980912733fc4e82738a5476da46ffdbe6",
+        "Mod/Draft/Draft_rc.rcc": "fd427a9cabd67571c95da984c2e8a8974f7a41380708407e9b07263ca6c9109b"
+      }
+    }
+  },
+  "audit_before_hashes": 39974,
+  "audit_after_hashes": 39974,
+  "freeze_sha256": "68b75b9c711c96a1ba943b9d5a73236c9bc3ca42b981f9ed5092dc88dee266a2",
+  "qualification_scope": "Strict old comparison intentionally failed with structured receipt; exact runtime difference identified. No timing acceptance or whitelist relaxation."
+}

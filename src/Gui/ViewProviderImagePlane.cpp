@@ -223,6 +223,9 @@ void ViewProviderImagePlane::loadImage(ImageSizePolicy sizePolicy)
     FC_IMAGE_TRACE(provider(this, false));
     QImage impQ;
     if (!fileName.empty()) {
+#ifdef FC_IMAGE_PERFORMANCE_TRACE
+        ImagePerformanceTrace::Interval traceDecode(ImagePerformanceTrace::Phase::Decode);
+#endif
         if (isSvgFile(fileName.c_str())) {
             impQ = loadSvg(fileName.c_str());
         }

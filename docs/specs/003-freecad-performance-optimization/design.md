@@ -455,3 +455,29 @@ test-harness blind spot exposed by the scalar arm; archive policy is unchanged.
 - [Optional investigations](../../backlog/spec003-follow-ups.md)
 - [MoE findings](verification.md#moe-review-findings)
 - [Migration input](legacy-spec.md)
+
+
+## Diagnostic Intervals And Runtime Resources
+
+T004.2 adds developer-only native wall spans for image load, read/decode,
+conversion/Coin copy and owned Coin renderer callbacks. Load is inclusive;
+reentrant render spans use a bounded stack and invalidate on overflow. Python
+records disjoint operation/setup/swap/completion intervals and a separate glFinish
+subset. Residuals are reported only for non-overlapping native spans; they are not
+pure scheduling or GPU-upload measurements. All new production-source hooks are
+guarded by the existing opt-in BUILD_IMAGE_PERFORMANCE_PROBE; normal builds omit
+them. Native source line endings are preserved.
+
+Runtime receipts cover all mapped build files, including Qt RCC resources, while
+retaining exact hash equality and foreign-core-library rejection. The retained
+BIM/Draft build maps two RCC files absent from the older T020 context; separately
+bounded forensics established this precise expectation correction. Future failures
+preserve their observed/expected relative-file maps and recomputable differences.
+
+Host telemetry uses an isolated, hash-bound host interpreter with actual pidfd
+capability; native workers retain locked Pixi. Source/runtime/package inventories
+and initial shader/XDG cache contents are checked before collection; legitimate
+cache mutation is recorded afterwards. Observer CPU cost and one-second resolution
+limit causal attribution and must be qualified before acceptance. The current
+[diagnostic report](t004-p07-diagnostic-results.md) establishes no product budget
+or production acceptance. Storage follows the promoted benchmark-storage runbook.

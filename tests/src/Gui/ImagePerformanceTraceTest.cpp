@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: LGPL-2.1-or-later
 #include <array>
+#include <stdexcept>
 #if defined(__linux__)
 # include <sys/resource.h>
 #endif
@@ -51,6 +52,67 @@ private Q_SLOTS:
         QTest::newRow("gray16-4096") << int(QImage::Format_Grayscale16) << 4096;
     }
 
+    void intervalLifetime()
+    {
+        Trace::begin(-1);
+        {
+            Trace::Load load;
+            QVERIFY(!fc_image_trace_begin(-1));
+            try {
+                Trace::Interval decode(Trace::Phase::Decode);
+                throw std::runtime_error("decode failure witness");
+            }
+            catch (const std::runtime_error&) {
+            }
+            QCOMPARE(Trace::snapshot()["diagnostic_decode_calls"].toInteger(), 1);
+            QCOMPARE(Trace::snapshot()["diagnostic_active_intervals"].toInteger(), 1);
+        }
+        const auto result = Trace::snapshot();
+        QCOMPARE(result["diagnostic_load_calls"].toInteger(), 1);
+        QCOMPARE(result["diagnostic_active_intervals"].toInteger(), 0);
+        QVERIFY(result["storage_trace_balanced"].toBool());
+        QVERIFY(!result["diagnostic_nested_same_phase"].toBool());
+        QVERIFY(!result["diagnostic_render_image_overlap"].toBool());
+        Trace::begin(-1);
+        QCOMPARE(Trace::snapshot()["diagnostic_decode_ns"].toInteger(), 0);
+    }
+
+    void nestedRenderLifetime()
+    {
+        Trace::begin(-1);
+        Trace::renderInterval(true);
+        Trace::renderInterval(true);
+        QCOMPARE(Trace::snapshot()["diagnostic_active_intervals"].toInteger(), 2);
+        QVERIFY(!fc_image_trace_watch_renderer(nullptr));
+        Trace::renderInterval(false);
+        Trace::renderInterval(false);
+        const auto result = Trace::snapshot();
+        QCOMPARE(result["diagnostic_active_intervals"].toInteger(), 0);
+        QCOMPARE(result["diagnostic_render_calls"].toInteger(), 2);
+        QVERIFY(result["diagnostic_nested_same_phase"].toBool());
+        QVERIFY(result["storage_trace_balanced"].toBool());
+        QVERIFY(fc_image_trace_watch_renderer(nullptr));
+        Trace::begin(-1);
+    }
+
+    void renderOverflowInvalidatesAndDrains()
+    {
+        Trace::begin(-1);
+        for (int i = 0; i < 65; ++i) {
+            Trace::renderInterval(true);
+        }
+        QVERIFY(!Trace::snapshot()["storage_trace_balanced"].toBool());
+        QVERIFY(!fc_image_trace_watch_renderer(nullptr));
+        for (int i = 0; i < 65; ++i) {
+            Trace::renderInterval(false);
+        }
+        QCOMPARE(Trace::snapshot()["diagnostic_active_intervals"].toInteger(), 0);
+        QVERIFY(!Trace::snapshot()["storage_trace_balanced"].toBool());
+        QVERIFY(fc_image_trace_watch_renderer(nullptr));
+        Trace::begin(-1);
+        QVERIFY(Trace::snapshot()["storage_trace_balanced"].toBool());
+    }
+
     void formats()
     {
         QFETCH(int, format);
@@ -91,6 +153,7 @@ private Q_SLOTS:
                 Trace::Field field(converted);
                 Gui::BitmapFactory().convert(source, converted);
                 auto result = Trace::snapshot();
+                QCOMPARE(result["diagnostic_convert_calls"].toInteger(), 1);
                 QCOMPARE(result["live_decoded_bytes"].toInteger(), source.sizeInBytes());
                 QCOMPARE(result["live_coin_bytes"].toInteger(), rgbaBytes);
                 QCOMPARE(result["coin_image_bytes"].toInteger(), rgbaBytes);

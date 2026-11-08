@@ -2,6 +2,7 @@
 #include "ImagePerformanceTrace.h"
 
 #include <algorithm>
+#include <array>
 #include <atomic>
 #include <map>
 #include <mutex>
@@ -35,6 +36,15 @@ std::map<const void*, bool> providers;
 qint64 decodedPeak = 0, coinPeak = 0, attempts = 0, unavailable = 0;
 qint64 successful = 0, failed = 0, emptyCalls = 0;
 qint64 restored = 0, opened = 0, flushes = 0;
+struct Timing
+{
+    qint64 nanoseconds = 0;
+    qint64 calls = 0;
+    int active = 0;
+    int maximumDepth = 0;
+};
+std::array<Timing, 4> timings;
+bool renderImageOverlap = false;
 fastsignals::scoped_connection restoreConnection, openConnection;
 
 qint64 coinBytes()
@@ -78,6 +88,7 @@ void begin(int initialVisibility)
 {
     std::lock_guard<std::mutex> lock(mutex);
     if (!fields.empty() || !images.empty() || !providers.empty() || loadDepth != 0
+        || std::any_of(timings.begin(), timings.end(), [](const Timing& t) { return t.active; })
         || initialVisibility < -1 || initialVisibility > 1) {
         throw std::runtime_error("Invalid image trace reset");
     }
@@ -86,6 +97,8 @@ void begin(int initialVisibility)
     visibility = initialVisibility;
     decodedPeak = coinPeak = attempts = unavailable = restored = opened = flushes = 0;
     successful = failed = emptyCalls = 0;
+    timings = {};
+    renderImageOverlap = false;
     restoreConnection = App::GetApplication().signalFinishRestoreDocument.connect(
         [](const App::Document&) { ++restored; }
     );
@@ -95,6 +108,38 @@ void begin(int initialVisibility)
 int initialVisibility()
 {
     return enabled ? visibility : -1;
+}
+
+bool beginInterval(Phase phase)
+{
+    std::lock_guard<std::mutex> lock(mutex);
+    if (!enabled || (phase == Phase::Convert && loadDepth == 0)) {
+        return false;
+    }
+    const auto index = static_cast<std::size_t>(phase);
+    if (phase == Phase::Render) {
+        renderImageOverlap |= timings[0].active || timings[1].active || timings[2].active;
+    }
+    else {
+        renderImageOverlap |= timings[3].active != 0;
+    }
+    auto& timing = timings.at(index);
+    ++timing.active;
+    timing.maximumDepth = std::max(timing.maximumDepth, timing.active);
+    return true;
+}
+
+void endInterval(Phase phase, qint64 nanoseconds)
+{
+    std::lock_guard<std::mutex> lock(mutex);
+    auto& timing = timings.at(static_cast<std::size_t>(phase));
+    if (timing.active <= 0 || nanoseconds < 0) {
+        balanced = false;
+        return;
+    }
+    --timing.active;
+    ++timing.calls;
+    timing.nanoseconds += nanoseconds;
 }
 
 void registerField(const SoSFImage* field)
@@ -196,7 +241,7 @@ QJsonObject snapshot()
         (void)field;
         materialized += data.size > 0;
     }
-    return {
+    QJsonObject result {
         {"decoded_image_bytes", decodedPeak},
         {"coin_image_bytes", coinPeak},
         {"live_decoded_bytes", decodedBytes()},
@@ -214,6 +259,20 @@ QJsonObject snapshot()
         {"required_tree_flushes", flushes},
         {"storage_trace_balanced", balanced}
     };
+    const std::array<const char*, 4> names {"load", "decode", "convert", "render"};
+    qint64 active = 0;
+    bool nested = false;
+    for (std::size_t i = 0; i < timings.size(); ++i) {
+        const auto prefix = QStringLiteral("diagnostic_") + QString::fromLatin1(names[i]);
+        result.insert(prefix + QStringLiteral("_ns"), timings[i].nanoseconds);
+        result.insert(prefix + QStringLiteral("_calls"), timings[i].calls);
+        active += timings[i].active;
+        nested |= timings[i].maximumDepth > 1;
+    }
+    result.insert(QStringLiteral("diagnostic_active_intervals"), active);
+    result.insert(QStringLiteral("diagnostic_nested_same_phase"), nested);
+    result.insert(QStringLiteral("diagnostic_render_image_overlap"), renderImageOverlap);
+    return result;
 }
 }  // namespace Gui::ImagePerformanceTrace
 
@@ -318,20 +377,67 @@ namespace
 {
 SoRenderManager* watchedRenderer = nullptr;
 std::atomic<unsigned long long> renderCount {0};
+struct RenderInterval
+{
+    QElapsedTimer timer;
+    bool traced = false;
+};
+std::array<RenderInterval, 64> renderIntervals;
+std::size_t renderDepth = 0;
+std::size_t renderOverflow = 0;
+void startedRender(void*, SoRenderManager*)
+{
+    Gui::ImagePerformanceTrace::renderInterval(true);
+}
 void completedRender(void*, SoRenderManager*)
 {
+    Gui::ImagePerformanceTrace::renderInterval(false);
     ++renderCount;
 }
 }  // namespace
+void Gui::ImagePerformanceTrace::renderInterval(bool enter)
+{
+    if (enter) {
+        if (renderDepth == renderIntervals.size()) {
+            ++renderOverflow;
+            std::lock_guard<std::mutex> lock(mutex);
+            balanced = false;
+            return;
+        }
+        auto& interval = renderIntervals[renderDepth++];
+        interval.traced = beginInterval(Phase::Render);
+        if (interval.traced) {
+            interval.timer.start();
+        }
+    }
+    else if (renderOverflow) {
+        --renderOverflow;
+    }
+    else if (renderDepth) {
+        auto& interval = renderIntervals[--renderDepth];
+        if (interval.traced) {
+            endInterval(Phase::Render, interval.timer.nsecsElapsed());
+        }
+    }
+    else {
+        std::lock_guard<std::mutex> lock(mutex);
+        balanced = false;
+    }
+}
 extern "C" bool fc_image_trace_watch_renderer(void* pointer)
 {
     try {
+        if (renderDepth || renderOverflow) {
+            return false;
+        }
         if (watchedRenderer) {
+            watchedRenderer->removePreRenderCallback(startedRender, nullptr);
             watchedRenderer->removePostRenderCallback(completedRender, nullptr);
         }
         watchedRenderer = static_cast<SoRenderManager*>(pointer);
         renderCount = 0;
         if (watchedRenderer) {
+            watchedRenderer->addPreRenderCallback(startedRender, nullptr);
             watchedRenderer->addPostRenderCallback(completedRender, nullptr);
         }
         return true;

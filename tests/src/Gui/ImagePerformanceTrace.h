@@ -2,6 +2,7 @@
 #pragma once
 
 #include <FCGlobal.h>
+#include <QElapsedTimer>
 #include <QImage>
 #include <QJsonObject>
 
@@ -23,6 +24,43 @@ GuiExport void loadContext(bool enter);
 GuiExport const void* addDecoded(const QImage&);
 GuiExport void removeDecoded(const void*, const QImage&);
 
+enum class Phase
+{
+    Load,
+    Decode,
+    Convert,
+    Render
+};
+GuiExport bool beginInterval(Phase);
+GuiExport void endInterval(Phase, qint64 nanoseconds);
+GuiExport void renderInterval(bool enter);
+
+class Interval
+{
+public:
+    explicit Interval(Phase phase)
+        : phase(phase)
+        , active(beginInterval(phase))
+    {
+        if (active) {
+            timer.start();
+        }
+    }
+    ~Interval()
+    {
+        if (active) {
+            endInterval(phase, timer.nsecsElapsed());
+        }
+    }
+    Interval(const Interval&) = delete;
+    Interval& operator=(const Interval&) = delete;
+
+private:
+    Phase phase;
+    bool active;
+    QElapsedTimer timer;
+};
+
 class Load
 {
 public:
@@ -36,6 +74,9 @@ public:
     }
     Load(const Load&) = delete;
     Load& operator=(const Load&) = delete;
+
+private:
+    Interval interval {Phase::Load};
 };
 
 class Decoded
