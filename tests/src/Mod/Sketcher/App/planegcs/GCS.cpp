@@ -50,3 +50,24 @@ TEST_F(GCSTest, clearConstraints)  // NOLINT
     // Assert
     EXPECT_EQ(0, System()->getNumberOfConstraints());
 }
+
+TEST_F(GCSTest, failedSubsystemIsNotHiddenByLaterSuccess)
+{
+    double x = 0, y = 0, targetX = 40, targetY = 0;
+    auto* system = System();
+    system->addConstraintEqual(&x, &targetX, 1);
+    system->addConstraintEqual(&y, &targetY, 2);
+    GCS::VEC_pD unknowns {&x, &y};
+    system->declareUnknowns(unknowns);
+    system->initSolution();
+    // The moved X subsystem cannot converge in one LM iteration; the independent
+    // Y subsystem is already satisfied. Its success must not erase the X failure.
+    system->maxIter = 1;
+    system->sketchSizeMultiplier = false;
+    EXPECT_NE(system->solve(GCS::LevenbergMarquardt), GCS::SolveStatus::Success);
+    system->maxIter = 100;
+    ASSERT_EQ(system->solve(GCS::DogLeg), GCS::SolveStatus::Success);
+    system->applySolution();
+    EXPECT_NEAR(x, 40, 1e-9);
+    EXPECT_NEAR(y, 0, 1e-9);
+}

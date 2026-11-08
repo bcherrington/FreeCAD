@@ -1939,6 +1939,11 @@ SolveStatus System::solve(Algorithm alg, bool isRedundantsolving)
         else if (subSystemsAux[cid]) {
             status = solve(subSystemsAux[cid], alg, isRedundantsolving);
         }
+        // A later independent component must not hide a failed solve. Preserve
+        // the first non-success result so Sketch can use its normal fallback.
+        if (status != SolveStatus::Success) {
+            break;
+        }
     }
     if (status == SolveStatus::Success) {
         for (std::set<Constraint*>::const_iterator constr = redundant.begin();
