@@ -60,7 +60,7 @@ last_reviewed: 2026-11-08
 - **Spec:** `docs/specs/004-sketcher-external-reference-reattachment/`
 - **Title:** Sketcher external reference reattachment
 - **Final spec commit:** `96924c50a2`
-- **Closure cleanup commit:** pending actual archive commit; resolved after commit creation
+- **Closure cleanup commit:** `c675dcde8c6ccaaae2b4710badf0ca46bdbb00af`
 - **Closure action:** retained-as-history
 - **Durable docs updated:**
   - `src/Mod/Sketcher/App/SketchObject.pyi`
@@ -83,6 +83,9 @@ last_reviewed: 2026-11-08
 - **Source commits:** Native helper `454fe91954`; separate GCS status/fallback fix
   `42144bc1e9`; public binding, lifecycle tests and promotion `96924c50a2`.
   Docs implementation/promotion commit: `6bfa619`.
+  Docs archive commit: `3f3df11206c9e264e4b871b6539ba4ae197c7a56`.
+  Actual cleanup identifiers are reconciled after commit creation; no future
+  commit identity is claimed.
 - **Residual risks:** B012 owns the isolated Measurement handler-null test; B013
   owns the Part loft-selector test using Part line profiles. Their source modules
   were not changed for this API and their scenarios do not invoke Sketcher.

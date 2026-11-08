@@ -187,7 +187,8 @@ into those items, and no release/upstream acceptance is inferred.
 ## Readiness Decision
 
 Local implementation, validation and promotion complete. Package retained as
-history; actual cleanup commit metadata is reconciled through T006. Whole-project green CI and
+history; actual cleanup commit metadata is reconciled in the closure log and
+completion receipt. T001–T006 are complete. Whole-project green CI and
 upstream release acceptance are not claimed; B012–B014 own those delivery gates.
 
 ## Related Artifacts

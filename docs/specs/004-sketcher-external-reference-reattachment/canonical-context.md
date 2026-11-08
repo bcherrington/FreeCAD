@@ -179,8 +179,9 @@ are authoritative. No actual maintainer/upstream release approval is implied.
 
 ## Smallest Next Action
 
-Retain this package as historical evidence; reconcile actual archive metadata
-through T006 and use the promoted reference for current behavior.
+T001–T006 are complete. Retain this package as historical evidence and use the
+promoted reference for current behavior. Actual source/archive commit identities
+are recorded in the closure log and completion receipt.
 B012/B013 own the unrelated full-project test failures and B014 owns human,
 platform and clean separate-worktree PR preparation. Preserve the shared branch
 and unrelated work. No remaining local API implementation task is hidden in

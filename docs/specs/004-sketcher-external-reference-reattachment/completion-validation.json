@@ -467,6 +467,35 @@
     "new_reference_backlog_review_lint": {
       "errors": 0,
       "warnings": 0
+    },
+    "closure_check": {
+      "ready": true,
+      "blockers": []
+    },
+    "archive_index": {
+      "errors": 0,
+      "warnings": 0,
+      "actual_commits_verified": true
+    },
+    "evidence_quality": {
+      "concrete_tasks": 6,
+      "errors": 0,
+      "warnings": 0
+    },
+    "closure_risk": {
+      "risk": "low",
+      "findings": 0,
+      "tool_limit": "Combined closure_risk_review incorrectly resolves nested docs Git root to docs/docs/history, even with explicit repo_root. Standalone archive_index reports zero findings, closure_check is ready, and direct path/Git-commit checks verify actual history. No repository layout was changed to accommodate that advisory resolver blind spot."
+    },
+    "final_links": {
+      "markdown_files": 19,
+      "links_anchors": 92,
+      "errors": 0
     }
-  }
+  },
+  "implementation_commit": "96924c50a2f3e2b6452ab4c3cb2d59a7a64fa247",
+  "docs_implementation_commit": "6bfa619b9b8ec93430d48d024ab7aade91f0b9ac",
+  "closure_cleanup_commit": "c675dcde8c6ccaaae2b4710badf0ca46bdbb00af",
+  "docs_archive_commit": "3f3df11206c9e264e4b871b6539ba4ae197c7a56",
+  "package_disposition": "retained-as-history"
 }

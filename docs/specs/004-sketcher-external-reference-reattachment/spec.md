@@ -46,8 +46,9 @@ Current behavior is promoted to
 and generated help. See [T004 qualification](t004-qualification.md),
 [the completion receipt](completion-validation.json), and
 [the private delivery review](../../reviews/sketcher-reattachment-delivery-review.md).
-This package is retained in place as history; T006 is reconciling the actual
-archive commit metadata. The current API contract belongs in the durable reference.
+T001–T006 are complete. This package is retained in place as history, with actual
+archive commit metadata recorded in the closure log and completion receipt.
+The current API contract belongs in the durable reference.
 B014 owns separate-worktree/human/platform upstream preparation. The shared
 checkout and unrelated work remain preserved. No actual maintainer acceptance,
 MCP bridge delivery or released upstream API is claimed.
