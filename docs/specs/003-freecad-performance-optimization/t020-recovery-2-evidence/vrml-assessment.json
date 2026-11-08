@@ -1,0 +1,92 @@
+{
+  "schema": "freecad-spec003-cell-assessment/v1",
+  "comparison_id": "P07",
+  "fixture_id": "TestVRMLTextures",
+  "context": "open-only-v1",
+  "execution_sha256": "4f8baccb884d39d4be4d363ebb7f18cfa501845d576b3d5dfadf927432ddb5e3",
+  "observations_sha256": "056ef0a8f8fcb4f3974460ae5d6ecc9276a2be4ba1a7c4a60a49b7f277e2aff0",
+  "assessor_sha256": "e4d6ac60bd827f9e184736182ad9c244473feea66f64d705e15a41414590d581",
+  "measured_pairs": 20,
+  "status": "inconclusive",
+  "metrics": {
+    "gui_open_frame_ms": {
+      "baseline": {
+        "median": 2786.6727874999997,
+        "p95": 2899.6662925500004,
+        "iqr": 1621.1319815,
+        "iqr_over_median": 0.5817446485901783,
+        "maximum": 2929.234825
+      },
+      "change": {
+        "median": 2824.1704595,
+        "p95": 2931.5033381999997,
+        "iqr": 1430.7047437499996,
+        "iqr_over_median": 0.5065929143679578,
+        "maximum": 3021.146406
+      },
+      "kind": "non_regression",
+      "thresholds_passed": true,
+      "status": "inconclusive"
+    },
+    "peak_rss_bytes": {
+      "baseline": {
+        "median": 392083456.0,
+        "p95": 392184012.8,
+        "iqr": 220160.0,
+        "iqr_over_median": 0.0005615131080664623,
+        "maximum": 392265728
+      },
+      "change": {
+        "median": 391096320.0,
+        "p95": 391354777.6,
+        "iqr": 158720.0,
+        "iqr_over_median": 0.0004058335297043961,
+        "maximum": 391401472
+      },
+      "kind": "resource",
+      "maximum_increase_allowed": 39226572.800000004,
+      "thresholds_passed": true,
+      "status": "pass"
+    },
+    "coin_image_bytes": {
+      "baseline": {
+        "median": 0.0,
+        "p95": 0.0,
+        "iqr": 0.0,
+        "iqr_over_median": 0,
+        "maximum": 0
+      },
+      "change": {
+        "median": 0.0,
+        "p95": 0.0,
+        "iqr": 0.0,
+        "iqr_over_median": 0,
+        "maximum": 0
+      },
+      "kind": "resource",
+      "maximum_increase_allowed": 1048576,
+      "thresholds_passed": true,
+      "status": "pass"
+    },
+    "decoded_image_bytes": {
+      "baseline": {
+        "median": 0.0,
+        "p95": 0.0,
+        "iqr": 0.0,
+        "iqr_over_median": 0,
+        "maximum": 0
+      },
+      "change": {
+        "median": 0.0,
+        "p95": 0.0,
+        "iqr": 0.0,
+        "iqr_over_median": 0,
+        "maximum": 0
+      },
+      "kind": "resource",
+      "maximum_increase_allowed": 1048576,
+      "thresholds_passed": true,
+      "status": "pass"
+    }
+  }
+}

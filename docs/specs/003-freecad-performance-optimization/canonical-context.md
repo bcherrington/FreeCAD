@@ -4,7 +4,7 @@ doc_type: spec
 artifact_type: canonical-context
 status: draft
 owner: local-developer
-last_reviewed: 2026-11-07
+last_reviewed: 2026-11-08
 ---
 
 # Canonical Context
@@ -37,10 +37,12 @@ historical notes override code, tests, policy or live evidence.
 | --- | --- | --- | --- |
 | requirements.md | Proposed acceptance | This package | Legacy FR/PR/SC aliases retained |
 | design.md | Current working approach | This package | Source/spec conflicts remain explicit until verified |
-| open-decisions.md | Authoritative decision status/ownership | D001–D003 | D001 protocol, D002 routing and D003 initial policy resolved; no runtime/final PR acceptance implied |
+| open-decisions.md | Authoritative decision status/ownership | D001–D005 | D001–D004 planning/selection resolved; D005: user retains P07; validation/first-use-tail criteria remain open; T022 precedes T004/T010 |
 | validation-manifest.md and validation-manifest.json | Candidate identity and evidence applicability | T019 initial local Linux candidate | Historical binaries ineligible; actual new-build/runtime receipt required |
 | benchmark-protocol.md; benchmark-plan.json; benchmark-runner.py | Predeclared measurement contract and bounded collector | T001/D001 | No FreeCAD probe, generated fixture, qualified arm or performance result claimed |
-| tasks.md | Four-phase delivery queue and explicit next action | This package | T012/T013/T003/T006/T014/T017/T007/T015/T016/T005/T018/T002 complete; T020 next; phase order and dependencies govern execution |
+| tasks.md | Four-phase delivery queue and explicit next action | This package | T012/T013/T003/T006/T014/T017/T007/T015/T016/T005/T018/T002 complete; T020 measurement/disposition complete; T022/D005 is the mandatory next gate before T004; phase order/dependencies govern execution |
+| performance-results.md; performance-results.json; t020-validation.json | Current aggregate two-campaign measurement/disposition and exact historical record links | T020; D001; D004; D005 | T020 evidence complete; recovery-2 valid but P07 rejected; no pooling, waiver or production acceptance |
+| t020-recovery-2-plan.md; performance-recovery-2-results.md; performance-recovery-2-results.json | Corrected-probe plan and completed measured outcomes | T020; D004 | Seven valid cells/336 observations, 42,290-hash audits; timing failures/inconclusive outcomes, resource passes; no P07 acceptance |
 | t012-validation.json | Local image extent/access qualification receipt | T012 plus actual working diff/source/binary hashes | No native GUI, calibration, full-format or performance acceptance implied |
 | t013-validation.json | Local calibrated image-plane lifecycle receipt | T013 plus actual source/new-test/diff/binary hashes | No native viewport, broad image qualification or performance acceptance implied |
 | t003-validation.json; t003-render-contact.png | Expanded byte/access/rendered fidelity receipt and visual artifact | T003 plus actual source/binary/context/output identities | Local native-X11 and offscreen software-GL framebuffer correctness; interactive frame/resource/performance and platform gates remain |
@@ -52,7 +54,7 @@ historical notes override code, tests, policy or live evidence.
 | t016-validation.json | Writer/alias/child-map and dependent CAD reference qualification | T016 plus exact source/new-test/diff/build/runtime/fixture identities | 281 naming/hash tests, 294 CTests, 34 Memcheck cases; two CAD save/reopen cycles with three forced recomputes; T005 records aggregate acceptance; T010 confirms final applicability |
 | t005-validation.json | Aggregate Requirement 4 / CP-005 acceptance and applicability audit | T005 at committed T016 root 95d1df147f / docs e3bf027 | 75 identity/integrity checks bind unchanged converter and final T016 source/binaries/dependencies/fixtures; reuses executed T015/T016 evidence; no new runtime pass |
 | t018-validation.json | Included-file document failure policy, injection and metadata/save audit | T018 plus actual test/build/runtime and generated fixture identities | Preserved empty/nonempty reader disposition, partial bytes/permissions/notifications and later-entry restoration; T002 records aggregate acceptance |
-| t002-validation.json | Aggregate included-file compatibility and direct byte/hook qualification | T002/T002.1/T002.2 at committed T018 base plus exact new test diff and final source/build/runtime/fixture identities | Four raw ZIP/reopened-file boundaries, six direct hook cases and all T018 document rows; 310 App/26 Reader/349 CTest/29 Memcheck; T020 performance next |
+| t002-validation.json | Aggregate included-file compatibility and direct byte/hook qualification | T002/T002.1/T002.2 at committed T018 base plus exact new test diff and final source/build/runtime/fixture identities | Four raw ZIP/reopened-file boundaries, six direct hook cases and all T018 document rows; 310 App/26 Reader/349 CTest/29 Memcheck; T020 later records rejected P07; T022/D005 now gates further comparisons |
 | baseline-status.md | Existing implementation and dated evidence | Baseline inventory only | Source presence does not set execution status |
 | traceability.md | Bidirectional context | This package | Partial coverage blocks closure |
 | verification.md | Revision/date-bound evidence | Named checks only | No blanket readiness inferred |
@@ -90,7 +92,9 @@ artifacts and the immutable manifest. Five old partial task states are pending
 remaining qualification; their imported observations are retained in the
 baseline inventory. T001 resolves D001 with a predeclared protocol; Phase 2
 has completed T012/T013/T003/T006 and the T014/T017/T007 tree subgroup. T015
-has completed numeric safety and T016 has qualified writer/alias/child and dependent CAD identity; T005 completes aggregate local compatibility. T018 qualifies the preserved document-level archive failure policy; T002 and its children complete aggregate included-file compatibility. All Phase 2 correctness subgroups are locally complete; T020 performance sampling is next under the existing D001/T019 contract. D002's B009 routing and B010/B011 optional investigations do not
+has completed numeric safety and T016 has qualified writer/alias/child and dependent CAD identity; T005 completes aggregate local compatibility. T018 qualifies the preserved document-level archive failure policy; T002 and its children complete aggregate included-file compatibility. All Phase 2 correctness subgroups are locally complete; The incomplete first campaign is preserved; the corrected campaign completed all
+required measurements and rejected P07 under D001. T020 measurement/disposition
+is complete; T022/D005 now gates material choice and evidence planning before T004. D002's B009 routing and B010/B011 optional investigations do not
 approve new behavior or waive any current MoE safety/measurement requirement.
 The original manifest's "remaining decisions" prose records its intake time;
 current status is always the active decision ledger.

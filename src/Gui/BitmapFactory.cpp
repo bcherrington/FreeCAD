@@ -45,6 +45,15 @@
 #include <Base/ConsoleObserver.h>
 
 #include "BitmapFactory.h"
+#ifdef FC_IMAGE_PERFORMANCE_TRACE
+# include "ImagePerformanceTrace.h"
+# define FC_IMAGE_TRACE(expression) ImagePerformanceTrace::expression
+#else
+# define FC_IMAGE_TRACE(expression) \
+     do { \
+     } while (false)
+#endif
+
 
 using namespace Gui;
 
@@ -849,10 +858,12 @@ void BitmapFactoryInst::convert(const QImage& p, SoSFImage& img) const
     if (p.isNull() || width <= 0 || height <= 0 || width > maxExtent || height > maxExtent
         || static_cast<std::size_t>(width) > maxBytes / numcomponents / height) {
         img.setValue(SbVec2s(0, 0), 0, nullptr);
+        FC_IMAGE_TRACE(updateField(&img));
         return;
     }
 
     if (convertDirect32BitImage(p, img)) {
+        FC_IMAGE_TRACE(updateField(&img));
         return;
     }
 
@@ -861,6 +872,9 @@ void BitmapFactoryInst::convert(const QImage& p, SoSFImage& img) const
     QImage::Format targetFormat = QImage::Format_RGBA8888;
 
     QImage reformattedImage = p.convertedTo(targetFormat);
+#ifdef FC_IMAGE_PERFORMANCE_TRACE
+    ImagePerformanceTrace::Decoded traceReformatted(reformattedImage);
+#endif
 
 #if QT_VERSION < QT_VERSION_CHECK(6, 9, 0)
     reformattedImage.mirror(/* horizontal= */ false, /* vertical= */ true);
@@ -870,11 +884,13 @@ void BitmapFactoryInst::convert(const QImage& p, SoSFImage& img) const
 
     if (reformattedImage.isNull()) {
         img.setValue(SbVec2s(0, 0), 0, nullptr);
+        FC_IMAGE_TRACE(updateField(&img));
         return;
     }
 
     const SbVec2s size(static_cast<short>(width), static_cast<short>(height));
     img.setValue(size, numcomponents, reformattedImage.constBits());
+    FC_IMAGE_TRACE(updateField(&img));
 }
 
 void BitmapFactoryInst::convert(const SoSFImage& p, QImage& img) const

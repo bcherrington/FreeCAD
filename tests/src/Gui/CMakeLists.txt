@@ -70,3 +70,18 @@ target_link_libraries(Gui_tests_run PRIVATE
 if(WIN32)
     target_compile_definitions(Gui_tests_run PRIVATE QUARTER_DLL)
 endif()
+
+option(BUILD_IMAGE_PERFORMANCE_PROBE "Build the opt-in Spec 003 image benchmark probe" OFF)
+if(BUILD_IMAGE_PERFORMANCE_PROBE)
+    setup_qt_test(ImagePerformanceTraceTest)
+    target_compile_definitions(ImagePlane_Tests_run PRIVATE FC_IMAGE_PERFORMANCE_TRACE)
+    target_sources(FreeCADGui PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/ImagePerformanceTrace.cpp)
+    set_source_files_properties(
+        ${PROJECT_SOURCE_DIR}/src/Gui/BitmapFactory.cpp
+        ${PROJECT_SOURCE_DIR}/src/Gui/ViewProviderImagePlane.cpp
+        DIRECTORY ${PROJECT_SOURCE_DIR}/src/Gui
+        PROPERTIES
+            COMPILE_DEFINITIONS FC_IMAGE_PERFORMANCE_TRACE
+            INCLUDE_DIRECTORIES ${CMAKE_CURRENT_SOURCE_DIR}
+    )
+endif()

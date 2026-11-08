@@ -1,0 +1,100 @@
+[
+  {
+    "artifact": "baseline-command-part-recovery-frozen-qualified-result.json",
+    "passed": true,
+    "qualification_only": true,
+    "commit": "c574d418c015972cbe4109983c289ce963d24b47",
+    "sha256": "5a0bc2a54d89a502cc2f64969e650856cdb7195e395fc083a2d18a0900c3059c"
+  },
+  {
+    "artifact": "baseline-command-private-recovery-frozen-qualified-result.json",
+    "passed": true,
+    "qualification_only": true,
+    "commit": "c574d418c015972cbe4109983c289ce963d24b47",
+    "sha256": "bf5147574108e4ec6b78562f75708fa0918592e19dafbafe25671ff7105854a2"
+  },
+  {
+    "artifact": "baseline-command-vrml-recovery-frozen-qualified-result.json",
+    "passed": true,
+    "qualification_only": true,
+    "commit": "c574d418c015972cbe4109983c289ce963d24b47",
+    "sha256": "858f53011268b73ec4d083dbfe913e0ef110af95f733acb5ed98c707b48e38d5"
+  },
+  {
+    "artifact": "baseline-hidden-recovery-frozen-qualified-result.json",
+    "passed": true,
+    "qualification_only": true,
+    "commit": "c574d418c015972cbe4109983c289ce963d24b47",
+    "sha256": "bf7134ba44f47df0fb955250762479af4e66ae530db85c32fe1f1b7f4bda07fc"
+  },
+  {
+    "artifact": "baseline-part-recovery-frozen-qualified-result.json",
+    "passed": true,
+    "qualification_only": true,
+    "commit": "c574d418c015972cbe4109983c289ce963d24b47",
+    "sha256": "cfa23d730fc7703351baffef6438a8437c516bc620e73d94d5ed8b4e0a120a55"
+  },
+  {
+    "artifact": "baseline-visible-recovery-frozen-qualified-result.json",
+    "passed": true,
+    "qualification_only": true,
+    "commit": "c574d418c015972cbe4109983c289ce963d24b47",
+    "sha256": "680daf8cf745ee284f28f4f3e59010813a0c451a89659506f4bddaba7edfe217"
+  },
+  {
+    "artifact": "baseline-vrml-recovery-frozen-qualified-result.json",
+    "passed": true,
+    "qualification_only": true,
+    "commit": "c574d418c015972cbe4109983c289ce963d24b47",
+    "sha256": "9e81feebfd4bbf8368b13e7eb1af03120ccb2cbc3d4d573170768d6127efe7a4"
+  },
+  {
+    "artifact": "change-command-part-recovery-frozen-qualified-result.json",
+    "passed": true,
+    "qualification_only": true,
+    "commit": "613def1ab6bf615f82fe163e3b41489d0228acbf",
+    "sha256": "2c220a80fe25e04f77fa2dcfc9b147eb6e828c2b378b5138aa5d3db8c5eac7ac"
+  },
+  {
+    "artifact": "change-command-private-recovery-frozen-qualified-result.json",
+    "passed": true,
+    "qualification_only": true,
+    "commit": "613def1ab6bf615f82fe163e3b41489d0228acbf",
+    "sha256": "89bd0e619765ce5ebbdd9fe3035dc426f83ecff33d0f52425dc5d8501301c63e"
+  },
+  {
+    "artifact": "change-command-vrml-recovery-frozen-qualified-result.json",
+    "passed": true,
+    "qualification_only": true,
+    "commit": "613def1ab6bf615f82fe163e3b41489d0228acbf",
+    "sha256": "2fe32795d0bf529ded3bd66e8bf714d51f55ad2676c6023e2e86748679bd78e0"
+  },
+  {
+    "artifact": "change-hidden-recovery-frozen-qualified-result.json",
+    "passed": true,
+    "qualification_only": true,
+    "commit": "613def1ab6bf615f82fe163e3b41489d0228acbf",
+    "sha256": "80ddb4da07061625a59a446da2775ea3398f118e641bfdf86f1b39f929807c30"
+  },
+  {
+    "artifact": "change-part-recovery-frozen-qualified-result.json",
+    "passed": true,
+    "qualification_only": true,
+    "commit": "613def1ab6bf615f82fe163e3b41489d0228acbf",
+    "sha256": "33c19f0fbffb425ecf97b52276dd84eca67fb717cf6b76e8509ad065118814bd"
+  },
+  {
+    "artifact": "change-visible-recovery-frozen-qualified-result.json",
+    "passed": true,
+    "qualification_only": true,
+    "commit": "613def1ab6bf615f82fe163e3b41489d0228acbf",
+    "sha256": "2e65617d6390615c17a6a921d6dfa26a8b91f68a262c1bc67478ce93fa64c03e"
+  },
+  {
+    "artifact": "change-vrml-recovery-frozen-qualified-result.json",
+    "passed": true,
+    "qualification_only": true,
+    "commit": "613def1ab6bf615f82fe163e3b41489d0228acbf",
+    "sha256": "f115a4c2f63423ba50adabce56d48f0bdf08284b8f636701f0de2430c8ec2f67"
+  }
+]

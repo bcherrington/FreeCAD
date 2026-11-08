@@ -4,7 +4,7 @@ doc_type: spec
 artifact_type: verification
 status: code-derived
 owner: local-developer
-last_reviewed: 2026-11-07
+last_reviewed: 2026-11-08
 ---
 
 # Performance Optimization Reconciliation
@@ -119,7 +119,7 @@ GPU residency claims require separate actual measurements.
 | Numeric and subelement identity | Signed/unsigned-form tolerance, decimal/hex bounds, malformed/overflow tokens; semicolon/colon/dollar writer forms; multiple aliases/SIDs/shared children; bidirectional lookups after buffers die; dependent CAD target reopen/recompute | T015, T016, T005 | T015 numeric correction and local tests pass; broader writer/child/CAD identity remains T016/T005 |
 | Restore completion | Initially idle timers; app open, direct load/restore, import/paste and failure cleanup; eventual tree population/status/observer work without unrelated edit/open | T017, T007 | T017 correction and T007 small/larger idle restore/load/import/error and observer completion pass locally |
 | Archive failures | Empty/nonempty failing first entry plus valid second; read/write/close injection, diagnostics/failure list, partial bytes/permissions and notifications | T018, T002 | Pending approved outcome table and execution |
-| End-to-end performance/resources | Pinned command restore, GUI first-correct-frame, hidden-first-show and repeat-show endpoints; visibility/texture counts; process/decoded/Coin peaks for direct and grayscale/alpha fallback fixtures | T020, T004 | Protocol/initial policy selected; measurements pending |
+| End-to-end performance/resources | Pinned command restore, GUI first-correct-frame, hidden-first-show and repeat-show endpoints; visibility/texture counts; process/decoded/Coin peaks for direct and grayscale/alpha fallback fixtures | T020, T004 | First collection incomplete: hidden primary aborted, two GUI timing cells inconclusive; performance-results.md and D004 |
 | Exact final evidence | Per-optimization inventory for restore/save/parser/conversion/lazy/tree; predeclared pass rules; final-revision automated/manual/archive/lifecycle/benchmark reruns or reviewed equivalence | T019, T001, T010 | Manifest/protocol recorded; exact-final execution pending |
 | Decision discovery | MCP exposes D001/D002/D003, owners and blockers; task contexts agree; context readiness does not overrule status/dependencies | T021 | Passed documentation/tool checks; no product decision resolved |
 
@@ -964,27 +964,28 @@ at the nested docs boundary; executed checks and exact identities establish proo
 
 ## Next Actions
 
-1. **Next: T020 — Measure deferred first-frame latency and image memory.**
-   Phase 2 correctness/compatibility is complete locally; use the D001/T019 protocol and applicability rules.
-2. Follow [the explicit Phase 2 subgroups](tasks.md#execution-order): images,
-   tree lifecycle, CAD maps, then archives; finish each fix's focused regression
-   and subgroup qualification before advancing.
-3. Run T020/T004 comparative latency/memory/per-change evidence under the approved
-   protocol, then T010 final applicability/platform gates and T011 promotion.
-4. B009/B010/B011 are owned deferred follow-ups; no optional investigation must
-   execute to close the core slice, and none may waive a current safety check.
+1. **T022/D005: plan validation and first-use/tail criteria for retained P07.**
+   The user chose retention on 2026-11-08 for opening-time/RAM benefits. T020
+   measurement is complete; original D001 outcomes remain unchanged and T004
+   awaits a bounded measurement/revalidation plan.
+2. Keep the completed Phase 2 local safety/compatibility evidence and exact arm
+   provenance. Any justified worker/context/profile change needs affected
+   requalification and a dated fresh freeze before whole-cell recollection.
+3. Advance T004 only after T020's required acceptance is satisfied or explicitly
+   reconciled through the decision ledger; T010/T011 remain later gates.
+4. B009/B010/B011 remain deferred optional work and cannot waive current criteria.
 
 ## Quality Gates
 
 | Gate | Required? | Status | Evidence |
 | --- | --- | --- | --- |
-| Requirements and decisions accepted | yes | partial | D001 protocol recorded; D002 routes to B009; D003 initial policy recorded; final T010.1 confirmation pending |
+| Requirements and decisions accepted | yes | partial | D001 protocol recorded; D002 routes to B009; D003 initial policy recorded; D004 campaign completed; D005 material owner decision open; final T010.1 confirmation pending |
 | MoE source-safety blockers resolved | yes | partial | F001/T012, F002/T013 and F003/T014 locally corrected/qualified; broader checkpoints and final platform applicability remain |
 | Candidate and final evidence applicability | yes | partial | T019 initial manifest/policy recorded; actual new-build/runtime receipts and T010 final reconciliation pending |
-| Predeclared per-optimization performance/resource acceptance | yes | pending | T001 protocol complete; T020/T004 and final T010 evidence pending |
+| Predeclared per-optimization performance/resource acceptance | yes | incomplete | T020 measurements complete; rejected P07 and timing uncertainty keep T022/D005/T004/T010 gates open |
 | Complete task/criterion evidence | yes | pending | tasks.md; traceability.md |
 | Focused current correctness and failure tests | yes | passed locally | T003/T006 image, T007 tree, T015/T016/T005 numeric/identity and T018/T002 failure/aggregate compatibility checkpoints pass on their recorded profiles; T010 reconfirms final/platform applicability |
-| Current measurements and platform/manual acceptance | yes | pending | Historical observations are insufficient |
+| Current measurements and platform/manual acceptance | yes | incomplete | T020 valid measurement complete; performance acceptance rejected and final/platform applicability remains T010 |
 | Durable promotion and residual ownership | yes | pending | requirements.md durable impact |
 | Review and closure metadata | yes | pending | No closure claimed |
 
@@ -1116,6 +1117,7 @@ executed. Runtime regression evidence for F001–F008 remains pending.
 
 ## Durable Promotion And Cleanup
 
+
 Promotion destinations are proposed in requirements.md; do not publish intended
 behavior as current. Preserve this package while criteria remain unresolved.
 Before closure, resolve each coverage row, route residuals with owner, promote
@@ -1125,8 +1127,8 @@ this migration.
 
 ## Readiness Decision
 
-- Ready to implement: T020 — Measure deferred first-frame latency and image memory; all Phase 2 local correction/compatibility subgroups complete.
-- Ready to validate: Phase 2 local correction/compatibility qualified by T015/T016/T005/T007/T003/T006/T018/T002. Whole-package acceptance still requires T020/T004 performance and T010 final/platform applicability.
+- Ready to implement: T022 decision/plan work only; T004 is blocked by T022/D005. T020 measurement/disposition is complete.
+- Ready to validate: T020 evidence is complete and P07 is not accepted. New implementation/sampling needs T022/D005 scope, source composition and affected revalidation; whole-package acceptance still requires T004/T010.
 - Ready to close: no.
 - Ready to archive: no.
 - Cleanup action: keep active, draft.
@@ -1141,3 +1143,112 @@ this migration.
 - [Candidate validation manifest](validation-manifest.md)
 - [Baseline implementation inventory](baseline-status.md)
 - [Optional backlog routes](../../backlog/spec003-follow-ups.md)
+
+## T020 Optimized Measurement Attempt And Recovery
+
+This is the historical first-campaign checkpoint, before D004 selected the corrected
+probe. At that point T020 required review/decision, with P07 acceptance incomplete. See
+[performance-results.md](performance-results.md) and its hashed
+[machine-readable evidence](performance-results.json). The fixed first campaign
+attempted every predeclared image/command cell once. Six complete cells remain
+bound to their original freeze; the hidden primary aborted with 24 completed
+observations and is ineligible/unassessed. All-visible and PartDesign GUI timing
+are inconclusive under D001's dispersion limit despite passing numeric limits;
+VRML GUI passes. Three command cells are descriptive auxiliary measurements.
+All three complete GUI resource comparisons pass. No P07 speedup is claimed.
+
+Both matched optimized arms pass nine C++ suites, independent legacy map
+save/reopen/forced-recompute, eighteen generated absolute resource rows and seven
+runtime contexts each. All fourteen second-round qualifications against exact
+frozen contexts pass. Pre/post-collection audits verify 6,055 identities each.
+The natural VRML texture-completion/render endpoint and concrete execution freeze
+were independently reviewed before sampling. Both arms retain full-resolution
+calibration and Phase 2 safety. P06 is reviewed as subsumed/non-identifiable.
+
+Reproducible commands and bounds:
+
+- Build: locked RelWithDebInfo preset, optional image probe enabled; real provider
+  compilation/Gui relink with ccache disabled and `-j 2`, separate eager/lazy arms.
+- Complete GUI cells: `benchmark-runner.py --run <frozen execution> --out <new JSONL>`;
+  assess with `benchmark-assess.py <execution> <observations> --out <assessment>`.
+- Auxiliary cells: `benchmark-command-collect.py <frozen execution> --out <new JSONL>`.
+- Synthetic assessment: `python test_benchmark_assess.py` (14 tests pass).
+- Historical bounded runner: `python benchmark-runner.py --self-test` (passes).
+- Failure observability: `python test_benchmark_image_collect.py` (6 tests pass).
+
+The original runner discarded the failed worker's status/output/result. Available
+kernel/coredump records show no relevant event; failure cause remains unclassified.
+The tested new `benchmark-image-collect.py` extension preserves bounded diagnostics
+only after failed-child cleanup and requires its own frozen hash/destination;
+it has not been used for acceptance. Explicit diagnostic-only runs cannot replace
+an acceptance cell. D004/T020 retain investigation, uncertainty disposition,
+any justified profile/probe correction and a dated new freeze as remaining work.
+T004/T010 stay gated; this checkpoint supersedes the earlier “T020 ready” handoff.
+
+## T020 Corrected-Probe Qualification And Campaign Selection
+
+This is the pre-collection checkpoint. The completed outcome and current next
+action are recorded below; this section does not set current readiness.
+
+D004 now selects the [corrected native-probe campaign](t020-recovery-2-plan.md).
+Both recovery arms pass 551 focused tests, seven runtime qualifications each,
+all fourteen repeat checks against exact frozen contexts, and six ownership
+controls. Native output/source equivalence is recorded rather than claiming a
+new C++ compilation. New acceptance remains a separate runtime gate.
+
+The probe verifies its single owned document window independently of keyboard
+focus. It completes/copies the first qualifying native swap in a direct GUI-thread
+callback, preserving context and all touched GL/readback state. The native
+framebuffer must use PartialUpdate. Logical image counters exclude the fixed
+capture buffer; final process RSS includes observed driver/harness effects.
+
+The protected qualification receipt is SHA-256
+`a1ad40bbe6bc83c8761ef7776f08c93cdb44c406eb1d04e665e5c8579b2e49e9`.
+All seven whole cells must start at pair zero under the same D001 numeric rules,
+with one attempt each and no pooling with the original incomplete campaign.
+Final concrete-freeze review and before-collection audit precede sampling.
+
+## T020 Complete Measurement And Negative Optimization Disposition
+
+All seven corrected-campaign cells completed once with 336 valid fresh-process
+observations, 20 measured pairs per cell and no worker failure, retry, exclusion
+or cross-campaign pooling. Both 42,290-hash audits pass. Four GUI cells have
+literal D001 assessments; three command cells remain descriptive auxiliary data.
+See [the aggregate](performance-results.md), [corrected results](performance-recovery-2-results.md),
+[raw/statistical identities](performance-recovery-2-results.json), and
+[completion receipt](t020-validation.json). Exact first-campaign result/report/
+receipt bytes remain versioned; its original partial/inconclusive findings are
+unchanged. No private locators, model contents or screenshots are published.
+
+The corrected first-show median/p95 are 857.91/1843.09 ms, failing the 500/1000 ms
+budgets. All-visible p95 and PartDesign median fail their non-regression limits;
+other hidden timing and VRML remain inconclusive under the 0.10 variability rule.
+All resource limits pass, but they cannot offset the timing failures. The control
+outcomes do not establish a causal P07 regression amid high variability.
+
+The measured lifecycle distinction is explicit: eager open materializes three
+hidden textures; lazy open leaves three pending, first show materializes one,
+and repeat show reuses it. Two unshown loads are avoided within this scenario;
+first-show work is deferred, not universally eliminated. Full resolution,
+calibration, pixel/reference identity and zero premature loads remain qualified.
+Logical peaks are not summed and do not establish GPU residency. Fixed capture
+renderbuffer driver effects remain part of observed final process RSS.
+
+T020's literal measurement/disposition criteria (Requirement 3 AC3–AC4) are now
+fulfilled, with **P07 NOT ACCEPTED**. This does not satisfy Phase 3 exit, SC-005,
+T004 or T010. Material owner gate D005 and mandatory T022 are placed before T004,
+because rework/behavior/requirements decisions may invalidate subsequent evidence.
+No code behavior change, accepted tradeoff or threshold revision is chosen here.
+Parser/tree T004.3 is not the primary P07 remediation owner. T022 must specify
+any implementation and affected correctness/performance/measurement plan before
+further comparisons; no backlog pointer or completed evidence checkbox waives D001.
+
+## P07 Owner Retention Direction — 2026-11-08
+
+The user explicitly agreed not to discard P07, valuing the apparent opening-time
+improvement with hidden images and the observed RAM saving. Retention is the
+selected direction. T022/D005 now defines reliable benefit validation and
+appropriate first-use/tail targets, including repeat use and responsiveness.
+No exact revised median/p95 budget was selected, no historical result is
+reclassified, and no new performance run or production behavior change occurs
+in this documentation update. Full resolution/calibration/safety remain required.

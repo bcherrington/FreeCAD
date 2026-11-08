@@ -4,7 +4,7 @@ doc_type: spec
 artifact_type: design
 status: draft
 owner: local-developer
-last_reviewed: 2026-11-07
+last_reviewed: 2026-11-08
 ---
 
 # Technical Design
@@ -362,8 +362,11 @@ Source implementation facts and dated results remain in
    tree lifetime/completion, parser/CAD identity and archive compatibility in
    that order. Each fix includes its own regression; each subgroup ends with
    current qualification evidence before the next subgroup begins.
-3. **Performance:** execute T020 then T004 against the predeclared contract,
-   recording deferred work, memory, per-change attribution and non-regression.
+3. **Performance:** T020 measurement/disposition is complete, with P07 rejected
+   under D001. Mandatory T022/D005 now precedes T004 because the material owner
+   choice and measurement/source composition may invalidate later comparisons.
+   Record deferred work, memory, attribution and literal non-regression outcomes;
+   completed evidence does not satisfy Phase 3 exit for a rejected optimization.
 4. **Delivery:** T010 confirms exact final applicability and broad/platform
    checks; T011 promotes durable truth and audits owned residuals before closure.
 
@@ -400,10 +403,17 @@ until acceptance, reviews, promotion and closure metadata are complete.
 
 The authoritative unresolved decision ledger is [open-decisions.md](open-decisions.md).
 D001 is resolved with the predeclared measurement/pass-rule protocol; Phase 1
-is complete and T012 starts Phase 2. Resolved D002 routes
+is complete and Phase 2 correctness is qualified locally. Resolved D002 routes
 optional reduced-resolution exploration to B009 while keeping full resolution;
 resolved D003 pins the initial local candidate and applicability policy.
-T010.1 still confirms the exact final production composition and affected evidence. T021 verifies discovery of all three IDs and distinguishes
+T010.1 still confirms the exact final production composition and affected evidence. D004 selected the corrected native-probe campaign, which completed validly and
+rejected P07 under D001. D005 is open: T022 must resolve the material behavior/
+requirements and measurement/revalidation plan before T004/T010. On 2026-11-08
+the user chose to retain P07 for its apparent opening-time and RAM benefits.
+T022 now defines validation and first-use/tail criteria for that retained candidate;
+no exact replacement budget or production acceptance is implied.
+T021 recorded historical discovery of D001–D003; current discovery must include open D005 and its T022/T004/T010 blockers.
+Discovery verifies all current IDs and distinguishes
 advisory context availability from execution/acceptance readiness. The ledger,
 task dependencies and literal acceptance criteria must agree before selection.
 

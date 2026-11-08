@@ -1,0 +1,173 @@
+{
+  "schema": "freecad-spec003-t020-validation/v2",
+  "task": "T020",
+  "status": "measurement/disposition complete",
+  "optimization_acceptance": "P07 NOT ACCEPTED",
+  "phase_3_exit": "unsatisfied",
+  "next_task": "T022",
+  "open_decisions": [
+    "D005"
+  ],
+  "aggregate_results_sha256": "6da999aa086cf5a566c8ce5e0c283a35e34904af0b385c9c50ca67b47884e2e3",
+  "recovery_results_sha256": "4e97b2e5afe810fcaf57b07308a749d3a65dcf9477016b5d122e740a793ac4a4",
+  "first_campaign": {
+    "result_artifact": "t020-evidence/freeze-1-performance-results.json",
+    "result_sha256": "44b91dc10e2eaa0f2830e7c282f2f18d276130a81378db6cd8f8a73c48b42357",
+    "validation_artifact": "t020-evidence/freeze-1-t020-validation.json",
+    "validation_sha256": "2cdc73cbfa80a02e28290d8fc7092ad0078e548a590ad79566840ae222f565c0",
+    "report_artifact": "t020-evidence/freeze-1-performance-results.md",
+    "report_sha256": "ebc7d23576b44d4146f8f6a2f540a73574f8283f683a1fea38c7ed980cc9e02f"
+  },
+  "qualification_receipt_sha256": "a1ad40bbe6bc83c8761ef7776f08c93cdb44c406eb1d04e665e5c8579b2e49e9",
+  "campaign_freeze_sha256": "1737adc03bf23359236dab8f889b214b163b0175c02a79c4697c1cdf7a74f563",
+  "controller": {
+    "artifact": "controller-source.py.txt",
+    "sha256": "13997e12de05d85ed6520c85588cc15f23dfaab7aca5e3ad1b5956b23e482836"
+  },
+  "cells": {
+    "hidden": {
+      "status": "fail",
+      "complete": true,
+      "observations": 48,
+      "measured_pairs": 20,
+      "raw": {
+        "artifact": "hidden-observations.jsonl",
+        "sha256": "01067a27d2df8c97fd933c90d5aeeb009e6fe33fd673702f0581e1ca71d03796"
+      },
+      "context": {
+        "artifact": "frozen-hidden-context.json",
+        "sha256": "afc6fbd5b042cc09535f6e6a45b5c8396b690c542efc856b104ebdab66994f59"
+      },
+      "execution_sha256": "34ef50b667ca2c04af5cf4a2ce6b319c858c0e4ecca15a6cb2fd71f6e6770a00"
+    },
+    "visible": {
+      "status": "fail",
+      "complete": true,
+      "observations": 48,
+      "measured_pairs": 20,
+      "raw": {
+        "artifact": "visible-observations.jsonl",
+        "sha256": "3f4a5c2afba38820b7fe184ab16e4e84fb89c4295af563513156a2c2ffe8c654"
+      },
+      "context": {
+        "artifact": "frozen-visible-context.json",
+        "sha256": "9cdcef776dfbea9dd1783d83b1503865bb0712cc9ab45b30bc836bd9c362ec6c"
+      },
+      "execution_sha256": "b0aed9b47d1c8d2155073c1ea25a52f189ca2b0d409caff9121d1ec0016ceb86"
+    },
+    "part": {
+      "status": "fail",
+      "complete": true,
+      "observations": 48,
+      "measured_pairs": 20,
+      "raw": {
+        "artifact": "part-observations.jsonl",
+        "sha256": "3d54228d71a8fdd5d583ad43992fe4f716b94379fba7a3825e41a532145eab9f"
+      },
+      "context": {
+        "artifact": "frozen-part-context.json",
+        "sha256": "78b0e2cdae37e1f29e43378dfd5d100a5d2b87aee7e095edd84606588a29fb91"
+      },
+      "execution_sha256": "520ea37cfce1683dc31425723ed764f6a0fde0f1872c27c792bbe0a14e9c9eb9"
+    },
+    "vrml": {
+      "status": "inconclusive",
+      "complete": true,
+      "observations": 48,
+      "measured_pairs": 20,
+      "raw": {
+        "artifact": "vrml-observations.jsonl",
+        "sha256": "056ef0a8f8fcb4f3974460ae5d6ecc9276a2be4ba1a7c4a60a49b7f277e2aff0"
+      },
+      "context": {
+        "artifact": "frozen-vrml-context.json",
+        "sha256": "9002ecab2123a17c50dd82117a261a8da8c308de5b71e265e597183c37006f5f"
+      },
+      "execution_sha256": "4f8baccb884d39d4be4d363ebb7f18cfa501845d576b3d5dfadf927432ddb5e3"
+    },
+    "command-private": {
+      "status": "descriptive-only",
+      "complete": true,
+      "observations": 48,
+      "measured_pairs": 20,
+      "raw": {
+        "artifact": "command-private-observations.jsonl",
+        "sha256": "0e04f69b253547ea9aa1690483922c136598da45faa327a6e352776ab35c1e6b"
+      },
+      "context": {
+        "artifact": "frozen-command-private-context.json",
+        "sha256": "6772a6fab02dd32e4a74bf68127f8d3819750f92a259718f567699b170f2b778"
+      },
+      "execution_sha256": "8d1c25ac24333e43b80d5e0c25dc3ec4ce9d42efa12774c4a69bd2ff62b3ccfb"
+    },
+    "command-part": {
+      "status": "descriptive-only",
+      "complete": true,
+      "observations": 48,
+      "measured_pairs": 20,
+      "raw": {
+        "artifact": "command-part-observations.jsonl",
+        "sha256": "818a355d59078dace29590ee5f78963a9e2c8aa2fb6c8ce06b2d0131a9d10083"
+      },
+      "context": {
+        "artifact": "frozen-command-part-context.json",
+        "sha256": "19841297020a1927a1e93ab14197c5d2b6a0d2b1e1d8871db438550d297e7f08"
+      },
+      "execution_sha256": "423e66ed19b0c46a1f2efd4ea22a217b9836d0669a83fb1725b03e465641ea80"
+    },
+    "command-vrml": {
+      "status": "descriptive-only",
+      "complete": true,
+      "observations": 48,
+      "measured_pairs": 20,
+      "raw": {
+        "artifact": "command-vrml-observations.jsonl",
+        "sha256": "e90aaf65f8d57cdfe7d89c005509aa7917acf62225196da173af7f19d4488c00"
+      },
+      "context": {
+        "artifact": "frozen-command-vrml-context.json",
+        "sha256": "e2a4cd0d23288b3f2b3e39efc2b036bef1c96038134519f2277a8b65acfa23af"
+      },
+      "execution_sha256": "6a520f9073337c6c1352c32d3ddcce33a2ba5714cf463772708e044d9acedae2"
+    }
+  },
+  "audits": {
+    "before-collection": {
+      "phase": "before-collection",
+      "passed": true,
+      "checked_hashes": 42290,
+      "qualification_sha256": "a1ad40bbe6bc83c8761ef7776f08c93cdb44c406eb1d04e665e5c8579b2e49e9",
+      "unix_seconds": 1794090368.6891906
+    },
+    "after-collection": {
+      "phase": "after-collection",
+      "passed": true,
+      "checked_hashes": 42290,
+      "qualification_sha256": "a1ad40bbe6bc83c8761ef7776f08c93cdb44c406eb1d04e665e5c8579b2e49e9",
+      "unix_seconds": 1794092191.1614363
+    }
+  },
+  "focused_tests_per_arm": 551,
+  "frozen_qualification_checks": 14,
+  "ownership_controls": 6,
+  "synthetic_tests": 20,
+  "optimized_controller_guard_checks": 3,
+  "no_retry_or_pooling": true,
+  "remaining_owner_gate": "Mandatory T022/D005 blocks T004 and production; no code/requirements tradeoff selected",
+  "native_build_reuse": "exact src/native-output equivalence perarm; independent copies; no new C++ recompilation claim",
+  "private_fixture": "original checksum unchanged; no private locator/contents/screenshots published",
+  "durable_promotion": "T011 retains promotion/closure ownership; negative candidate findings are not current product guarantees",
+  "evidence_directory": "t020-recovery-2-evidence",
+  "post_campaign_binding_archives": [
+    {
+      "binding_key": "decision_ledger",
+      "original_path": "docs/specs/003-freecad-performance-optimization/open-decisions.md",
+      "original_sha256": "6eb1cf2ee880dc493816285952dc5b85efa292c1a1d1e7847092104304262ca8",
+      "archived_path": "docs/specs/003-freecad-performance-optimization/t020-recovery-2-evidence/frozen-decision-ledger.md",
+      "archived_sha256": "6eb1cf2ee880dc493816285952dc5b85efa292c1a1d1e7847092104304262ca8",
+      "decision_receipt_path": "docs/specs/003-freecad-performance-optimization/t020-recovery-2-evidence/decision-receipt.json",
+      "decision_receipt_sha256": "06e6314309f037fd203d0a5ee1f97cca20c1a2c4033df3fe9a8b9f6a19c491cc",
+      "epoch": "D005 was added to the current decision ledger only after all recovery-2 samples and the successful post-collection audit. The archived bytes preserve the exact original frozen binding; no Q/freeze/audit/sample was rewritten."
+    }
+  ]
+}

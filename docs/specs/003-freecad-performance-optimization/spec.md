@@ -73,7 +73,8 @@ T012 locally qualifies the extent/arithmetic correction; see its
 [execution evidence](verification.md#t012-extent-and-arithmetic-correction--2026-11-06).
 T013 locally qualifies [calibration preservation](verification.md#t013-calibration-preservation).
 T003 locally qualifies [bitmap/rendered fidelity](verification.md#t003-bitmap-and-rendered-fidelity-qualification).
-**Next: T020 — Measure deferred first-frame latency and image memory (Phase 3; Phase 2 correctness complete locally).**
+**Next: T022 — Resolve P07 acceptance and measurement conditions before T004
+(D005; T020 measurement/disposition is complete, P07 is not accepted).**
 [baseline-status.md](baseline-status.md) holds existing implementation facts;
 remaining execution checkpoints are pending until current evidence is recorded.
 Optional new investigations have [owned backlog routes](../../backlog/spec003-follow-ups.md).

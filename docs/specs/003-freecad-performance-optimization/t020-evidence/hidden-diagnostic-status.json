@@ -1,0 +1,146 @@
+[
+  {
+    "diagnostic_index": 1,
+    "acceptance_eligible": false,
+    "exit": 0,
+    "tag": "diagnostic-only-01"
+  },
+  {
+    "diagnostic_index": 2,
+    "acceptance_eligible": false,
+    "exit": 0,
+    "tag": "diagnostic-only-02"
+  },
+  {
+    "diagnostic_index": 3,
+    "acceptance_eligible": false,
+    "exit": 0,
+    "tag": "diagnostic-only-03"
+  },
+  {
+    "diagnostic_index": 4,
+    "acceptance_eligible": false,
+    "exit": 0,
+    "tag": "diagnostic-only-04"
+  },
+  {
+    "diagnostic_index": 5,
+    "acceptance_eligible": false,
+    "exit": 0,
+    "tag": "diagnostic-only-05"
+  },
+  {
+    "diagnostic_index": 6,
+    "acceptance_eligible": false,
+    "exit": 0,
+    "tag": "diagnostic-only-06"
+  },
+  {
+    "diagnostic_index": 7,
+    "acceptance_eligible": false,
+    "exit": 0,
+    "tag": "diagnostic-only-07"
+  },
+  {
+    "diagnostic_index": 8,
+    "acceptance_eligible": false,
+    "exit": 0,
+    "tag": "diagnostic-only-08"
+  },
+  {
+    "diagnostic_index": 9,
+    "acceptance_eligible": false,
+    "exit": 0,
+    "tag": "diagnostic-only-09"
+  },
+  {
+    "diagnostic_index": 10,
+    "acceptance_eligible": false,
+    "exit": 0,
+    "tag": "diagnostic-only-10"
+  },
+  {
+    "diagnostic_index": 11,
+    "acceptance_eligible": false,
+    "exit": 0,
+    "tag": "diagnostic-only-11"
+  },
+  {
+    "diagnostic_index": 12,
+    "acceptance_eligible": false,
+    "exit": 0,
+    "tag": "diagnostic-only-12"
+  },
+  {
+    "diagnostic_index": 13,
+    "acceptance_eligible": false,
+    "exit": 0,
+    "tag": "diagnostic-only-13"
+  },
+  {
+    "diagnostic_index": 14,
+    "acceptance_eligible": false,
+    "exit": 0,
+    "tag": "diagnostic-only-14"
+  },
+  {
+    "diagnostic_index": 15,
+    "acceptance_eligible": false,
+    "exit": 0,
+    "tag": "diagnostic-only-15"
+  },
+  {
+    "diagnostic_index": 16,
+    "acceptance_eligible": false,
+    "exit": 0,
+    "tag": "diagnostic-only-16"
+  },
+  {
+    "diagnostic_index": 17,
+    "acceptance_eligible": false,
+    "exit": 0,
+    "tag": "diagnostic-only-17"
+  },
+  {
+    "diagnostic_index": 18,
+    "acceptance_eligible": false,
+    "exit": 0,
+    "tag": "diagnostic-only-18"
+  },
+  {
+    "diagnostic_index": 19,
+    "acceptance_eligible": false,
+    "exit": 0,
+    "tag": "diagnostic-only-19"
+  },
+  {
+    "diagnostic_index": 20,
+    "acceptance_eligible": false,
+    "exit": 0,
+    "tag": "diagnostic-only-20"
+  },
+  {
+    "diagnostic_index": 21,
+    "acceptance_eligible": false,
+    "exit": 0,
+    "tag": "diagnostic-only-21"
+  },
+  {
+    "diagnostic_index": 22,
+    "acceptance_eligible": false,
+    "exit": 0,
+    "tag": "diagnostic-only-22"
+  },
+  {
+    "diagnostic_index": 23,
+    "acceptance_eligible": false,
+    "exit": 0,
+    "tag": "diagnostic-only-23"
+  },
+  {
+    "diagnostic_index": 24,
+    "acceptance_eligible": false,
+    "exit": 0,
+    "tag": "diagnostic-only-24"
+  }
+]

@@ -1,0 +1,596 @@
+{
+  "schema": "freecad-spec003-image-performance-results/v1",
+  "task": "T020",
+  "attempt": "spec003-image-20261107-freeze-1",
+  "acceptance": "incomplete",
+  "P07_disposition": "not accepted; hidden primary aborted and two complete GUI cells inconclusive",
+  "P06_disposition": "independently non-identifiable under qualified generalized lifecycle; excluded as subsumed; no separate speedup claim",
+  "protocol_id": "spec003-benchmark-20261106-v1",
+  "qualification_receipt_sha256": "3221c047f1cc350be584bbc9916ae44680a0e1f70e1181583e13f1534a52068a",
+  "before_collection_audit_sha256": "d5af113cc1d0c71f378090b4c50d845271bd25672d85b6a51183051d712a30a8",
+  "after_collection_audit_sha256": "2109bde320b66cdd30098be3f99b5a07aeba1a87426c303a6fdae19f9ba83e3f",
+  "private_fixture_policy": "Pinned original unchanged; no private locator, document content or screenshots published",
+  "arms": {
+    "baseline": {
+      "commit": "c4e009ed3eb5e517da5ea01d6143ff84e3bf4738",
+      "preset": "conda-linux-rel-with-deb-info",
+      "source_tree": "b2d179fc386cc9b9aacba49a5d39a1a7c96a02d9",
+      "tests_tree": "771933572edc9664a98cbbd8d87e170385d22718",
+      "provider_object_sha256": "7aa4267a92b18d1843b2f1707a0f7765eb9ff7a4f765f150e0b619f3e000012c",
+      "gui_library_sha256": "1bc60b08a76f0a2248eed8e89febd0c63d8d235c628eddb3d01c6d31fd924669",
+      "build_receipt_sha256": "269cb67285f99a20fb841e96967b8b7336e4f184ea5933d3fa210e852b5d2449",
+      "build_output_manifest_sha256": "ad963dc586766459f47da43054673dc63ae8301eed35c4cccd7c2f0566aa6621",
+      "dependencies": [
+        {
+          "path": "src/3rdParty/GSL",
+          "commit": "a75212b9f3b14162edd62d540cbf9273d5a59d20",
+          "tracked_clean": true
+        },
+        {
+          "path": "src/3rdParty/OndselSolver",
+          "commit": "4be80eef02a3486cda0d78f3ccbb308d207a9639",
+          "tracked_clean": true
+        },
+        {
+          "path": "src/3rdParty/coin",
+          "commit": "50e37f04e7027661ea2318d0425b7836ac819568",
+          "tracked_clean": true
+        },
+        {
+          "path": "src/3rdParty/coin/cpack.d",
+          "commit": "118ac5a21bcf57f0f90e2b0e681c9dcbf07074c2",
+          "tracked_clean": true
+        },
+        {
+          "path": "src/3rdParty/coin/docs/doxygen-awesome",
+          "commit": "6217657eef6aec24a0e4ecea4695031c1a622cf3",
+          "tracked_clean": true
+        },
+        {
+          "path": "src/3rdParty/pivy",
+          "commit": "515f038d32f163a976acd8a8cd9e8d26e1d0b884",
+          "tracked_clean": true
+        },
+        {
+          "path": "src/Mod/AddonManager",
+          "commit": "745c1b1ebc8bc684439210c5fa237d2c6287153b",
+          "tracked_clean": true
+        }
+      ],
+      "kind": "copied-common incremental delta rebuild; no independent clean-build claim"
+    },
+    "change": {
+      "commit": "c7b9d163df2bf1b0e3e05195a4d93ca4235cb2d1",
+      "preset": "conda-linux-rel-with-deb-info",
+      "source_tree": "199cb379eb0051f79d641891b123b5e77a2d7b41",
+      "tests_tree": "771933572edc9664a98cbbd8d87e170385d22718",
+      "provider_object_sha256": "345b1f8f726f28856ca73d00b0d088375e452eef28da62d48295460aff7421ef",
+      "gui_library_sha256": "085c27bcfbcc39b870075d26339cb3419ff0d9ca1689efc3b178e68928596904",
+      "build_receipt_sha256": "334da1af2db568a134d8ef35f8917057fc9a66fbb348b3ba0024f3bdccf632cb",
+      "build_output_manifest_sha256": "1e64ad72ac60399158b8664fd6b1f7755d8b08d5d75ee3ea7583a4fca6323051",
+      "dependencies": [
+        {
+          "path": "src/3rdParty/GSL",
+          "commit": "a75212b9f3b14162edd62d540cbf9273d5a59d20",
+          "tracked_clean": true
+        },
+        {
+          "path": "src/3rdParty/OndselSolver",
+          "commit": "4be80eef02a3486cda0d78f3ccbb308d207a9639",
+          "tracked_clean": true
+        },
+        {
+          "path": "src/3rdParty/coin",
+          "commit": "50e37f04e7027661ea2318d0425b7836ac819568",
+          "tracked_clean": true
+        },
+        {
+          "path": "src/3rdParty/coin/cpack.d",
+          "commit": "118ac5a21bcf57f0f90e2b0e681c9dcbf07074c2",
+          "tracked_clean": true
+        },
+        {
+          "path": "src/3rdParty/coin/docs/doxygen-awesome",
+          "commit": "6217657eef6aec24a0e4ecea4695031c1a622cf3",
+          "tracked_clean": true
+        },
+        {
+          "path": "src/3rdParty/pivy",
+          "commit": "515f038d32f163a976acd8a8cd9e8d26e1d0b884",
+          "tracked_clean": true
+        },
+        {
+          "path": "src/Mod/AddonManager",
+          "commit": "745c1b1ebc8bc684439210c5fa237d2c6287153b",
+          "tracked_clean": true
+        }
+      ],
+      "kind": "qualified common build"
+    }
+  },
+  "cells": {
+    "hidden": {
+      "collection_exit": 1,
+      "collection_complete": false,
+      "observations_sha256": "2643b5155fa2ed999d8f2a36d124058a01825be3f8863228eb2482a31ffd52de",
+      "execution_sha256": "9605b20f07c6df8ac4a3e9caaba200295333e8932160610c50b4f1d8916e04c5",
+      "collector_log_sha256": "19359e46012e5ea0b6d2cd0e550020cb4ee4b912ef2e3092c4312e0de9b60f9e",
+      "status": "aborted-ineligible",
+      "completed_observations": 24,
+      "assessment": null,
+      "failure_coordinate": {
+        "pair": 12,
+        "phase": "measured",
+        "measured_pair_1_based": 9,
+        "arm": "baseline"
+      },
+      "failure_classification": "unclassified worker/process failure",
+      "raw_data": "retained only in protected local artifacts; never resume or combine"
+    },
+    "visible": {
+      "collection_exit": 0,
+      "collection_complete": true,
+      "observations_sha256": "838304d3a125a4ddbddc048ac90a47297623f62643940c6828b67bdfb0f95274",
+      "execution_sha256": "5754f5ba3740b08617aca2370a0943bcc2e9eda3ddf0d490e8dd04f5b5fb7f29",
+      "collector_log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "completed_observations": 48,
+      "measured_pairs": 20,
+      "observations_artifact": "visible-observations.jsonl",
+      "status": "inconclusive",
+      "assessment": {
+        "schema": "freecad-spec003-cell-assessment/v1",
+        "comparison_id": "P07",
+        "fixture_id": "gridfinity-drawer-v1.3",
+        "context": "all-visible-open-v1",
+        "execution_sha256": "5754f5ba3740b08617aca2370a0943bcc2e9eda3ddf0d490e8dd04f5b5fb7f29",
+        "observations_sha256": "838304d3a125a4ddbddc048ac90a47297623f62643940c6828b67bdfb0f95274",
+        "assessor_sha256": "e4d6ac60bd827f9e184736182ad9c244473feea66f64d705e15a41414590d581",
+        "measured_pairs": 20,
+        "status": "inconclusive",
+        "metrics": {
+          "gui_open_frame_ms": {
+            "baseline": {
+              "median": 3758.4143315,
+              "p95": 7588.37086145,
+              "iqr": 2496.6980112500005,
+              "iqr_over_median": 0.6642955754837059,
+              "maximum": 7638.615192
+            },
+            "change": {
+              "median": 3892.842621,
+              "p95": 7793.633029900003,
+              "iqr": 2952.02597325,
+              "iqr_over_median": 0.7583214274641492,
+              "maximum": 11364.419536
+            },
+            "kind": "non_regression",
+            "thresholds_passed": true,
+            "status": "inconclusive"
+          },
+          "peak_rss_bytes": {
+            "baseline": {
+              "median": 958720000.0,
+              "p95": 964551065.6,
+              "iqr": 4358144.0,
+              "iqr_over_median": 0.004545794392523364,
+              "maximum": 964714496
+            },
+            "change": {
+              "median": 961062912.0,
+              "p95": 967429939.2,
+              "iqr": 6296576.0,
+              "iqr_over_median": 0.006551679313996876,
+              "maximum": 969293824
+            },
+            "kind": "resource",
+            "maximum_increase_allowed": 96471449.60000001,
+            "thresholds_passed": true,
+            "status": "pass"
+          },
+          "coin_image_bytes": {
+            "baseline": {
+              "median": 293642496.0,
+              "p95": 293642496.0,
+              "iqr": 0.0,
+              "iqr_over_median": 0.0,
+              "maximum": 293642496
+            },
+            "change": {
+              "median": 293642496.0,
+              "p95": 293642496.0,
+              "iqr": 0.0,
+              "iqr_over_median": 0.0,
+              "maximum": 293642496
+            },
+            "kind": "resource",
+            "maximum_increase_allowed": 1048576,
+            "thresholds_passed": true,
+            "status": "pass"
+          },
+          "decoded_image_bytes": {
+            "baseline": {
+              "median": 97880832.0,
+              "p95": 97880832.0,
+              "iqr": 0.0,
+              "iqr_over_median": 0.0,
+              "maximum": 97880832
+            },
+            "change": {
+              "median": 97880832.0,
+              "p95": 97880832.0,
+              "iqr": 0.0,
+              "iqr_over_median": 0.0,
+              "maximum": 97880832
+            },
+            "kind": "resource",
+            "maximum_increase_allowed": 1048576,
+            "thresholds_passed": true,
+            "status": "pass"
+          }
+        }
+      }
+    },
+    "part": {
+      "collection_exit": 0,
+      "collection_complete": true,
+      "observations_sha256": "4f8588f6fa075b3ac27581768dd4366086cd5851d1619c2f64374ea2a506b11e",
+      "execution_sha256": "0b395ade6aa78efbdb0207a2bd9bb7989084378c90511959e85bfe48570e25b2",
+      "collector_log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "completed_observations": 48,
+      "measured_pairs": 20,
+      "observations_artifact": "part-observations.jsonl",
+      "status": "inconclusive",
+      "assessment": {
+        "schema": "freecad-spec003-cell-assessment/v1",
+        "comparison_id": "P07",
+        "fixture_id": "PartDesignExample",
+        "context": "open-only-v1",
+        "execution_sha256": "0b395ade6aa78efbdb0207a2bd9bb7989084378c90511959e85bfe48570e25b2",
+        "observations_sha256": "4f8588f6fa075b3ac27581768dd4366086cd5851d1619c2f64374ea2a506b11e",
+        "assessor_sha256": "e4d6ac60bd827f9e184736182ad9c244473feea66f64d705e15a41414590d581",
+        "measured_pairs": 20,
+        "status": "inconclusive",
+        "metrics": {
+          "gui_open_frame_ms": {
+            "baseline": {
+              "median": 294.436803,
+              "p95": 524.482959,
+              "iqr": 187.1269795,
+              "iqr_over_median": 0.6355420843908566,
+              "maximum": 568.883242
+            },
+            "change": {
+              "median": 296.166296,
+              "p95": 537.8271471,
+              "iqr": 181.57189775,
+              "iqr_over_median": 0.6130741417990385,
+              "maximum": 572.769973
+            },
+            "kind": "non_regression",
+            "thresholds_passed": true,
+            "status": "inconclusive"
+          },
+          "peak_rss_bytes": {
+            "baseline": {
+              "median": 416202752.0,
+              "p95": 417420083.2,
+              "iqr": 1387520.0,
+              "iqr_over_median": 0.0033337597921505335,
+              "maximum": 417824768
+            },
+            "change": {
+              "median": 418848768.0,
+              "p95": 420341964.8,
+              "iqr": 1047552.0,
+              "iqr_over_median": 0.0025010268145279585,
+              "maximum": 421318656
+            },
+            "kind": "resource",
+            "maximum_increase_allowed": 41782476.800000004,
+            "thresholds_passed": true,
+            "status": "pass"
+          },
+          "coin_image_bytes": {
+            "baseline": {
+              "median": 0.0,
+              "p95": 0.0,
+              "iqr": 0.0,
+              "iqr_over_median": 0,
+              "maximum": 0
+            },
+            "change": {
+              "median": 0.0,
+              "p95": 0.0,
+              "iqr": 0.0,
+              "iqr_over_median": 0,
+              "maximum": 0
+            },
+            "kind": "resource",
+            "maximum_increase_allowed": 1048576,
+            "thresholds_passed": true,
+            "status": "pass"
+          },
+          "decoded_image_bytes": {
+            "baseline": {
+              "median": 0.0,
+              "p95": 0.0,
+              "iqr": 0.0,
+              "iqr_over_median": 0,
+              "maximum": 0
+            },
+            "change": {
+              "median": 0.0,
+              "p95": 0.0,
+              "iqr": 0.0,
+              "iqr_over_median": 0,
+              "maximum": 0
+            },
+            "kind": "resource",
+            "maximum_increase_allowed": 1048576,
+            "thresholds_passed": true,
+            "status": "pass"
+          }
+        }
+      }
+    },
+    "vrml": {
+      "collection_exit": 0,
+      "collection_complete": true,
+      "observations_sha256": "1023557c74fa9269d688584f33f99532e0db43220b5704500e4e82fc2eba7495",
+      "execution_sha256": "4a6ec25e4f08ef6b9123996ad42bbd05e941c58d6af3f1ec7d6960d8d290ce17",
+      "collector_log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "completed_observations": 48,
+      "measured_pairs": 20,
+      "observations_artifact": "vrml-observations.jsonl",
+      "status": "pass",
+      "assessment": {
+        "schema": "freecad-spec003-cell-assessment/v1",
+        "comparison_id": "P07",
+        "fixture_id": "TestVRMLTextures",
+        "context": "open-only-v1",
+        "execution_sha256": "4a6ec25e4f08ef6b9123996ad42bbd05e941c58d6af3f1ec7d6960d8d290ce17",
+        "observations_sha256": "1023557c74fa9269d688584f33f99532e0db43220b5704500e4e82fc2eba7495",
+        "assessor_sha256": "e4d6ac60bd827f9e184736182ad9c244473feea66f64d705e15a41414590d581",
+        "measured_pairs": 20,
+        "status": "pass",
+        "metrics": {
+          "gui_open_frame_ms": {
+            "baseline": {
+              "median": 602.695378,
+              "p95": 648.30145265,
+              "iqr": 18.304646249999905,
+              "iqr_over_median": 0.03037130682956707,
+              "maximum": 649.085595
+            },
+            "change": {
+              "median": 606.3343199999999,
+              "p95": 686.2652549000002,
+              "iqr": 40.87581624999996,
+              "iqr_over_median": 0.06741465046873804,
+              "maximum": 832.712769
+            },
+            "kind": "non_regression",
+            "thresholds_passed": true,
+            "status": "pass"
+          },
+          "peak_rss_bytes": {
+            "baseline": {
+              "median": 401152000.0,
+              "p95": 401336320.0,
+              "iqr": 276480.0,
+              "iqr_over_median": 0.0006892150606253989,
+              "maximum": 401453056
+            },
+            "change": {
+              "median": 404248576.0,
+              "p95": 405031116.8,
+              "iqr": 282624.0,
+              "iqr_over_median": 0.0006991341881684204,
+              "maximum": 410755072
+            },
+            "kind": "resource",
+            "maximum_increase_allowed": 40145305.6,
+            "thresholds_passed": true,
+            "status": "pass"
+          },
+          "coin_image_bytes": {
+            "baseline": {
+              "median": 0.0,
+              "p95": 0.0,
+              "iqr": 0.0,
+              "iqr_over_median": 0,
+              "maximum": 0
+            },
+            "change": {
+              "median": 0.0,
+              "p95": 0.0,
+              "iqr": 0.0,
+              "iqr_over_median": 0,
+              "maximum": 0
+            },
+            "kind": "resource",
+            "maximum_increase_allowed": 1048576,
+            "thresholds_passed": true,
+            "status": "pass"
+          },
+          "decoded_image_bytes": {
+            "baseline": {
+              "median": 0.0,
+              "p95": 0.0,
+              "iqr": 0.0,
+              "iqr_over_median": 0,
+              "maximum": 0
+            },
+            "change": {
+              "median": 0.0,
+              "p95": 0.0,
+              "iqr": 0.0,
+              "iqr_over_median": 0,
+              "maximum": 0
+            },
+            "kind": "resource",
+            "maximum_increase_allowed": 1048576,
+            "thresholds_passed": true,
+            "status": "pass"
+          }
+        }
+      }
+    },
+    "command-private": {
+      "collection_exit": 0,
+      "collection_complete": true,
+      "observations_sha256": "a8ff5957741179bc98f7e223e096004095e4c197f7aa6017bc5f0fe939203536",
+      "execution_sha256": "e9bf4e5c31a49ce73983910c64ef873fc46bba47df1890ce30f51db68a5da6a1",
+      "collector_log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "completed_observations": 48,
+      "measured_pairs": 20,
+      "observations_artifact": "command-private-observations.jsonl",
+      "status": "descriptive-only",
+      "metrics": {
+        "document_open_ms": {
+          "baseline": {
+            "median": 872.177774,
+            "p95": 1308.0258776,
+            "iqr": 393.49780124999995,
+            "iqr_over_median": 0.45116696730912104,
+            "maximum": 1383.201688
+          },
+          "change": {
+            "median": 863.958112,
+            "p95": 1269.5782902500002,
+            "iqr": 58.99014575000001,
+            "iqr_over_median": 0.06827894191935084,
+            "maximum": 1498.052212
+          }
+        },
+        "peak_rss_bytes": {
+          "baseline": {
+            "median": 239937536.0,
+            "p95": 240110387.2,
+            "iqr": 195584.0,
+            "iqr_over_median": 0.000815145488532482,
+            "maximum": 240164864
+          },
+          "change": {
+            "median": 244719616.0,
+            "p95": 244835737.6,
+            "iqr": 143360.0,
+            "iqr_over_median": 0.000585813276202591,
+            "maximum": 244940800
+          }
+        }
+      }
+    },
+    "command-part": {
+      "collection_exit": 0,
+      "collection_complete": true,
+      "observations_sha256": "e1287f9654584242d7021217580347ca575bbcae55d089a3b0017d11a9fd68e5",
+      "execution_sha256": "af53410af21ee957d165fb87130aa136154add29cf72ae827b47d5c2641f214e",
+      "collector_log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "completed_observations": 48,
+      "measured_pairs": 20,
+      "observations_artifact": "command-part-observations.jsonl",
+      "status": "descriptive-only",
+      "metrics": {
+        "document_open_ms": {
+          "baseline": {
+            "median": 188.66457150000002,
+            "p95": 275.70288525,
+            "iqr": 29.781198750000016,
+            "iqr_over_median": 0.1578526297397602,
+            "maximum": 283.836296
+          },
+          "change": {
+            "median": 188.6805545,
+            "p95": 304.34140110000004,
+            "iqr": 43.998227499999985,
+            "iqr_over_median": 0.2331889876865927,
+            "maximum": 402.10976
+          }
+        },
+        "peak_rss_bytes": {
+          "baseline": {
+            "median": 110501888.0,
+            "p95": 110666956.8,
+            "iqr": 219136.0,
+            "iqr_over_median": 0.00198309733857217,
+            "maximum": 110690304
+          },
+          "change": {
+            "median": 111013888.0,
+            "p95": 111136972.8,
+            "iqr": 238592.0,
+            "iqr_over_median": 0.002149208574696528,
+            "maximum": 111218688
+          }
+        }
+      }
+    },
+    "command-vrml": {
+      "collection_exit": 0,
+      "collection_complete": true,
+      "observations_sha256": "9af561d41494620424fa9a2d37f2460a52af8be3be8acf8723ad40c40991c56e",
+      "execution_sha256": "451a4dcdcc9f79bc6802a039e248762b147cd9d2d3c23bf88d360f6b6ca24c1c",
+      "collector_log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "completed_observations": 48,
+      "measured_pairs": 20,
+      "observations_artifact": "command-vrml-observations.jsonl",
+      "status": "descriptive-only",
+      "metrics": {
+        "document_open_ms": {
+          "baseline": {
+            "median": 1.6664745,
+            "p95": 1.7864869,
+            "iqr": 0.10186949999999984,
+            "iqr_over_median": 0.061128748144660974,
+            "maximum": 1.918136
+          },
+          "change": {
+            "median": 1.6287635,
+            "p95": 1.7189832,
+            "iqr": 0.11186099999999977,
+            "iqr_over_median": 0.06867847910393361,
+            "maximum": 1.728525
+          }
+        },
+        "peak_rss_bytes": {
+          "baseline": {
+            "median": 50087936.0,
+            "p95": 50248499.2,
+            "iqr": 162816.0,
+            "iqr_over_median": 0.003250603099317169,
+            "maximum": 50302976
+          },
+          "change": {
+            "median": 50331648.0,
+            "p95": 50488320.0,
+            "iqr": 194560.0,
+            "iqr_over_median": 0.0038655598958333335,
+            "maximum": 50507776
+          }
+        }
+      }
+    }
+  },
+  "format_resources": {
+    "baseline": {
+      "artifact": "baseline-resource-qualification.json",
+      "sha256": "87a84e5444cf0c04625408f3f8a9dbb9bd58c79160f55e0a5df0bd3d57f64838",
+      "scope": "18 independent fresh-process absolute observations; correctness/resource instrumentation qualification; not comparative P05 acceptance"
+    },
+    "change": {
+      "artifact": "change-resource-qualification.json",
+      "sha256": "538cb92c4ab418f4c89ae99cb8ce852f1cf65e7ec2a7f1542f708c188ff4bac9",
+      "scope": "18 independent fresh-process absolute observations; correctness/resource instrumentation qualification; not comparative P05 acceptance"
+    }
+  },
+  "limitations": [
+    "Required hidden-primary collection aborted; partial observations are ineligible and unassessed",
+    "All-visible and PartDesign GUI timing variability exceeds predeclared IQR/median limit despite passing numeric limits",
+    "Existing background applications retained and competing load recorded; no controlled idle-host claim",
+    "Logical image counters cover image-plane-owned pixel payloads; process RSS separate; GPU residency unmeasured",
+    "Absolute generated-format resource rows do not close P05/T004.2 comparative acceptance"
+  ],
+  "recovery_owner": "local-developer",
+  "recovery_task": "T020; do not advance T004/T010 gates"
+}

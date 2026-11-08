@@ -48,6 +48,14 @@
 #include <Gui/TaskView/TaskImage.h>
 
 #include "ViewProviderImagePlane.h"
+#ifdef FC_IMAGE_PERFORMANCE_TRACE
+# include "ImagePerformanceTrace.h"
+# define FC_IMAGE_TRACE(expression) ImagePerformanceTrace::expression
+#else
+# define FC_IMAGE_TRACE(expression) \
+     do { \
+     } while (false)
+#endif
 
 
 using namespace Gui;
@@ -63,6 +71,8 @@ ViewProviderImagePlane::ViewProviderImagePlane()
 
     texture = new SoTexture2;
     texture->ref();
+    FC_IMAGE_TRACE(registerField(&texture->image));
+    FC_IMAGE_TRACE(provider(this, false));
 
     pcCoords = new SoCoordinate3();
     pcCoords->ref();
@@ -79,6 +89,8 @@ ViewProviderImagePlane::ViewProviderImagePlane()
 
 ViewProviderImagePlane::~ViewProviderImagePlane()
 {
+    FC_IMAGE_TRACE(removeField(&texture->image));
+    FC_IMAGE_TRACE(removeProvider(this));
     pcCoords->unref();
     texture->unref();
     shapeHints->unref();
@@ -202,7 +214,13 @@ void ViewProviderImagePlane::loadImage(ImageSizePolicy sizePolicy)
     Image::ImagePlane* imagePlane = static_cast<Image::ImagePlane*>(pcObject);
     std::string fileName = imagePlane->ImageFile.getValue();
 
+#ifdef FC_IMAGE_PERFORMANCE_TRACE
+    ImagePerformanceTrace::Load traceLoad;
+    const bool traceMissing = (isRestoring() || pcObject->testStatus(App::ObjectStatus::ObjImporting))
+        && !fileName.empty() && !QFileInfo::exists(QString::fromUtf8(fileName));
+#endif
     pendingFullResTexture = false;
+    FC_IMAGE_TRACE(provider(this, false));
     QImage impQ;
     if (!fileName.empty()) {
         if (isSvgFile(fileName.c_str())) {
@@ -213,9 +231,14 @@ void ViewProviderImagePlane::loadImage(ImageSizePolicy sizePolicy)
         }
     }
 
+#ifdef FC_IMAGE_PERFORMANCE_TRACE
+    ImagePerformanceTrace::Decoded traceDecoded(impQ);
+#endif
     // Reject missing/undecodable/unsupported images before initializing physical
     // dimensions. Empty results also clear a previous image's stale texture.
-    if (convertToSFImage(impQ)) {
+    const bool converted = convertToSFImage(impQ);
+    FC_IMAGE_TRACE(load(traceMissing, converted, !fileName.empty()));
+    if (converted) {
         setPlaneSize(impQ, sizePolicy);
     }
     else if (!fileName.empty()) {
@@ -235,6 +258,14 @@ void ViewProviderImagePlane::loadImageIfPending()
 
 void ViewProviderImagePlane::finishRestoring()
 {
+    // Apply the frozen benchmark context before restored visibility can load
+    // a pending image. This hook is absent from normal builds.
+#ifdef FC_IMAGE_PERFORMANCE_TRACE
+    const int traceVisibility = ImagePerformanceTrace::initialVisibility();
+    if (traceVisibility >= 0) {
+        pcObject->Visibility.setValue(traceVisibility != 0);
+    }
+#endif
     ViewProviderGeometryObject::finishRestoring();
 
     if (Visibility.getValue() && pendingFullResTexture) {
@@ -376,9 +407,13 @@ QSizeF ViewProviderImagePlane::pixelSize(const char* filename, const QSizeF& siz
 bool ViewProviderImagePlane::convertToSFImage(const QImage& img)
 {
     SoSFImage sfimg;
+#ifdef FC_IMAGE_PERFORMANCE_TRACE
+    ImagePerformanceTrace::Field traceField(sfimg);
+#endif
     // BitmapFactory clears null/unsupported input to an empty Coin image.
     BitmapFactory().convert(img, sfimg);
     texture->image = sfimg;
+    FC_IMAGE_TRACE(updateField(&texture->image));
     SbVec2s size;
     int components;
     const auto* bytes = sfimg.getValue(size, components);
@@ -397,6 +432,7 @@ void ViewProviderImagePlane::updateData(const App::Property* prop)
         if ((isRestoring() || pcObject->testStatus(App::ObjectStatus::ObjImporting))
             && !fileName.empty()) {
             pendingFullResTexture = true;
+            FC_IMAGE_TRACE(provider(this, true));
             return;
         }
         reloadIfSvg();
@@ -406,6 +442,7 @@ void ViewProviderImagePlane::updateData(const App::Property* prop)
         if ((isRestoring() || pcObject->testStatus(App::ObjectStatus::ObjImporting))
             && !fileName.empty()) {
             pendingFullResTexture = true;
+            FC_IMAGE_TRACE(provider(this, true));
             return;
         }
         loadImage(ImageSizePolicy::Initialize);
