@@ -30,8 +30,11 @@ def main():
     parser.add_argument("--gridfinity-addon", type=Path, required=True)
     parser.add_argument("--qualify", action="store_true")
     parser.add_argument("--command-only", action="store_true")
+    parser.add_argument("--included-file-probe", action="store_true")
     parser.add_argument("--commit", help="Expected full arm commit from the frozen execution")
     args = parser.parse_args()
+    if args.included_file_probe and (not args.command_only or not args.commit):
+        parser.error("the included-file probe requires --command-only and an exact --commit")
     if not args.qualify and (not args.commit or len(args.commit) != 40):
         parser.error("acceptance requires the frozen --commit identity")
     context = json.loads(args.context.read_text())
@@ -73,6 +76,8 @@ def main():
             [str(args.build_dir.resolve() / "lib"), *mod_dirs, env.get("LD_LIBRARY_PATH", "")]
         )
         worker = args.source_root.resolve() / "tests/src/Gui/ImagePerformanceProbe.py"
+        if args.included_file_probe:
+            worker = args.source_root.resolve() / "tests/src/App/IncludedFilePerformanceProbe.py"
         preamble = (
             "import importlib.util\n"
             + f"_spec = importlib.util.spec_from_file_location('image_probe', {str(worker)!r})\n"

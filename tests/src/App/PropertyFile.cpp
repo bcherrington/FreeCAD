@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: LGPL-2.1-or-later
 
 #include <gtest/gtest.h>
+#ifdef FC_INCLUDED_FILE_PERFORMANCE_TRACE
+# include "IncludedFilePerformanceTrace.h"
+#endif
 
 #include <algorithm>
 #include <ranges>
@@ -193,6 +196,25 @@ public:
     int faults {0};
 
 protected:
+    int_type underflow() override
+    {
+        if (remaining == 0) {
+            ++faults;
+            throw std::ios_base::failure("Injected included-file read error");
+        }
+        return source.peek();
+    }
+
+    int_type uflow() override
+    {
+        const auto value = underflow();
+        if (!traits_type::eq_int_type(value, traits_type::eof())) {
+            source.get();
+            --remaining;
+        }
+        return value;
+    }
+
     std::streamsize xsgetn(char* data, std::streamsize size) override
     {
         if (remaining == 0) {
@@ -209,6 +231,34 @@ private:
     Base::Reader& source;
     std::streamsize remaining;
 };
+
+TEST(IncludedFileFaultStreamTest, InjectsTheSameBoundaryForScalarAndBlockReads)
+{
+    for (const bool scalar : {false, true}) {
+        SCOPED_TRACE(scalar);
+        const auto expected = binaryPayload(65537);
+        std::istringstream bytes(expected);
+        Base::Reader reader(bytes, "payload.bin", 1);
+        FailingInput fault(reader, 65536);
+        std::istream input(&fault);
+        std::string copied;
+        if (scalar) {
+            char byte;
+            while (input.get(byte)) {
+                copied.push_back(byte);
+            }
+        }
+        else {
+            std::array<char, 65536> buffer {};
+            while (input.read(buffer.data(), buffer.size()).gcount()) {
+                copied.append(buffer.data(), input.gcount());
+            }
+        }
+        EXPECT_EQ(copied, expected.substr(0, 65536));
+        EXPECT_TRUE(input.bad());
+        EXPECT_EQ(fault.faults, 1);
+    }
+}
 
 class ArchiveDiagnostics: public Base::ILogger
 {
@@ -353,7 +403,19 @@ TEST_P(IncludedFileArchiveTest, PreservesDocumentFailurePolicyAndLaterEntry)
         }
     );
     ArchiveDiagnostics diagnostics;
+# ifdef FC_INCLUDED_FILE_PERFORMANCE_TRACE
+    ASSERT_TRUE(App::IncludedFilePerformanceTrace::begin());
+# endif
     EXPECT_NO_THROW(_doc->restore(archive.c_str()));
+# ifdef FC_INCLUDED_FILE_PERFORMANCE_TRACE
+    ASSERT_TRUE(App::IncludedFilePerformanceTrace::end());
+    const auto restoreTrace = App::IncludedFilePerformanceTrace::counters();
+    EXPECT_EQ(restoreTrace.active, 0);
+    EXPECT_EQ(restoreTrace.failed, mode == 2 || mode == 3 || mode == 4 || (mode == 1 && !empty));
+    EXPECT_EQ(restoreTrace.reused, mode == 5 ? 1 : 0);
+    EXPECT_EQ(restoreTrace.completed, restoreTrace.failed || mode == 5 ? 1 : 2);
+    EXPECT_GT(restoreTrace.restoreNanoseconds, 0);
+# endif
     const int ioFaults = fcIncludedFileFaultHits();
     fcIncludedFileFault(nullptr, 0);
     ASSERT_TRUE(sawSecond);
@@ -586,6 +648,11 @@ TEST_P(IncludedFileHookTest, ReportsIoFailureBeforePayloadCompletion)
         [&](const App::DocumentObject&, const App::Property& prop) {
             if (&prop == _property) {
                 ++after;
+# ifdef FC_INCLUDED_FILE_PERFORMANCE_TRACE
+                const auto snapshot = App::IncludedFilePerformanceTrace::counters();
+                EXPECT_EQ(snapshot.active, 0);
+                EXPECT_EQ(snapshot.completed, 1);
+# endif
             }
         }
     );
@@ -598,12 +665,23 @@ TEST_P(IncludedFileHookTest, ReportsIoFailureBeforePayloadCompletion)
         fcIncludedFileFault(path.c_str(), mode);
     }
     const bool fails = mode != 1 || !empty;
+# ifdef FC_INCLUDED_FILE_PERFORMANCE_TRACE
+    ASSERT_TRUE(App::IncludedFilePerformanceTrace::begin());
+# endif
     if (fails) {
         EXPECT_THROW(_property->RestoreDocFile(reader), Base::FileSystemError);
     }
     else {
         EXPECT_NO_THROW(_property->RestoreDocFile(reader));
     }
+# ifdef FC_INCLUDED_FILE_PERFORMANCE_TRACE
+    ASSERT_TRUE(App::IncludedFilePerformanceTrace::end());
+    const auto restoreTrace = App::IncludedFilePerformanceTrace::counters();
+    EXPECT_EQ(restoreTrace.active, 0);
+    EXPECT_EQ(restoreTrace.failed, fails ? 1 : 0);
+    EXPECT_EQ(restoreTrace.completed, fails ? 0 : 1);
+    EXPECT_EQ(restoreTrace.reused, 0);
+# endif
     const int hits = fcIncludedFileFaultHits();
     fcIncludedFileFault(nullptr, 0);
     ASSERT_TRUE(std::filesystem::is_regular_file(path));
@@ -629,4 +707,30 @@ INSTANTIATE_TEST_SUITE_P(
     ::testing::Combine(::testing::Range(1, 4), ::testing::Bool())
 );
 
+#endif
+
+#ifdef FC_INCLUDED_FILE_PERFORMANCE_TRACE
+TEST(IncludedFilePerformanceTraceTest, ActiveScopeCannotBeResetOrDisabled)
+{
+    namespace Trace = App::IncludedFilePerformanceTrace;
+    EXPECT_FALSE(Trace::end());
+    ASSERT_TRUE(Trace::begin());
+    EXPECT_FALSE(Trace::begin());
+    {
+        Trace::Restore scope;
+        EXPECT_FALSE(Trace::begin());
+        EXPECT_FALSE(Trace::end());
+        EXPECT_EQ(Trace::counters().active, 1);
+        scope.complete();
+    }
+    ASSERT_TRUE(Trace::end());
+    EXPECT_FALSE(Trace::end());
+    EXPECT_EQ(Trace::counters().active, 0);
+    EXPECT_EQ(Trace::counters().completed, 1);
+    {
+        Trace::Restore disabled;
+    }
+    EXPECT_EQ(Trace::counters().failed, 0);
+    ASSERT_NE(fc_included_file_trace_snapshot(), nullptr);
+}
 #endif

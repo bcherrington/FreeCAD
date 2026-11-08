@@ -1,0 +1,17 @@
+{
+  "schema": "freecad-spec003-p01-inventory-guards/v1",
+  "controller_sha256": "e3f9972ec6ab7124c934e953bea2af8b3cd0990ca18a2026abf5ee50fe61907e",
+  "checks": [
+    {
+      "case": "added-source",
+      "rejected": true,
+      "native_workers_started": 0
+    },
+    {
+      "case": "added-runtime-output",
+      "rejected": true,
+      "native_workers_started": 0
+    }
+  ],
+  "passed": true
+}

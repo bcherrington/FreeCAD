@@ -363,8 +363,10 @@ Source implementation facts and dated results remain in
    that order. Each fix includes its own regression; each subgroup ends with
    current qualification evidence before the next subgroup begins.
 3. **Performance:** T020 measurement/disposition is complete, with P07 rejected
-   under D001. Mandatory T022/D005 now precedes T004 because the material owner
-   choice and measurement/source composition may invalidate later comparisons.
+   under D001. T022/D005 has selected retention with unchanged D001 budgets and
+   the reviewed t004-execution-plan.md. T004.1 now records all five comparable
+   cells; P01 fails overall D001 and its residual remains T004. T004.2 image/P07
+   comparisons are next.
    Record deferred work, memory, attribution and literal non-regression outcomes;
    completed evidence does not satisfy Phase 3 exit for a rejected optimization.
 4. **Delivery:** T010 confirms exact final applicability and broad/platform
@@ -407,15 +409,39 @@ is complete and Phase 2 correctness is qualified locally. Resolved D002 routes
 optional reduced-resolution exploration to B009 while keeping full resolution;
 resolved D003 pins the initial local candidate and applicability policy.
 T010.1 still confirms the exact final production composition and affected evidence. D004 selected the corrected native-probe campaign, which completed validly and
-rejected P07 under D001. D005 is open: T022 must resolve the material behavior/
-requirements and measurement/revalidation plan before T004/T010. On 2026-11-08
-the user chose to retain P07 for its apparent opening-time and RAM benefits.
-T022 now defines validation and first-use/tail criteria for that retained candidate;
-no exact replacement budget or production acceptance is implied.
-T021 recorded historical discovery of D001–D003; current discovery must include open D005 and its T022/T004/T010 blockers.
+rejected P07 under D001. D005 is resolved by the reviewed
+[t004 execution plan](t004-execution-plan.md): retain lazy full resolution,
+keep D001 criteria unchanged and bound diagnostics/revalidation. T022 planning is
+complete; T004.1 measurement is complete and P01 fails overall D001. T004.2 is next.
+No unresolved decision IDs remain, but P01/P07 are still unaccepted and T004/T010 cannot complete until
+applicable acceptance passes or a separately approved disposition exists.
+T021's historical decision discovery and all T020 records remain unchanged.
 Discovery verifies all current IDs and distinguishes
 advisory context availability from execution/acceptance readiness. The ledger,
 task dependencies and literal acceptance criteria must agree before selection.
+
+## Opt-In Restore Benchmark Probe
+
+T004.1 adds developer-only `BUILD_INCLUDED_FILE_PERFORMANCE_PROBE` (default OFF).
+Only `PropertyFile.cpp` receives the trace definition/include path; the trace
+implementation links into FreeCADApp only when enabled. The native C ABI exposes
+numeric thread-local counters without paths or payloads. Normal builds retain
+the existing behavior and exports.
+
+The steady-clock interval starts at included-file hook entry and completes after
+the copy/read/write/close checks, before permissions and property notifications.
+RAII accounts for failure paths; read-only reuse is distinct. No tracing occurs
+inside the scalar or buffered copy loop. Start/stop rejects duplicate sessions
+and active-hook reset; notification tests prove the successful timer has stopped.
+The command worker freezes exact hook/property/byte coverage, independently
+checks archive bytes/permissions and model/reference identity outside timers,
+and binds the loaded runtime and source commit. Every accepted duration must
+match its native nanosecond counter. D006 permits only the two pinned structural
+zero controls' payload metric to be not_applicable; other checks remain required.
+
+The shared fault stream supports both `get` and `read` with the same injected
+65536-byte boundary, `badbit`, partial bytes and one fault hit. This corrects a
+test-harness blind spot exposed by the scalar arm; archive policy is unchanged.
 
 ## Related Artifacts
 

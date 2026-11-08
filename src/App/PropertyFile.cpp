@@ -37,6 +37,9 @@
 #include "Document.h"
 #include "DocumentObject.h"
 #include "PropertyContainer.h"
+#ifdef FC_INCLUDED_FILE_PERFORMANCE_TRACE
+# include "IncludedFilePerformanceTrace.h"
+#endif
 
 
 using namespace App;
@@ -506,10 +509,16 @@ void PropertyFileIncluded::SaveDocFile(Base::Writer& writer) const
 
 void PropertyFileIncluded::RestoreDocFile(Base::Reader& reader)
 {
+#ifdef FC_INCLUDED_FILE_PERFORMANCE_TRACE
+    IncludedFilePerformanceTrace::Restore traceRestore;
+#endif
     Base::FileInfo fi(_cValue.c_str());
     if (fi.exists() && !fi.isWritable()) {
         // This happens when an object is being restored and tries to reference the
         // same file of another object (e.g. for copy&paste of objects inside the same document).
+#ifdef FC_INCLUDED_FILE_PERFORMANCE_TRACE
+        traceRestore.reuse();
+#endif
         return;
     }
     Base::ofstream to(fi, std::ios::out | std::ios::binary);
@@ -549,6 +558,10 @@ void PropertyFileIncluded::RestoreDocFile(Base::Reader& reader)
             << "File '" << _cValue << "' in transient directory cannot be closed.";
         throw Base::FileSystemError(str.str());
     }
+
+#ifdef FC_INCLUDED_FILE_PERFORMANCE_TRACE
+    traceRestore.complete();
+#endif
 
     // set read-only after restoring the file
     fi.setPermissions(Base::FileInfo::ReadOnly);

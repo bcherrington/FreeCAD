@@ -1252,3 +1252,87 @@ appropriate first-use/tail targets, including repeat use and responsiveness.
 No exact revised median/p95 budget was selected, no historical result is
 reclassified, and no new performance run or production behavior change occurs
 in this documentation update. Full resolution/calibration/safety remain required.
+
+## T022 Plan And T004.1 Source Construction — 2026-11-08
+
+Historical pre-build/pre-sample checkpoint. Current measurement/disposition is
+in T004.1 Comparable Restore Measurement below; this section preserves its
+original source-construction evidence and limits.
+
+Committed T020 as root `95e99e22f2`, docs `2470275`. Scoped pre-commit hooks,
+CRLF-aware diff checks and retained evidence/protocol hash checks pass. Concurrent
+Sketcher and console work is excluded and preserved.
+
+D005 resolves the technical plan in [t004-execution-plan.md](t004-execution-plan.md):
+retain full-resolution lazy P07, keep D001 numeric criteria unchanged and bound
+non-acceptance diagnostics/correction/revalidation. Independent `t004_plan_review`
+reviewed the actual source/plan/artifacts; missing header identity and diagnostic
+A/B definition were corrected, with no remaining blocker. T022 is complete for
+planning only; P07's failed/inconclusive results and production limits remain.
+Earlier dated T022/D005 blocker statements and machine completion receipts above
+record their checkpoint; this section and the active ledger give current state.
+
+The [readiness audit](t004-comparison-readiness.json) verifies eight public
+fixtures, eight full historical delta hashes and eight affected source files
+against corrected common `613def1ab6bf615f82fe163e3b41489d0228acbf` and committed
+T020. Full-tree equivalence to current HEAD is not claimed; unrelated Sketcher
+changes are excluded. Both P03 primary archives contain map-like entries/XML
+nodes, but runtime parser-record coverage is still required before sampling.
+
+T004/T004.1 now track source construction/qualification. The
+[draft P01 receipt](t004-source-review/p01-arm-construction.json) binds scalar arm
+`de308e8c6ea46e07580bc132f5be776e9827339b` and its exact patch/source hashes. It
+changes one restore copy loop, retaining read/write/close checks and surrounding
+policy. `git apply --check` passes; source review found no blocker. No source
+worktree was changed, no new native worker/build/acceptance freeze or observation
+was produced. Both-arm T002/T018 fault/byte/document outcomes, new shared hook
+instrumentation, matched optimized builds and all five fixed P01 cells remain
+required. The draft is not runtime-qualified or performance evidence.
+
+Final checks for this slice: package lint reports zero errors/warnings; T022
+state audit passes with zero findings; unresolved-decision discovery is empty;
+T004.1 context has no gaps or open decisions. Direct hash checks confirm all
+eight source identities and origin deltas, draft patch/source identities, retained
+T020 raw/context/result hashes and immutable protocol bytes. Patch application
+check and CRLF-aware scoped diff check pass. These are static/lifecycle checks,
+not new builds, runtime passes or performance observations.
+
+## T004.1 Comparable Restore Measurement
+
+2026-11-08: measurement/disposition complete. [P01 results](t004-p01-results.md)
+and [machine results](t004-p01-results.json) bind a non-self-referential full
+published-evidence manifest, exact raw/context/assessment files and post-campaign
+archive mappings. All five cells completed once with 240 successful fresh-process
+observations and twenty measured pairs each. Both audits pass 39,805 hashes and
+510 live installed-package checks; no retry, pooling, deletion or exclusion.
+
+Both isolated locked RelWithDebInfo builds pass; each arm passes 31 included-file/
+probe and 26 Reader cases, with all ten final runtime contexts qualified. Shared
+fault-stream scalar support preserves exact archive failure policy. Required
+completion recompute counts are fixed at 0/3/2/0/0. The normalized shared SQL
+parser removes an unreviewed generated-output difference; its loaded path/hash
+is enforced. Only the reviewed three native output files differ. Exact source,
+CPP/Python equivalence, package/profile and generated-input identities are bound.
+
+P01 is NOT ACCEPTED overall under unchanged D001. The primary passes (payload
+median 513.92→26.79 ms; complete console open 1183.27→704.44 ms); EngineBlock
+passes. BIMExample open p95 2784.98→3347.69 ms fails. ArchDetail and PartDesignExample
+are inconclusive; all resources pass. The control tail's cause is not established.
+D006 marks only two structural-zero payload metrics not_applicable, preserving
+all five cells and other requirements. T004/local-developer owns the P01 residual.
+
+Independent review recomputed all five assessments exactly and checked frozen
+inputs, provenance, raw/context hashes, privacy and prospective task semantics.
+T004.1's literal comparable-measurement criteria are fulfilled; T004 remains in
+progress, T004.2 is next, and P07 remains retained/unaccepted. Phase 3/SC-005/T010
+acceptance remains unsatisfied. Current aggregate schema v3 explicitly preserves
+the original T020 aggregate/receipt and both campaigns; historical next-task fields
+are not current lifecycle authority. No new production behavior or numeric waiver.
+
+Final independent publication/lifecycle review found no remaining blockers: the
+manifest covers all 31 evidence files, all hashes and archived bindings agree,
+classification recomputation is exact, privacy passes and active task/aggregate
+state is consistent. t004-p01-validation.json records final checks. Scoped hooks
+and CRLF-aware diff checks pass; the original private fixture hash is unchanged.
+The external chronological coordination file was appended with this scoped
+result, explicitly preserving separate D600/live-model/crash investigation scope.

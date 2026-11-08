@@ -12,69 +12,96 @@ last_reviewed: 2026-11-08
 ## Purpose
 
 This ledger is authoritative for unresolved decision IDs/status/ownership. Design
-and traceability explain their implementation impact. D001–D004 are resolved planning/execution selections. D005 is open after the
-complete corrected campaign rejected P07 under D001. T020 measurement completion
-does not authorize T004/T010 execution or production acceptance.
-D001 is resolved by T001; D002 is resolved as an owned optional backlog route.
-D003 is resolved for initial local candidate/provenance policy under the user
-instruction to complete T019; final production confirmation remains T010.1.
+and traceability explain their implementation impact. D001–D006 are resolved
+planning/execution selections. D005 resolves retention and the technical validation
+plan, not P07 acceptance. T004.1 now has complete valid P01 measurements but P01
+fails overall D001; T004 owns its residual and T004.2 is next. T004/T010 remain
+incomplete while retained changes fail
+D001. T010.1 still confirms final production composition and evidence applicability.
 
 ## Decision Log
 
 | ID | Decision Needed | Options | Owner | Needed By | Status |
 | --- | --- | --- | --- | --- | --- |
-| D005 | Define validation and first-use/tail criteria for retained P07 | Retain lazy full-resolution loading; validate opening/RAM benefits, measurement conditions and any explicitly agreed future criteria/rework | local-developer | T022 before T004 | open |
 
-### D005 — P07 Rejection And Further Measurement Conditions
-
-- **Status:** open; owner selected retention on 2026-11-08. Future acceptance
-  criteria, measurement conditions and bounded validation/rework plan remain open.
-- **Owner:** local-developer. T022 is the mandatory decision/plan task after T020
-  and before T004/T004.1; a new source composition could invalidate later evidence.
-- **Owner direction, 2026-11-08:** the user explicitly agreed not to discard P07,
-  valuing the apparent hidden-image opening-time improvement and RAM saving.
-  Retain lazy full-resolution loading as the candidate behavior. Prioritize
-  validating those benefits and assessing first-use/tail latency and responsiveness.
-  No exact replacement budget, protocol revision or production acceptance was
-  selected by that statement. Removal/eager loading is not the default direction.
-- **Trigger:** all seven corrected-campaign cells completed validly. Lazy first-show
-  median 857.91 ms and p95 1843.09 ms fail D001's 500/1000 ms budgets. All-visible
-  p95 and PartDesign median fail their non-regression rules. Other timing cells
-  are inconclusive because variability exceeds 0.10. All resource limits pass.
-- **Recorded disposition:** Codex, under the instruction to continue T020, records
-  P07 as **NOT ACCEPTED under the current D001 contract**. T020's measurement and
-  regression-disposition criteria are fulfilled; Phase 3/SC-005/production are not.
-  This is a negative evidence disposition, not approval of an engineering tradeoff.
-- **Remaining plan:** retain P07 and Requirement 5 fidelity/calibration/safety.
-  Validate the opening-time benefit under reliable conditions and the observed
-  memory benefit in representative workflows. Agree defensible first-use median
-  and tail targets, distinguishing one-time loading from repeat display and
-  overall time to a usable document. The 500/1000 ms values were initial local
-  engineering budgets, not user research or upstream policy. Any future numeric
-  change requires an explicit dated decision and new applicable evidence; the
-  existing results keep their original failed/inconclusive classifications.
-- **Boundary:** publishing a report, routing to a backlog or completing T020 cannot
-  accept retained P07. Do not silently relax thresholds, reinterpret failed cells,
-  resume/retry an old freeze, pool campaigns, or cherry-pick replacement samples.
-  Retention is chosen; no new production behavior, exact replacement threshold
-  or requirements/protocol revision is chosen here.
-- **Resolution evidence:** dated owner option/rationale; bounded implementation and
-  validation scope; exact source composition and affected-evidence reconciliation;
-  any justified fresh measurement profile/freeze. T004/T010 still require their
-  literal D001 acceptance after the decision. T004.2 consumes image evidence;
-  parser/tree task T004.3 is not the primary owner of P07 remediation.
-- **Evidence:** [corrected results](performance-recovery-2-results.md),
-  [machine record](performance-recovery-2-results.json), and the two independently
-  preserved campaign records. Neither campaign gains a waiver through this route.
+No open decisions. See the resolved D005 plan below.
 
 ## Blocking Impact
 
-| Decision ID | Blocks | Impact If Unresolved |
-| --- | --- | --- |
-| D005 | T022, T004, T004.1, T004.2, T010, T010.1 | Retained P07 is not accepted; material behavior/requirements and measurement conditions must be resolved before further comparisons or production acceptance |
-
+No unresolved decision IDs remain. P07's failed/inconclusive acceptance evidence
+still blocks T004 completion and production acceptance. A new material behavior,
+threshold or measurement-profile choice requires a new dated decision before
+implementation or sampling; resolved D005 does not waive D001.
 
 ## Resolved Decisions
+
+### D006 — P01 Structurally Empty Payload Controls
+
+- **Status:** resolved on 2026-11-08 for the new P01 study before any samples.
+- **Owner:** local-developer; delegated technical selection under the instruction
+  to continue T004.1, with independent `p01_instrumentation_review` review.
+- **Evidence:** [public archive audit](t004-source-review/p01-public-payload-coverage.json)
+  matches the unchanged D001 fixture hashes. EngineBlock and PartDesignExample
+  declare no included-file properties. BIMExample has one nonempty 519-byte
+  payload; ArchDetail has one nonempty 5487-byte payload. Empty declarations are
+  not executed payload hooks. Runtime qualification must confirm these counts.
+- **Chosen disposition:** keep all five P01 cells and unchanged samples/endpoints/
+  thresholds. For EngineBlock and PartDesignExample only, classify
+  `restore_payload_ms` as **not_applicable**, never a passing restore measurement.
+  Freeze the exact fixture hashes and D006 disposition in each control context.
+- **Required evidence:** those two controls must have exactly zero included
+  properties/bytes, completed/failed/reused/active hooks, native duration and
+  restore metric. Their full model/reference, document-open, RSS and logical
+  image-resource checks still run with all original thresholds. Unexpected
+  nonzero hooks or changed coverage rejects the record. The private primary,
+  BIMExample and ArchDetail require positive qualified payload coverage.
+- **Rationale:** an unexercised hook cannot establish payload performance. This
+  explicit structural inapplicability preserves useful non-payload controls and
+  follows D001's zero-coverage decision requirement without dropping a fixture,
+  inventing timings, changing a budget or waiving safety. P07 is unaffected.
+- **Implementation:** the assessor binds every P01 duration to native counters,
+  rejects undeclared zero coverage, and recognizes only this exact two-fixture
+  D006 route. Synthetic tests distinguish not_applicable from a payload pass.
+
+### D005 — Retain P07 And Select Bounded Validation Plan
+
+- **Status:** resolved on 2026-11-08 for technical planning only.
+- **Owner:** local-developer. The user selected retention and requested T004;
+  Codex records the technical plan under that instruction, with independent agent
+  review. This is not human/maintainer approval of a performance tradeoff.
+- **Chosen option:** retain full-resolution lazy P07 and adopt
+  [t004-execution-plan.md](t004-execution-plan.md). Keep D001's existing first-show
+  500/1000 ms and repeat 50/100 ms budgets and all other rules unchanged. No exact
+  replacement criterion or production behavior change is selected.
+- **Rationale:** preserve the owner's opening/RAM benefit direction while
+  investigating first-use cost and noisy controls. Both T020 campaigns keep their
+  failed/inconclusive outcomes; P07 remains **NOT ACCEPTED**.
+- **Source:** construction anchor `613def1ab6bf615f82fe163e3b41489d0228acbf`;
+  all eight affected source files match committed T020. New common instrumentation
+  and actual arm/build/configuration/fixture identities must be frozen before
+  execution. P07 stays identical across non-P07 arms; concurrent Sketcher work is
+  excluded. Final integrated applicability remains T010.
+- **Diagnostic boundary:** at most 16 fresh GUI workers/20 minutes, fixed AB/BA
+  across four contexts, explicitly A=eager/B=lazy with the sole reviewed visibility
+  delta. Separate decode/conversion/native completion/event wait and observe host
+  load; these exploratory records are ineligible for acceptance. No retries or
+  extra pairs. The plan defines safety/ownership stop conditions and host controls.
+- **Re-entry:** a concrete source, probe or measurement-condition correction and
+  new dated decision/freeze are required before a fresh complete seven-cell P07
+  campaign. Requalify affected fidelity, lifecycle/calibration, tree, frame/context
+  and trace checks. No old-run retry, pooling, outlier deletion or threshold waiver.
+- **Historical execution effect at plan adoption:** T022 planning may complete; T004.1 may construct and qualify
+  P01 with shared safety and lazy behavior. Its draft scalar source is reviewed,
+  not built or runtime-qualified. Five P01 cells need a new probe, matched builds,
+  both-arm T002/T018 checks and exact execution freeze. T004/T004.2/T010 cannot
+  complete while applicable P07 gates remain failed.
+- **Review:** `t004_plan_review` inspected the actual plan, source/delta/fixture
+  audit and draft patch. Missing header identity and diagnostic arm definition
+  were corrected; final review reports no remaining blocker.
+- **Evidence:** [static audit](t004-comparison-readiness.json),
+  [P01 draft receipt](t004-source-review/p01-arm-construction.json), immutable
+  [T020 outcomes](performance-recovery-2-results.md). Current task state is in
+  tasks.md; T020 machine receipts retain their historical completion-time route.
 
 ### D001 — Predeclare comparative benchmark protocol
 
@@ -105,6 +132,13 @@ reviewed P06 subsumption/exclusion and P07 arm-specific cache expectations. Nume
 thresholds, fixtures and sampling rules were unchanged; at that pre-sample
 clarification no acceptance samples had been collected. Subsequent qualification
 and the incomplete first collection are recorded in performance-results.md and D004.
+
+D001 execution clarification, 2026-11-08: the reviewed
+[P01 measurement construction](t004-p01-measurement-review.md) completes the
+console endpoint with at most one required recompute (frozen counts), normalizes
+a shared generated SQL parser, and applies D006's two structural-zero payload
+metrics. All five cells, original sample counts and numeric thresholds remain.
+No P01 acceptance sample has been collected at this clarification checkpoint.
 
 ### D002 — Preserve Current Full Resolution; Route Exploration
 
@@ -195,6 +229,16 @@ Query spec_open_decisions and compare IDs/statuses with this ledger. Missing or
 conflicting discovery is a handoff blocker; inspect this file and design directly
 rather than interpreting an empty result as approval. Advisory context readiness
 means usable context, not resolved decisions or satisfied task dependencies.
+
+## Current Execution Checkpoint
+
+T004.1 completed all five cells/240 fresh observations and both audits. P01 is
+NOT ACCEPTED overall: primary/EngineBlock pass, BIMExample fails open p95,
+ArchDetail/PartDesignExample are inconclusive. T004/local-developer owns that
+acceptance residual; T004.2 image/P07 comparisons are next. Earlier pre-sample
+statements describe their dated checkpoints. Exact sampled ledger/task bytes and
+the original T020 aggregate are archived with post-campaign bindings in the P01
+result package; no observation, threshold or original receipt was rewritten.
 
 ## Related Artifacts
 

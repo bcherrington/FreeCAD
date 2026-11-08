@@ -173,6 +173,177 @@ class AssessmentTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "Renderer/driver"):
                 assess.assess(execution, observations)
 
+    def synthetic_command_collection(self, directory):
+        execution_path, observations, rows = self.synthetic_collection(directory)
+        execution = json.loads(execution_path.read_text())
+        context_path = Path(execution["context_path"])
+        context = json.loads(context_path.read_text())
+        context.pop("native_profile")
+        context.pop("effective_configuration_sha256")
+        context.update(
+            execution_mode="command-only",
+            included_file_coverage={"included_properties": 1, "included_bytes": 10},
+            endpoint="synthetic-console-endpoint",
+            completion_recompute_count=0,
+            generated_sql_parser=None,
+        )
+        context_path.write_text(json.dumps(context))
+        execution.update(comparison_id="P01", context_sha256=assess.digest(context_path))
+        execution_path.write_text(json.dumps(execution))
+        rows[0]["execution_sha256"] = assess.digest(execution_path)
+        for row in rows[1:-1]:
+            record = row["record"]
+            record.pop("native_profile")
+            record.pop("effective_configuration_sha256")
+            record.update(
+                comparison_id="P01",
+                context_sha256=execution["context_sha256"],
+                included_file_coverage=context["included_file_coverage"],
+                endpoint=context["endpoint"],
+                completion_recompute_count=0,
+                generated_sql_parser=None,
+                hook_counters={
+                    "restore_nanoseconds": 1000000,
+                    "completed": 1,
+                    "failed": 0,
+                    "reused": 0,
+                    "active": 0,
+                },
+            )
+            record["metrics"]["restore_payload_ms"] = 1
+            record["metrics"]["document_open_ms"] = 10
+        observations.write_text("".join(json.dumps(row) + "\n" for row in rows))
+        return execution_path, observations, rows
+
+    def test_console_collection_requires_no_renderer_claim(self):
+        with tempfile.TemporaryDirectory() as temp:
+            execution, observations, rows = self.synthetic_command_collection(Path(temp))
+            self.assertEqual(assess.assess(execution, observations)["status"], "pass")
+            rows[1]["record"]["native_profile"] = {"renderer": "unexpected"}
+            observations.write_text("".join(json.dumps(row) + "\n" for row in rows))
+            with self.assertRaisesRegex(ValueError, "renderer claim"):
+                assess.assess(execution, observations)
+
+    def test_console_coverage_mismatch_rejected(self):
+        with tempfile.TemporaryDirectory() as temp:
+            execution, observations, rows = self.synthetic_command_collection(Path(temp))
+            rows[1]["record"]["included_file_coverage"] = {
+                "included_properties": 1,
+                "included_bytes": 1,
+            }
+            observations.write_text("".join(json.dumps(row) + "\n" for row in rows))
+            with self.assertRaisesRegex(ValueError, "coverage changed"):
+                assess.assess(execution, observations)
+
+    def test_console_endpoint_mismatch_rejected(self):
+        with tempfile.TemporaryDirectory() as temp:
+            execution, observations, rows = self.synthetic_command_collection(Path(temp))
+            rows[1]["record"]["endpoint"] = "wrong-endpoint"
+            observations.write_text("".join(json.dumps(row) + "\n" for row in rows))
+            with self.assertRaisesRegex(ValueError, "endpoint changed"):
+                assess.assess(execution, observations)
+
+    def test_console_hook_counts_and_metric_binding_rejected(self):
+        for field, value in (("active", 1), ("failed", 1), ("reused", 1), ("completed", 0)):
+            with self.subTest(field=field), tempfile.TemporaryDirectory() as temp:
+                execution, observations, rows = self.synthetic_command_collection(Path(temp))
+                rows[1]["record"]["hook_counters"][field] = value
+                observations.write_text("".join(json.dumps(row) + "\n" for row in rows))
+                with self.assertRaisesRegex(ValueError, "hook counts"):
+                    assess.assess(execution, observations)
+        with tempfile.TemporaryDirectory() as temp:
+            execution, observations, rows = self.synthetic_command_collection(Path(temp))
+            rows[1]["record"]["metrics"]["restore_payload_ms"] = 2
+            observations.write_text("".join(json.dumps(row) + "\n" for row in rows))
+            with self.assertRaisesRegex(ValueError, "native hook duration"):
+                assess.assess(execution, observations)
+
+    def test_zero_console_payload_requires_reviewed_disposition(self):
+        with tempfile.TemporaryDirectory() as temp:
+            execution, observations, rows = self.synthetic_command_collection(Path(temp))
+            context_path = Path(json.loads(execution.read_text())["context_path"])
+            context = json.loads(context_path.read_text())
+            context["included_file_coverage"] = {"included_properties": 0, "included_bytes": 0}
+            context_path.write_text(json.dumps(context))
+            frozen = json.loads(execution.read_text())
+            frozen["context_sha256"] = assess.digest(context_path)
+            execution.write_text(json.dumps(frozen))
+            rows[0]["execution_sha256"] = assess.digest(execution)
+            for row in rows[1:-1]:
+                row["record"]["context_sha256"] = frozen["context_sha256"]
+                row["record"]["included_file_coverage"] = context["included_file_coverage"]
+            observations.write_text("".join(json.dumps(row) + "\n" for row in rows))
+            with self.assertRaisesRegex(ValueError, "no meaningful payload"):
+                assess.assess(execution, observations)
+
+    def test_reviewed_zero_control_is_inapplicable_and_still_checks_hooks(self):
+        with tempfile.TemporaryDirectory() as temp:
+            execution_path, observations, rows = self.synthetic_command_collection(Path(temp))
+            execution = json.loads(execution_path.read_text())
+            context_path = Path(execution["context_path"])
+            context = json.loads(context_path.read_text())
+            context["included_file_coverage"] = {"included_properties": 0, "included_bytes": 0}
+            context["restore_payload_disposition"] = {
+                "decision_id": "D006",
+                "metric": "restore_payload_ms",
+                "status": "not_applicable",
+                "fixture_sha256": execution["fixture_sha256"],
+            }
+            context_path.write_text(json.dumps(context))
+            execution["context_sha256"] = assess.digest(context_path)
+            execution_path.write_text(json.dumps(execution))
+            rows[0]["execution_sha256"] = assess.digest(execution_path)
+            for row in rows[1:-1]:
+                record = row["record"]
+                record["context_sha256"] = execution["context_sha256"]
+                record["included_file_coverage"] = context["included_file_coverage"]
+                record["hook_counters"] = dict.fromkeys(record["hook_counters"], 0)
+                record["metrics"]["restore_payload_ms"] = 0
+            observations.write_text("".join(json.dumps(row) + "\n" for row in rows))
+            result = assess.assess(execution_path, observations)
+            self.assertEqual(result["status"], "pass")
+            self.assertEqual(result["metrics"]["restore_payload_ms"]["status"], "not_applicable")
+            rows[1]["record"]["hook_counters"]["restore_nanoseconds"] = 1
+            rows[1]["record"]["metrics"]["restore_payload_ms"] = 1e-6
+            observations.write_text("".join(json.dumps(row) + "\n" for row in rows))
+            with self.assertRaisesRegex(ValueError, "zero-coverage hook duration"):
+                assess.assess(execution_path, observations)
+
+    def test_zero_payload_route_cannot_expand_to_other_fixtures_or_decisions(self):
+        plan = json.loads((assess.HERE / "benchmark-plan.json").read_text())
+        for fixture_id, decision, wrong_hash in (
+            ("gridfinity-drawer-v1.3", "D006", False),
+            ("BIMExample", "D006", False),
+            ("PartDesignExample", "D005", False),
+            ("PartDesignExample", "D006", True),
+        ):
+            with self.subTest(fixture=fixture_id, decision=decision, wrong_hash=wrong_hash):
+                with tempfile.TemporaryDirectory() as temp:
+                    execution_path, observations, rows = self.synthetic_command_collection(
+                        Path(temp)
+                    )
+                    execution = json.loads(execution_path.read_text())
+                    context_path = Path(execution["context_path"])
+                    context = json.loads(context_path.read_text())
+                    fixture_sha = plan["fixtures"][fixture_id]["sha256"]
+                    context["restore_payload_disposition"] = {
+                        "decision_id": decision,
+                        "metric": "restore_payload_ms",
+                        "status": "not_applicable",
+                        "fixture_sha256": "0" * 64 if wrong_hash else fixture_sha,
+                    }
+                    context_path.write_text(json.dumps(context))
+                    execution.update(
+                        fixture_id=fixture_id,
+                        fixture_sha256=fixture_sha,
+                        context_sha256=assess.digest(context_path),
+                    )
+                    execution_path.write_text(json.dumps(execution))
+                    rows[0]["execution_sha256"] = assess.digest(execution_path)
+                    observations.write_text("".join(json.dumps(row) + "\n" for row in rows))
+                    with self.assertRaisesRegex(ValueError, "Invalid zero-payload disposition"):
+                        assess.assess(execution_path, observations)
+
     def test_loaded_library_mismatch_rejected(self):
         with tempfile.TemporaryDirectory() as temp:
             execution, observations, rows = self.synthetic_collection(Path(temp))

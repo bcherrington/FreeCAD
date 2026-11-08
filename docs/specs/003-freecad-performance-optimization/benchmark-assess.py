@@ -133,7 +133,27 @@ def assess(execution_path, observations_path):
     context_path = Path(execution["context_path"])
     require(digest(context_path) == execution["context_sha256"], "Context identity changed")
     context = json.loads(context_path.read_text())
-    require("native_profile" in context, "Missing frozen renderer profile")
+    command_only = comparison["id"] == "P01"
+    payload_inapplicable = False
+    if command_only:
+        require(context.get("execution_mode") == "command-only", "Wrong P01 execution mode")
+        require("native_profile" not in context, "Console context contains a renderer claim")
+        disposition = context.get("restore_payload_disposition")
+        if disposition is not None:
+            require(
+                execution["fixture_id"] in {"EngineBlock", "PartDesignExample"}
+                and disposition
+                == {
+                    "decision_id": "D006",
+                    "metric": "restore_payload_ms",
+                    "status": "not_applicable",
+                    "fixture_sha256": fixture["sha256"],
+                },
+                "Invalid zero-payload disposition",
+            )
+            payload_inapplicable = True
+    else:
+        require("native_profile" in context, "Missing frozen renderer profile")
     observations = rows[1:-1]
     require(len(observations) == len(schedule), "Missing/extra observations")
     measured = {"baseline": [], "change": []}
@@ -156,15 +176,57 @@ def assess(execution_path, observations_path):
         ):
             require(record[name] == execution[name], "Worker identity changed")
         require(record["commit"] == execution[arm]["commit"], "Wrong arm commit")
-        require(
-            record.get("native_profile") == context["native_profile"],
-            "Renderer/driver identity changed",
-        )
-        require(
-            record.get("effective_configuration_sha256")
-            == context["effective_configuration_sha256"],
-            "Effective configuration changed",
-        )
+        if command_only:
+            require("native_profile" not in record, "Console record contains a renderer claim")
+            require(
+                record.get("included_file_coverage") == context["included_file_coverage"],
+                "Included-file coverage changed",
+            )
+            require(record.get("endpoint") == context["endpoint"], "Console endpoint changed")
+            require(
+                record.get("generated_sql_parser") == context["generated_sql_parser"],
+                "Generated parser identity changed",
+            )
+            require(
+                type(record.get("completion_recompute_count")) is int
+                and record["completion_recompute_count"] >= 0
+                and record["completion_recompute_count"] == context["completion_recompute_count"],
+                "Completion recompute count changed",
+            )
+            coverage = record["included_file_coverage"]
+            if payload_inapplicable:
+                require(
+                    coverage == {"included_properties": 0, "included_bytes": 0},
+                    "Structural-zero payload coverage changed",
+                )
+            else:
+                require(
+                    coverage["included_properties"] > 0 and coverage["included_bytes"] > 0,
+                    "P01 has no meaningful payload coverage; reviewed disposition required",
+                )
+            hooks = record["hook_counters"]
+            require(
+                all(type(value) is int and value >= 0 for value in hooks.values())
+                and hooks["active"] == hooks["failed"] == hooks["reused"] == 0
+                and hooks["completed"] == coverage["included_properties"],
+                "Unqualified native hook counts",
+            )
+            require(
+                record["metrics"]["restore_payload_ms"] == hooks["restore_nanoseconds"] / 1e6,
+                "Restore metric differs from native hook duration",
+            )
+            if payload_inapplicable:
+                require(hooks["restore_nanoseconds"] == 0, "Unexpected zero-coverage hook duration")
+        else:
+            require(
+                record.get("native_profile") == context["native_profile"],
+                "Renderer/driver identity changed",
+            )
+            require(
+                record.get("effective_configuration_sha256")
+                == context["effective_configuration_sha256"],
+                "Effective configuration changed",
+            )
         require(
             record.get("namespace_sha256") == context["namespace_sha256"][arm],
             "Namespace identity changed",
@@ -187,11 +249,20 @@ def assess(execution_path, observations_path):
     if primary and "primary_context_metrics" in comparison:
         rules = comparison["primary_context_metrics"][execution["context"]]
     metrics = {
-        name: assess_metric(
-            [r[name] for r in measured["baseline"]],
-            [r[name] for r in measured["change"]],
-            rule,
-            plan["sampling"],
+        name: (
+            {
+                "status": "not_applicable",
+                "decision_id": "D006",
+                "reason": "No included-file declarations, bytes or restore hooks in this fixed control",
+                "thresholds_passed": None,
+            }
+            if payload_inapplicable and name == "restore_payload_ms"
+            else assess_metric(
+                [r[name] for r in measured["baseline"]],
+                [r[name] for r in measured["change"]],
+                rule,
+                plan["sampling"],
+            )
         )
         for name, rule in rules.items()
     }

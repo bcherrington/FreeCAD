@@ -48,3 +48,16 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     target_link_libraries(App_tests_run PRIVATE IncludedFileIOFaults)
     target_compile_definitions(App_tests_run PRIVATE FC_TEST_INCLUDED_FILE_IO_FAULTS)
 endif()
+
+option(BUILD_INCLUDED_FILE_PERFORMANCE_PROBE "Build the opt-in Spec 003 restore probe" OFF)
+if(BUILD_INCLUDED_FILE_PERFORMANCE_PROBE)
+    target_sources(FreeCADApp PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/IncludedFilePerformanceTrace.cpp)
+    set_source_files_properties(
+        ${PROJECT_SOURCE_DIR}/src/App/PropertyFile.cpp
+        DIRECTORY ${PROJECT_SOURCE_DIR}/src/App
+        PROPERTIES
+            COMPILE_DEFINITIONS FC_INCLUDED_FILE_PERFORMANCE_TRACE
+            INCLUDE_DIRECTORIES ${CMAKE_CURRENT_SOURCE_DIR}
+    )
+    target_compile_definitions(App_tests_run PRIVATE FC_INCLUDED_FILE_PERFORMANCE_TRACE)
+endif()
