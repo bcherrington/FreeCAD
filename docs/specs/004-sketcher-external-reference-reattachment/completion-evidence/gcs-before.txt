@@ -1,0 +1,19 @@
+Running main() from /home/conda/feedstock_root/build_artifacts/bld/rattler-build_gtest_1786419392/work/googletest/src/gtest_main.cc
+Note: Google Test filter = GCSTest.failedSubsystemIsNotHiddenByLaterSuccess
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from GCSTest
+[ RUN      ] GCSTest.failedSubsystemIsNotHiddenByLaterSuccess
+/home/bcherrington/Projects/CLion/FreeCAD/tests/src/Mod/Sketcher/App/planegcs/GCS.cpp:67: Failure
+Expected: (system->solve(GCS::LevenbergMarquardt)) != (GCS::SolveStatus::Success), actual: 1-byte object <00> vs 1-byte object <00>
+
+[  FAILED  ] GCSTest.failedSubsystemIsNotHiddenByLaterSuccess (2 ms)
+[----------] 1 test from GCSTest (2 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (4 ms total)
+[  PASSED  ] 0 tests.
+[  FAILED  ] 1 test, listed below:
+[  FAILED  ] GCSTest.failedSubsystemIsNotHiddenByLaterSuccess
+
+ 1 FAILED TEST

@@ -3,7 +3,7 @@ title: Local FreeCAD development backlog
 doc_type: reference
 status: active
 owner: local-developer
-last_reviewed: 2026-11-06
+last_reviewed: 2026-11-08
 planning_schema: slm-planning/v1
 ---
 
@@ -31,6 +31,9 @@ Proposed/deferred items do not authorize an implementation or change a solver de
 | B009 | deferred | Explore reduced-resolution initial textures only through a separate measured behavior proposal | later | local-developer | docs/backlog/spec003-follow-ups.md#b009-reduced-resolution-texture-exploration |
 | B010 | deferred | Revisit GUI restore/startup profiling only after fresh results justify a focused investigation | later | local-developer | docs/backlog/spec003-follow-ups.md#b010-conditional-gui-restore-and-startup-investigation |
 | B011 | deferred | Profile larger models before proposing further tree batching or bulk deletion | later | local-developer | docs/backlog/spec003-follow-ups.md#b011-further-tree-batching-or-bulk-delete-profiling |
+| B012 | proposed | Repair isolated Part area-handler initialization in Measure CTest | PR prep | local-developer | docs/backlog/reattachment-delivery-follow-ups.md#b012-isolated-measurement-handler-registration |
+| B013 | proposed | Repair Part loft task-selector fixture eligibility | PR prep | local-developer | docs/backlog/reattachment-delivery-follow-ups.md#b013-part-loft-task-selector-test |
+| B014 | proposed | Prepare focused separate-worktree reattachment PR and platform/human review | PR prep | local-developer | docs/backlog/reattachment-delivery-follow-ups.md#b014-upstream-reattachment-delivery |
 
 ## Decision History
 
@@ -51,3 +54,9 @@ profiling for additional tree optimization (B011) to owned deferred follow-ups.
 The active spec retains original-resolution semantics, all current safety and
 compatibility corrections, and measurements for every retained optimization.
 Routing records scope/ownership, not completed investigation or implementation.
+
+2026-11-08: spec 004 local implementation/lifecycle qualification is complete.
+B012/B013 own the two independently scoped whole-project CTest failures; B014
+owns external upstream delivery. This records a non-green project run and future
+human/platform gates; it does not weaken reattachment acceptance or authorize
+changes to other agents' work.

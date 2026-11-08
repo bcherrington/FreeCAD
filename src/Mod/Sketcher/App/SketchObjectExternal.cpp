@@ -2376,8 +2376,17 @@ void SketchObject::reattachExternal(int geoId, App::DocumentObject* obj, const c
             throw Base::ValueError("Only line segments, circles and circular arcs are supported");
         }
         for (std::size_t i = 0; i < objects.size(); ++i) {
-            if (i != static_cast<std::size_t>(slot) && objects[i] == obj
-                && (subs[i] == subName || edgeOf(objects[i], subs[i]).IsSame(edge))) {
+            if (i == static_cast<std::size_t>(slot) || objects[i] != obj) {
+                continue;
+            }
+            // Unrelated vertex/face/group references are allowed. Only an existing
+            // edge alias can duplicate the destination of this one-edge operation.
+            const auto sibling = static_cast<Part::Feature*>(obj)->Shape.getShape().getSubShape(
+                subs[i].c_str(),
+                true
+            );
+            if (subs[i] == subName
+                || (!sibling.IsNull() && sibling.ShapeType() == TopAbs_EDGE && sibling.IsSame(edge))) {
                 throw Base::ValueError("The destination already has an external reference");
             }
         }
@@ -2920,6 +2929,12 @@ void SketchObject::rebuildExternalGeometry(std::optional<ExternalToAdd> extToAdd
             }
             // This is an existing geometry. Update it while keeping the old flags
             ExternalGeometryFacade::copyFlags(geoms[it->second], geo.get());
+            // A projection rebuild must retain the authored sketch modes and layer,
+            // not just external flags. Keep the freshly resolved external Ref intact.
+            auto authored = geoms[it->second]->getExtension(SketchGeometryExtension::getClassTypeId()).lock();
+            if (authored) {
+                geo->setExtension(authored->copy());
+            }
             geoms[it->second] = geo.release();
         }
     }

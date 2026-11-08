@@ -22,6 +22,7 @@
  *                                                                         *
  ***************************************************************************/
 
+#include <limits>
 #include <memory>
 #include <sstream>
 #include <utility>
@@ -670,6 +671,34 @@ PyObject* SketchObjectPy::addExternal(PyObject* args)
         return nullptr;
     }
 
+    Py_Return;
+}
+
+PyObject* SketchObjectPy::reattachExternal(PyObject* args)
+{
+    PyObject* index = nullptr;
+    const char* objectName = nullptr;
+    const char* subName = nullptr;
+    if (!PyArg_ParseTuple(args, "Oss:reattachExternal", &index, &objectName, &subName)) {
+        return nullptr;
+    }
+    if (!PyLong_Check(index) || PyBool_Check(index)) {
+        PyErr_SetString(PyExc_TypeError, "geo_id must be an integer, not bool");
+        return nullptr;
+    }
+    const long value = PyLong_AsLong(index);
+    if (PyErr_Occurred()) {
+        return nullptr;
+    }
+    if (value < std::numeric_limits<int>::min() || value > std::numeric_limits<int>::max()) {
+        PyErr_SetString(PyExc_OverflowError, "geo_id is outside the native integer range");
+        return nullptr;
+    }
+    auto* sketch = getSketchObjectPtr();
+    auto* doc = sketch->getDocument();
+    auto* source = doc ? doc->getObject(objectName) : nullptr;
+    // Native admission also handles absent objects and execution-mode precedence.
+    sketch->reattachExternal(static_cast<int>(value), source, subName);
     Py_Return;
 }
 

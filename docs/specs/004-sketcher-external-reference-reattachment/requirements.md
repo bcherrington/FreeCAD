@@ -4,7 +4,7 @@ doc_type: spec
 artifact_type: requirements
 status: draft
 owner: local-developer
-last_reviewed: 2026-11-07
+last_reviewed: 2026-11-08
 ---
 
 # Requirements
@@ -17,8 +17,8 @@ macros and modelling integrations need to retarget a reference while preserving
 the sketch's authored constraints and external geometry identity.
 
 The user requested this specification after reviewing the native API handoff
-and the local FreeCAD implementation patterns. This package authorizes planning;
-it records proposed behavior, not an implemented API or upstream acceptance.
+and the local FreeCAD implementation patterns. The package now records the implemented local API, executed qualification and
+durable promotion. It does not establish upstream acceptance or a published release.
 
 ## Goals
 
@@ -48,7 +48,9 @@ it records proposed behavior, not an implemented API or upstream acceptance.
 
 ## Durable Source Baseline
 
-Paths below are relative to the FreeCAD root unless stated otherwise. The
+The following inspection observations are historical intake context; final source
+and build hashes are in completion-validation.json. Paths are relative to the
+FreeCAD root unless stated otherwise. The
 [source baseline](canonical-context.md#source-baseline) records inspected identities.
 
 | Source | Current behavior relied on | Confidence | Notes |
@@ -56,9 +58,9 @@ Paths below are relative to the FreeCAD root unless stated otherwise. The
 | src/Mod/Sketcher/App/SketchObjectExternal.cpp | Native attachExternal changes references and rebuilds projections | high, source inspection | Existing grouping and append behavior does not establish this contract |
 | src/Mod/Sketcher/App/SketchObjectPyImp.cpp | Thin addExternal/carbonCopy wrappers validate arguments and call native methods | high, source inspection | No attachExternal wrapper found during this assessment |
 | src/Mod/Sketcher/App/SketchObject.pyi | Python declarations and method documentation | high, source inspection | CMake generates bindings from this file |
-| src/Mod/Sketcher/SketcherTests/TestSketcherSolver.py | External geometry, transaction and undo/redo test patterns | high, source inspection | Proposed cases have not run |
+| src/Mod/Sketcher/SketcherTests/TestSketcherSolver.py | External geometry, transaction and undo/redo test patterns | high, source inspection | Intake observation; final suites executed in T003–T005 |
 | AGENTS.md; CONTRIBUTING.md | Focused changes, pixi workflows and API compatibility | high, local policy | Reconcile before implementation and public preparation |
-| none found | Dedicated durable reattachment contract | documentation gap | Promote accepted behavior to docs/reference/sketcher-external-reference-reattachment.md |
+| docs/reference/sketcher-external-reference-reattachment.md | Implemented contract and recovery examples | high, code/tests and specialist review | Promoted by T006 |
 
 The external coordination log is motivation and historical evidence, not current
 runtime authority. Its reports of bridge fixes do not prove native correctness.
@@ -74,20 +76,20 @@ runtime authority. Its reports of bridge fixes do not prove native correctness.
 
 ## Staged Readiness
 
-- **Current stage:** T002 native implementation verified; whole API qualification remains incomplete.
-- **Next stage:** T003 public Python binding; T004 owns the recorded branch-baseline Coincident solver finding. D001 and D002 are resolved locally.
+- **Current stage:** local implementation/qualification complete; durable promotion and closure metadata being reconciled.
+- **Next stage:** T006 local closure; B014 owns separate upstream delivery. D001/D002 and the T004 solver finding are resolved.
 - **Ready to design when:** satisfied for the bounded proposed scope below.
 - **Design-first exception:** no; requirements precede the proposed design.
 - **Optional artifacts recommended:** canonical-context.md, traceability.md, verification.md.
-- **Downstream review needed:** native/Python implementation review and public API review before delivery.
+- **Downstream review needed:** private native/API/transaction/test reviews completed; human upstream/platform review remains B014.
 
 D001 selects reattachExternal. The user explicitly accepted D002 Option A: normal
 FreeCAD transaction semantics. Preflight rejection and admitted exact no-op are
 unchanged-state operations; unexpected errors after application starts require
 caller recovery. Successful-operation preservation criteria remain intact.
-T001 probes establish the baseline and scope decision. T002 native implementation
-and bounded evidence are recorded in t002-implementation.md; the Python entry
-point and full lifecycle qualification remain T003–T005.
+T001 probes established the baseline and scope decision. Native/Python implementation
+and full lifecycle qualification are complete; see t004-qualification.md and
+completion-validation.json. The earlier T002 report is historical.
 See [T001 qualification](t001-qualification.md).
 
 ## Requirements
@@ -240,7 +242,7 @@ Use deterministic fixtures and table-driven conventional tests; no new property-
 
 - **Language/Version:** existing FreeCAD C++ and Python toolchains; no version bump proposed.
 - **Primary Dependencies:** existing App, Part/OCC and Sketcher facilities.
-- **Target Platform:** supported FreeCAD platforms; Linux local evidence plus cross-platform CI.
+- **Target Platform:** portable FreeCAD API design; executed Linux evidence; Windows/macOS CI is B014.
 - **Constraints:** thin generated binding, native validation, original line endings and narrow source branch.
 - **Performance Goals:** no whole-document recompute or solve solely for admission; reuse prepared projection where feasible. No numerical speedup claim.
 
@@ -257,3 +259,13 @@ Use deterministic fixtures and table-driven conventional tests; no new property-
 - [Traceability](traceability.md)
 - [Verification](verification.md)
 - [Canonical context](canonical-context.md)
+
+## Final Acceptance Disposition
+
+Requirements 1–5 and CP-001–CP-005 have executed local evidence and promoted
+current documentation. The separately reviewed projection-extension and GCS
+status corrections are necessary preservation/false-success fixes, not numerical
+optimization or an API-specific retry. Existing vector/grouped interfaces,
+defaults, file format and dependencies remain unchanged. Full repository CTest
+was executed and its two unrelated failures are explicitly owned by B012/B013;
+the project is not called fully green. Human/upstream/platform delivery is B014.

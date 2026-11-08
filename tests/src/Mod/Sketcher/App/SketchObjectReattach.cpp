@@ -98,6 +98,7 @@ protected:
         radius->setValue(1);
         radius->Name = "AuthoredRadius";
         sketch->addConstraint(std::move(radius));
+        EXPECT_EQ(sketch->solve(), SketchSolveStatus::Success);
         auto relation = std::make_unique<Constraint>();
         relation->Type = signedDistance ? Distance : Coincident;
         relation->setGeoId(0, 0);
@@ -108,6 +109,7 @@ protected:
         }
         relation->setValue(signedDistance ? 2 : 0);
         sketch->addConstraint(std::move(relation));
+        EXPECT_EQ(sketch->solve(), SketchSolveStatus::Success);
         sketch->setExpression(
             sketch->Constraints.createPath(0),
             std::shared_ptr<App::Expression>(App::Expression::parse(sketch, "1 mm"))
@@ -244,9 +246,7 @@ TEST_F(SketchObjectReattach, CirclesPreserveIdentityOrderModesAndConstraints)
     EXPECT_NEAR(x(-4), 20, 1e-9);
     EXPECT_EQ(sketch->getRelatedGeometry(-3), std::vector<int> {-3});
     EXPECT_EQ(sketch->solve(), SketchSolveStatus::Success);
-    // Fully constrained centre-coincidence movement also fails with legacy attachExternal
-    // on this branch. Its solver qualification is tracked in T004; here assert the
-    // unchanged native constraint bindings and successful explicit solve.
+    EXPECT_NEAR(sketch->getGeometry<Part::GeomCircle>(0)->getCenter().x, 40, 1e-7);
     for (int i = 0; i < 2; ++i) {
         sketch->touch();
         doc()->recompute();
@@ -254,6 +254,7 @@ TEST_F(SketchObjectReattach, CirclesPreserveIdentityOrderModesAndConstraints)
         EXPECT_EQ(id(-4), second);
         EXPECT_EQ(sketch->Constraints.getValues()[1]->Orientation.toUnderlyingType(), orientation);
         EXPECT_EQ(sketch->ExternalGeometry.getSubValues()[0], "Edge3");
+        EXPECT_NEAR(sketch->getGeometry<Part::GeomCircle>(0)->getCenter().x, 40, 1e-7);
     }
 }
 
@@ -291,6 +292,7 @@ TEST_F(SketchObjectReattach, PreservesAuthoredExtensionsAtReturn)
     std::unique_ptr<Part::Geometry> authored(sketch->getGeometry(-3)->clone());
     ExternalGeometryFacade::getFacade(authored.get())->setFlag(ExternalGeometryExtension::Defining);
     GeometryFacade::setConstruction(authored.get(), false);
+    ExternalGeometryFacade::getFacade(authored.get())->setGeometryLayerId(7);
     sketch->setGeometry(-3, authored.get());
     const auto flags = ExternalGeometryFacade::getFacade(sketch->getGeometry(-3))->getFlags();
     const auto first = id(-3);
@@ -299,6 +301,23 @@ TEST_F(SketchObjectReattach, PreservesAuthoredExtensionsAtReturn)
     EXPECT_FALSE(GeometryFacade::getConstruction(sketch->getGeometry(-3)));
     EXPECT_EQ(id(-3), first);
     EXPECT_NEAR(x(), 40, 1e-9);
+    sketch->touch();
+    doc()->recompute();
+    EXPECT_FALSE(GeometryFacade::getConstruction(sketch->getGeometry(-3)));
+    EXPECT_EQ(ExternalGeometryFacade::getFacade(sketch->getGeometry(-3))->getFlags(), flags);
+    auto* document = doc();
+    const std::string name = sketch->getNameInDocument();
+    const auto path = App::Application::getTempFileName();
+    ASSERT_TRUE(document->saveAs(path.c_str()));
+    const std::string saved = document->getFileName();
+    document->restore(saved.c_str());
+    auto* restored = static_cast<SketchObject*>(document->getObject(name.c_str()));
+    restored->touch();
+    document->recompute();
+    EXPECT_FALSE(GeometryFacade::getConstruction(restored->getGeometry(-3)));
+    EXPECT_EQ(ExternalGeometryFacade::getFacade(restored->getGeometry(-3))->getGeometryLayerId(), 7);
+    EXPECT_EQ(ExternalGeometryFacade::getFacade(restored->getGeometry(-3))->getFlags(), flags);
+    std::remove(saved.c_str());
 }
 
 TEST_F(SketchObjectReattach, SignedLineKeepsOrientationThroughRecompute)
@@ -306,23 +325,66 @@ TEST_F(SketchObjectReattach, SignedLineKeepsOrientationThroughRecompute)
     auto* src = setup({line(0), line(20), line(5), line(5, true)});
     auto* sketch = getObject();
     dependentCircle(true);
+    Part::GeomCircle tangentCircle;
+    tangentCircle.setCenter(Base::Vector3d(2, 1, 0));
+    tangentCircle.setRadius(1);
+    sketch->addGeometry(&tangentCircle);
+    auto radius = std::make_unique<Constraint>();
+    radius->Type = Radius;
+    radius->setGeoId(0, 1);
+    radius->setValue(1);
+    sketch->addConstraint(std::move(radius));
+    auto tangent = std::make_unique<Constraint>();
+    tangent->Type = Tangent;
+    tangent->setGeoId(0, 1);
+    tangent->setGeoId(1, -3);
+    sketch->addConstraint(std::move(tangent));
     clean();
     const auto orientation = sketch->Constraints[1]->Orientation.toUnderlyingType();
+    const auto tangentOrientation = sketch->Constraints[3]->Orientation.toUnderlyingType();
     const long first = id(-3);
+    doc()->openTransaction(std::string("signed replacement"));
     sketch->reattachExternal(-3, src, "Edge3");
     EXPECT_EQ(sketch->Constraints[1]->Orientation.toUnderlyingType(), orientation);
+    EXPECT_EQ(sketch->Constraints[3]->Orientation.toUnderlyingType(), tangentOrientation);
     EXPECT_EQ(sketch->solve(), SketchSolveStatus::Success);
     EXPECT_NEAR(sketch->getGeometry<Part::GeomCircle>(0)->getCenter().y, 7, 1e-7);
     for (int i = 0; i < 2; ++i) {
         sketch->touch();
         doc()->recompute();
         EXPECT_EQ(sketch->Constraints[1]->Orientation.toUnderlyingType(), orientation);
+        EXPECT_EQ(sketch->Constraints[3]->Orientation.toUnderlyingType(), tangentOrientation);
         EXPECT_EQ(id(-3), first);
         EXPECT_NEAR(sketch->getGeometry<Part::GeomCircle>(0)->getCenter().y, 7, 1e-7);
     }
     Snapshot before(sketch);
     EXPECT_THROW(sketch->reattachExternal(-3, src, "Edge4"), Base::ValueError);
     before.unchanged(sketch);
+    doc()->commitTransaction();
+    doc()->undo();
+    EXPECT_EQ(sketch->solve(), SketchSolveStatus::Success);
+    EXPECT_NEAR(sketch->getGeometry<Part::GeomCircle>(0)->getCenter().y, 2, 1e-7);
+    EXPECT_EQ(sketch->Constraints[1]->Orientation.toUnderlyingType(), orientation);
+    EXPECT_EQ(sketch->Constraints[3]->Orientation.toUnderlyingType(), tangentOrientation);
+    doc()->redo();
+    EXPECT_EQ(sketch->solve(), SketchSolveStatus::Success);
+    EXPECT_NEAR(sketch->getGeometry<Part::GeomCircle>(0)->getCenter().y, 7, 1e-7);
+    EXPECT_EQ(sketch->Constraints[1]->Orientation.toUnderlyingType(), orientation);
+    EXPECT_EQ(sketch->Constraints[3]->Orientation.toUnderlyingType(), tangentOrientation);
+    auto* document = doc();
+    const std::string name = sketch->getNameInDocument();
+    const auto path = App::Application::getTempFileName();
+    ASSERT_TRUE(document->saveAs(path.c_str()));
+    const std::string saved = document->getFileName();
+    document->restore(saved.c_str());
+    auto* restored = static_cast<SketchObject*>(document->getObject(name.c_str()));
+    restored->touch();
+    document->recompute();
+    EXPECT_EQ(restored->Constraints[1]->Orientation.toUnderlyingType(), orientation);
+    EXPECT_EQ(restored->Constraints[3]->Orientation.toUnderlyingType(), tangentOrientation);
+    EXPECT_EQ(restored->solve(), SketchSolveStatus::Success);
+    EXPECT_NEAR(restored->getGeometry<Part::GeomCircle>(0)->getCenter().y, 7, 1e-7);
+    std::remove(saved.c_str());
 }
 
 TEST_F(SketchObjectReattach, ArcKeepsParameterizedEndpointRoles)
@@ -517,34 +579,46 @@ TEST_F(SketchObjectReattach, CallerAbortRecoversApplicationExceptions)
 {
     auto* src = setup({circle(0), circle(20), circle(40)});
     auto* sketch = getObject();
+    auto* destination = source({circle(40)}, "Destination");
+    auto* unrelated = source({circle(20)}, "Unrelated");
     dependentCircle();
     clean();
     const long first = id(-3);
     const std::string label = sketch->Label.getValue();
-    for (bool afterProjection : {false, true}) {
-        doc()->openTransaction(std::string("caller owns recovery"));
-        sketch->Label.setValue("Earlier edit in shared transaction");
-        int failures = 0;
-        auto connection = sketch->signalElementsChanged.connect([&]() {
-            if (sketch->ExternalGeometry.getSubValues()[0] == "Edge3"
-                && (!afterProjection || x() > 39)) {
-                ++failures;
-                throw std::runtime_error("injected apply failure");
-            }
-        });
-        EXPECT_THROW(sketch->reattachExternal(-3, src, "Edge3"), std::runtime_error);
-        connection.disconnect();
-        EXPECT_EQ(failures, 1);  // no retry
-        EXPECT_TRUE(doc()->hasPendingTransaction());
-        EXPECT_EQ(std::string(sketch->Label.getValue()), "Earlier edit in shared transaction");
-        doc()->abortTransaction();
-        doc()->recompute();
-        EXPECT_EQ(std::string(sketch->Label.getValue()), label);
-        EXPECT_EQ(sketch->ExternalGeometry.getSubValues()[0], "Edge1");
-        EXPECT_EQ(id(-3), first);
-        EXPECT_NEAR(x(), 0, 1e-9);
-        EXPECT_EQ(sketch->solve(), SketchSolveStatus::Success);
-        EXPECT_NEAR(sketch->getGeometry<Part::GeomCircle>(0)->getCenter().x, 0, 1e-9);
+    for (bool retainOld : {true, false}) {
+        if (!retainOld) {
+            sketch->reattachExternal(-4, unrelated, "Edge1");
+        }
+        for (bool afterProjection : {false, true}) {
+            doc()->openTransaction(std::string("caller owns recovery"));
+            sketch->Label.setValue("Earlier edit in shared transaction");
+            int failures = 0;
+            auto connection = sketch->signalElementsChanged.connect([&]() {
+                if (sketch->ExternalGeometry.getValues()[0] == destination
+                    && (!afterProjection || x() > 39)) {
+                    ++failures;
+                    throw std::runtime_error("injected apply failure");
+                }
+            });
+            EXPECT_THROW(sketch->reattachExternal(-3, destination, "Edge1"), std::runtime_error);
+            connection.disconnect();
+            EXPECT_EQ(failures, 1);  // no retry
+            EXPECT_TRUE(doc()->hasPendingTransaction());
+            EXPECT_EQ(std::string(sketch->Label.getValue()), "Earlier edit in shared transaction");
+            doc()->abortTransaction();
+            doc()->recompute();
+            EXPECT_EQ(std::string(sketch->Label.getValue()), label);
+            EXPECT_EQ(sketch->ExternalGeometry.getSubValues()[0], "Edge1");
+            EXPECT_EQ(id(-3), first);
+            EXPECT_NEAR(x(), 0, 1e-9);
+            const auto& outgoing = sketch->getOutList();
+            EXPECT_EQ(std::count(outgoing.begin(), outgoing.end(), destination), 0);
+            EXPECT_EQ(std::count(outgoing.begin(), outgoing.end(), src), retainOld ? 2 : 1);
+            const auto& incoming = destination->getInList();
+            EXPECT_EQ(std::count(incoming.begin(), incoming.end(), sketch), 0);
+            EXPECT_EQ(sketch->solve(), SketchSolveStatus::Success);
+            EXPECT_NEAR(sketch->getGeometry<Part::GeomCircle>(0)->getCenter().x, 0, 1e-9);
+        }
     }
     Part::GeomLineSegment edit;
     edit.setPoints(Base::Vector3d(0, 10, 0), Base::Vector3d(10, 10, 0));

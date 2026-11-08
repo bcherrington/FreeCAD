@@ -346,6 +346,34 @@ class SketchObject(Part2DObject):
         """
         ...
 
+    def reattachExternal(self, geo_id: int, obj_name: str, sub_name: str, /) -> None:
+        """
+        Replace one live external edge reference, preserving geometry identity and constraints.
+
+        geo_id is the current negative geometry index (-3 is the first user external),
+        not a link slot or persistent ID. obj_name names an allowed object in this
+        document and must derive from Part::Feature; sub_name selects one Edge.
+        Circular source planes must be parallel to the sketch plane.
+        Supported projections are one-to-one
+        line segments, circles and circular arcs in Projection mode. Frozen, Missing,
+        Detached, Sync, Intersection/Both, grouped/type-changing projections and
+        reversed or ambiguous bounded directions are unsupported. Edit/noRecomputes
+        mode rejects, including otherwise identical requests.
+
+        Returns None. TypeError reports invalid types (including bool indices),
+        OverflowError an index outside the native integer range, and ValueError
+        unsupported input or projection preparation. Rejection and an admitted exact
+        same-link no-op preserve dirty/journal state and emit no model changes.
+
+        Application uses ordinary intermediate notifications. Unexpected errors
+        propagate as FreeCAD exceptions and can leave partial changes, dirty state
+        or lost redo history. The caller must abort its own transaction or reload
+        its checkpoint; abort also discards earlier edits in that transaction.
+        This method never opens/commits/aborts transactions, solves, recomputes or
+        saves. Call solve() or recompute the document normally after success.
+        """
+        ...
+
     def delExternal(self, ext_geo_id: int, /) -> None:
         """
         Delete an external geometry link from the sketch.

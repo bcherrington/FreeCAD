@@ -4,7 +4,7 @@ doc_type: spec
 artifact_type: design
 status: draft
 owner: local-developer
-last_reviewed: 2026-11-07
+last_reviewed: 2026-11-08
 ---
 
 # Technical Design
@@ -21,7 +21,7 @@ T001 executed baseline and fixture probes. D001 selects reattachExternal; the us
 accepted D002 Option A, normal FreeCAD transaction semantics, after existing guards
 failed the stronger model/journal/publication contract. The implementation below
 uses existing native properties and caller-owned recovery; it introduces no generic
-atomic commit machinery. New-API acceptance remains T002–T005. See
+atomic commit machinery. T002–T005 now implement and qualify the local API. See
 [the qualification report](t001-qualification.md).
 
 ## Requirement Coverage
@@ -93,7 +93,7 @@ Let the caller perform solve/recompute and decide the transaction outcome.
 
 ### Python Interface
 
-Public signature selected locally in D001; not implemented or upstream-approved:
+Public signature implemented and tested locally; not upstream-approved:
 
 ```python
 def reattachExternal(self, geo_id: int, obj_name: str, sub_name: str, /) -> None: ...
@@ -340,5 +340,26 @@ The admitted native sources are live Part feature edges; circular planes must
 be parallel, bounded parameter directions must agree beyond angular tolerance,
 and pending Sync is unsupported. The Python binding remains T003.
 
-T004 must triage the centre-Coincident solver finding reproduced on both new and
-legacy retarget paths; this is not a change to the preservation requirements.
+T004 resolved the centre-Coincident false-success finding through the separately
+reviewed GCS status propagation fix (42144bc1e9). A later successful subsystem no
+longer hides an earlier failure; existing normal fallback is enabled. The
+reattachment method still performs no solver call or retry. Strong geometry
+assertions pass with public solver selections 0/1/2.
+
+## Final Implementation and Promotion
+
+The native helper, generated binding and registered fixtures are implemented.
+See t004-qualification.md, completion-validation.json and the promoted reference
+for executed evidence and current behavior. Same-ID projection rebuilding now
+retains the old SketchGeometryExtension (construction/blocked modes, layer and
+internal type) while retaining the freshly resolved external Ref separately.
+Duplicate detection compares edge siblings without requiring unrelated face or
+vertex references to become edges. Both corrections have dedicated lifecycle
+regressions and specialist dispositions.
+
+These shared correctness fixes and the GCS status fix are explicitly reviewed
+exceptions to preserving accidental prior behavior; no grouped/vector API or
+default was changed. B012/B013 own unrelated repository-check failures, and B014
+owns separate human/platform/upstream preparation. Current truth is promoted to
+docs/reference/sketcher-external-reference-reattachment.md and SketchObject.pyi;
+this package will be retained as history.

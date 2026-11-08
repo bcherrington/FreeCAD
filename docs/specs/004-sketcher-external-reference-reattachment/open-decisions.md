@@ -4,7 +4,7 @@ doc_type: spec
 artifact_type: open-decisions
 status: draft
 owner: local-developer
-last_reviewed: 2026-11-07
+last_reviewed: 2026-11-08
 ---
 
 # Open Decisions
@@ -40,10 +40,10 @@ acceptance are implementation/review gates, not completed by these decisions.
   ValueError for invalid references. Keep native vector attachExternal unchanged.
 - **Rationale:** this is replacement of one live reference, distinct from native
   grouped attachment/detached-reference behavior. Local source has no consumers of
-  attachExternal beyond its declaration/definition. Python exposes neither name today.
+  attachExternal beyond its declaration/definition. Python exposed neither name at T001; T003 now exposes reattachExternal.
 - **Evidence:** [T001 qualification](t001-qualification.md#d001-qualified-interface-and-extension-point),
   native receipt and public-surface probe in t001-validation.json.
-- **Limits:** no method has been implemented. D002 determines the accepted failure
+- **Limits at qualification:** no method had been implemented at T001. D002 determines the accepted failure
   and notification contract; reversed-orientation acceptance remains unqualified.
 
 ### D002 — Normal FreeCAD transaction semantics (Option A)
@@ -97,3 +97,11 @@ If qualification changes scope, reconcile both directions of traceability.
 - [Tasks](tasks.md)
 - [Traceability](traceability.md#open-decision-impact)
 - [Verification](verification.md#readiness-decision)
+
+## Final Implementation Disposition
+
+D001/D002 are implemented and locally qualified in T002–T005. There is no open
+local design decision. The T004 solver finding is resolved by 42144bc1e9, with
+strong native geometry assertions and all public solver selections passing.
+Upstream API/human/platform review remains external B014, not an unresolved
+choice about the local operation's accepted contract.

@@ -4,7 +4,7 @@ doc_type: spec
 artifact_type: brief
 status: draft
 owner: local-developer
-last_reviewed: 2026-11-07
+last_reviewed: 2026-11-08
 ---
 
 # Feature Brief
@@ -34,23 +34,22 @@ This brief is navigation; it contains no independent acceptance criteria.
 
 ## Status and Next Action
 
-Draft for implementation acceptance. T001 qualification is complete: eight native
-probes (including injected-failure caller abort), six existing native tests, five
-Python tests and one generated arc save/reopen fixture passed. D001 selects
-reattachExternal and the user accepted D002 Option A. No local design decision remains.
+Local native/Python implementation and full lifecycle qualification are complete.
+D001/D002 are implemented. The earlier centre-Coincident false success is resolved
+by independently reviewed solver correction 42144bc1e9. All 163 native tests pass;
+16 public cases pass under each of three solvers; full TestSketcherApp runs 113
+cases with one existing skip. The whole-project run has two separately owned
+failures (B012/B013) and is not reported green.
 
-T002 - Implement native admission and in-place identity preservation is complete.
-The additive C++ method, thirteen new direct tests and all 162 native Sketcher
-tests pass; see [T002 implementation](t002-implementation.md) and its receipt.
-The next task is T003 - Expose and document the public Python binding.
-T004 also owns a centre-Coincident solver movement issue reproduced with legacy
-retargeting on this branch. The public API and full lifecycle remain unqualified;
-no operator CAD edits, MCP delivery, runtime replacement or upstream acceptance
-are claimed.
-
-Implementation will keep the shared checkout on its current branch. PR preparation
-uses a separate worktree after validation; see the
-[shared-worktree agreement](canonical-context.md#shared-worktree-execution).
+Current behavior is promoted to
+[the durable reference](../../reference/sketcher-external-reference-reattachment.md)
+and generated help. See [T004 qualification](t004-qualification.md),
+[the completion receipt](completion-validation.json), and
+[the private delivery review](../../reviews/sketcher-reattachment-delivery-review.md).
+T006 is finalizing commit/history metadata before retaining this package as history.
+B014 owns separate-worktree/human/platform upstream preparation. The shared
+checkout and unrelated work remain preserved. No actual maintainer acceptance,
+MCP bridge delivery or released upstream API is claimed.
 
 ## Durable Impact
 

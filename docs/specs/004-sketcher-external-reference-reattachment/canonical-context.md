@@ -4,7 +4,7 @@ doc_type: spec
 artifact_type: canonical-context
 status: draft
 owner: local-developer
-last_reviewed: 2026-11-07
+last_reviewed: 2026-11-08
 ---
 
 # Canonical Context
@@ -168,11 +168,19 @@ must distinguish delivered behavior from unsupported broader integration work.
 | Accepted guarantees, limits and lifecycle examples | docs/reference/sketcher-external-reference-reattachment.md | Qualified in T004/T005, promoted in T006 |
 | Final evidence, residual disposition and commits | Existing closure log and archive index | Closure gate and actual Git evidence |
 
+## Final Implementation Context
+
+Native implementation 454fe91954 was extended by the generated binding and full
+lifecycle qualification. Solver correction 42144bc1e9 resolves the earlier LM
+false-success finding. Final source/build identities and exact executed case
+manifests are in completion-validation.json; historical intake hashes above do
+not identify current binaries. Current source and promoted durable reference
+are authoritative. No actual maintainer/upstream release approval is implied.
+
 ## Smallest Next Action
 
-T002's native implementation and direct C++ evidence are recorded in
-[t002-implementation.md](t002-implementation.md) and
-[t002-validation.json](t002-validation.json). Obtain fresh context for T003 -
-Expose and document the public Python binding. Preserve the shared branch/file
-ownership boundaries. T004 also owns the recorded baseline Coincident solver
-finding; do not infer whole-feature qualification from T002 native test passes.
+Finish T006 commit/history reconciliation, then retain this package as history.
+B012/B013 own the unrelated full-project test failures and B014 owns human,
+platform and clean separate-worktree PR preparation. Preserve the shared branch
+and unrelated work. No remaining local API implementation task is hidden in
+those external delivery gates.
