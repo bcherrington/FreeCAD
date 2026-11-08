@@ -1177,10 +1177,12 @@ void Document::flushPendingObjectUpdates()
             continue;
         }
 
-        const std::string& propertyName = key.second;
-        App::Property* property = propertyName.empty()
-            ? nullptr
-            : objectInfo.getPropertyByName(propertyName.c_str());
+        App::Property* property = objectInfo.getPropertyByName(key.second.c_str());
+        if (!property) {
+            // A property can be removed or renamed before this queued pass.
+            // update() requires a live property; nullptr is not a full refresh.
+            continue;
+        }
         applyChangedObject(viewProvider, *object, property);
     }
 
@@ -1258,7 +1260,7 @@ void Document::slotChangedObject(const App::DocumentObject& Obj, const App::Prop
     ViewProvider* viewProvider = getViewProvider(&Obj);
     const char* propName = Prop.getName();
     const bool shouldDeferUpdate = viewProvider && !d->_isClosing && qApp
-        && d->_pcDocument->testStatus(App::Document::Recomputing) && propName;
+        && d->_pcDocument->testStatus(App::Document::Recomputing) && propName && *propName;
 
     if (shouldDeferUpdate) {
         // During recompute, coalesce repeated object/property refreshes into a
