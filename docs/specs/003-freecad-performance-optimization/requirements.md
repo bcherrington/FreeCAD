@@ -15,7 +15,7 @@ last_reviewed: 2026-11-09
 > checkpoint and next-task prose below is historical. See the
 > [closure review](../../reviews/spec003-performance-closure.md) and
 > [closure log](../../history/spec-closure-log.md) for current disposition,
-> actual implementation commits and explicitly pending cleanup commit metadata.
+> actual implementation, final package and cleanup commit metadata.
 
 Current performance policy: **D007 cost-benefit review** in
 [acceptance-policy-v2.md](acceptance-policy-v2.md). Original D001 v1 outcomes and
@@ -354,4 +354,4 @@ P01/P07 timing budgets. Requirement3 AC5 is fulfilled by fresh applicable tests
 plus independently reviewed, hash-bound equivalence, not old timing assembly.
 The old classifier's App-restore blind spot is disclosed and corrected with new
 normal-build regressions and stage proof. No original statistical outcome is
-reclassified. T011 records local closure and promotion; cleanup commit metadata is pending the requested commit.
+reclassified. T011 records local closure and promotion; actual cleanup commit metadata is recorded in the closure log.

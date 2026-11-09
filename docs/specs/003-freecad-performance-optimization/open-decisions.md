@@ -15,7 +15,7 @@ last_reviewed: 2026-11-09
 > checkpoint and next-task prose below is historical. See the
 > [closure review](../../reviews/spec003-performance-closure.md) and
 > [closure log](../../history/spec-closure-log.md) for current disposition,
-> actual implementation commits and explicitly pending cleanup commit metadata.
+> actual implementation, final package and cleanup commit metadata.
 
 ## Purpose
 

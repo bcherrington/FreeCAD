@@ -15,7 +15,7 @@ last_reviewed: 2026-11-09
 > checkpoint and next-task prose below is historical. See the
 > [closure review](../../reviews/spec003-performance-closure.md) and
 > [closure log](../../history/spec-closure-log.md) for current disposition,
-> actual implementation commits and explicitly pending cleanup commit metadata.
+> actual implementation, final package and cleanup commit metadata.
 
 Reconcile implemented document-open optimizations with the remaining correctness, measurement and
 review gates. Keep compact rail geometry in package 002.
@@ -93,6 +93,6 @@ Delivery and T011 promotion are complete for the declared Linux scope. The
 qualified implementation is commit `21903ca31f` with docs evidence `756c03a`.
 All 40 required tasks are complete; two optional investigations remain routed
 with durable owners. No upstream/release/cross-platform approval is implied.
-The package stays in place for exact evidence and historical consumers. Its
-promotion/archive changes are uncommitted until requested; no cleanup commit
-identity is claimed in advance.
+The package stays in place for exact evidence and historical consumers. Final
+promotion/archive commit `c198fe2c08833febcb5464ab980309daaaabbe60` (docs `6ca2224bd8d732cb8e046c7ef79cfd6459e34f80`) contains completed
+T011 and the retained-in-place disposition; the closure log records actual IDs.

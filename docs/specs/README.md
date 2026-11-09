@@ -40,4 +40,4 @@ as history after T011 local Linux closure. Current guidance is the
 [promoted reference](../reference/document-open-performance.md) and
 [runbook](../runbooks/freecad-performance-optimization.md). Other platforms and
 current numeric timing promises remain unqualified. Actual implementation and
-pending cleanup commit state are recorded in the closure log/archive index.
+recorded cleanup commit state are recorded in the closure log/archive index.

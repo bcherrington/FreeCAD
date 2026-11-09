@@ -15,7 +15,7 @@ last_reviewed: 2026-11-09
 > checkpoint and next-task prose below is historical. See the
 > [closure review](../../reviews/spec003-performance-closure.md) and
 > [closure log](../../history/spec-closure-log.md) for current disposition,
-> actual implementation commits and explicitly pending cleanup commit metadata.
+> actual implementation, final package and cleanup commit metadata.
 
 Current performance policy: **D007 cost-benefit review** in
 [acceptance-policy-v2.md](acceptance-policy-v2.md). Original D001 v1 outcomes and
@@ -978,8 +978,7 @@ at the nested docs boundary; executed checks and exact identities establish proo
 
 ## Next Actions
 
-No active delivery task remains. T011 records local closure; commit the promotion/
-archive metadata and reconcile actual cleanup commit identifiers when requested.
+No active delivery task remains. T011 records local closure; retain the actual promotion/archive commit metadata in the closure log.
 Optional B009/B010/B011 remain owned outside delivery. Future scope extensions
 must follow the promoted reference/runbook.
 
@@ -995,7 +994,7 @@ must follow the promoted reference/runbook.
 | Focused current correctness and failure tests | yes | passed locally | Final focused targets, CAD/native regressions and scoped Memcheck |
 | Current measurements and platform/manual acceptance | yes | Linux local scope passed | Final runtime-bound manual checks and reviewed equivalence; other platforms/profiles unqualified |
 | Durable promotion and residual ownership | yes | promoted and audited locally | Active reference/runbook; requirements.md durable impact |
-| Review and closure metadata | yes | reviewed; local closure recorded | Retained in place as history; cleanup commit pending |
+| Review and closure metadata | yes | reviewed; local closure recorded | Retained in place as history; cleanup commit recorded |
 
 ## Evidence Log
 

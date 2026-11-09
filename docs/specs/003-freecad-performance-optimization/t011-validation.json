@@ -13,10 +13,11 @@
   "package_path": "docs/specs/003-freecad-performance-optimization",
   "implementation_commit": "21903ca31f65068bf7dd02bc01003c30c3768aa3",
   "T010_docs_evidence_commit": "756c03a",
-  "final_spec_commit": null,
-  "promotion_cleanup_commit": null,
-  "cleanup_commit_state": "pending user-requested commit; reconcile actual identifiers after creation",
-  "ready_to_archive_final_git_metadata": false,
+  "final_spec_commit": "c198fe2c08833febcb5464ab980309daaaabbe60",
+  "promotion_cleanup_commit": "c198fe2c08833febcb5464ab980309daaaabbe60",
+  "docs_final_archive_commit": "6ca2224bd8d732cb8e046c7ef79cfd6459e34f80",
+  "cleanup_commit_state": "actual final package/archive commits recorded; later metadata reconciliation does not change implementation",
+  "ready_to_archive_final_git_metadata": true,
   "source_unchanged_from_qualified_T010": true,
   "qualified_patch_sha256": "42ed013d6fbeb8baef3b95e6dcf6fedc3201030df46ef8e035993f73ef4b4a50",
   "local_build_inventory": {
@@ -1710,22 +1711,22 @@
     "docs/backlog/README.md": "5f9bc07ff237d15038a95bee6d25502e0c9ee1e037641f539c54e68dc3692a5e",
     "docs/backlog/reattachment-delivery-follow-ups.md": "a443f9945dc57c64bb4ed9ae25224c6f9dbf70117fa50e187cbb3059105a85e2",
     "docs/backlog/spec003-follow-ups.md": "207661eb593b88f412e561a2c1b7e2852ab6d35b0f86bfc2d35ee816652abd94",
-    "docs/history/spec-archive-index.md": "4733beb9b68be0f423db3d97815d3760fcc3f416cb6d29b297737c6018dfb20a",
-    "docs/history/spec-closure-log.md": "a70fb77418e2823a09cb914a853e5175a3c8cbfc98d62b1b136ed646e1c33256",
+    "docs/history/spec-archive-index.md": "49a4a6b23e230b1e6c128d1ea626a8049f7a53a816ed3db3831c72068dc3cc47",
+    "docs/history/spec-closure-log.md": "d142173806b0f4115f0bafa635c21662a8cb62bd2b821ef80ee156a7f6bda784",
     "docs/reference/document-open-performance.md": "2c14246035bb6462f1788c4b078c096b3c5ada5e4182679b0891a4c8c259f774",
+    "docs/reviews/spec003-performance-closure.md": "7663b1caba199c360a48b587b78b6fb64bc532365ee54635e492604c6ef730c2",
     "docs/runbooks/freecad-benchmark-storage.md": "e30f596233e817125a01f9b577ea8f5e028a948772a1ff51b8913a51684ee1c6",
     "docs/runbooks/freecad-performance-optimization.md": "98eedd6b672b024966d186629498093c309a6225c5002644cfad97432da52587",
-    "docs/specs/003-freecad-performance-optimization/canonical-context.md": "a15c0828e1239d4debd6fb8eb47a513985fe891561f86439a4a1d8a1bfb69218",
-    "docs/specs/003-freecad-performance-optimization/design.md": "b14c169866acd134564ee698afa2cfdcf1b1227ce5d8fc398561bb4b19a073f6",
-    "docs/specs/003-freecad-performance-optimization/open-decisions.md": "affe118c57a0104cbdebae1e4cb95391ada5e3ed861da343a4d04f30bd912e20",
-    "docs/specs/003-freecad-performance-optimization/requirements.md": "75b538dae1967d9daa1e019233437c3fa5bf848b56d441a007f74844685fe931",
-    "docs/specs/003-freecad-performance-optimization/spec.md": "48e9273f81400d1a16a0713057fa295b92f4a85967d4a476676fd935e84d9f5c",
-    "docs/specs/003-freecad-performance-optimization/tasks.md": "7bc0e9b25ef39378e9083227775da36c221d66de6dbe917d7fc795b1ae780fab",
-    "docs/specs/003-freecad-performance-optimization/traceability.md": "042ab854edc328c41a559aa44220d98319c2d3b48f6289deabf587f82ad674f7",
-    "docs/specs/003-freecad-performance-optimization/verification.md": "c24a1bfea9b4f1ae017762f1d4667f548d6a1d8ae71b648e132e3919b2d22481",
-    "docs/specs/README.md": "09e4bcd6fd2520c77aa9920388c29eb321d1910c48db89a94dd4f92a7ccb5105",
-    "docs/reviews/spec003-performance-closure.md": "83cbff14123eef9b53e125eda75c1620b89ba8c3732c4d88585ad4427663f1ac",
-    "docs/specs/003-freecad-performance-optimization/t011-validation-check.py.txt": "c119749731e7125c23c1ae218c5896615996fb9e77506f8ef9c8f69d03c3f766"
+    "docs/specs/003-freecad-performance-optimization/canonical-context.md": "693013b539eb11609b180fcad43dbf65a27a4eddf31b68e34a27636a936752a1",
+    "docs/specs/003-freecad-performance-optimization/design.md": "086a385c5510d9b92ce5f55f5d6b0651ef8dc69ab8837b88d54435d1f43be14f",
+    "docs/specs/003-freecad-performance-optimization/open-decisions.md": "cf7b38e225200823a5072ded782289a5a829f0da10b93fd02d65b3c11c923350",
+    "docs/specs/003-freecad-performance-optimization/requirements.md": "869be185b1233c9fb75585752f545b30e28188766d9dcdeecbbcc507c28e75fb",
+    "docs/specs/003-freecad-performance-optimization/spec.md": "943ac0084ab197af62f6d15130d427c4eba25ac3f7f33c1f24a88219c5f574e2",
+    "docs/specs/003-freecad-performance-optimization/t011-validation-check.py.txt": "d20296b2c2a5dd8b13a335c696a3f887ceb3240a3792d144c4a7f29dbdadd27d",
+    "docs/specs/003-freecad-performance-optimization/tasks.md": "2e1db42127f20ff44518c02520e8d103947757c5e941c4ea7b41552355b7d15a",
+    "docs/specs/003-freecad-performance-optimization/traceability.md": "c8cffcde07ee5cf24e06f2c210bdf6272fd4384310db10a2602819bd111eab48",
+    "docs/specs/003-freecad-performance-optimization/verification.md": "8297eff4f6caf82a24790deb09e22d0a9e0a6f8781df10ac0b825fb17560f238",
+    "docs/specs/README.md": "3364e684cbefa96d0aee43dcb9f22ea986b2824bcbfc8242c2ca39422171c6d6"
   },
   "acceptance_coverage": {
     "Requirement 1 AC1": {
@@ -2105,5 +2106,6 @@
     "P03-only reopen checks are separate semantic proof, not exact campaign-reopen matches; proxy internals/document metadata remain excluded.",
     "Two existing skips/eight disabled tests are not passing coverage. No new exclusion introduced.",
     "Qualified source is committed at 21903ca31f; promotion/cleanup documentation commit state is separately recorded. Later source/runtime changes need affected qualification."
-  ]
+  ],
+  "tool_checks_sha256": "90ea813ff401ae61b5d3ca991cf11632e6b3c728ad8dc490747b4852fcb50422"
 }

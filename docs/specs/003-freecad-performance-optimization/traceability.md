@@ -15,7 +15,7 @@ last_reviewed: 2026-11-09
 > checkpoint and next-task prose below is historical. See the
 > [closure review](../../reviews/spec003-performance-closure.md) and
 > [closure log](../../history/spec-closure-log.md) for current disposition,
-> actual implementation commits and explicitly pending cleanup commit metadata.
+> actual implementation, final package and cleanup commit metadata.
 
 Current performance policy: **D007 cost-benefit review** in
 [acceptance-policy-v2.md](acceptance-policy-v2.md). Original D001 v1 outcomes and
@@ -232,7 +232,7 @@ T010 and all four children are complete for the declared Linux scope; T011 recor
 | Requirement6 tree/lifetime/recompute | Final eight target suites/full graph; idempotent preview close | No independent P08 speed claim |
 | Requirement3/SC-005 | P01–P08 reviewed local directions/exclusions; actual final source/runtime/native proof | P01/P07 old numeric timings/runtime closure not exact-final; no new SLA |
 | Platform scope | User-selected Linux-only; declared X11/offscreen softwareGL/compose, generic/Fusion native viewer/memory and process user-site mask | Windows/macOS/Wayland/other drivers and GNOME/IBus memory unqualified |
-| Final documentation/closure | Active reference/runbook updated; T010 receipt and prior authority archive | Promotion and local closure recorded by T011; cleanup commit pending |
+| Final documentation/closure | Active reference/runbook updated; T010 receipt and prior authority archive | Promotion and local closure recorded by T011; cleanup commit recorded |
 
 Original v1 outcomes remain unchanged. Scope-specific final acceptance does not
 turn disabled/skipped tests into passing coverage or certify a general release.

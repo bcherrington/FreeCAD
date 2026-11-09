@@ -101,8 +101,8 @@ last_reviewed: 2026-11-09
 
 - **Spec:** `docs/specs/003-freecad-performance-optimization/`
 - **Title:** FreeCAD document/image performance optimization
-- **Final spec commit:** pending
-- **Closure cleanup commit:** pending
+- **Final spec commit:** `c198fe2c08833febcb5464ab980309daaaabbe60`
+- **Closure cleanup commit:** `c198fe2c08833febcb5464ab980309daaaabbe60`
 - **Closure action:** retained-as-history
 - **Durable docs updated:**
   - `docs/reference/document-open-performance.md`
@@ -138,5 +138,6 @@ last_reviewed: 2026-11-09
   completed locally by the actual T010 repairs; B014 external delivery stays
   proposed. No install, push, PR, live operator delivery or benchmark build deletion.
   Package is retained in place; active inventory excludes it. Implementation and
-  evidence commit identifiers are actual; promotion/cleanup identifiers remain
-  explicitly pending and must be reconciled after a user-requested commit.
+  evidence commit identifiers are actual; final package and retained-in-place cleanup were committed together.
+  Docs final package/archive commit: `6ca2224bd8d732cb8e046c7ef79cfd6459e34f80`. This metadata update
+  records actual identifiers after creation; it does not invent a future commit.

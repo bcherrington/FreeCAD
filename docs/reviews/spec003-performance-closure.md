@@ -103,9 +103,10 @@ bindings through actual commit `21903ca31f`; it does not rewrite old hashes to
 match newly promoted docs. Earlier T004.4 snapshots remain retained as before.
 
 The closure log and archive index record the actual implementation/evidence
-commits and explicitly pending promotion/cleanup commit identifiers. No future
-commit identity is invented. Final commit reconciliation is required when the
-user requests a commit; pending Git metadata does not imply pending code/testing.
+commits and actual final package/archive identifiers. The completed package and
+retained-in-place cleanup are commit `c198fe2c08833febcb5464ab980309daaaabbe60` (docs `6ca2224bd8d732cb8e046c7ef79cfd6459e34f80`).
+This later metadata update records those existing commits; no future commit
+identity is invented.
 
 ## Independent Review And Validation
 
