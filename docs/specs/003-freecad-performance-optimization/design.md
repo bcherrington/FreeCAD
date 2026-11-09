@@ -9,6 +9,12 @@ last_reviewed: 2026-11-08
 
 # Technical Design
 
+Current performance policy: **D007 cost-benefit review** in
+[acceptance-policy-v2.md](acceptance-policy-v2.md). Original D001 v1 outcomes and
+dated checkpoints below remain evidence; their numeric vetoes do not govern current
+product decisions. Correctness/provenance/coverage gates remain mandatory.
+
+
 ## Overview
 
 Reconcile implemented document-open optimizations with the remaining correctness, measurement and
@@ -20,7 +26,7 @@ review gates. Keep compact rail geometry in package 002.
 | --- | --- | --- | --- |
 | Requirement 1 | AC1, AC2, AC3 | Included-file restore compatibility; high-level and low-level design below | Task mapping in traceability.md; verification.md gates |
 | Requirement 2 | AC1, AC2, AC3 | Image conversion fidelity; high-level and low-level design below | Task mapping in traceability.md; verification.md gates |
-| Requirement 3 | AC1, AC2, AC3, AC4, AC5, AC6 | Comparable optimization evidence; high-level and low-level design below | Task mapping in traceability.md; verification.md gates |
+| Requirement 3 | AC1, AC2, AC3, AC4, AC5, AC6, AC7, AC8 | Comparable optimization evidence; high-level and low-level design below | Task mapping in traceability.md; verification.md gates |
 | Requirement 4 | AC1, AC2, AC3, AC4 | Element-map restore compatibility; high-level and low-level design below | Task mapping in traceability.md; verification.md gates |
 | Requirement 5 | AC1, AC2, AC3, AC4 | Image-plane restore lifecycle; high-level and low-level design below | Task mapping in traceability.md; verification.md gates |
 | Requirement 6 | AC1, AC2, AC3, AC4 | Tree restore status batching; high-level and low-level design below | Task mapping in traceability.md; verification.md gates |
@@ -332,7 +338,8 @@ initial visibility and pending/materialized texture counts. Record peak process,
 decoded and Coin image storage for representative direct and 1/2-component
 fallback sources; qualify GPU residency only with driver-specific measurements.
 Report work shifted to first display separately from work eliminated, and apply
-D001's approved latency and material memory-regression rules.
+the preserved D001 v1 statistical rules alongside current D007 workflow review;
+numeric latency/memory breaches trigger documented trade-off decisions.
 
 ## Validation Strategy
 
@@ -362,13 +369,12 @@ Source implementation facts and dated results remain in
    tree lifetime/completion, parser/CAD identity and archive compatibility in
    that order. Each fix includes its own regression; each subgroup ends with
    current qualification evidence before the next subgroup begins.
-3. **Performance:** T020 measurement/disposition is complete, with P07 rejected
-   under D001. T022/D005 has selected retention with unchanged D001 budgets and
-   the reviewed t004-execution-plan.md. T004.1 now records all five comparable
-   cells; P01 fails overall D001 and its residual remains T004. T004.2 image/P07
-   comparisons are next.
-   Record deferred work, memory, attribution and literal non-regression outcomes;
-   completed evidence does not satisfy Phase 3 exit for a rejected optimization.
+3. **Performance:** T020/T004.1/T004.2 measurements are complete, with original
+   D001 v1 outcomes preserved. D007 retains useful directions by cost-benefit.
+   T004.3 parser/save comparisons and the reviewed tree exclusion are complete;
+   their freezes bind D007 before samples. T004.4 resolves workflow/operating scope and trigger reviews.
+   Record deferred work, memory, tails, attribution and legacy statistical outcomes
+   separately from product dispositions. Mandatory hard gates still apply.
 4. **Delivery:** T010 confirms exact final applicability and broad/platform
    checks; T011 promotes durable truth and audits owned residuals before closure.
 
@@ -412,9 +418,12 @@ T010.1 still confirms the exact final production composition and affected eviden
 rejected P07 under D001. D005 is resolved by the reviewed
 [t004 execution plan](t004-execution-plan.md): retain lazy full resolution,
 keep D001 criteria unchanged and bound diagnostics/revalidation. T022 planning is
-complete; T004.1 measurement is complete and P01 fails overall D001. T004.2 is next.
-No unresolved decision IDs remain, but P01/P07 are still unaccepted and T004/T010 cannot complete until
-applicable acceptance passes or a separately approved disposition exists.
+complete; T004.1/T004.2 measurements and dispositions are complete. P01/P05 fail
+overall D001, P04 timing is inconclusive and retained P07 remains unaccepted.
+D007 now selects cost-benefit review rather than blanket numeric vetoes; all v1
+outcomes remain unchanged. T004.3 measurement/disposition is complete; T004.4 is next. No policy decision IDs
+remain open; parent T004 owns workflow/operating-scope review and T010 final
+applicability. Mandatory hard gates and these reviews still precede production approval.
 T021's historical decision discovery and all T020 records remain unchanged.
 Discovery verifies all current IDs and distinguishes
 advisory context availability from execution/acceptance readiness. The ledger,
@@ -481,3 +490,76 @@ cache mutation is recorded afterwards. Observer CPU cost and one-second resoluti
 limit causal attribution and must be qualified before acceptance. The current
 [diagnostic report](t004-p07-diagnostic-results.md) establishes no product budget
 or production acceptance. Storage follows the promoted benchmark-storage runbook.
+
+## Conversion Comparison And Isolated Launch
+
+T004.2 constructs bounded historical comparators from a shared retained-lazy
+source: P04 varies the recognized direct 32-bit loop only; P05 varies the fallback
+while preserving its valid 1/2/4-component storage and current safe extent guards.
+Source refs, full-source RCC timestamp equivalence, forced independent compilation,
+identical common objects/App/probe and the sole BitmapFactory/Gui delta establish
+attribution. No normal production algorithm changes in this measurement slice.
+
+The native opt-in Linux worker times one actual conversion after untimed setup,
+then validates every RGBA/orientation pixel (existing one-level quantization
+policy), source mutation/destruction ownership and runtime identity. RSS is the
+process high-water at conversion completion, including startup/generation and
+excluding later fidelity. Coin and decoded peaks are logical CPU image storage,
+not GPU residency. Full fallback temporaries remain part of the resource result.
+
+Original unmaterialized P05 recipes have distinct dated refinement identities;
+old recipe hashes are preserved and never relabeled as generated output hashes.
+All ten materialized recipe/size cases have equal cross-arm source identities and
+before-sample output/component qualification. The old historical comparator is
+qualified for these bounded valid cases, not claimed to pass the entire current
+format suite. Current candidate coverage remains broader.
+
+P05 uses a frozen allowlisted Pixi activation and direct isolated Python launch;
+actual controller/native interpreters, closure, tools, receipt/capture operation,
+exact argv and complete independent writable state are pinned. Full validation
+runs before/after collection; per-worker environment construction is pure. The
+original P04 operator launch and independently checked live process identity
+supply reviewed actual-controller equivalence without changing its frozen code.
+See the conversion plan, prospective reconciliation, P05 launch plan and results.
+Original numeric outcomes remain preserved. Unresolved D007 trigger reviews and
+workflow/operating-scope dispositions, rather than numeric breaches themselves,
+remain acceptance work owned by T004/T004.4.
+
+## Cost-Benefit Acceptance Policy
+
+D007 is the current owner-selected product acceptance layer. The predeclared D001
+protocol/assessor remain intact for historical statistics and separately labeled
+future diagnostic outputs. IQR/median, latency and memory targets now trigger a
+structured review rather than an automatic product veto. Requirements 3 AC7/AC8,
+acceptance-policy-v2.md/json and cost-benefit-review.md/json define the contract.
+
+Keep three judgments separate: mandatory correctness/provenance/coverage;
+measured effect/uncertainty; and owner-reviewed workflow benefit versus memory,
+latency, concurrency and implementation/maintenance cost. Failure of a hard gate
+cannot be traded away. No universal millisecond-to-megabyte score or replacement
+memory cap is introduced. Reuse complete applicable evidence for explicitly
+posthoc judgments; applicability changes still require qualification/equivalence.
+
+P04's supported local improvement need not be rerun merely for dispersion. P05's
+speed/memory direction is retained with transient and retained allocation scaling
+explicit. P07 stays full-resolution and retained, with first-use/tail experience
+still reviewed. Completed T004.3 freezes bind D007 before samples; T004.4 resolves retained-change
+operating scope, while T010 retains exact final integration/platform obligations.
+The seven prior authority snapshots preserve completed T004.2 bindings unchanged.
+
+
+### Parser/Save Comparative Evidence and Geometry Identity
+
+T004.3's [frozen execution plan](t0043-execution-plan.md) and
+[completed report](t0043-results.md) use isolated core-console workloads. P03 varies
+owning token storage against bounded views while sharing checked parsing/ownership;
+P02 varies scalar versus 64 KiB included-file save while retaining error behavior.
+Neither is a GUI/GPU timing. The opt-in trace is absent from normal builds.
+
+Cross-save qualification uses a narrow declared kernel serialization allowance for
+unit directions, with exact protected values/topology and independent invariants.
+Actual samples bind exact qualified original/reopened hashes for every PartShape
+property and checked geometric reference, including additional/null shapes, plus
+persistent-object schemas/values and included payloads. Proxy internal state and
+document metadata remain explicitly outside this oracle. Current tree behavior is
+preserved under the source-reviewed P08 attribution exclusion, owned by T004.4.

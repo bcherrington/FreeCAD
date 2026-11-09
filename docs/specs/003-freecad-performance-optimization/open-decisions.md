@@ -11,29 +11,61 @@ last_reviewed: 2026-11-08
 
 ## Purpose
 
-This ledger is authoritative for unresolved decision IDs/status/ownership. Design
-and traceability explain their implementation impact. D001–D006 are resolved
-planning/execution selections. D005 resolves retention and the technical validation
-plan, not P07 acceptance. T004.1 now has complete valid P01 measurements but P01
-fails overall D001; T004 owns its residual and T004.2 is next. T004/T010 remain
-incomplete while retained changes fail
-D001. T010.1 still confirms final production composition and evidence applicability.
+This ledger is authoritative for decision IDs/status/ownership. D001–D007 are
+resolved selections. D007 is the current owner-selected cost-benefit acceptance
+layer; D001 remains the unchanged v1 measurement/statistical record. T004.1 and
+T004.2 measurements are complete. P04/P05/P07 are retained under D007 direction,
+with original v1 outcomes preserved. Parent T004 owns workflow trade-off/operating
+scope review; T004.3 is next, then T004.4. T010 confirms final production
+composition/applicability. No production approval is implied.
 
 ## Decision Log
 
 | ID | Decision Needed | Options | Owner | Needed By | Status |
 | --- | --- | --- | --- | --- | --- |
 
-No open decisions. See the resolved D005 plan below.
+No open decision IDs. See resolved D007 for current policy and D005 for the historical execution plan.
 
 ## Blocking Impact
 
-No unresolved decision IDs remain. P07's failed/inconclusive acceptance evidence
-still blocks T004 completion and production acceptance. A new material behavior,
-threshold or measurement-profile choice requires a new dated decision before
-implementation or sampling; resolved D005 does not waive D001.
+No unresolved policy decision IDs remain. Hard correctness/provenance/coverage
+gates and incomplete workflow/operating-scope review still block production
+acceptance. D001 numeric breaches alone no longer automatically block a useful
+change under D007. Current residuals are owned by T004/T004.4/T010; future
+sampling must bind D007 before execution. Historical source/profile changes still
+require applicable requalification or exact reviewed equivalence.
 
 ## Resolved Decisions
+
+### D007 — Owner-Selected Cost-Benefit Acceptance
+
+- **Status:** resolved on 2026-11-08 under the owner's explicit instruction to
+  relax criteria and emphasize cost-benefit after reviewing P04/P05 results.
+- **Owner:** local-developer; Codex records this authorized policy selection.
+- **Chosen policy:** [acceptance-policy-v2.md](acceptance-policy-v2.md) and
+  [machine contract](acceptance-policy-v2.json). Dispersion, relative/absolute
+  latency, first/repeat-show and memory thresholds become explicit review triggers,
+  rather than blanket product vetoes. Correctness, fidelity/calibration/model
+  identity, visible failures, provenance and declared coverage remain hard gates.
+- **Decision record:** [cost-benefit-review.md/json](cost-benefit-review.md) is an
+  explicitly retrospective direction review of complete existing evidence. Retain
+  P04's supported local benefit, P05's speed/memory direction and P07's hidden-open/
+  RAM benefit; retain P01 benefit while reviewing control/tail cost. No universal
+  memory budget, new predeclared statistical pass or production approval is created.
+- **Historical boundary:** all v1 protocols, assessors, raw/results/validation files
+  and labels remain unchanged. The exact pre-D007 authority bytes bound by T004.2
+  validation are retained in d007-prior-authority/. D007 supersedes the old rule
+  requiring fresh samples solely for an acceptance-policy change; applicability
+  changes, missing hard-gate coverage and incomplete runs still require resolution.
+- **Closure contract:** record absolute benefit/tails/confidence, workflow frequency,
+  transient versus retained memory/RSS, concurrency, operating scope, rationale,
+  mitigation and residual ownership for each trigger. No automatic speed-buys-memory
+  rule. T004.4 owns this consolidated review; T010 owns final applicability.
+- **Future execution:** T004.3 freezes the D007 policy/review-plan hashes and metric/
+  coverage inventory before sampling. The unchanged v1 assessor emits legacy
+  diagnostic classifications, not D007 product approval. No new benchmark runs or
+  production-code changes are selected by this decision.
+
 
 ### D006 — P01 Structurally Empty Payload Controls
 
@@ -232,13 +264,14 @@ means usable context, not resolved decisions or satisfied task dependencies.
 
 ## Current Execution Checkpoint
 
-T004.1 completed all five cells/240 fresh observations and both audits. P01 is
-NOT ACCEPTED overall: primary/EngineBlock pass, BIMExample fails open p95,
-ArchDetail/PartDesignExample are inconclusive. T004/local-developer owns that
-acceptance residual; T004.2 image/P07 comparisons are next. Earlier pre-sample
-statements describe their dated checkpoints. Exact sampled ledger/task bytes and
-the original T020 aggregate are archived with post-campaign bindings in the P01
-result package; no observation, threshold or original receipt was rewritten.
+T004.1 and T004.2 completed their original v1 measurement/disposition contracts.
+P01's overall failure, P04's timing inconclusive result, P05's large resource
+failures and P07's original failures remain in their immutable reports. D007 now
+selects retained directions by cost-benefit instead of treating each numeric
+breach as a product veto. This secondary review is posthoc and creates no new
+statistical result. T004.3 remains next; T004.4 resolves workflow/operating scope;
+T010 confirms final source and platform applicability. Prior checkpoint/ledger
+bytes remain historical evidence, not current policy writers.
 
 ## Related Artifacts
 

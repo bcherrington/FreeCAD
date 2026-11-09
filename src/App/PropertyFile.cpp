@@ -37,6 +37,9 @@
 #include "Document.h"
 #include "DocumentObject.h"
 #include "PropertyContainer.h"
+#ifdef FC_DOCUMENT_PERFORMANCE_TRACE
+# include "DocumentPerformanceTrace.h"
+#endif
 #ifdef FC_INCLUDED_FILE_PERFORMANCE_TRACE
 # include "IncludedFilePerformanceTrace.h"
 #endif
@@ -469,9 +472,15 @@ void PropertyFileIncluded::Restore(Base::XMLReader& reader)
 
 void PropertyFileIncluded::SaveDocFile(Base::Writer& writer) const
 {
+#ifdef FC_DOCUMENT_PERFORMANCE_TRACE
+    DocumentPerformanceTrace::Scope traceSave(DocumentPerformanceTrace::Scope::Kind::Save);
+#endif
     if (_cValue.empty()) {
         Base::Console().warning("Empty filename in PropertyFileIncluded::SaveDocFile. "
                                 "Nothing to do.\n");
+#ifdef FC_DOCUMENT_PERFORMANCE_TRACE
+        traceSave.complete(true);
+#endif
         return;
     }
 
@@ -505,6 +514,9 @@ void PropertyFileIncluded::SaveDocFile(Base::Writer& writer) const
             << "File '" << _cValue << "' in transient directory cannot be read.";
         throw Base::FileSystemError(str.str());
     }
+#ifdef FC_DOCUMENT_PERFORMANCE_TRACE
+    traceSave.complete();
+#endif
 }
 
 void PropertyFileIncluded::RestoreDocFile(Base::Reader& reader)

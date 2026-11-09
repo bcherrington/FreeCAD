@@ -9,6 +9,12 @@ last_reviewed: 2026-11-08
 
 # Performance Optimization Reconciliation
 
+Current performance policy: **D007 cost-benefit review** in
+[acceptance-policy-v2.md](acceptance-policy-v2.md). Original D001 v1 outcomes and
+dated checkpoints below remain evidence; their numeric vetoes do not govern current
+product decisions. Correctness/provenance/coverage gates remain mandatory.
+
+
 Reviewed source on `personal/integration-testing` at `13d601b9dd6b66026e2d0dbb5c16156f18bdb592`.
 This is a source-backed reconciliation, not lifecycle closure or upstream PR
 approval. This dated report predates the 2026-11-06 format migration. Current artifact
@@ -964,28 +970,28 @@ at the nested docs boundary; executed checks and exact identities establish proo
 
 ## Next Actions
 
-1. **T022/D005: plan validation and first-use/tail criteria for retained P07.**
-   The user chose retention on 2026-11-08 for opening-time/RAM benefits. T020
-   measurement is complete; original D001 outcomes remain unchanged and T004
-   awaits a bounded measurement/revalidation plan.
-2. Keep the completed Phase 2 local safety/compatibility evidence and exact arm
-   provenance. Any justified worker/context/profile change needs affected
-   requalification and a dated fresh freeze before whole-cell recollection.
-3. Advance T004 only after T020's required acceptance is satisfied or explicitly
-   reconciled through the decision ledger; T010/T011 remain later gates.
-4. B009/B010/B011 remain deferred optional work and cannot waive current criteria.
+1. **T004.4 — Review retained optimizations’ workflow cost-benefit and operating scope.**
+   T022/D005 planning and T004.1/T004.2/T004.3 measurement/disposition are complete.
+   Apply D007 to absolute gains, confidence/tails, workflow frequency, memory and
+   concurrency; preserve original classifications and the reviewed P08 exclusion.
+2. Keep exact source/build/fixture, geometry and runtime provenance. Evidence-affecting
+   changes need affected requalification or an independently reviewed equivalence;
+   do not repeat complete qualified measurements merely to clear old numeric vetoes.
+3. Complete parent T004 only after its D007 workflow dispositions, then advance
+   T010 exact-final/platform applicability and T011 promotion/closure.
+4. B009/B010/B011 remain inactive optional work and cannot waive current hard gates.
 
 ## Quality Gates
 
 | Gate | Required? | Status | Evidence |
 | --- | --- | --- | --- |
-| Requirements and decisions accepted | yes | partial | D001 protocol recorded; D002 routes to B009; D003 initial policy recorded; D004 campaign completed; D005 material owner decision open; final T010.1 confirmation pending |
-| MoE source-safety blockers resolved | yes | partial | F001/T012, F002/T013 and F003/T014 locally corrected/qualified; broader checkpoints and final platform applicability remain |
-| Candidate and final evidence applicability | yes | partial | T019 initial manifest/policy recorded; actual new-build/runtime receipts and T010 final reconciliation pending |
-| Predeclared per-optimization performance/resource acceptance | yes | incomplete | T020 measurements complete; rejected P07 and timing uncertainty keep T022/D005/T004/T010 gates open |
+| Requirements and decisions accepted | yes | partial | D001 protocol recorded; D002 routes to B009; D003 initial policy recorded; D004 campaign completed; D005/T022 and D007 resolved; workflow dispositions T004.4 and final T010.1 confirmation pending |
+| MoE source-safety blockers resolved | yes | partial | Phase 2 local image/tree/map/archive safety and broader checkpoints complete; exact-final/platform applicability remains T010 |
+| Candidate and final evidence applicability | yes | partial | T019 initial manifest plus exact T020/T004 scoped source/build/runtime receipts recorded; T010 final reconciliation pending |
+| Predeclared per-optimization performance/resource acceptance | yes | incomplete | T020/T004.1/T004.2/T004.3 measurements/exclusions complete; original v1 failures/uncertainty retained; D007 workflow review T004.4 and T010 remain |
 | Complete task/criterion evidence | yes | pending | tasks.md; traceability.md |
 | Focused current correctness and failure tests | yes | passed locally | T003/T006 image, T007 tree, T015/T016/T005 numeric/identity and T018/T002 failure/aggregate compatibility checkpoints pass on their recorded profiles; T010 reconfirms final/platform applicability |
-| Current measurements and platform/manual acceptance | yes | incomplete | T020 valid measurement complete; performance acceptance rejected and final/platform applicability remains T010 |
+| Current measurements and platform/manual acceptance | yes | incomplete | Scoped current measurements recorded; D007 product/workflow dispositions T004.4 and exact-final/platform applicability T010 remain |
 | Durable promotion and residual ownership | yes | pending | requirements.md durable impact |
 | Review and closure metadata | yes | pending | No closure claimed |
 
@@ -1128,7 +1134,7 @@ this migration.
 ## Historical Readiness Decision — Before T022/D005 Resolution
 
 This checkpoint predates T004 implementation. For current readiness, see the
-T004.2 P07 corrected diagnostic section below and the active queue in tasks.md.
+T004.2 conversion measurement disposition below and the active queue in tasks.md.
 
 - Ready to implement: T022 decision/plan work only; T004 is blocked by T022/D005. T020 measurement/disposition is complete.
 - Ready to validate: T020 evidence is complete and P07 is not accepted. New implementation/sampling needs T022/D005 scope, source composition and affected revalidation; whole-package acceptance still requires T004/T010.
@@ -1326,8 +1332,9 @@ all five cells and other requirements. T004/local-developer owns the P01 residua
 
 Independent review recomputed all five assessments exactly and checked frozen
 inputs, provenance, raw/context hashes, privacy and prospective task semantics.
-T004.1's literal comparable-measurement criteria are fulfilled; T004 remains in
-progress, T004.2 is next, and P07 remains retained/unaccepted. Phase 3/SC-005/T010
+At that T004.1 checkpoint its literal comparable-measurement criteria were fulfilled;
+T004 remained in progress, T004.2 was next, and P07 remained retained/unaccepted.
+The later T004.2 completion below makes T004.3 next. Phase 3/SC-005/T010
 acceptance remains unsatisfied. Current aggregate schema v3 explicitly preserves
 the original T020 aggregate/receipt and both campaigns; historical next-task fields
 are not current lifecycle authority. No new production behavior or numeric waiver.
@@ -1341,7 +1348,7 @@ The external chronological coordination file was appended with this scoped
 result, explicitly preserving separate D600/live-model/crash investigation scope.
 
 
-### T004.2 Host Telemetry Preparation (2026-11-08)
+### Historical T004.2 Host Telemetry Preparation (2026-11-08)
 
 Shared one-second host/owned-process telemetry is implemented. The preparation
 report is [t004-p07-diagnostic-preparation.md](t004-p07-diagnostic-preparation.md);
@@ -1349,11 +1356,13 @@ report is [t004-p07-diagnostic-preparation.md](t004-p07-diagnostic-preparation.m
 smoke and source. Fifteen focused Python tests pass, including cross-session
 cleanup, identity races, unknown executable identity, explicit raw counter units
 and terminal failure evidence. These are harness checks using Python surrogates,
-not new FreeCAD observations. Native timing instrumentation/build qualification,
-the fixed 16-worker P07 diagnostic and P04/P05 comparisons remain pending. The
-subsequent verified storage retirement reclaimed 16.54 GiB and resolved the space
-blocker; see storage-retirement-20261108.json and the storage runbook. T004.2 stays in progress;
-P01/P07 acceptance and original evidence remain unchanged.
+not new FreeCAD observations. At that preparation checkpoint native timing/build
+qualification, the fixed 16-worker P07 diagnostic and P04/P05 comparisons were
+pending. They subsequently completed and are documented below. Verified storage
+retirement reclaimed 16.54 GiB and resolved the space blocker; see
+storage-retirement-20261108.json and the storage runbook. T004.2 was then in
+progress; it has now completed measurement/disposition. P01/P07 acceptance and
+original evidence remain unchanged.
 
 
 ### Benchmark Storage Retirement (2026-11-08)
@@ -1395,5 +1404,111 @@ strict equality and all old fidelity witnesses; no library was ignored.
 P07firstshow is primarily read/decode (~80% in two lazy observations); hidden open
 and memory benefits remain descriptive. Control variation and median28.6ms
 collectorCPU/sample prevent causal claims about old BIMp95 or acceptance. P01/P07
-remain unaccepted; T004.2 stays inprogress for P04/P05 comparisons. No original
-protocol, assessor, result or acceptance receipt changed.
+remain unaccepted. At that diagnostic checkpoint T004.2 remained in progress for
+P04/P05 comparisons; the completed conversion disposition below supersedes that
+queue. No original protocol, assessor, result or acceptance receipt changed.
+
+## T004.2 Conversion Measurement Disposition
+
+2026-11-08: T004.2 completes comparable measurement/disposition under the
+prospectively reviewed conversion plan, preserving D001 and all prior evidence.
+All 13 required P04/P05 cells completed: 624 fresh workers, 520 measured
+observations (20 pairs/cell), 26 first-request diagnostics and 78 discarded
+warm-ups. No worker failure, retry, replacement, exclusion or pooling. P04 pre/post
+31,256-binding and P05 pre/post 31,350-binding audits pass. Per-observation source,
+output, full pixel/alpha/orientation, ownership and runtime checks pass.
+
+Matched locked RelWithDebInfo builds independently recompile the affected objects;
+App/common objects and probe executable match, sole Gui object delta is
+BitmapFactory.cpp.o and sole scoped runtime delta libFreeCADGui.so. P04 passes
+148 native cases/arm. P05 current candidate passes 148; its historical comparator
+passes 5 shared direct/null, 24 lifecycle and 12 render/calibration cases, plus
+full-image qualification for every one of its ten fallback cells. The comparator
+is not a production implementation passing the complete current suite. Total
+485 scoped native cases; all 56 focused Python tests pass under selected host
+Python -I -S -B -OO (optimization2), zero failures/errors/skips.
+
+P04 has descriptive 8–10x median conversion gains with resource passes, but
+original dispersion rules make timing inconclusive. P05 records all per-cell
+improvement/non-regression/resource decisions, including compact grayscale
+expansion and temporary RGBA storage. See t004-conversion-results.md/json and the
+hash-bound sanitized evidence/validation receipt. No failed gate is waived.
+
+P04 retains its exact frozen controller; explicit operator launch and independently
+rechecked live executable/hash/argv/start identity provide reviewed Req3 AC5
+provenance equivalence. P05 self-checks exact interpreter/pidfd/subreaper, captured
+activation/closure/tools, exact worker argv and complete writable state before
+artifacts. Original unlaunched pre-isolation drafts/qualification remain archived.
+Aggregate host telemetry is captured between workers; its measured cost and load
+ranges are published, without claiming idle-host or old BIM-p95 causation.
+
+The immutable T020 GUI opening/hidden-first-show/repeat/visibility/materialization
+and resource results, plus the corrected exploratory P07 diagnostic, remain
+separate. No primitive conversion timing is a GUI timing. P01/P04/P05/P07 remain
+unaccepted overall. Parent T004 owns every numeric residual; next T004.3.
+T010 retains final integrated-source, full-suite/desktop/platform applicability.
+
+## D007 Cost-Benefit Policy Revision
+
+2026-11-08: the owner explicitly selected relaxed criteria emphasizing cost-benefit
+after seeing P04/P05. acceptance-policy-v2.md/json now governs product decisions;
+cost-benefit-review.md/json is a separately labeled retrospective direction review.
+All prior v1 protocols/assessors/raw/result/validation labels remain unchanged.
+Historical statements above requiring every D001 numeric gate describe those
+checkpoints, not current D007 product approval rules.
+
+Preserve hard correctness/fidelity/calibration/model/error/provenance/coverage gates.
+Dispersion/latency/resource breaches instead require a record of absolute cost,
+benefit, confidence/tails, frequency, retained/transient memory, concurrency/scope,
+rationale/mitigation and residual owner. The new direction retains P04/P05/P07;
+no blanket memory/latency approval or predeclared statistical pass is created.
+
+Exact pre-D007 mutable authority bytes hashed by t004-conversion-validation.json
+are preserved in d007-prior-authority/manifest.json (.txt snapshots). New policy
+verification uses d007-validation.json, not edits to the old completion receipt.
+No new native build/test/benchmark is needed for this documentation-only policy
+change. T004.3 freezes D007's future review plan; T004.4/T010 own actual workflow
+and final applicability questions. Original P07 n=2 observations remain descriptive.
+
+
+## T004.3 Parser Save Measurement and Tree Exclusion
+
+T004.3 completes the measurement/disposition slice described in
+[t0043-results.md](t0043-results.md), [machine results](t0043-results.json),
+[the public evidence manifest](t0043-evidence/manifest.json) and
+[t0043-validation.json](t0043-validation.json). Accepted fixed campaigns contain
+240 P03 and 144 P02 fresh workers (320 measured, 48 warm-up, 16 diagnostic), with
+zero accepted worker failures/retries/replacements/pooling. Pre/post live audits
+pass 31,647 P03 and 32,199 P02 bindings. The same optimized pair is reused; P03
+native replay is explicitly retired before P02 replacement, with source refs,
+raw records, source/policy capsules and complete evidence seals retained.
+
+Both variants qualify exact original/reopened geometry-manifest, persistent-object,
+payload/declaration/calibration and runtime identities. Every PartShape property
+and checked geometric reference participates, including additional/null shapes.
+The earlier seven-document semantic oracle remains unchanged under the additive
+manifest repair; independent CAD review confirms its bounded serialization allowance.
+The original P03 verifier attempt stops at 135 completed rows and is retained as
+ineligible, never pooled, with passing unchanged-input/runtime audit at abort.
+Prior namespace/raw-BRep/null/compound/timeout construction failures remain
+qualification diagnostics, not benchmark outcomes. Detailed scope and recovery are
+in the frozen execution plan and report.
+
+The accepted source builds use matched Linux RelWithDebInfo and locked dependencies,
+identical canonical prefix and opt-in shared tracing. Only ElementMap.cpp.o (P03)
+or PropertyFile.cpp.o (P02) differs in App; GUI objects/loadable sections match.
+The scalar save's exact versioned get(char&) import/provider is qualified; public
+defined ABI and all source error/ownership behavior are preserved. Full native
+regression filters pass 91 cases per arm for each comparison. Focused Python
+fidelity/collector tests pass 20 cases under both normal and optimized interpreters.
+Normal debug output and external operator runtimes are untouched.
+
+Original statistical diagnostics stay intact: the two primary parser hooks pass,
+but whole-open confidence intervals cross zero, median RSS rises about 1.7–2.0 MiB,
+and Draft remains an overall legacy failure (tiny-hook dispersion and open-p95
+regression). Buffered save's primary hook/full-save outcomes and control variability
+are recorded separately. No numeric label is rewritten under D007. P08 has an
+independently reviewed current-effect attribution exclusion preserving T014/T017/
+T007 behavior, with no independent speed claim and T004.4 as its sole residual
+owner; B011 remains inactive. T004.4 is next for actual workflow cost-benefit and
+operating-scope dispositions; T010 retains final composition/platform applicability.

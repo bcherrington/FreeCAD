@@ -1,0 +1,81 @@
+{
+  "schema": "freecad-spec003-public-evidence-manifest/v1",
+  "files": {
+    "p02-PartDesignExample-observations.jsonl": {
+      "sha256": "4b1d03abea71b85da58581f1cb1e107a9c0d881b1aa33500530197d45b701e16",
+      "bytes": 106432
+    },
+    "p02-ProjectTest-observations.jsonl": {
+      "sha256": "b92cb8541f6682128525f4ef33378f8fe4b20df5451c5cf10a2aceddefac3cd4",
+      "bytes": 103981
+    },
+    "p02-gridfinity-drawer-v1.3-observations.jsonl": {
+      "sha256": "2d3b20154d5f8a7afeaacc296324c11081af28d1e9c83006dd76a8cc6454aebf",
+      "bytes": 108665
+    },
+    "p02-host.json": {
+      "sha256": "122377006dbc8e6a213aea273ccd7e73598d4433decc5375954254d1f96c6c12",
+      "bytes": 985
+    },
+    "p02-provenance.json": {
+      "sha256": "9b3da87788cdcc926dfb1101325fb84928a652872e2b0d38af8f7fbe9a4a212e",
+      "bytes": 3869
+    },
+    "p02-qualification.json": {
+      "sha256": "e373a3c1d81682bb156dd07e26678da9e00e7d3343071aceba4ccfda7822e261",
+      "bytes": 5040
+    },
+    "p02-statistics.json": {
+      "sha256": "1ac98df53c1f61dec217f5000f1054f95737fa20030b0c080f7f7be245ddfaf7",
+      "bytes": 17417
+    },
+    "p03-ArchDetail-observations.jsonl": {
+      "sha256": "5955614496740a424fb61c1c102fbc5d599489e39fd06181b4d44c3ea40a26a8",
+      "bytes": 84972
+    },
+    "p03-BIMExample-observations.jsonl": {
+      "sha256": "1e25b8c3ec0525dbf400ba3ca8b6653e8c34c815ec588134d14207bf0a8f8b0e",
+      "bytes": 84859
+    },
+    "p03-EngineBlock-observations.jsonl": {
+      "sha256": "cb451129e1706c07486f23fe08d34a0c5aa7964f2cb3be94d1e3650c0ec59247",
+      "bytes": 83576
+    },
+    "p03-PartDesignExample-observations.jsonl": {
+      "sha256": "ae8b1a92eb4148d9c1d332f5f2cbe61d6c79b01e604860b2c3521b5d583db088",
+      "bytes": 84536
+    },
+    "p03-draft_test_objects-observations.jsonl": {
+      "sha256": "002b75d91e0d902be6287f46b894308f98c097e5ff03f629a618330e28d0ab90",
+      "bytes": 84496
+    },
+    "p03-host.json": {
+      "sha256": "103c563559c53611ccaeab6a7eb537018ca10e1511d7d8c1d0428b1a797888fd",
+      "bytes": 970
+    },
+    "p03-provenance.json": {
+      "sha256": "0ed397d9fcf74d477ba6afd795c5fbdbc8a7a710beaad277e05bb03bf95ccbfe",
+      "bytes": 3667
+    },
+    "p03-qualification.json": {
+      "sha256": "a6689d1eb6a6ef5373438725c1cf88648266a1d47d62711c8a46eda2b11d164f",
+      "bytes": 7794
+    },
+    "p03-statistics.json": {
+      "sha256": "3bd6ee69dbea2be5c5a2941daf2c58e9b1ebfc46a468976ca3cb36696de5453e",
+      "bytes": 28729
+    },
+    "python-tests-normal.json": {
+      "sha256": "e4bdcbd9d2cac8e87b03d2af984062b9462158f5a28c00574ac03d9520e1437c",
+      "bytes": 1052
+    },
+    "python-tests-optimized.json": {
+      "sha256": "ede83fe4095c10f7e84877f7f749a4a21ba6d95a104975de1dd1a5d870b6d17c",
+      "bytes": 1052
+    }
+  },
+  "source": "Sanitized accepted-campaign derivatives; full freezes, raw/host output, capsules, retired-native receipts and ineligible data retained privately",
+  "private_p03_seal_sha256": "6c6be9e366409190f6884d2756bcf74188b7c621a73122e3ebca41922632d93c",
+  "private_p02_seal_sha256": "6c9fdccefa4b2fe4a197a453f5c0a7aacaa81dd5e744a38ab0c79878cb37ec20",
+  "public_results_sha256": "3d786cee0bb21523a25ca17ba56adfe2973b9759d3fa33dd4b977c9651dc8c68"
+}

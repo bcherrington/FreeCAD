@@ -1,0 +1,170 @@
+{
+  "schema": "freecad-spec003-t0043-validation/v1",
+  "task": "T004.3",
+  "status": "verified-measurement-disposition-complete",
+  "production_accepted": false,
+  "review_owner": "T004.4/local-developer",
+  "campaigns": {
+    "P03": {
+      "freeze_sha256": "3471f7e36f0f537171e5addae3db726acbaf21b0b79df0383f3c021d22f4dcfc",
+      "workers": 240,
+      "evidence_seal_sha256": "6c6be9e366409190f6884d2756bcf74188b7c621a73122e3ebca41922632d93c",
+      "source": {
+        "common": "1a203990d6cbcc07903cc2a39169b53d9cfedb79",
+        "baseline": "fdd264aca3b7c2afa2f530e1afe6550c3f688c2e",
+        "change": "1a203990d6cbcc07903cc2a39169b53d9cfedb79",
+        "variation": "minimal owning string-token split vs string_view iteration; checked grammar shared; not literal historic Boost implementation"
+      },
+      "binding_count": 31647,
+      "before_audit_sha256": "7d9a60d684e2615b1d620d0de9b95f40283c6dec51a0db21ec6fbe972f02dc37",
+      "after_audit_sha256": "a8d69598ebaeeb75b1ecf4f75fb29c2ce44c70553ec7f14bf79ec5f32ab4d805",
+      "native_replay": "retired for pair reuse; source/evidence retained",
+      "statistics_sha256": "3bd6ee69dbea2be5c5a2941daf2c58e9b1ebfc46a468976ca3cb36696de5453e"
+    },
+    "P02": {
+      "freeze_sha256": "0393f1e6d5c9f21dfef87acad5ef2b3ccb4292f3a87c972d78ff9c5e9c1b636d",
+      "workers": 144,
+      "evidence_seal_sha256": "6c9fdccefa4b2fe4a197a453f5c0a7aacaa81dd5e744a38ab0c79878cb37ec20",
+      "source": {
+        "common": "1a203990d6cbcc07903cc2a39169b53d9cfedb79",
+        "variation": "successful scalar get/put vs current 64KiB buffered SaveDocFile copy; identical create/read/write checks and restore, no per-byte instrumentation",
+        "retired_campaign_sha256": "3471f7e36f0f537171e5addae3db726acbaf21b0b79df0383f3c021d22f4dcfc",
+        "change": "1a203990d6cbcc07903cc2a39169b53d9cfedb79",
+        "baseline": "18b045589b38d91469132d6a78aeeb0d73119dfc"
+      },
+      "binding_count": 32199,
+      "before_audit_sha256": "d14948b753957b4d34736c86005789cbd48e8c4b55d608b89dfc85239ea9b300",
+      "after_audit_sha256": "499dab69c9cbf95fe8f8f1e86968632d3c79e73c888623a3995d89c28bf1286f",
+      "native_replay": "current qualified pair retained",
+      "statistics_sha256": "1ac98df53c1f61dec217f5000f1054f95737fa20030b0c080f7f7be245ddfaf7"
+    }
+  },
+  "public_evidence_manifest_sha256": "2daab9307bb97274244e729d60196a82642f066b80d7144a6f91aab7b51b5382",
+  "results_sha256": "3d786cee0bb21523a25ca17ba56adfe2973b9759d3fa33dd4b977c9651dc8c68",
+  "policy": "D007 frozen before accepted samples; original v1 statistical labels unchanged",
+  "hard_gate_scope": "Scoped core-console persistent object/payload/geometry/reference checks; Proxy internals and document metadata excluded; final applicability T010",
+  "reviewers": [
+    "p01_instrumentation_review",
+    "cad_integrity_expert"
+  ],
+  "checks": {
+    "accepted_worker_count": 384,
+    "measured_worker_count": 320,
+    "accepted_worker_failures": 0,
+    "accepted_retries": 0,
+    "new_native_pairs": 0,
+    "same_pair_reused": true,
+    "debug_untouched": true,
+    "normal_and_optimized_python_cases": 20,
+    "scoped_native_cases_per_arm_per_comparison": 91,
+    "final_review": "passed: independent CAD fidelity/publication and performance/statistical/privacy review; no blockers",
+    "package_lint": {
+      "error": 0,
+      "warn": 0,
+      "info": 0
+    },
+    "traceability": {
+      "gaps": 0,
+      "open_decisions": 0,
+      "T004.3": "complete",
+      "T004.4": "pending next; dependency satisfied"
+    },
+    "scoped_precommit": "passed",
+    "public_observation_derivatives": "384 exact whitelisted rows; public hashes/sizes and locator/privacy scan pass",
+    "stable_task_ids": "unchanged ordered stable task identities",
+    "historical_preservation": "earlier receipts/classifications unchanged; exact eight D007 authority hashes preserved",
+    "agent_workbench": "navigation-only: nested docs authority blocked; completion is based on direct source/native evidence and SLM checks"
+  },
+  "prior_authority_resolution": {
+    "receipt": "d007-validation.json",
+    "snapshots": "t0043-prior-authority/manifest.json",
+    "scope": "Exact earlier authority preserved; current root documents may advance"
+  },
+  "p08": {
+    "disposition": "reviewed attribution exclusion; no speed claim",
+    "residual_owner": "T004.4/local-developer",
+    "B011": "inactive future candidate"
+  },
+  "ineligible_attempt": {
+    "completed": 135,
+    "scope": "Aborted missing additional-PartShape exact binding; no observed corruption; no values used or pooled",
+    "disposition_sha256": "90b64b19e77e6aafb3b87493e29e94f297d6fab95e6dc416b4371edb74c019cd"
+  },
+  "verified_at": "2026-11-08T21:51:11.505663+00:00",
+  "review_dispositions": [
+    {
+      "reviewer": "cad_integrity_expert",
+      "result": "cleared",
+      "scope": "Narrow geometry normalization, exact all-PartShape/reference identities, qualification and public CAD fidelity limits; no unowned residual"
+    },
+    {
+      "reviewer": "p01_instrumentation_review",
+      "result": "cleared",
+      "scope": "Both fixed campaigns, stats independently reproduced, full evidence seals, sanitized publication, preserved legacy labels and explicit T004.4/T010 scope"
+    }
+  ],
+  "remaining_work": {
+    "T004.4": "Workflow cost-benefit/operating scope, tails/process peaks/frequency/concurrency; do not rerun solely for numeric vetoes",
+    "T010": "Exact final composition/platform applicability",
+    "parent_T004": "in_progress",
+    "production_accepted": false
+  },
+  "current_authority_snapshot": {
+    "requirements.md": "0cd3cf1e953f6941ae5a7cbed62535a1b31f385a0ee7294df4548f2b8d78ca06",
+    "design.md": "fec965f74777f7f6a38067ad5a871f44783f18f5c69c60801e21cf97cef9ce50",
+    "tasks.md": "1fc9c44120b394d474364a0f5a71dd2da3eceaab4dd42c5259f91a659a19f048",
+    "open-decisions.md": "25f057ba8c24c4da21e6a240bd40692cb41834bd2b785d59b0d90fa06b6e37a8",
+    "canonical-context.md": "a7f58380042c5c99b2ddee928303a3baf47c139344d2e91dc5dca3542d8ae4c1",
+    "performance-results.md": "9cb13df24313f497a25421df3712f7f68b00cbdd93d2d01f0c9091ad0afa2a70",
+    "traceability.md": "70a350c5aa684cf693d13a36e34a45cc4e95c84efc418d721e55948b58a4bb94",
+    "verification.md": "dcabc837b2f4ab1997fe5243e0b7d49b2646cf83b07e35b965440e8bad5aab82"
+  },
+  "artifacts_sha256": {
+    "docs/runbooks/freecad-benchmark-storage.md": "1a0905b883f0a03b73dd965d14c128c3d73363a1f7b046c022909057941268c3",
+    "docs/specs/003-freecad-performance-optimization/t0043-evidence/manifest.json": "2daab9307bb97274244e729d60196a82642f066b80d7144a6f91aab7b51b5382",
+    "docs/specs/003-freecad-performance-optimization/t0043-evidence/p02-PartDesignExample-observations.jsonl": "4b1d03abea71b85da58581f1cb1e107a9c0d881b1aa33500530197d45b701e16",
+    "docs/specs/003-freecad-performance-optimization/t0043-evidence/p02-ProjectTest-observations.jsonl": "b92cb8541f6682128525f4ef33378f8fe4b20df5451c5cf10a2aceddefac3cd4",
+    "docs/specs/003-freecad-performance-optimization/t0043-evidence/p02-gridfinity-drawer-v1.3-observations.jsonl": "2d3b20154d5f8a7afeaacc296324c11081af28d1e9c83006dd76a8cc6454aebf",
+    "docs/specs/003-freecad-performance-optimization/t0043-evidence/p02-host.json": "122377006dbc8e6a213aea273ccd7e73598d4433decc5375954254d1f96c6c12",
+    "docs/specs/003-freecad-performance-optimization/t0043-evidence/p02-provenance.json": "9b3da87788cdcc926dfb1101325fb84928a652872e2b0d38af8f7fbe9a4a212e",
+    "docs/specs/003-freecad-performance-optimization/t0043-evidence/p02-qualification.json": "e373a3c1d81682bb156dd07e26678da9e00e7d3343071aceba4ccfda7822e261",
+    "docs/specs/003-freecad-performance-optimization/t0043-evidence/p02-statistics.json": "1ac98df53c1f61dec217f5000f1054f95737fa20030b0c080f7f7be245ddfaf7",
+    "docs/specs/003-freecad-performance-optimization/t0043-evidence/p03-ArchDetail-observations.jsonl": "5955614496740a424fb61c1c102fbc5d599489e39fd06181b4d44c3ea40a26a8",
+    "docs/specs/003-freecad-performance-optimization/t0043-evidence/p03-BIMExample-observations.jsonl": "1e25b8c3ec0525dbf400ba3ca8b6653e8c34c815ec588134d14207bf0a8f8b0e",
+    "docs/specs/003-freecad-performance-optimization/t0043-evidence/p03-EngineBlock-observations.jsonl": "cb451129e1706c07486f23fe08d34a0c5aa7964f2cb3be94d1e3650c0ec59247",
+    "docs/specs/003-freecad-performance-optimization/t0043-evidence/p03-PartDesignExample-observations.jsonl": "ae8b1a92eb4148d9c1d332f5f2cbe61d6c79b01e604860b2c3521b5d583db088",
+    "docs/specs/003-freecad-performance-optimization/t0043-evidence/p03-draft_test_objects-observations.jsonl": "002b75d91e0d902be6287f46b894308f98c097e5ff03f629a618330e28d0ab90",
+    "docs/specs/003-freecad-performance-optimization/t0043-evidence/p03-host.json": "103c563559c53611ccaeab6a7eb537018ca10e1511d7d8c1d0428b1a797888fd",
+    "docs/specs/003-freecad-performance-optimization/t0043-evidence/p03-provenance.json": "0ed397d9fcf74d477ba6afd795c5fbdbc8a7a710beaad277e05bb03bf95ccbfe",
+    "docs/specs/003-freecad-performance-optimization/t0043-evidence/p03-qualification.json": "a6689d1eb6a6ef5373438725c1cf88648266a1d47d62711c8a46eda2b11d164f",
+    "docs/specs/003-freecad-performance-optimization/t0043-evidence/p03-statistics.json": "3bd6ee69dbea2be5c5a2941daf2c58e9b1ebfc46a468976ca3cb36696de5453e",
+    "docs/specs/003-freecad-performance-optimization/t0043-evidence/python-tests-normal.json": "e4bdcbd9d2cac8e87b03d2af984062b9462158f5a28c00574ac03d9520e1437c",
+    "docs/specs/003-freecad-performance-optimization/t0043-evidence/python-tests-optimized.json": "ede83fe4095c10f7e84877f7f749a4a21ba6d95a104975de1dd1a5d870b6d17c",
+    "docs/specs/003-freecad-performance-optimization/t0043-execution-plan.md": "5beb14616baaa490ceac5931e5977e3ce4de6698c1ea18ee17cf41fa55903356",
+    "docs/specs/003-freecad-performance-optimization/t0043-prior-authority/README.md": "9b27077f467ec1a7945a4d4f0c7adf1fdf3c3bd1280d3d513d094d59dfff3a3a",
+    "docs/specs/003-freecad-performance-optimization/t0043-prior-authority/canonical-context.md.txt": "9a53e76afe88f3bd047ee17f1d63200e3542cd5507a7a1c2e69d2acef83f1729",
+    "docs/specs/003-freecad-performance-optimization/t0043-prior-authority/design.md.txt": "a4ee585de4c2f53dc2e0413b24a57beccef4fa4bedacb4ee9b2c54bc57512783",
+    "docs/specs/003-freecad-performance-optimization/t0043-prior-authority/manifest.json": "7b9ed91441311ead86fd3a0c74ec26917b1ecb01f458803541b551236bd7907d",
+    "docs/specs/003-freecad-performance-optimization/t0043-prior-authority/open-decisions.md.txt": "25f057ba8c24c4da21e6a240bd40692cb41834bd2b785d59b0d90fa06b6e37a8",
+    "docs/specs/003-freecad-performance-optimization/t0043-prior-authority/performance-results.md.txt": "30cb751ff4f059011bd47f2d0bcdd687cde24e7519c29ce13795a4afb8ed6e19",
+    "docs/specs/003-freecad-performance-optimization/t0043-prior-authority/requirements.md.txt": "0cd3cf1e953f6941ae5a7cbed62535a1b31f385a0ee7294df4548f2b8d78ca06",
+    "docs/specs/003-freecad-performance-optimization/t0043-prior-authority/tasks.md.txt": "fed9648cba57258a2d8b1a0b33af6a2fc883060d724b5fc0a87fecce74992ce0",
+    "docs/specs/003-freecad-performance-optimization/t0043-prior-authority/traceability.md.txt": "0482996d6e5f9da23c2ec9bbf6b89df18acbcb9f6c0781d0e080768087d1a0fc",
+    "docs/specs/003-freecad-performance-optimization/t0043-prior-authority/verification.md.txt": "a258df18d2ec7854346caf12b2a9d26a88b57b2da0b09e4a39bdc768992ff37f",
+    "docs/specs/003-freecad-performance-optimization/t0043-results.json": "3d786cee0bb21523a25ca17ba56adfe2973b9759d3fa33dd4b977c9651dc8c68",
+    "docs/specs/003-freecad-performance-optimization/t0043-results.md": "c9df13b155f55f9e4b3e6c6b5b11131516a8f8ea51e8b9c59ba81209915390d4",
+    "docs/specs/README.md": "b17950d8638d0d2935eb199da57e036080c8a3e58fb4ba6f713de6dce5ca6f7d",
+    "src/App/ElementMap.cpp": "c451979d07f4402caf5ee90696a0446f283a1f78a5b2e77d426393d5a77797bd",
+    "src/App/PropertyFile.cpp": "cf7ff1161b241f6d3ced0698ab95979ef0d345eebe3dc3a442bb8278e3bc3d49",
+    "tests/src/App/CMakeLists.txt": "718ac7d94c160afec702725e516f87e1dd9e66592502d7614f47292c2868e530",
+    "tests/src/App/DocumentPerformanceProbe.py": "0a625e6e959e650f333450513563b0335097ae579b22f80a84b8ce0516b19ee3",
+    "tests/src/App/DocumentPerformanceTrace.cpp": "e1b6d539cc9810a643fdcbcc5c991933869c7dd4533631a022396a86b7df4018",
+    "tests/src/App/DocumentPerformanceTrace.h": "4a6dc16226a55ab7a5ac628a223119a13ca603163778de697411b6b50404d400",
+    "tests/src/App/DocumentPerformanceTraceTest.cpp": "e3b58a94c7a4c21e6bae344420a3d472e290783f8540fb441a3f37b1c15df4af",
+    "tests/src/App/document_performance_fidelity.py": "c5427e8ce112c5feea014ed1d73e923fbb6d4d20ef4d7e86f0fb9c1ccc77d4fb",
+    "tests/src/App/run_document_performance_comparison.py": "b81a3ef7a17866aba0c92f4398f4a8e4d17fd1fcce842df1d401e66e328bb1db",
+    "tests/src/App/run_document_performance_probe.py": "0febf80a5f443ed4a83d341473927f06be971a8b6113c6a17d8292965a9d936e",
+    "tests/src/App/test_document_performance_comparison.py": "de491fff2cf283b0a60cb66330a37f17a42d4c93df4a4a50287600d3e550ec3c",
+    "tests/src/App/test_document_performance_fidelity.py": "a890dd3665c1320cfdf5cf4a61899fa3d272657ada9291e30dbed80c934a5f88"
+  }
+}

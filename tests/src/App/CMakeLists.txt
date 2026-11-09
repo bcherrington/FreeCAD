@@ -61,3 +61,18 @@ if(BUILD_INCLUDED_FILE_PERFORMANCE_PROBE)
     )
     target_compile_definitions(App_tests_run PRIVATE FC_INCLUDED_FILE_PERFORMANCE_TRACE)
 endif()
+
+option(BUILD_DOCUMENT_PERFORMANCE_PROBE "Build opt-in save/parser performance trace" OFF)
+if(BUILD_DOCUMENT_PERFORMANCE_PROBE)
+    target_sources(FreeCADApp PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/DocumentPerformanceTrace.cpp)
+    foreach(source PropertyFile.cpp ElementMap.cpp)
+        set_property(SOURCE ${PROJECT_SOURCE_DIR}/src/App/${source}
+            DIRECTORY ${PROJECT_SOURCE_DIR}/src/App APPEND PROPERTY
+            COMPILE_DEFINITIONS FC_DOCUMENT_PERFORMANCE_TRACE)
+        set_property(SOURCE ${PROJECT_SOURCE_DIR}/src/App/${source}
+            DIRECTORY ${PROJECT_SOURCE_DIR}/src/App APPEND PROPERTY
+            INCLUDE_DIRECTORIES ${CMAKE_CURRENT_SOURCE_DIR})
+    endforeach()
+    target_sources(App_tests_run PRIVATE DocumentPerformanceTraceTest.cpp)
+    target_compile_definitions(App_tests_run PRIVATE FC_DOCUMENT_PERFORMANCE_TRACE)
+endif()

@@ -1,0 +1,1351 @@
+{
+  "schema": "freecad-spec003-parser-save-results/v1",
+  "measurement_complete": true,
+  "production_accepted": false,
+  "review_policy": "D007; numeric classifications are review triggers, not product decisions",
+  "comparisons": {
+    "P03": {
+      "workers": 240,
+      "measured_workers": 200,
+      "warmup_workers": 30,
+      "diagnostic_workers": 10,
+      "legacy_scope": "Original assess_metric formulas/sampling only; this core-console campaign does not claim the original GUI runner eligibility envelope or production acceptance",
+      "freeze_sha256": "3471f7e36f0f537171e5addae3db726acbaf21b0b79df0383f3c021d22f4dcfc",
+      "statistics_file": "t0043-evidence/p03-statistics.json",
+      "cells": {
+        "BIMExample": {
+          "measured_pairs": 20,
+          "primary": true,
+          "legacy_statistical_status": "pass",
+          "metrics": {
+            "map_restore_ms": {
+              "baseline": {
+                "median": 59.5347005,
+                "p95": 63.541225399999995,
+                "iqr": 4.217850499999997,
+                "iqr_over_median": 0.0708469256513686,
+                "maximum": 64.761508
+              },
+              "change": {
+                "median": 54.1495125,
+                "p95": 56.671966600000005,
+                "iqr": 3.2285802500000074,
+                "iqr_over_median": 0.059623440746581186,
+                "maximum": 58.198476
+              },
+              "kind": "improve",
+              "paired_ratio": {
+                "median": 0.9007737928311049,
+                "p95": 0.9869731608397183,
+                "iqr": 0.04947063488988368,
+                "iqr_over_median": 0.05492015340987993,
+                "maximum": 0.989369488968423
+              },
+              "bootstrap_ratio_interval": [
+                0.884189180429292,
+                0.9229320487342916
+              ],
+              "median_paired_saved_ms": 5.923803499999998,
+              "thresholds_passed": true,
+              "status": "pass",
+              "supplementary_descriptive_paired_saved_ms": {
+                "median": 5.923803499999998,
+                "bootstrap_95_interval": [
+                  4.696439000000002,
+                  6.803211000000001
+                ],
+                "method": "paired resampling using original fixed seed/count; descriptive, no new acceptance threshold"
+              },
+              "descriptive_paired_ratio": {
+                "median": 0.9007737928311049,
+                "p95": 0.9869731608397183,
+                "iqr": 0.04947063488988368,
+                "iqr_over_median": 0.05492015340987993,
+                "maximum": 0.989369488968423
+              }
+            },
+            "document_open_ms": {
+              "baseline": {
+                "median": 2364.8601105,
+                "p95": 2509.08273505,
+                "iqr": 110.3355267500001,
+                "iqr_over_median": 0.046656259395686614,
+                "maximum": 2607.196019
+              },
+              "change": {
+                "median": 2378.5832095,
+                "p95": 2480.61042595,
+                "iqr": 117.90415325000004,
+                "iqr_over_median": 0.04956906816591233,
+                "maximum": 2510.836765
+              },
+              "kind": "non_regression",
+              "thresholds_passed": true,
+              "status": "pass",
+              "supplementary_descriptive_paired_saved_ms": {
+                "median": 3.578719500000034,
+                "bootstrap_95_interval": [
+                  -38.6651710000001,
+                  42.94678449999992
+                ],
+                "method": "paired resampling using original fixed seed/count; descriptive, no new acceptance threshold"
+              },
+              "descriptive_paired_ratio": {
+                "median": 0.9984528217430413,
+                "p95": 1.0798755133653297,
+                "iqr": 0.04669229097160488,
+                "iqr_over_median": 0.046764644212324596,
+                "maximum": 1.0834909229934573
+              }
+            },
+            "peak_rss_bytes": {
+              "baseline": {
+                "median": 293912576.0,
+                "p95": 294118195.2,
+                "iqr": 267264.0,
+                "iqr_over_median": 0.0009093316238363342,
+                "maximum": 294133760
+              },
+              "change": {
+                "median": 295686144.0,
+                "p95": 295973888.0,
+                "iqr": 293888.0,
+                "iqr_over_median": 0.0009939187410824364,
+                "maximum": 295993344
+              },
+              "kind": "resource",
+              "maximum_increase_allowed": 29413376.0,
+              "thresholds_passed": true,
+              "status": "pass"
+            },
+            "coin_image_bytes": {
+              "baseline": {
+                "median": 0.0,
+                "p95": 0.0,
+                "iqr": 0.0,
+                "iqr_over_median": 0,
+                "maximum": 0
+              },
+              "change": {
+                "median": 0.0,
+                "p95": 0.0,
+                "iqr": 0.0,
+                "iqr_over_median": 0,
+                "maximum": 0
+              },
+              "kind": "resource",
+              "maximum_increase_allowed": 1048576,
+              "thresholds_passed": true,
+              "status": "pass"
+            },
+            "decoded_image_bytes": {
+              "baseline": {
+                "median": 0.0,
+                "p95": 0.0,
+                "iqr": 0.0,
+                "iqr_over_median": 0,
+                "maximum": 0
+              },
+              "change": {
+                "median": 0.0,
+                "p95": 0.0,
+                "iqr": 0.0,
+                "iqr_over_median": 0,
+                "maximum": 0
+              },
+              "kind": "resource",
+              "maximum_increase_allowed": 1048576,
+              "thresholds_passed": true,
+              "status": "pass"
+            }
+          },
+          "identity": {
+            "normative_state_sha256": "3f7cddcfd0f54d255a63c61eab9b4c0b0853e3a086f13bd8cde372a16bc1236d",
+            "geometry_manifest_sha256": "a31752d328a71b143c1d3805b24f06bd458d4611e1ee00e223e0bb5fa96cac7b",
+            "reopened_geometry_manifest_sha256": null,
+            "payload_identity_sha256": "26df168cc21233cb73f8469f44074a436e6a458336f2fc3805262c0d81034ec1",
+            "persistent_state_sha256": "4423b1bc19dbf3be4583d1c917414bc0ed018d4e8a426464eed3c9e4f053521a",
+            "persistent_state_inventory": {
+              "properties": 10448,
+              "members": 9974,
+              "decompressed_bytes": 2948709
+            },
+            "coverage": {
+              "included_properties": 1,
+              "included_bytes": 519,
+              "map_calls": 513,
+              "map_records": 50547,
+              "child_records": 2651,
+              "token_buffers": 50547,
+              "token_bytes": 509110
+            },
+            "completion_recompute_count": 3,
+            "reopened_recompute_count": null,
+            "reopened_normative_state_sha256": null,
+            "reopened_persistent_state_sha256": null
+          }
+        },
+        "ArchDetail": {
+          "measured_pairs": 20,
+          "primary": true,
+          "legacy_statistical_status": "pass",
+          "metrics": {
+            "map_restore_ms": {
+              "baseline": {
+                "median": 25.0140485,
+                "p95": 27.21037445,
+                "iqr": 1.7342534999999977,
+                "iqr_over_median": 0.06933118003669009,
+                "maximum": 27.574518
+              },
+              "change": {
+                "median": 23.192002000000002,
+                "p95": 23.99746585,
+                "iqr": 1.3499264999999987,
+                "iqr_over_median": 0.05820655327642687,
+                "maximum": 24.051879
+              },
+              "kind": "improve",
+              "paired_ratio": {
+                "median": 0.9262998862341496,
+                "p95": 0.9847251796827505,
+                "iqr": 0.056619870823786056,
+                "iqr_over_median": 0.06112477359138282,
+                "maximum": 1.070885143651247
+              },
+              "bootstrap_ratio_interval": [
+                0.8998828546067226,
+                0.9511478593385153
+              ],
+              "median_paired_saved_ms": 1.780163,
+              "thresholds_passed": true,
+              "status": "pass",
+              "supplementary_descriptive_paired_saved_ms": {
+                "median": 1.780163,
+                "bootstrap_95_interval": [
+                  1.1937474999999989,
+                  2.5222789999999993
+                ],
+                "method": "paired resampling using original fixed seed/count; descriptive, no new acceptance threshold"
+              },
+              "descriptive_paired_ratio": {
+                "median": 0.9262998862341496,
+                "p95": 0.9847251796827505,
+                "iqr": 0.056619870823786056,
+                "iqr_over_median": 0.06112477359138282,
+                "maximum": 1.070885143651247
+              }
+            },
+            "document_open_ms": {
+              "baseline": {
+                "median": 2749.585642,
+                "p95": 2997.5011659,
+                "iqr": 168.3949542499995,
+                "iqr_over_median": 0.06124375676020478,
+                "maximum": 3287.952853
+              },
+              "change": {
+                "median": 2776.760593,
+                "p95": 2953.0431271,
+                "iqr": 154.04372250000006,
+                "iqr_over_median": 0.05547605468340787,
+                "maximum": 3296.022712
+              },
+              "kind": "non_regression",
+              "thresholds_passed": true,
+              "status": "pass",
+              "supplementary_descriptive_paired_saved_ms": {
+                "median": -8.329496500000005,
+                "bootstrap_95_interval": [
+                  -78.10487500000022,
+                  43.67064699999992
+                ],
+                "method": "paired resampling using original fixed seed/count; descriptive, no new acceptance threshold"
+              },
+              "descriptive_paired_ratio": {
+                "median": 1.0027066810856509,
+                "p95": 1.061373632297133,
+                "iqr": 0.0550941043401143,
+                "iqr_over_median": 0.05494538470658518,
+                "maximum": 1.1457650612198516
+              }
+            },
+            "peak_rss_bytes": {
+              "baseline": {
+                "median": 279658496.0,
+                "p95": 279924736.0,
+                "iqr": 352256.0,
+                "iqr_over_median": 0.001259593414962798,
+                "maximum": 280002560
+              },
+              "change": {
+                "median": 281718784.0,
+                "p95": 281852518.4,
+                "iqr": 230400.0,
+                "iqr_over_median": 0.0008178368397330581,
+                "maximum": 281903104
+              },
+              "kind": "resource",
+              "maximum_increase_allowed": 28000256.0,
+              "thresholds_passed": true,
+              "status": "pass"
+            },
+            "coin_image_bytes": {
+              "baseline": {
+                "median": 0.0,
+                "p95": 0.0,
+                "iqr": 0.0,
+                "iqr_over_median": 0,
+                "maximum": 0
+              },
+              "change": {
+                "median": 0.0,
+                "p95": 0.0,
+                "iqr": 0.0,
+                "iqr_over_median": 0,
+                "maximum": 0
+              },
+              "kind": "resource",
+              "maximum_increase_allowed": 1048576,
+              "thresholds_passed": true,
+              "status": "pass"
+            },
+            "decoded_image_bytes": {
+              "baseline": {
+                "median": 0.0,
+                "p95": 0.0,
+                "iqr": 0.0,
+                "iqr_over_median": 0,
+                "maximum": 0
+              },
+              "change": {
+                "median": 0.0,
+                "p95": 0.0,
+                "iqr": 0.0,
+                "iqr_over_median": 0,
+                "maximum": 0
+              },
+              "kind": "resource",
+              "maximum_increase_allowed": 1048576,
+              "thresholds_passed": true,
+              "status": "pass"
+            }
+          },
+          "identity": {
+            "normative_state_sha256": "36c3dbb00479e3291a223021056b9f483c5436c83c5445241459db12c75c1e0e",
+            "geometry_manifest_sha256": "a5f28cddf46619f96156c6d5442b3acb9226b75651ed3810b84c0a3dda893d7b",
+            "reopened_geometry_manifest_sha256": null,
+            "payload_identity_sha256": "b4c891664fe46512fa0befd7c0a0a77f40fc75d91a8cc3b6f479bef4251751e0",
+            "persistent_state_sha256": "f6c62220127a00f027717e2e272d1505e81bdd97ecf88c2b30ba0a80badab12e",
+            "persistent_state_inventory": {
+              "properties": 11857,
+              "members": 11444,
+              "decompressed_bytes": 3020695
+            },
+            "coverage": {
+              "included_properties": 1,
+              "included_bytes": 5487,
+              "map_calls": 415,
+              "map_records": 24189,
+              "child_records": 4227,
+              "token_buffers": 24189,
+              "token_bytes": 221074
+            },
+            "completion_recompute_count": 2,
+            "reopened_recompute_count": null,
+            "reopened_normative_state_sha256": null,
+            "reopened_persistent_state_sha256": null
+          }
+        },
+        "EngineBlock": {
+          "measured_pairs": 20,
+          "primary": false,
+          "legacy_statistical_status": "pass",
+          "metrics": {
+            "map_restore_ms": {
+              "baseline": {
+                "median": 0.41209700000000005,
+                "p95": 0.4884364,
+                "iqr": 0.016175750000000044,
+                "iqr_over_median": 0.03925228768954892,
+                "maximum": 0.51341
+              },
+              "change": {
+                "median": 0.3681405,
+                "p95": 0.4076881000000001,
+                "iqr": 0.023751500000000036,
+                "iqr_over_median": 0.06451748720936717,
+                "maximum": 0.548556
+              },
+              "kind": "non_regression",
+              "thresholds_passed": true,
+              "status": "pass",
+              "supplementary_descriptive_paired_saved_ms": {
+                "median": 0.0410325,
+                "bootstrap_95_interval": [
+                  0.025374499999999994,
+                  0.060537499999999994
+                ],
+                "method": "paired resampling using original fixed seed/count; descriptive, no new acceptance threshold"
+              },
+              "descriptive_paired_ratio": {
+                "median": 0.9002058164160643,
+                "p95": 1.0325158840934399,
+                "iqr": 0.08949100559949741,
+                "iqr_over_median": 0.09941171670694443,
+                "maximum": 1.483000627203322
+              }
+            },
+            "document_open_ms": {
+              "baseline": {
+                "median": 299.1479185,
+                "p95": 317.34679615,
+                "iqr": 12.770150000000001,
+                "iqr_over_median": 0.042688413357621274,
+                "maximum": 321.283751
+              },
+              "change": {
+                "median": 301.917847,
+                "p95": 322.7263058000001,
+                "iqr": 16.208564999999965,
+                "iqr_over_median": 0.053685349047948014,
+                "maximum": 436.828636
+              },
+              "kind": "non_regression",
+              "thresholds_passed": true,
+              "status": "pass",
+              "supplementary_descriptive_paired_saved_ms": {
+                "median": -1.8340579999999704,
+                "bootstrap_95_interval": [
+                  -7.9208180000000254,
+                  3.1695344999999975
+                ],
+                "method": "paired resampling using original fixed seed/count; descriptive, no new acceptance threshold"
+              },
+              "descriptive_paired_ratio": {
+                "median": 1.0061331289790423,
+                "p95": 1.1030881510355461,
+                "iqr": 0.05223592057214854,
+                "iqr_over_median": 0.051917503824920386,
+                "maximum": 1.5804407489382706
+              }
+            },
+            "peak_rss_bytes": {
+              "baseline": {
+                "median": 168341504.0,
+                "p95": 168805785.6,
+                "iqr": 344064.0,
+                "iqr_over_median": 0.0020438453490352563,
+                "maximum": 169066496
+              },
+              "change": {
+                "median": 169801728.0,
+                "p95": 170053222.4,
+                "iqr": 184320.0,
+                "iqr_over_median": 0.0010855013206932736,
+                "maximum": 170434560
+              },
+              "kind": "resource",
+              "maximum_increase_allowed": 16906649.6,
+              "thresholds_passed": true,
+              "status": "pass"
+            },
+            "coin_image_bytes": {
+              "baseline": {
+                "median": 0.0,
+                "p95": 0.0,
+                "iqr": 0.0,
+                "iqr_over_median": 0,
+                "maximum": 0
+              },
+              "change": {
+                "median": 0.0,
+                "p95": 0.0,
+                "iqr": 0.0,
+                "iqr_over_median": 0,
+                "maximum": 0
+              },
+              "kind": "resource",
+              "maximum_increase_allowed": 1048576,
+              "thresholds_passed": true,
+              "status": "pass"
+            },
+            "decoded_image_bytes": {
+              "baseline": {
+                "median": 0.0,
+                "p95": 0.0,
+                "iqr": 0.0,
+                "iqr_over_median": 0,
+                "maximum": 0
+              },
+              "change": {
+                "median": 0.0,
+                "p95": 0.0,
+                "iqr": 0.0,
+                "iqr_over_median": 0,
+                "maximum": 0
+              },
+              "kind": "resource",
+              "maximum_increase_allowed": 1048576,
+              "thresholds_passed": true,
+              "status": "pass"
+            }
+          },
+          "identity": {
+            "normative_state_sha256": "502ada21ac5c4741efb660983f58a92fa9721fa8227096314afd0248c6421cbb",
+            "geometry_manifest_sha256": "531e37d9f2ce3fddb80e8352e74dd928e0681443d7d8f6a8334e5227f79d87e4",
+            "reopened_geometry_manifest_sha256": null,
+            "payload_identity_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "persistent_state_sha256": "b1ae61f9df14808740ad3a545988e46ea5431d017aa765bf02fa3193c2c60dd2",
+            "persistent_state_inventory": {
+              "properties": 566,
+              "members": 524,
+              "decompressed_bytes": 47661
+            },
+            "coverage": {
+              "included_properties": 0,
+              "included_bytes": 0,
+              "map_calls": 17,
+              "map_records": 516,
+              "child_records": 15,
+              "token_buffers": 516,
+              "token_bytes": 3812
+            },
+            "completion_recompute_count": 0,
+            "reopened_recompute_count": null,
+            "reopened_normative_state_sha256": null,
+            "reopened_persistent_state_sha256": null
+          }
+        },
+        "PartDesignExample": {
+          "measured_pairs": 20,
+          "primary": false,
+          "legacy_statistical_status": "pass",
+          "metrics": {
+            "map_restore_ms": {
+              "baseline": {
+                "median": 2.3421465,
+                "p95": 2.4389937500000003,
+                "iqr": 0.2135012500000002,
+                "iqr_over_median": 0.09115623211443015,
+                "maximum": 2.444423
+              },
+              "change": {
+                "median": 2.0161025,
+                "p95": 2.1866575999999998,
+                "iqr": 0.09631875000000001,
+                "iqr_over_median": 0.0477747287154299,
+                "maximum": 2.201527
+              },
+              "kind": "non_regression",
+              "thresholds_passed": true,
+              "status": "pass",
+              "supplementary_descriptive_paired_saved_ms": {
+                "median": 0.3157574999999999,
+                "bootstrap_95_interval": [
+                  0.22097900000000015,
+                  0.37606400000000006
+                ],
+                "method": "paired resampling using original fixed seed/count; descriptive, no new acceptance threshold"
+              },
+              "descriptive_paired_ratio": {
+                "median": 0.8698556035212724,
+                "p95": 1.0239840253611194,
+                "iqr": 0.08430635855014268,
+                "iqr_over_median": 0.09691994649325836,
+                "maximum": 1.0721043679225295
+              }
+            },
+            "document_open_ms": {
+              "baseline": {
+                "median": 166.91485,
+                "p95": 175.97780515,
+                "iqr": 5.114405000000005,
+                "iqr_over_median": 0.030640802780579467,
+                "maximum": 177.953998
+              },
+              "change": {
+                "median": 165.71454649999998,
+                "p95": 174.57516735,
+                "iqr": 10.370892999999995,
+                "iqr_over_median": 0.0625828765128956,
+                "maximum": 174.700479
+              },
+              "kind": "non_regression",
+              "thresholds_passed": true,
+              "status": "pass",
+              "supplementary_descriptive_paired_saved_ms": {
+                "median": 3.4765005,
+                "bootstrap_95_interval": [
+                  -3.6924115000000057,
+                  10.312392500000016
+                ],
+                "method": "paired resampling using original fixed seed/count; descriptive, no new acceptance threshold"
+              },
+              "descriptive_paired_ratio": {
+                "median": 0.9790003270313041,
+                "p95": 1.1098851833688872,
+                "iqr": 0.09214867722036824,
+                "iqr_over_median": 0.09412527726093571,
+                "maximum": 1.1416097965795757
+              }
+            },
+            "peak_rss_bytes": {
+              "baseline": {
+                "median": 149567488.0,
+                "p95": 149786828.8,
+                "iqr": 203776.0,
+                "iqr_over_median": 0.0013624351302871382,
+                "maximum": 149790720
+              },
+              "change": {
+                "median": 151287808.0,
+                "p95": 151484416.0,
+                "iqr": 152576.0,
+                "iqr_over_median": 0.0010085148434432999,
+                "maximum": 151601152
+              },
+              "kind": "resource",
+              "maximum_increase_allowed": 16777216,
+              "thresholds_passed": true,
+              "status": "pass"
+            },
+            "coin_image_bytes": {
+              "baseline": {
+                "median": 0.0,
+                "p95": 0.0,
+                "iqr": 0.0,
+                "iqr_over_median": 0,
+                "maximum": 0
+              },
+              "change": {
+                "median": 0.0,
+                "p95": 0.0,
+                "iqr": 0.0,
+                "iqr_over_median": 0,
+                "maximum": 0
+              },
+              "kind": "resource",
+              "maximum_increase_allowed": 1048576,
+              "thresholds_passed": true,
+              "status": "pass"
+            },
+            "decoded_image_bytes": {
+              "baseline": {
+                "median": 0.0,
+                "p95": 0.0,
+                "iqr": 0.0,
+                "iqr_over_median": 0,
+                "maximum": 0
+              },
+              "change": {
+                "median": 0.0,
+                "p95": 0.0,
+                "iqr": 0.0,
+                "iqr_over_median": 0,
+                "maximum": 0
+              },
+              "kind": "resource",
+              "maximum_increase_allowed": 1048576,
+              "thresholds_passed": true,
+              "status": "pass"
+            }
+          },
+          "identity": {
+            "normative_state_sha256": "3b49955a7f28a28fbde9e83cf1eb7813b67a7df7f7e51c033cef951b8ad4e299",
+            "geometry_manifest_sha256": "cafd45ed5002983a53bee4cdf2c719cc611d91f3c8324b2871a7837c0250d1a7",
+            "reopened_geometry_manifest_sha256": null,
+            "payload_identity_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "persistent_state_sha256": "536f8c378c86066f8f96e7c7871d5036b315ad44cdc546d86efa69f0ab5ff8c5",
+            "persistent_state_inventory": {
+              "properties": 577,
+              "members": 539,
+              "decompressed_bytes": 100897
+            },
+            "coverage": {
+              "included_properties": 0,
+              "included_bytes": 0,
+              "map_calls": 33,
+              "map_records": 1663,
+              "child_records": 16,
+              "token_buffers": 1663,
+              "token_bytes": 34540
+            },
+            "completion_recompute_count": 0,
+            "reopened_recompute_count": null,
+            "reopened_normative_state_sha256": null,
+            "reopened_persistent_state_sha256": null
+          }
+        },
+        "draft_test_objects": {
+          "measured_pairs": 20,
+          "primary": false,
+          "legacy_statistical_status": "fail",
+          "metrics": {
+            "map_restore_ms": {
+              "baseline": {
+                "median": 0.3774375,
+                "p95": 0.8085087000000003,
+                "iqr": 0.13232099999999997,
+                "iqr_over_median": 0.35057724788872324,
+                "maximum": 1.135607
+              },
+              "change": {
+                "median": 0.340838,
+                "p95": 0.6893691500000002,
+                "iqr": 0.15656000000000003,
+                "iqr_over_median": 0.45933845404561713,
+                "maximum": 0.876427
+              },
+              "kind": "non_regression",
+              "thresholds_passed": true,
+              "status": "inconclusive",
+              "supplementary_descriptive_paired_saved_ms": {
+                "median": 0.03874650000000002,
+                "bootstrap_95_interval": [
+                  0.025307999999999997,
+                  0.07154549999999998
+                ],
+                "method": "paired resampling using original fixed seed/count; descriptive, no new acceptance threshold"
+              },
+              "descriptive_paired_ratio": {
+                "median": 0.8935319921518319,
+                "p95": 1.0930944386442163,
+                "iqr": 0.16649354359906032,
+                "iqr_over_median": 0.18633193334029968,
+                "maximum": 1.49510888936805
+              }
+            },
+            "document_open_ms": {
+              "baseline": {
+                "median": 400.31230500000004,
+                "p95": 803.7739525500002,
+                "iqr": 32.966818750000016,
+                "iqr_over_median": 0.08235274893685822,
+                "maximum": 1052.887143
+              },
+              "change": {
+                "median": 392.163176,
+                "p95": 1002.8367454500005,
+                "iqr": 169.41733875,
+                "iqr_over_median": 0.4320072590140386,
+                "maximum": 1617.721062
+              },
+              "kind": "non_regression",
+              "thresholds_passed": false,
+              "status": "fail",
+              "supplementary_descriptive_paired_saved_ms": {
+                "median": 4.314238999999986,
+                "bootstrap_95_interval": [
+                  -8.797464999999988,
+                  14.539800499999984
+                ],
+                "method": "paired resampling using original fixed seed/count; descriptive, no new acceptance threshold"
+              },
+              "descriptive_paired_ratio": {
+                "median": 0.9887466494697227,
+                "p95": 1.4673297545466315,
+                "iqr": 0.06376669622180997,
+                "iqr_over_median": 0.06449245239517004,
+                "maximum": 3.888677480844114
+              }
+            },
+            "peak_rss_bytes": {
+              "baseline": {
+                "median": 171593728.0,
+                "p95": 172358246.4,
+                "iqr": 295936.0,
+                "iqr_over_median": 0.001724631800062063,
+                "maximum": 172486656
+              },
+              "change": {
+                "median": 173244416.0,
+                "p95": 173812531.2,
+                "iqr": 332800.0,
+                "iqr_over_median": 0.001920985435975033,
+                "maximum": 173944832
+              },
+              "kind": "resource",
+              "maximum_increase_allowed": 17248665.6,
+              "thresholds_passed": true,
+              "status": "pass"
+            },
+            "coin_image_bytes": {
+              "baseline": {
+                "median": 0.0,
+                "p95": 0.0,
+                "iqr": 0.0,
+                "iqr_over_median": 0,
+                "maximum": 0
+              },
+              "change": {
+                "median": 0.0,
+                "p95": 0.0,
+                "iqr": 0.0,
+                "iqr_over_median": 0,
+                "maximum": 0
+              },
+              "kind": "resource",
+              "maximum_increase_allowed": 1048576,
+              "thresholds_passed": true,
+              "status": "pass"
+            },
+            "decoded_image_bytes": {
+              "baseline": {
+                "median": 0.0,
+                "p95": 0.0,
+                "iqr": 0.0,
+                "iqr_over_median": 0,
+                "maximum": 0
+              },
+              "change": {
+                "median": 0.0,
+                "p95": 0.0,
+                "iqr": 0.0,
+                "iqr_over_median": 0,
+                "maximum": 0
+              },
+              "kind": "resource",
+              "maximum_increase_allowed": 1048576,
+              "thresholds_passed": true,
+              "status": "pass"
+            }
+          },
+          "identity": {
+            "normative_state_sha256": "814917dcf633354cbc2a8fd860605a7eb2b032d24c2cbad677ec3b4a55d92a57",
+            "geometry_manifest_sha256": "dc406d8c3266c74b3e5cac3354314c2fb4b0d3ae0168e0f3ba0fd689c0627493",
+            "reopened_geometry_manifest_sha256": null,
+            "payload_identity_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "persistent_state_sha256": "f32afeaed3b55ffbf2b6a62cc0644a2d5937be29c5a7634426f33aca260e9156",
+            "persistent_state_inventory": {
+              "properties": 1752,
+              "members": 1655,
+              "decompressed_bytes": 143787
+            },
+            "coverage": {
+              "included_properties": 0,
+              "included_bytes": 0,
+              "map_calls": 16,
+              "map_records": 339,
+              "child_records": 148,
+              "token_buffers": 339,
+              "token_bytes": 2291
+            },
+            "completion_recompute_count": 0,
+            "reopened_recompute_count": null,
+            "reopened_normative_state_sha256": null,
+            "reopened_persistent_state_sha256": null
+          }
+        }
+      },
+      "production_accepted": false,
+      "remaining_owner": "T004.4/local-developer"
+    },
+    "P02": {
+      "workers": 144,
+      "measured_workers": 120,
+      "warmup_workers": 18,
+      "diagnostic_workers": 6,
+      "legacy_scope": "Original assess_metric formulas/sampling only; this core-console campaign does not claim the original GUI runner eligibility envelope or production acceptance",
+      "freeze_sha256": "0393f1e6d5c9f21dfef87acad5ef2b3ccb4292f3a87c972d78ff9c5e9c1b636d",
+      "statistics_file": "t0043-evidence/p02-statistics.json",
+      "cells": {
+        "gridfinity-drawer-v1.3": {
+          "measured_pairs": 20,
+          "primary": true,
+          "legacy_statistical_status": "pass",
+          "metrics": {
+            "save_payload_ms": {
+              "baseline": {
+                "median": 1897.6565655,
+                "p95": 2889.5646706500006,
+                "iqr": 116.86515150000014,
+                "iqr_over_median": 0.06158393126798904,
+                "maximum": 3725.430429
+              },
+              "change": {
+                "median": 1338.02904,
+                "p95": 1991.793601350001,
+                "iqr": 103.42648625000015,
+                "iqr_over_median": 0.07729763940698937,
+                "maximum": 3244.620738
+              },
+              "kind": "improve",
+              "paired_ratio": {
+                "median": 0.7164140268697365,
+                "p95": 0.8552009962714829,
+                "iqr": 0.07484620777559747,
+                "iqr_over_median": 0.10447339801905713,
+                "maximum": 0.870938486125733
+              },
+              "bootstrap_ratio_interval": [
+                0.6873675351412818,
+                0.7427874231138959
+              ],
+              "median_paired_saved_ms": 513.5751604999999,
+              "thresholds_passed": true,
+              "status": "pass",
+              "supplementary_descriptive_paired_saved_ms": {
+                "median": 513.5751604999999,
+                "bootstrap_95_interval": [
+                  473.47775950000005,
+                  598.8618085
+                ],
+                "method": "paired resampling using original fixed seed/count; descriptive, no new acceptance threshold"
+              },
+              "descriptive_paired_ratio": {
+                "median": 0.7164140268697365,
+                "p95": 0.8552009962714829,
+                "iqr": 0.07484620777559747,
+                "iqr_over_median": 0.10447339801905713,
+                "maximum": 0.870938486125733
+              }
+            },
+            "document_save_ms": {
+              "baseline": {
+                "median": 2695.1690285,
+                "p95": 4158.54601745,
+                "iqr": 171.56545525,
+                "iqr_over_median": 0.06365665879794004,
+                "maximum": 5054.700064
+              },
+              "change": {
+                "median": 2113.725737,
+                "p95": 3214.0549225000013,
+                "iqr": 169.36397975,
+                "iqr_over_median": 0.0801258066670359,
+                "maximum": 5193.201104
+              },
+              "kind": "non_regression",
+              "thresholds_passed": true,
+              "status": "pass",
+              "supplementary_descriptive_paired_saved_ms": {
+                "median": 519.2186194999999,
+                "bootstrap_95_interval": [
+                  434.8231844999998,
+                  644.5717414999999
+                ],
+                "method": "paired resampling using original fixed seed/count; descriptive, no new acceptance threshold"
+              },
+              "descriptive_paired_ratio": {
+                "median": 0.7985869587633403,
+                "p95": 1.0099506668474114,
+                "iqr": 0.09049111647011321,
+                "iqr_over_median": 0.11331404235581823,
+                "maximum": 1.0274004467617013
+              }
+            },
+            "peak_rss_bytes": {
+              "baseline": {
+                "median": 351502336.0,
+                "p95": 352660889.6,
+                "iqr": 1177600.0,
+                "iqr_over_median": 0.0033501911065535565,
+                "maximum": 352727040
+              },
+              "change": {
+                "median": 353658880.0,
+                "p95": 354322636.8,
+                "iqr": 809984.0,
+                "iqr_over_median": 0.002290297362249182,
+                "maximum": 354365440
+              },
+              "kind": "resource",
+              "maximum_increase_allowed": 35272704.0,
+              "thresholds_passed": true,
+              "status": "pass"
+            },
+            "coin_image_bytes": {
+              "baseline": {
+                "median": 0.0,
+                "p95": 0.0,
+                "iqr": 0.0,
+                "iqr_over_median": 0,
+                "maximum": 0
+              },
+              "change": {
+                "median": 0.0,
+                "p95": 0.0,
+                "iqr": 0.0,
+                "iqr_over_median": 0,
+                "maximum": 0
+              },
+              "kind": "resource",
+              "maximum_increase_allowed": 1048576,
+              "thresholds_passed": true,
+              "status": "pass"
+            },
+            "decoded_image_bytes": {
+              "baseline": {
+                "median": 0.0,
+                "p95": 0.0,
+                "iqr": 0.0,
+                "iqr_over_median": 0,
+                "maximum": 0
+              },
+              "change": {
+                "median": 0.0,
+                "p95": 0.0,
+                "iqr": 0.0,
+                "iqr_over_median": 0,
+                "maximum": 0
+              },
+              "kind": "resource",
+              "maximum_increase_allowed": 1048576,
+              "thresholds_passed": true,
+              "status": "pass"
+            }
+          },
+          "identity": {
+            "normative_state_sha256": "faad9cff5304bf89d10e284ee0156da33fa59e06db6fece9facd56b483949c4c",
+            "geometry_manifest_sha256": "307388237564e20180bcff861d42b40275f407fe25218c2fdb404ce6aea078ad",
+            "reopened_geometry_manifest_sha256": "8ea8706fef22529c235d817440aaae494a9cafb6ed4ecabf7bee2872744d7d1f",
+            "payload_identity_sha256": "14873f933a7487461f471a8f88558594116a64c55d206f601306fd3e63aa5320",
+            "persistent_state_sha256": "25a93cbf6461f522abf9b57e90830b493121306e0edb6db78523313f16dd1137",
+            "persistent_state_inventory": {
+              "properties": 2043,
+              "members": 1926,
+              "decompressed_bytes": 430936
+            },
+            "coverage": {
+              "included_properties": 3,
+              "included_bytes": 57246043,
+              "map_calls": 83,
+              "map_records": 84278,
+              "child_records": 43,
+              "token_buffers": 84278,
+              "token_bytes": 3457046
+            },
+            "completion_recompute_count": 0,
+            "reopened_recompute_count": 0,
+            "reopened_normative_state_sha256": "19242af8e58e356095603a4288896de949ba7a234a744a0104f888f08f4f136e",
+            "reopened_persistent_state_sha256": "25a93cbf6461f522abf9b57e90830b493121306e0edb6db78523313f16dd1137"
+          }
+        },
+        "ProjectTest": {
+          "measured_pairs": 20,
+          "primary": false,
+          "legacy_statistical_status": "inconclusive",
+          "metrics": {
+            "save_payload_ms": {
+              "original_v1_statistic": {
+                "baseline": {
+                  "median": 0.0,
+                  "p95": 0.0,
+                  "iqr": 0.0,
+                  "iqr_over_median": 0,
+                  "maximum": 0.0
+                },
+                "change": {
+                  "median": 0.0,
+                  "p95": 0.0,
+                  "iqr": 0.0,
+                  "iqr_over_median": 0,
+                  "maximum": 0.0
+                },
+                "kind": "non_regression",
+                "thresholds_passed": true,
+                "status": "pass"
+              },
+              "status": "not_applicable",
+              "reason": "Prospectively declared zero included payload/hooks; document-save/resource metrics remain applicable",
+              "thresholds_passed": null
+            },
+            "document_save_ms": {
+              "baseline": {
+                "median": 1.418689,
+                "p95": 1.72723585,
+                "iqr": 0.16459424999999994,
+                "iqr_over_median": 0.11601855656877577,
+                "maximum": 1.736372
+              },
+              "change": {
+                "median": 1.4266655,
+                "p95": 1.5977614500000004,
+                "iqr": 0.09457075000000015,
+                "iqr_over_median": 0.06628796308595122,
+                "maximum": 2.11267
+              },
+              "kind": "non_regression",
+              "thresholds_passed": true,
+              "status": "inconclusive",
+              "supplementary_descriptive_paired_saved_ms": {
+                "median": -0.008526499999999992,
+                "bootstrap_95_interval": [
+                  -0.06173299999999993,
+                  0.1161025
+                ],
+                "method": "paired resampling using original fixed seed/count; descriptive, no new acceptance threshold"
+              },
+              "descriptive_paired_ratio": {
+                "median": 1.005849938032413,
+                "p95": 1.087182346190606,
+                "iqr": 0.1369231216843636,
+                "iqr_over_median": 0.13612678840762757,
+                "maximum": 1.275513500035319
+              }
+            },
+            "peak_rss_bytes": {
+              "baseline": {
+                "median": 80807936.0,
+                "p95": 80884940.8,
+                "iqr": 162816.0,
+                "iqr_over_median": 0.0020148516106140864,
+                "maximum": 80908288
+              },
+              "change": {
+                "median": 82468864.0,
+                "p95": 82571878.4,
+                "iqr": 115712.0,
+                "iqr_over_median": 0.0014030992351246648,
+                "maximum": 82583552
+              },
+              "kind": "resource",
+              "maximum_increase_allowed": 16777216,
+              "thresholds_passed": true,
+              "status": "pass"
+            },
+            "coin_image_bytes": {
+              "baseline": {
+                "median": 0.0,
+                "p95": 0.0,
+                "iqr": 0.0,
+                "iqr_over_median": 0,
+                "maximum": 0
+              },
+              "change": {
+                "median": 0.0,
+                "p95": 0.0,
+                "iqr": 0.0,
+                "iqr_over_median": 0,
+                "maximum": 0
+              },
+              "kind": "resource",
+              "maximum_increase_allowed": 1048576,
+              "thresholds_passed": true,
+              "status": "pass"
+            },
+            "decoded_image_bytes": {
+              "baseline": {
+                "median": 0.0,
+                "p95": 0.0,
+                "iqr": 0.0,
+                "iqr_over_median": 0,
+                "maximum": 0
+              },
+              "change": {
+                "median": 0.0,
+                "p95": 0.0,
+                "iqr": 0.0,
+                "iqr_over_median": 0,
+                "maximum": 0
+              },
+              "kind": "resource",
+              "maximum_increase_allowed": 1048576,
+              "thresholds_passed": true,
+              "status": "pass"
+            }
+          },
+          "identity": {
+            "normative_state_sha256": "cbbf27d113dd5a46ff1150750bb417a98ec0fc5ad8df1de9ebde2b1254d1e9d9",
+            "geometry_manifest_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "reopened_geometry_manifest_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "payload_identity_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "persistent_state_sha256": "659f8bf7da48caf17f3ed38ac30bccf75232a91dd36632e28efcc4f68c695fe4",
+            "persistent_state_inventory": {
+              "properties": 7,
+              "members": 7,
+              "decompressed_bytes": 35298
+            },
+            "coverage": {
+              "included_properties": 0,
+              "included_bytes": 0,
+              "map_calls": 0,
+              "map_records": 0,
+              "child_records": 0,
+              "token_buffers": 0,
+              "token_bytes": 0
+            },
+            "completion_recompute_count": 1,
+            "reopened_recompute_count": 0,
+            "reopened_normative_state_sha256": "cbbf27d113dd5a46ff1150750bb417a98ec0fc5ad8df1de9ebde2b1254d1e9d9",
+            "reopened_persistent_state_sha256": "659f8bf7da48caf17f3ed38ac30bccf75232a91dd36632e28efcc4f68c695fe4"
+          }
+        },
+        "PartDesignExample": {
+          "measured_pairs": 20,
+          "primary": false,
+          "legacy_statistical_status": "inconclusive",
+          "metrics": {
+            "save_payload_ms": {
+              "original_v1_statistic": {
+                "baseline": {
+                  "median": 0.0,
+                  "p95": 0.0,
+                  "iqr": 0.0,
+                  "iqr_over_median": 0,
+                  "maximum": 0.0
+                },
+                "change": {
+                  "median": 0.0,
+                  "p95": 0.0,
+                  "iqr": 0.0,
+                  "iqr_over_median": 0,
+                  "maximum": 0.0
+                },
+                "kind": "non_regression",
+                "thresholds_passed": true,
+                "status": "pass"
+              },
+              "status": "not_applicable",
+              "reason": "Prospectively declared zero included payload/hooks; document-save/resource metrics remain applicable",
+              "thresholds_passed": null
+            },
+            "document_save_ms": {
+              "baseline": {
+                "median": 50.9088765,
+                "p95": 112.36538790000002,
+                "iqr": 38.47224825000001,
+                "iqr_over_median": 0.7557080590847455,
+                "maximum": 130.165593
+              },
+              "change": {
+                "median": 49.9870205,
+                "p95": 115.38641250000005,
+                "iqr": 41.382589499999995,
+                "iqr_over_median": 0.8278666959155926,
+                "maximum": 171.08059
+              },
+              "kind": "non_regression",
+              "thresholds_passed": true,
+              "status": "inconclusive",
+              "supplementary_descriptive_paired_saved_ms": {
+                "median": 1.3454024999999987,
+                "bootstrap_95_interval": [
+                  -3.000498999999998,
+                  4.632767000000001
+                ],
+                "method": "paired resampling using original fixed seed/count; descriptive, no new acceptance threshold"
+              },
+              "descriptive_paired_ratio": {
+                "median": 0.977980469995219,
+                "p95": 1.5616878296264947,
+                "iqr": 0.15363531068713931,
+                "iqr_over_median": 0.15709445679205677,
+                "maximum": 2.0623131198143887
+              }
+            },
+            "peak_rss_bytes": {
+              "baseline": {
+                "median": 149114880.0,
+                "p95": 149234688.0,
+                "iqr": 256000.0,
+                "iqr_over_median": 0.0017167971432495537,
+                "maximum": 149254144
+              },
+              "change": {
+                "median": 150919168.0,
+                "p95": 151179673.6,
+                "iqr": 176128.0,
+                "iqr_over_median": 0.0011670353231737934,
+                "maximum": 151187456
+              },
+              "kind": "resource",
+              "maximum_increase_allowed": 16777216,
+              "thresholds_passed": true,
+              "status": "pass"
+            },
+            "coin_image_bytes": {
+              "baseline": {
+                "median": 0.0,
+                "p95": 0.0,
+                "iqr": 0.0,
+                "iqr_over_median": 0,
+                "maximum": 0
+              },
+              "change": {
+                "median": 0.0,
+                "p95": 0.0,
+                "iqr": 0.0,
+                "iqr_over_median": 0,
+                "maximum": 0
+              },
+              "kind": "resource",
+              "maximum_increase_allowed": 1048576,
+              "thresholds_passed": true,
+              "status": "pass"
+            },
+            "decoded_image_bytes": {
+              "baseline": {
+                "median": 0.0,
+                "p95": 0.0,
+                "iqr": 0.0,
+                "iqr_over_median": 0,
+                "maximum": 0
+              },
+              "change": {
+                "median": 0.0,
+                "p95": 0.0,
+                "iqr": 0.0,
+                "iqr_over_median": 0,
+                "maximum": 0
+              },
+              "kind": "resource",
+              "maximum_increase_allowed": 1048576,
+              "thresholds_passed": true,
+              "status": "pass"
+            }
+          },
+          "identity": {
+            "normative_state_sha256": "3b49955a7f28a28fbde9e83cf1eb7813b67a7df7f7e51c033cef951b8ad4e299",
+            "geometry_manifest_sha256": "cafd45ed5002983a53bee4cdf2c719cc611d91f3c8324b2871a7837c0250d1a7",
+            "reopened_geometry_manifest_sha256": "4f572f8f0dbd7ae2b7969d4b64d021444c298c70fab931c4c1658aa1e84e6dbd",
+            "payload_identity_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+            "persistent_state_sha256": "536f8c378c86066f8f96e7c7871d5036b315ad44cdc546d86efa69f0ab5ff8c5",
+            "persistent_state_inventory": {
+              "properties": 577,
+              "members": 539,
+              "decompressed_bytes": 100897
+            },
+            "coverage": {
+              "included_properties": 0,
+              "included_bytes": 0,
+              "map_calls": 33,
+              "map_records": 1663,
+              "child_records": 16,
+              "token_buffers": 1663,
+              "token_bytes": 34540
+            },
+            "completion_recompute_count": 0,
+            "reopened_recompute_count": 0,
+            "reopened_normative_state_sha256": "7d6cba97444c953b51eaf93948cf68efb6d6f846eb7d2f1a2fb6fe625b3e7c4c",
+            "reopened_persistent_state_sha256": "536f8c378c86066f8f96e7c7871d5036b315ad44cdc546d86efa69f0ab5ff8c5"
+          }
+        }
+      },
+      "production_accepted": false,
+      "remaining_owner": "T004.4/local-developer"
+    }
+  },
+  "exclusions": {
+    "P08": {
+      "status": "reviewed-current-effect-attribution-exclusion",
+      "performance_claim": null,
+      "source_origin_baseline": "c1722e4b2c5ab7019cd3fdce08eb7199459de859",
+      "source_origin_change": "00dd158de837fee43074db8b28979e30e4210d11",
+      "reason": "Required T017 fallback/finish behavior subsumes original blanket timer suppression; raw reversal would remove T014 lifetime safety or strand restore paths. No independently attributable current P08 timing claim.",
+      "preserved": "T014/T017/T007 behavior",
+      "residual_owner": "T004.4/local-developer",
+      "future_candidate": "B011 app-open-depth design remains inactive; no new tree optimization selected"
+    }
+  },
+  "ineligible_attempt": {
+    "comparison": "P03",
+    "workers_completed": 135,
+    "freeze_sha256": "6a5cd15b3ba908563faff463a530d1ade94f7b8f0f2073e3aad7c2a52f903bdb",
+    "status": "ineligible-aborted-verifier-scope",
+    "reason": "Sample identities initially omitted additional PartShape properties; corrected all-property geometry manifest independently reviewed and requalified. No observed corruption or performance-driven rerun.",
+    "values_used_or_pooled": false,
+    "disposition_sha256": "90b64b19e77e6aafb3b87493e29e94f297d6fab95e6dc416b4371edb74c019cd"
+  }
+}

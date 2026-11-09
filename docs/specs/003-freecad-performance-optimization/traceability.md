@@ -9,6 +9,12 @@ last_reviewed: 2026-11-08
 
 # Traceability Matrix
 
+Current performance policy: **D007 cost-benefit review** in
+[acceptance-policy-v2.md](acceptance-policy-v2.md). Original D001 v1 outcomes and
+dated checkpoints below remain evidence; their numeric vetoes do not govern current
+product decisions. Correctness/provenance/coverage gates remain mandatory.
+
+
 ## Task To Context Matrix
 
 | Task ID | Requirements | Acceptance Criteria | Design Sections | Change Impact | Verification | Durable Targets | Open Decisions |
@@ -21,10 +27,11 @@ last_reviewed: 2026-11-08
 | T003.1 | Requirement 2 | Requirement 2 (all acceptance criteria) | design.md#low-level-design | requirements.md#durable-impact | verification.md#quality-gates | docs/reference/document-open-performance.md; docs/runbooks/freecad-performance-optimization.md | none |
 | T003.2 | Requirement 2 | Requirement 2 (all acceptance criteria) | design.md#low-level-design | requirements.md#durable-impact | verification.md#quality-gates | docs/reference/document-open-performance.md; docs/runbooks/freecad-performance-optimization.md | none |
 | T003.3 | Requirement 2 | Requirement 2 (all acceptance criteria) | design.md#low-level-design | requirements.md#durable-impact | verification.md#quality-gates | docs/reference/document-open-performance.md; docs/runbooks/freecad-performance-optimization.md | none |
-| T004 | Requirement 1, Requirement 2, Requirement 3, Requirement 4, Requirement 5, Requirement 6 | Requirement 1 AC1–AC3; Requirement 2 AC1–AC3; Requirement 3 AC1–AC5; Requirement 4 AC1–AC4; Requirement 5 AC1–AC4; Requirement 6 AC1–AC4 | design.md#high-level-design; design.md#low-level-design | requirements.md#durable-impact | verification.md#quality-gates | docs/reference/document-open-performance.md; docs/runbooks/freecad-performance-optimization.md | none |
-| T004.1 | Requirement 1, Requirement 2, Requirement 3 | Requirement 1, Requirement 2, Requirement 3 (all acceptance criteria) | design.md#low-level-design; design.md#opt-in-restore-benchmark-probe | requirements.md#durable-impact | verification.md#t0041-comparable-restore-measurement | docs/reference/document-open-performance.md; docs/runbooks/freecad-performance-optimization.md | none |
-| T004.2 | Requirement 1, Requirement 2, Requirement 3 | Requirement 1, Requirement 2, Requirement 3 (all acceptance criteria) | design.md#low-level-design; design.md#diagnostic-intervals-and-runtime-resources | requirements.md#durable-impact | verification.md#t0042-p07-corrected-diagnostic | docs/reference/document-open-performance.md; docs/runbooks/freecad-performance-optimization.md; docs/runbooks/freecad-benchmark-storage.md | none |
-| T004.3 | Requirement 3, Requirement 4, Requirement 6 | Requirement 3 AC1–AC5; Requirement 4 AC1–AC4; Requirement 6 AC1–AC4 | design.md#evidence-applicability-and-benchmark-contract | requirements.md#durable-impact | verification.md#quality-gates | docs/reference/document-open-performance.md; docs/runbooks/freecad-performance-optimization.md | none |
+| T004 | Requirement 1, Requirement 2, Requirement 3, Requirement 4, Requirement 5, Requirement 6 | Requirement 1 AC1–AC3; Requirement 2 AC1–AC3; Requirement 3 AC1–AC8; Requirement 4 AC1–AC4; Requirement 5 AC1–AC4; Requirement 6 AC1–AC4 | design.md#high-level-design; design.md#low-level-design; design.md#cost-benefit-acceptance-policy | requirements.md#durable-impact | verification.md#quality-gates | docs/reference/document-open-performance.md; docs/runbooks/freecad-performance-optimization.md | none |
+| T004.1 | Requirement 1, Requirement 2, Requirement 3 | Requirement 1, Requirement 2; Requirement 3 AC1–AC6 (completion-time contract) | design.md#low-level-design; design.md#opt-in-restore-benchmark-probe | requirements.md#durable-impact | verification.md#t0041-comparable-restore-measurement | docs/reference/document-open-performance.md; docs/runbooks/freecad-performance-optimization.md | none |
+| T004.2 | Requirement 1, Requirement 2, Requirement 3 | Requirement 1, Requirement 2; Requirement 3 AC1–AC6 (completion-time contract) | design.md#low-level-design; design.md#diagnostic-intervals-and-runtime-resources; design.md#conversion-comparison-and-isolated-launch | requirements.md#durable-impact | verification.md#t0042-conversion-measurement-disposition | docs/reference/document-open-performance.md; docs/runbooks/freecad-performance-optimization.md; docs/runbooks/freecad-benchmark-storage.md | none |
+| T004.3 | Requirement 3, Requirement 4, Requirement 6 | Requirement 3 AC1–AC5, AC7, AC8 (pre-sample policy); Requirement 4 AC1–AC4; Requirement 6 AC1–AC4 | design.md#evidence-applicability-and-benchmark-contract | requirements.md#durable-impact | verification.md#t0043-parser-save-measurement-and-tree-exclusion | docs/reference/document-open-performance.md; docs/runbooks/freecad-performance-optimization.md; docs/runbooks/freecad-benchmark-storage.md | none |
+| T004.4 | Requirement 3; SC-005 | Requirement 3 AC1, AC3, AC4, AC5, AC7, AC8 | design.md#cost-benefit-acceptance-policy | requirements.md#durable-impact | verification.md#d007-cost-benefit-policy-revision | docs/reference/document-open-performance.md; docs/runbooks/freecad-performance-optimization.md | none |
 | T005 | Requirement 4 | Requirement 4 (all acceptance criteria) | design.md#high-level-design; design.md#low-level-design | requirements.md#durable-impact | verification.md#t005-aggregate-element-map-parser-compatibility | docs/reference/document-open-performance.md; docs/runbooks/freecad-performance-optimization.md | none |
 | T006 | Requirement 2, Requirement 5 | Requirement 2, Requirement 5 (all acceptance criteria) | design.md#high-level-design; design.md#low-level-design | requirements.md#durable-impact | verification.md#quality-gates | docs/reference/document-open-performance.md; docs/runbooks/freecad-performance-optimization.md | none |
 | T006.1 | Requirement 2, Requirement 5 | Requirement 2, Requirement 5 (all acceptance criteria) | design.md#low-level-design | requirements.md#durable-impact | verification.md#quality-gates | docs/reference/document-open-performance.md; docs/runbooks/freecad-performance-optimization.md | none |
@@ -52,7 +59,8 @@ last_reviewed: 2026-11-08
 | T018 | Requirement 1 | Requirement 1 AC1–AC3 | design.md#archive-failure-compatibility-policy | requirements.md#durable-impact | verification.md#t018-document-level-archive-failure-recovery | docs/reference/document-open-performance.md; docs/runbooks/freecad-performance-optimization.md | none |
 | T019 | Requirement 3 | Requirement 3 AC1, AC2, AC5 | design.md#evidence-applicability-and-benchmark-contract | requirements.md#durable-impact | verification.md#quality-gates | docs/reference/document-open-performance.md; docs/runbooks/freecad-performance-optimization.md | none |
 | T020 | Requirement 2, Requirement 3, Requirement 5 | Requirement 3 AC3, AC4; Requirement 2 AC1; Requirement 5 AC1–AC4 | design.md#evidence-applicability-and-benchmark-contract | requirements.md#durable-impact | verification.md#quality-gates | docs/reference/document-open-performance.md; docs/runbooks/freecad-performance-optimization.md | none |
-| T021 | Requirement 3 | Requirement 3 AC6 | design.md#open-questions | requirements.md#durable-impact | verification.md#quality-gates | docs/reference/document-open-performance.md; docs/runbooks/freecad-performance-optimization.md | none |
+| T021 | Requirement 3 | Requirement 3 AC6 | design.md#cost-benefit-acceptance-policy | Requirement 3 AC7, AC8; SC-005 | T004, T004.3, T004.4, T010, T011 | D007 policy/review and per-change applicable evidence | verification.md#d007-cost-benefit-policy-revision | partial-blocking | T004.4 workflow/operating-scope and T010 final applicability |
+| design.md#open-questions | requirements.md#durable-impact | verification.md#quality-gates | docs/reference/document-open-performance.md; docs/runbooks/freecad-performance-optimization.md | none |
 | T022 | Requirement 3, Requirement 5 | Requirement 3 AC1–AC5; Requirement 5 AC1–AC4 | design.md#evidence-applicability-and-benchmark-contract; design.md#open-questions | requirements.md#durable-impact | verification.md#quality-gates | docs/reference/document-open-performance.md; docs/runbooks/freecad-performance-optimization.md | none |
 
 ## Requirement To Delivery Matrix
@@ -61,9 +69,9 @@ last_reviewed: 2026-11-08
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | Requirement 1 | must-have | AC1, AC2, AC3 | design.md#low-level-design | T002, T004, T010, T011, T018 | verification.md#t002-included-file-compatibility-checkpoint | docs/reference/document-open-performance.md | complete | none for local Requirement 1; T010 reconfirms final/platform applicability |
 | Requirement 2 | must-have | AC1, AC2, AC3 | design.md#low-level-design | T003, T004, T006, T009, T010, T011, T012, T013, T020 | verification.md | docs/reference/document-open-performance.md | complete | none for local Requirement 2; T010 reconfirms final/platform applicability |
-| Requirement 3 | must-have | AC1, AC2, AC3, AC4, AC5, AC6 | design.md#low-level-design | T001, T004, T008, T010, T011, T019, T020, T021, T022 | verification.md | docs/reference/document-open-performance.md | partial-blocking | T004/T004.2 and T010 acceptance; local-developer |
+| Requirement 3 | must-have | AC1, AC2, AC3, AC4, AC5, AC6, AC7, AC8 | design.md#low-level-design | T001, T004, T004.4, T008, T010, T011, T019, T020, T021, T022 | verification.md | docs/reference/document-open-performance.md | partial-blocking | T004.4 D007 workflow/operating-scope review and T010 applicability; local-developer |
 | Requirement 4 | must-have | AC1, AC2, AC3, AC4 | design.md#low-level-design | T004, T005, T010, T011, T015, T016 | verification.md#t005-aggregate-element-map-parser-compatibility | docs/reference/document-open-performance.md | complete | none for local Requirement 4; T010 reconfirms final/platform applicability |
-| Requirement 5 | must-have | AC1, AC2, AC3, AC4 | design.md#low-level-design | T004, T006, T009, T010, T011, T013, T020, T022 | verification.md#t006-deferred-image-plane-lifecycle | docs/reference/document-open-performance.md | complete | Local semantic correctness remains qualified; P07 production acceptance remains blocked by failed D001 and T004/T010 |
+| Requirement 5 | must-have | AC1, AC2, AC3, AC4 | design.md#low-level-design | T004, T006, T009, T010, T011, T013, T020, T022 | verification.md#t006-deferred-image-plane-lifecycle | docs/reference/document-open-performance.md | complete | Local semantic correctness remains qualified; P07 D001 failures remain historical; D007 responsiveness/operating-scope review and T010 applicability remain |
 | Requirement 6 | must-have | AC1, AC2, AC3, AC4 | design.md#low-level-design | T004, T007, T010, T011, T014, T017 | verification.md#t007-tree-functional-qualification | docs/reference/document-open-performance.md | complete | none for local Requirement 6; T010 reconfirms final/platform applicability |
 
 ## Correctness Property Coverage
@@ -93,13 +101,14 @@ last_reviewed: 2026-11-08
 | SC-002 | T001, T003, T004, T012, T020 | verification.md | Image safety/fidelity qualified; T020 measurement complete, P07 timing rejected and T022/D005/T004 acceptance remains |
 | SC-003 | T019, T010 | verification.md | Open; exact-final-revision evidence reconciliation |
 | SC-004 | T012, T013, T014, T015, T016, T017, T018, T021 | verification.md#moe-review-findings | Open; source corrections and regression evidence required |
-| SC-005 | T001, T004, T020, T022, T010 | verification.md | Not met: complete T020 evidence rejects P07; T004.2 owns retained P07 remediation; production acceptance remains unmet |
+| SC-005 | T001, T004, T004.4, T020, T022, T010 | verification.md | Open: D007 retains useful directions; T004.4 must resolve workflow cost-benefit/operating scope and T010 applicability; original v1 failures/inconclusive outcomes remain unchanged |
 
 ## Open Decision Impact
 
 | Decision ID | Blocks | Affected Requirements | Affected Tasks | Resolution Needed |
 | --- | --- | --- | --- | --- |
-| D001 | Resolved protocol; runtime gates remain required | Requirement 3 AC1, AC3, AC4 | T001, T020, T004, T010 | benchmark-protocol.md and benchmark-plan.json; T020/T004 collect evidence |
+| D001 | Resolved immutable v1 measurement/statistics; D007 is current product policy | Requirement 3 AC1, AC3, AC4 | T001, T020, T004, T010 | benchmark-protocol.md and benchmark-plan.json; T020/T004 collect evidence |
+| D007 | Resolved owner-selected cost-benefit policy; mandatory hard gates retained, no production approval | Requirement 3 AC3–AC8; SC-005 | T004, T004.3, T004.4, T010, T011 | acceptance-policy-v2.md/json; cost-benefit-review.md/json; future freezes bind policy before samples |
 | D004 | Resolved corrected campaign selection; complete evidence rejects P07; no production acceptance | Requirement 3 AC3, AC4 | T020, T004, T010 | performance-results.md; no retry/threshold waiver or acceptance completion |
 | D005 | Resolved technical plan: retain P07, unchanged D001 criteria, bounded diagnostics and source/revalidation plan; no acceptance waiver | Requirement 3 AC1–AC5; Requirement 5 AC1–AC4 | T022, T004, T004.1, T004.2, T010, T010.1 | Complete measured evidence does not waive failed D001 or authorize retained P07 |
 | D006 | Resolved pre-sample P01 coverage disposition: two structural-zero controls have no payload timing claim; all five cells and other gates remain required | Requirement 3 AC1, AC3, AC5 | T004.1, T004, T010 | open-decisions.md; t004-source-review/p01-public-payload-coverage.json |
@@ -128,7 +137,7 @@ are satisfied; D001 planning is complete.
 | F005 | Requirement 6 AC1, AC4; CP-003 | T017, T007 | verification.md#t017-tree-restore-completion | T017 local idle restore/load/import/failure completion and observer qualification pass; T007 current broader tree checkpoint passes; T010 final applicability remains |
 | F006 | Requirement 1 AC1–AC3; CP-001 | T018, T002 | verification.md#t002-included-file-compatibility-checkpoint | T018 preserved failure policy/metadata/save and T002 aggregate compatibility accepted locally; T010 final/platform gate remains |
 | F007 | Requirement 3 AC3, AC4 | T020, T004 | verification.md#moe-regression-matrix | Two campaigns preserved; corrected campaign valid/complete and P07 rejected; T020 measurement done, T022/D005 plan complete; T004 acceptance remains |
-| F008 | Requirement 3 AC1–AC5 | T019, T001, T004.3, T010 | verification.md#quality-gates | Initial candidate/policy recorded by T019; D001 protocol complete; per-change comparisons and exact-final evidence remain pending |
+| F008 | Requirement 3 AC1–AC5 | T019, T001, T004.3, T010 | verification.md#quality-gates | Initial candidate/policy recorded by T019; D001 protocol complete; per-change comparisons/exclusions recorded by T004.3; T004.4 workflow review and exact-final evidence remain pending |
 | F009 | Requirement 3 AC6 | T021 | verification.md#moe-review-findings | Documentation discovery/guardrails verified; owner decisions remain open |
 
 ## Execution Phase Coverage
@@ -140,7 +149,7 @@ are satisfied; D001 planning is complete.
 | 2B — Tree | T014/T017/T007/T007.1 complete | T007.2 routed to B011 | Current functional tests required; future optimization profile is owned outside current runtime gate |
 | 2C — CAD maps | T015/T016/T005 complete | none | Numeric/identity fixtures and checkpoint pass |
 | 2D — Archives | T018/T002/T002.1/T002.2 complete | none | Current archive policy/error/compatibility pass |
-| 3 — Performance | T020 and T004.1 measurement complete; T004.2 diagnostic complete; P04/P05 next; T004 owns P01 residual | T008 routed to B010 | P01/P07 not accepted; no Phase 3 exit until retained changes satisfy D001 |
+| 3 — Performance | T020/T004.1/T004.2/T004.3 measurements/dispositions complete; D007/T004.4 review next | T008 routed to B010 | Mandatory hard gates and D007 reviewed workflow/operating scope; v1 outcomes preserved |
 | 4 — Delivery | T010/T011 and children | Audit B009/B010/B011 ownership | Exact final evidence/platform gates, promotion and closure |
 
 ## Baseline Versus Execution
@@ -162,7 +171,7 @@ acceptance, not Requirement 2/5 runtime evidence.
 | --- | --- | --- | --- |
 | T009 | docs/backlog/spec003-follow-ups.md#b009-reduced-resolution-texture-exploration | Scope decision/routing only; no prototype | Full-resolution calibration and T020 latency/memory |
 | T008 | docs/backlog/spec003-follow-ups.md#b010-conditional-gui-restore-and-startup-investigation | Original conditional investigation deferred | T004.3 measurements for each retained current optimization |
-| T007.2 | docs/backlog/spec003-follow-ups.md#b011-further-tree-batching-or-bulk-delete-profiling | Original further-optimization profiling deferred | T007.1 current functional checks and T004.3 tree comparison |
+| T007.2 | docs/backlog/spec003-follow-ups.md#b011-further-tree-batching-or-bulk-delete-profiling | Original further-optimization profiling deferred | T007.1 current functional checks and T004.3 reviewed P08 attribution exclusion; no separate speed claim |
 
 ## Maintenance
 
@@ -171,3 +180,19 @@ decisions, task dependencies and evidence together. Ledger discovery and context
 readiness do not resolve owner decisions. Every partial/not-covered row blocks
 closure until verified or explicitly reviewed and routed. Completing the spec
 repair does not complete any source-safety finding or validation task.
+
+## D007 Supplemental Criteria
+
+Requirement 3 AC7/AC8 are new owner-selected cost-benefit/retrospective-policy
+requirements, mapped to T004/T004.4/T010/T011. Completed T004.1/T004.2 and other
+local checkpoints retain their completion-time contracts; their original v1
+outcomes are not rewritten or reopened by this mapping. T004.3 must bind D007
+before new samples. The existing core acceptance rows are historical measurements
+where noted; D007's current product dispositions live in cost-benefit-review.md/json.
+
+
+T004.3 completion evidence is [t0043-validation.json](t0043-validation.json) and
+[the parser/save report](t0043-results.md). P03/P02 native campaigns are separate
+from the ineligible earlier verifier attempt. P08's sole residual disposition owner
+is T004.4; B011 remains an inactive future optimization candidate. No additional
+optional investigation is activated by this mapping.

@@ -10,6 +10,9 @@
 
 #include "ElementMap.h"
 #include "ElementMapRestore.h"
+#ifdef FC_DOCUMENT_PERFORMANCE_TRACE
+# include "DocumentPerformanceTrace.h"
+#endif
 #include "ElementNamingUtils.h"
 
 #include "App/Application.h"
@@ -34,7 +37,11 @@ class DotTokenReader
 public:
     explicit DotTokenReader(std::string_view text)
         : _text(text)
-    {}
+    {
+#ifdef FC_DOCUMENT_PERFORMANCE_TRACE
+        App::DocumentPerformanceTrace::tokens(text.size());
+#endif
+    }
 
     bool next(std::string_view& token)
     {
@@ -342,6 +349,9 @@ ElementMapPtr ElementMap::restore(::App::StringHasherRef hasherRef,
                                   std::vector<ElementMapPtr>& childMaps,
                                   const std::vector<std::string>& postfixes)
 {
+#ifdef FC_DOCUMENT_PERFORMANCE_TRACE
+    App::DocumentPerformanceTrace::Scope traceMap(App::DocumentPerformanceTrace::Scope::Kind::Map);
+#endif
     const char* msg = "Invalid element map";
     const int hexBase {16};
     const int decBase {10};
@@ -364,6 +374,9 @@ ElementMapPtr ElementMap::restore(::App::StringHasherRef hasherRef,
                 FC_THROWM(Base::RuntimeError, "unexpected end of child element map");  // NOLINT
             }
         }
+#ifdef FC_DOCUMENT_PERFORMANCE_TRACE
+        traceMap.complete();
+#endif
         return map;
     }
 
@@ -423,6 +436,9 @@ ElementMapPtr ElementMap::restore(::App::StringHasherRef hasherRef,
             child.postfix = tmp.c_str();
             this->childElements[child.postfix].childMap = &child;
             this->childElementSize += child.count;
+#ifdef FC_DOCUMENT_PERFORMANCE_TRACE
+            App::DocumentPerformanceTrace::record(true);
+#endif
 
             if (!(stream >> tmp)) {
                 FC_THROWM(Base::RuntimeError, "Invalid element child string id");  // NOLINT
@@ -532,6 +548,9 @@ ElementMapPtr ElementMap::restore(::App::StringHasherRef hasherRef,
                 }
 
                 this->mappedNames.emplace(ref->name, idx);
+#ifdef FC_DOCUMENT_PERFORMANCE_TRACE
+                App::DocumentPerformanceTrace::record();
+#endif
 
                 const bool hasSidTokens = nameTokens.hasMore();
                 if (!hasherRef) {
@@ -582,7 +601,13 @@ ElementMapPtr ElementMap::restore(::App::StringHasherRef hasherRef,
         FC_THROWM(Base::RuntimeError, "unexpected end of child element map");  // NOLINT
     }
 
+#ifdef FC_DOCUMENT_PERFORMANCE_TRACE
+    auto tracedResult = shared_from_this();
+    traceMap.complete();
+    return tracedResult;
+#else
     return shared_from_this();
+#endif
 }
 
 MappedName ElementMap::addName(MappedName& name,

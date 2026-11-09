@@ -1,0 +1,27 @@
+{
+  "freeze_sha256": "12d7489d3ed4a99e5b648218073cfa30cb301265b50a64f2e563d579b6854fa4",
+  "controller_sha256": "71f9c341c45baa90493e0698b398156e4469f0f98c72cd48dbeecd9a27e1e250",
+  "construction": {
+    "schema": "freecad-spec003-p05-construction/v1",
+    "common": "0406cf15a10580400897f9d55a65feeca92f0c1a",
+    "change": "0406cf15a10580400897f9d55a65feeca92f0c1a",
+    "p04_replay_retirement": "P04 closed with full raw/pre/post audits, refs retained; baseline outputs reused in place; no additional full pair.",
+    "baseline": "d85fe89e9c810298da52b234ba9f7ff36a91db46",
+    "delta_sha256": "528d57ac0371aa3ec930637ee76e0e65c704382b1d9793a7e74cd6da3642ea56"
+  },
+  "build_profile": "Locked RelWithDebInfo -O2 -g -DNDEBUG, no PCH; opt-in traces, native X11",
+  "file_bindings": 31350,
+  "runtime_inventory_files_per_arm": {
+    "baseline": 1888,
+    "change": 1888
+  },
+  "runtime_differences": [
+    "lib/libFreeCADGui.so"
+  ],
+  "worker_sha256": "a4b5f2997b390bdfbed2e02543da2752d5f0b82642d34096b82a1b811a61fe55",
+  "qualification_sha256": "6d257aa3ad9d002f5bcd7572a3e02cf131bed6ee3ff525cfc8da84b90103d616",
+  "build_receipt_sha256": "c161c0909a40e1bc8fd62d6e304cd8131090c70b7aa03ee9a57bd8ec8d99c88b",
+  "refinement_receipt_sha256": "05850e240c37061634f5873ec3337f6279f1075dc51a131b4e0798e2e20e8188",
+  "assessor_sha256": "4aa10554043c45502788252ae08dce49a367b822504b2bf1709c1566e085f892",
+  "protocol_sha256": "b3b13c59c7c02fdc2a67ffdbad5eb1a576e4de1e92152cc65ee9c1612fd896c3"
+}

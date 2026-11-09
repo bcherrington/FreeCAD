@@ -9,16 +9,22 @@ last_reviewed: 2026-11-08
 
 # Current Performance Measurement And Acceptance Status
 
-T020 and T004.1 measurement/disposition are complete. **P01 and retained P07 are
-not accepted under D001.** Parent T004 remains in progress and owns P01's
-acceptance/evidence-quality residual. **Active: T004.2; next P04/P05 image conversion
-comparisons after the completed exploratory P07 diagnostic**, then T004.3 parser/tree/save comparisons.
-Phase 3, SC-005 and T010 production acceptance remain unsatisfied.
+T020 and T004.1/T004.2/T004.3 measurements/dispositions are complete. **Current product
+review uses owner-selected D007 cost-benefit policy**, adopted after these results.
+P04/P05/P07 are retained directions; the original D001 v1 classifications below
+remain unchanged and are not product vetoes by themselves. Parent T004 owns
+workflow trade-off/operating-scope review; T004.3 measurement/disposition is complete; T004.4 workflow review is next.
+T010 final-source/platform acceptance remains open. See
+[policy v2](acceptance-policy-v2.md) and [secondary review](cost-benefit-review.md).
 
-| Comparison | Valid measured evidence | Outcome / remaining owner |
+## Preserved D001 v1 Outcomes
+
+| Comparison | Valid measured evidence | Original D001 v1 outcome / historical residual |
 | --- | --- | --- |
 | P01 restore copy | All five cells, 240 fresh observations, twenty measured pairs per cell; both audits pass | Primary and EngineBlock pass; BIMExample fails open p95; ArchDetail and PartDesignExample inconclusive. P01 NOT ACCEPTED; T004/local-developer |
-| P07 lazy full resolution | Two separately preserved campaigns; corrected campaign completes seven cells/336 observations | First-show and two control gates fail; other timing inconclusive; resource gates pass. Retain candidate under owner direction; T004.2/local-developer |
+| P04 direct conversion | Three cells/144 observations; all fidelity/runtime and pre/post audits pass | INCONCLUSIVE; original variability rule retained; T004/local-developer |
+| P05 fallback conversion | Ten cells/480 observations; 1/2/4-component baseline and RGBA candidate qualified; audits pass | FAIL; per-cell speed/resource decisions in conversion report; T004/local-developer |
+| P07 lazy full resolution | Two separately preserved campaigns; corrected campaign completes seven cells/336 observations | First-show and two control gates fail; other timing inconclusive; resource gates pass. Retain candidate under owner direction; T004/local-developer |
 
 The [P01 report](t004-p01-results.md) records median payload restore 513.92 to
 26.79 ms and complete console open 1183.27 to 704.44 ms on the primary. Its
@@ -46,7 +52,7 @@ No campaign is resumed, retried, pooled or reclassified. No numeric budget,
 production behavior or archive policy changed in this measurement slice.
 
 
-## T004.2 Exploratory Diagnostic Checkpoint
+## Historical T004.2 Exploratory Diagnostic Checkpoint
 
 The [new diagnostic report](t004-p07-diagnostic-results.md) records exactly16
 corrected fresh GUI workers, all fidelity/runtime checks passed, and two
@@ -60,4 +66,63 @@ worker and separate2-process resource-mapping forensics remain preserved.
 `performance-results.json` remains the hash-bound T004.1 acceptance checkpoint;
 its P01/P07 unaccepted classifications are unchanged. The new diagnostic machine
 results and validation are separately bound, avoiding edits to historical
-validation receipts. T004.2 still owns P04/P05 comparative conversion work.
+validation receipts. At that checkpoint T004.2 still owned P04/P05 comparative
+conversion work; the completed conversion checkpoint below supersedes that queue.
+
+## Historical D001 v1 T004.2 Conversion Measurement Checkpoint
+
+[The complete conversion report](t004-conversion-results.md), its machine results
+and sanitized evidence cover all 13 P04/P05 cells and 624 fresh observations, with
+20 measured pairs per cell and no retries, exclusions or pooling. Both campaign
+pre/post audits pass. Matched optimized builds differ only in the intended
+BitmapFactory object; 485 scoped native cases and 56 Python cases pass.
+
+P04 descriptive conversion medians improve roughly 8–10 times, but D001 remains
+inconclusive because its variability limit is exceeded. P05 keeps its measured
+speed/storage outcomes, including the cost of expanding compact gray fields and
+allocating a temporary RGBA image. A speed gain does not waive a resource failure.
+
+The separately recorded P07 diagnostic and original T020 GUI lifecycle results
+remain unchanged and unaccepted. No conversion primitive is a new GUI timing.
+T004.2 completion is the prospectively reviewed measurement/disposition boundary;
+parent T004 retains all acceptance residuals. T004.3 is now complete; T004.4 owns workflow decisions and T010 owns final
+integrated-source/platform applicability. performance-results.json remains the
+immutable hash-bound P01 checkpoint, not a current queue writer.
+
+## Current D007 Cost-Benefit Direction
+
+The owner explicitly relaxed numeric vetoes after reviewing P04 variability and
+P05 memory. This is a separate retrospective policy decision; no original result,
+assessor, protocol or validation file was rewritten. P04's large paired local
+benefit supports retention despite dispersion. P05's speed/memory direction and
+P07's hidden-opening/RAM direction are retained, with specific costs and evidence
+limits visible in cost-benefit-review.md/json. Safety, calibration, model identity,
+error behavior, provenance and applicable coverage remain mandatory.
+
+No new campaign is required merely to lower IQR or meet the old 1 MiB cap.
+T004.3 must freeze D007's review plan before future samples. T004.4 resolves
+workflow frequency, many-image memory/operating scope and first-use/tail trade-offs;
+T010 confirms final applicability. These scope checks do not require rewriting an
+algorithm merely to hit a historical investigation limit. No production approval.
+
+
+## T004.3 Parser/Save Measurement and Tree Exclusion
+
+[The parser/save report](t0043-results.md), its machine results and sanitized
+[t0043-evidence/manifest.json](t0043-evidence/manifest.json) record P03/P02 separately.
+Both fixed campaigns complete with full qualified geometry-manifest, persistent
+property, payload and runtime checks. A source-reviewed P08 attribution exclusion
+preserves current tree correctness and makes no independent speed claim.
+
+The two primary parser-hook improvements are credible locally. Whole-open paired
+confidence intervals cross zero; median RSS rises about 1.7–2.0 MiB. The Draft
+control remains an overall legacy failure, including an open-p95 regression; its
+tiny parser-hook timing is inconclusive. No workflow-speed or memory-neutral claim
+is made. Save findings and all exact timings are in the linked report.
+
+The first P03 attempt was stopped after 135 rows because its sample identity
+omitted additional shape properties. Its complete/partial output and source are
+retained as ineligible and never pooled. The corrected fixed campaign has exact
+all-PartShape/reference identities and independent CAD/performance review. Original
+T020/P01/P04/P05/P07 outcomes remain unchanged. T004.4 owns D007 cost-benefit and
+operating-scope decisions; T010 retains final composition/platform applicability.

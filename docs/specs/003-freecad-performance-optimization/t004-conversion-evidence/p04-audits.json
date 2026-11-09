@@ -1,0 +1,18 @@
+{
+  "before": {
+    "passed": true,
+    "checked_hashes": 31256,
+    "cache_file_counts": {
+      "baseline": 8,
+      "change": 8
+    }
+  },
+  "after": {
+    "passed": true,
+    "checked_hashes": 31256,
+    "cache_file_counts": {
+      "baseline": 8,
+      "change": 8
+    }
+  }
+}

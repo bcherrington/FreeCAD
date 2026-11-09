@@ -26,6 +26,7 @@ def main():
     parser.add_argument("--cache-dir", type=Path, required=True)
     parser.add_argument("--commit", required=True)
     parser.add_argument("--build-write", action="store_true")
+    parser.add_argument("--isolated-python", action="store_true")
     parser.add_argument("command", nargs=argparse.REMAINDER)
     args = parser.parse_args()
     command = args.command[1:] if args.command[:1] == ["--"] else args.command
@@ -50,6 +51,12 @@ def main():
         "wrapper_sha256": digest(Path(__file__)),
         "temporary_storage": "/tmp (host temporary filesystem; fresh worker directories)",
     }
+    if args.isolated_python:
+        if not (
+            os.sys.flags.isolated == os.sys.flags.no_site == os.sys.flags.dont_write_bytecode == 1
+        ):
+            parser.error("Isolated namespace requires Python -I -S -B")
+        receipt["python_isolated"] = True
     encoded = json.dumps(receipt, sort_keys=True, separators=(",", ":"))
     env = os.environ.copy()
     env["SPEC003_NAMESPACE_RECEIPT"] = encoded
@@ -90,6 +97,7 @@ def main():
         str(canonical),
         "--",
         os.sys.executable,
+        *(["-I", "-S", "-B"] if args.isolated_python else []),
         "-c",
         checker,
         str(canonical),

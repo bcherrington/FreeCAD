@@ -9,6 +9,12 @@ last_reviewed: 2026-11-06
 
 # Requirements
 
+Current performance policy: **D007 cost-benefit review** in
+[acceptance-policy-v2.md](acceptance-policy-v2.md). Original D001 v1 outcomes and
+dated checkpoints below remain evidence; their numeric vetoes do not govern current
+product decisions. Correctness/provenance/coverage gates remain mandatory.
+
+
 ## Introduction
 
 Reconcile implemented document-open optimizations with the remaining correctness, measurement and
@@ -154,9 +160,27 @@ comparable workflow and build mode.
    applicability, THE final review SHALL rerun affected automated, archive, calibration/lifecycle,
    visual/manual and benchmark checks or record a reviewed equivalence justification tied to the
    exact final revisions; assembling old timings alone SHALL NOT satisfy acceptance.
-6. WHEN lifecycle decision discovery is queried, THE package SHALL expose all still-open D001, D002
-   and D003 decisions with accurate status, owner and blocking tasks; context-packet availability
+6. WHEN lifecycle decision discovery is queried, THE package SHALL expose all still-open D001–D007
+   decisions with accurate status, owner and blocking tasks; context-packet availability
    SHALL NOT authorize execution over unresolved decisions or task dependencies.
+
+7. WHEN performance trade-offs are accepted, THE review SHALL apply D007 and record
+   absolute/relative benefits, confidence and tails, workflow frequency, transient
+   versus retained memory/process peaks, concurrency/operating scope, rationale,
+   mitigation and owner. Numeric investigation thresholds SHALL trigger review
+   rather than automatically vetoing a useful optimization; safety/fidelity,
+   model identity, error visibility, provenance and required coverage SHALL remain
+   mandatory independently of performance benefit.
+8. WHEN policy changes after results are observed, THE package SHALL preserve the
+   original protocol/results/classifications and label any secondary cost-benefit
+   judgment as retrospective. Future sampling SHALL bind the current review policy
+   before execution; pure policy changes SHALL NOT require repeating complete
+   qualified measurements solely to clear old numeric vetoes. Evidence-applicability
+   changes SHALL retain AC5's requalification/equivalence obligation.
+
+D007 AC7/AC8 are supplemental acceptance work owned by T004/T004.4/T010/T011.
+Completed measurement/correctness tasks retain their completion-time criterion
+contracts; adding these clauses does not retroactively reopen those tasks.
 
 ### Requirement 4: Element-map restore compatibility
 
@@ -266,8 +290,7 @@ observer behavior.
   gates.
 - Constraints: preserve stream boundaries, notifications, permissions, image semantics and tree side
   effects.
-- Performance: lower comparable restore/conversion timings without correctness regression; exact
-  protocol pending D001.
+- Performance: lower comparable restore/conversion timings without correctness regression; D001 v1 measurement contract plus current D007 cost-benefit review.
 
 ## Success Criteria
 
@@ -279,8 +302,11 @@ observer behavior.
   implementation PR notes, with applicability reconciled against the exact final revisions.
 - **SC-004**: All MoE safety findings have regression evidence and no unresolved acceptance blocker;
   current pixel-format tests alone do not establish memory, calibration or receiver-lifetime safety.
-- **SC-005**: Each retained production optimization satisfies D001's predeclared improvement and
-  non-regression decision rules, including deferred-display latency and material memory effects.
+- **SC-005**: Each retained production optimization has applicable comparative evidence,
+  passes mandatory correctness/provenance/coverage gates, and has a reviewed D007
+  cost-benefit disposition for its workflow/operating scope, including deferred
+  display, tails and material memory. Original D001 outcomes remain visible;
+  a numeric investigation breach alone is not a product veto.
 
 Success criteria remain acceptance gates, not claims of completion. Tentative budgets and
 qualitative improvement targets require a recorded decision before validation.

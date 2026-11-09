@@ -9,6 +9,12 @@ last_reviewed: 2026-11-08
 
 # Tasks
 
+Current performance policy: **D007 cost-benefit review** in
+[acceptance-policy-v2.md](acceptance-policy-v2.md). Original D001 v1 outcomes and
+dated checkpoints below remain evidence; their numeric vetoes do not govern current
+product decisions. Correctness/provenance/coverage gates remain mandatory.
+
+
 ## Context And Execution
 
 Read requirements, design, baseline-status, traceability, verification and the
@@ -37,7 +43,7 @@ that explicit routing verified.
 | 2B — Tree | T014/T017/T007 complete | Receiver/completion fixes and current functional qualification |
 | 2C — CAD maps | T015/T016/T005 complete | Bounded parsing and CAD reference identity qualified |
 | 2D — Archives | T018/T002/T002.1/T002.2 complete | Archive error outcomes and compatibility qualified |
-| 3 — Performance | T020 measurement complete → T022/D005 plan complete → T004.1 measurement complete → **T004.2 image comparisons/P07** | T020 measurement is not P07 acceptance; retained changes must satisfy D001 |
+| 3 — Performance | T020 measurement complete → T022/D005 plan complete → T004.1/T004.2/T004.3 measurements/exclusion complete → **T004.4 cost-benefit review** | Mandatory hard gates and D007 workflow/operating-scope dispositions |
 | 4 — Delivery | T010 → T011 | Exact final evidence, platform checks, promotion and closure |
 
 Complete each fix and its focused regression before advancing, then close the
@@ -68,6 +74,7 @@ T018 -> T002
 T001, T002, T003, T005, T006, T007 -> T020
 T020 -> T022
 T001, T002, T003, T005, T006, T007, T020, T022 -> T004
+T004.1 -> T004.2 -> T004.3 -> T004.4 (required T004 completion slices)
 T004 -> T010
 T010, T019, T021, T009 -> T011
 none -> T008
@@ -76,8 +83,9 @@ none -> T008
 ## Phase 1 — Finish Planning
 
 Exit satisfied: T021/T019 evidence retained, T009 scope disposition recorded, and T001
-resolves D001 with the benchmark protocol. **Next action: T022 — Resolve P07 acceptance and measurement conditions before
-T004 (D005; T020 measurement is complete and P07 is not accepted).**
+resolved D001 with the original benchmark protocol. That was the earlier planning
+checkpoint. Current next action is T004.4 under owner-selected D007;
+completed T022/T004.1/T004.2/T004.3 measurements are not reopened.
 
 - [x] T021 Expose lifecycle decisions and verify execution guardrails.
   - Depends on: none
@@ -604,12 +612,13 @@ change the source composition and invalidate subsequent comparisons. This does
 not waive Phase 3 exit or reopen completed Phase 2 semantic correctness.
 
 2026-11-08: T022/D005 planning is complete under t004-execution-plan.md. Retain P07
-with unchanged D001 budgets; T004.1 completed comparable measurement; P01 failed overall D001. T004.2 is next.
-P01/P07 acceptance and Phase 3 exit remain unmet; parent T004 owns the aggregate
-and the P01 acceptance residual.
+with unchanged D001 budgets. T004.1 and T004.2 comparable measurements/dispositions
+are complete; T004.3 parser/save comparisons and the reviewed P08 exclusion are now complete. T004.4 is next. D007 selects retained directions by cost-benefit, with v1 labels preserved.
+Phase 3 exit remains unmet; parent T004 owns workflow/operating-scope residuals.
 
-Exit: T020/T004 satisfy the predeclared D001 endpoint, latency, memory, per-change and
-non-regression contract. Earlier source-fix tests do not prove speedup.
+Exit: T020/T004 provide complete applicable comparison evidence, preserve D001 v1
+statistics, pass mandatory correctness/provenance/coverage gates and resolve D007
+workflow cost-benefit/operating-scope reviews. Earlier source-fix tests do not prove speedup.
 
 - [x] T020 Measure deferred first-frame latency and image memory.
   - Depends on: T001, T002, T003, T005, T006, T007
@@ -661,28 +670,37 @@ non-regression contract. Earlier source-fix tests do not prove speedup.
 
 - [~] T004 Remeasure restore and image conversion comparably.
   - Depends on: T001, T002, T003, T005, T006, T007, T020, T022
-  - Requirements: Requirement 1 AC1–AC3; Requirement 2 AC1–AC3; Requirement 3 AC1–AC5; Requirement 4
+  - Requirements: Requirement 1 AC1–AC3; Requirement 2 AC1–AC3; Requirement 3 AC1–AC8; Requirement 4
     AC1–AC4; Requirement 5 AC1–AC4; Requirement 6 AC1–AC4
   - Design: design.md#high-level-design; design.md#low-level-design
   - Files: `verification.md`, `benchmark-protocol.md`, `performance-results.md`, `performance-results.json`,
-    `t004-execution-plan.md`, `t004-comparison-readiness.json`
-  - Acceptance: D001 decision rules pass for the pinned revision/fixture/build composition;
-    per-change inventory covers retained restore/save, parser, image/lazy and tree patches or
-    records reviewed exclusion/routing. T020 first-frame/first-show/repeat-show and material memory
-    effects are included; deferred work and attribution limits are explicit.
+    `t004-execution-plan.md`, `t004-comparison-readiness.json`, `acceptance-policy-v2.md/json`,
+    `cost-benefit-review.md/json`, `d007-validation.json`
+  - Acceptance: Applicable comparison evidence and D007 cost-benefit dispositions cover the
+    pinned source/fixture/build composition and every retained restore/save, parser, image/lazy
+    and tree change or explicit reviewed exclusion. Preserve all D001 v1 outcomes. Mandatory
+    correctness/provenance/coverage pass independently; review first/repeat-show, complete
+    workflows, tails, material memory/concurrency and operating scope in T004.4.
   - Validation: See verification.md#quality-gates and the linked criteria.
   - Evidence mode: artifact
-  - Evidence: 2026-11-08: T004.1 measurement complete with all5valid cells/240observations and pre/postaudits. t004-p01-results.md/json establishes primaryP01 benefit but overallD001FAIL from BIMopenp95 plus inconclusiveArch/PartDesign timing; no causalcontrolregression established. P01acceptance/evidence-quality disposition remains owned by this parent/local-developer. P07 remains retained but NOT ACCEPTED; T004.2 image conversion/lifecycle/P07 is next, thenT004.3 parser/tree/save. performance-results.md/json is the current rolling status; exact priorT020aggregate and completionreceipt preserved as historical checkpoints. Parent acceptance and T010 production gates remain unsatisfied.
-  - Resolved decisions: D001
+  - Evidence: Historical D001 v1 measurements: T004.1 completed five P01 cells/240 observations;
+    T004.2 completed 13 P04/P05 cells/624 observations and consumed separate T020/P07 GUI
+    evidence. All original audits/classifications are preserved. Current D007 retains P04/P05/P07
+    directions by cost-benefit; cost-benefit-review.md/json records the explicitly retrospective
+    review and unknown workload/concurrency questions. T004.3 then T004.4 are next; parent T004
+    owns consolidated operating-scope review, with final-source/platform evidence at T010.
+  - Resolved decisions: D001, D007
   - Candidate manifest: spec003-linux-x86_64-debug-candidate-20261106-v1; see validation-manifest.md
     and record actual execution provenance.
   - Context evidence: Historical May restore and image improvements cannot establish current
     performance acceptance.
 
-  - Status: Aggregate comparative acceptance in progress. T004.1 complete; next T004.2. P01 and P07 remain unaccepted; no threshold waiver or production acceptance.
+  - Status: Aggregate acceptance remains in progress. T004.1/T004.2 measurements complete;
+    T004.3 then T004.4 next. D007 replaces numeric vetoes with explicit cost-benefit review;
+    parent T004 owns workflow/operating-scope residuals, with no production approval.
   - [x] T004.1 Record comparable restore/open benchmark runs under D001.
     - Depends on: T001, T002, T003, T005, T006, T007, T020, T022
-    - Requirements: Requirement 1, Requirement 2, Requirement 3 (all acceptance criteria)
+    - Requirements: Requirement 1, Requirement 2; Requirement 3 AC1–AC6 (completion-time measurement contract)
     - Files: `verification.md`, `benchmark-protocol.md`, `performance-results.md`, `performance-results.json`,
       `src/App/PropertyFile.cpp`, `tests/src/App/CMakeLists.txt`, `tests/src/App/PropertyFile.cpp`,
       `tests/src/App/IncludedFilePerformanceTrace.h`, `tests/src/App/IncludedFilePerformanceTrace.cpp`,
@@ -691,15 +709,20 @@ non-regression contract. Earlier source-fix tests do not prove speedup.
     - Resolved decisions: D001, D005, D006
     - Acceptance: Record comparable restore/open benchmark runs under D001.
     - Evidence mode: artifact
-    - Evidence: 2026-11-08: t004-p01-results.md/json and fully hash-bound t004-p01-evidence record all five one-shot cells/240 fresh observations,20 measured pairs percell, zero worker failures/retries/exclusions/pooling. Exact freeze638a67eabe24d72a948fda0abfc2e9a073b4147ea2627bc191e840f0e3e484bc; both39,805-hash/510-live-package audits pass. Botharms31 included/probe+26Reader tests and10runtime contexts pass; native counters/bytes/permissions/fullmodel identity/recompute/parser provenance enforced perrecord. PrimaryPASS payload513.92→26.79ms,consoleopen1183.27→704.44ms; BIMFAIL openp95, ArchDetail/PartDesigninconclusive, EnginePASS; resourcesallpass. P01NOTACCEPTED overall under unchangedD001. ActiveT004 owns residual; T004.2next. Independent review recomputed all5assessments byte-equivalent; prospective task review distinguishes completedmeasurement from numericacceptance. Exact frozen task/ledger and originalT020aggregate bytes archived with explicit bindings; no timing reinterpretation.
+    - Evidence: 2026-11-08: t004-p01-results.md/json and fully hash-bound t004-p01-evidence record all five one-shot cells/240 fresh observations,20 measured pairs percell, zero worker failures/retries/exclusions/pooling. Exact freeze638a67eabe24d72a948fda0abfc2e9a073b4147ea2627bc191e840f0e3e484bc; both39,805-hash/510-live-package audits pass. Botharms31 included/probe+26Reader tests and10runtime contexts pass; native counters/bytes/permissions/fullmodel identity/recompute/parser provenance enforced perrecord. PrimaryPASS payload513.92→26.79ms,consoleopen1183.27→704.44ms; BIMFAIL openp95, ArchDetail/PartDesigninconclusive, EnginePASS; resourcesallpass. P01NOTACCEPTED overall under unchangedD001. ActiveT004 owns residual; at that T004.1 checkpoint T004.2 was next. Independent review recomputed all5assessments byte-equivalent; prospective task review distinguishes completedmeasurement from numericacceptance. Exact frozen task/ledger and originalT020aggregate bytes archived with explicit bindings; no timing reinterpretation.
     - Candidate manifest: spec003-linux-x86_64-debug-candidate-20261106-v1; see
       validation-manifest.md and record actual execution provenance.
 
-        - Status: Completed comparable measurement/disposition only. P01 NOT ACCEPTED overall; T004 remains in progress and owns P01 acceptance residual. Next T004.2; P07 remains retained/unaccepted.
-  - [~] T004.2 Record comparable image conversion/lifecycle timings and remaining bottlenecks under D001.
+        - Status: Completed comparable measurement/disposition only. P01 NOT ACCEPTED overall; T004 remains in progress and owns P01 acceptance residual. At that checkpoint T004.2 was next; it is now complete and T004.3 is next. P07 remains retained/unaccepted.
+  - [x] T004.2 Record comparable image conversion/lifecycle timings and remaining bottlenecks under D001.
+    - Completion boundary: 2026-11-08 prospective reconciliation in `t004-conversion-plan.md` and `t004-conversion-reconciliation.json` supersedes the historical execution-plan prohibition for this measurement slice only. All 13 P04/P05 cells require comparable results or pre-sample reviewed dispositions; parent T004 owns every numeric failure/inconclusive outcome and P01/P07 acceptance. No D001 waiver.
     - Depends on: T004.1, T020
-    - Requirements: Requirement 1, Requirement 2, Requirement 3 (all acceptance criteria)
-    - Files: `verification.md`, `performance-results.md`, `t004-p07-diagnostic-results.md/json`,
+    - Requirements: Requirement 1, Requirement 2; Requirement 3 AC1–AC6 (completion-time measurement contract)
+    - Files: `t004-conversion-results.md/json`, `t004-conversion-evidence/`, `t004-conversion-validation.json`,
+      `t004-conversion-plan.md`, `t004-conversion-reconciliation.json`, `t004-p05-launch-plan.md`,
+      `tests/src/Gui/ImageConversionPerformanceProbe.cpp`, `run_image_conversion_comparison.py`,
+      `test_image_conversion_comparison.py`, `image_performance_namespace.py`,
+      `verification.md`, `performance-results.md`, `t004-p07-diagnostic-results.md/json`,
       `t004-p07-diagnostic-validation.json`, `t004-p07-diagnostic-evidence/`,
       `t004-p07-first-show-breakdown.svg`, `t004-p07-corrected-diagnostic-plan.md`,
       `t004-runtime-forensics-plan.md`, `t004-runtime-forensics-results.json`,
@@ -713,16 +736,25 @@ non-regression contract. Earlier source-fix tests do not prove speedup.
       texture counts, process/decoded/Coin image memory and D001 non-regression decisions for direct
       and 1/2-component fallback fixtures.
     - Evidence mode: artifact
-    - Evidence: 2026-11-08: corrected exploratory P07 diagnostic completed exactly16 fresh GUI workers, all full fidelity/runtime checks passed, both39,985-binding audits passed, no retries/replacements/exclusions/pooling. Final408 native cases pass. Hidden eager/lazy medians: open4094/2071ms, firstshow85/1012ms, open+show4179/3082ms, RSS932/845MiB; lazy firstshow~80% read/decode. Earlier one-worker abort retained with15unexecuted; separate bounded2-process forensics proved only2knownRCC resource additions, no missing/changed native mappings; strict context equality corrected in newfreeze. Full raw/private data and sanitized reports retained. Hosttelemetry198samples; load/observercost limits explicit. This is NOT acceptance; original D001/results unchanged. P04/P05 comparative conversion evidence remains pending.
+    - Evidence: 2026-11-08: t004-conversion-results.md/json, t004-conversion-validation.json and its evidence manifest cover all 13 P04/P05 cells: 624 fresh workers (520 measured, 78 warm-ups, 26 diagnostics), 20 measured pairs per cell. All pixel/orientation/ownership/runtime checks pass; zero worker failures, retries, replacements, exclusions or pooling. P04 pre/post 31,256-binding and P05 pre/post 31,350-binding audits pass. All 485 scoped native and 56 Python cases pass. Every timing numeric threshold passes but unchanged variability rules make timing inconclusive. All five large P05 cells fail RSS/decoded memory (+64 MiB temporary); three also fail Coin (+48/+32/+32 MiB); all five small controls pass resources. Independent final review recomputed metrics/manifests and cleared privacy/provenance; asymmetric comparator coverage and P04 actual-interpreter equivalence are disclosed. Original T020 GUI and exploratory P07 evidence remain separate. Completion follows the prospective measurement/disposition reconciliation; parent T004 owns all P01/P04/P05/P07 numeric residuals. No D001 waiver; T004.3 is next.
     - Candidate manifest: spec003-linux-x86_64-debug-candidate-20261106-v1; see
       validation-manifest.md and record actual execution provenance.
 
-    - Status: P07 diagnostic stage complete; T004.2 remains in progress. Next P04 direct/P05 fallback comparative construction and qualification; P01/P07 acceptance remains outstanding.
-  - [ ] T004.3 Record per-change parser and tree comparison or reviewed exclusions.
+    - Status: Complete comparable measurement/disposition under prospective reconciliation. Parent T004 remains in progress for all numeric acceptance residuals; T004.3 next; no production acceptance.
+  - [x] T004.3 Record per-change parser and tree comparison or reviewed exclusions.
+    - Policy gate: Before any new samples, freeze acceptance-policy-v2.md/json (D007), the
+      per-change review rubric and absolute timing/resource/coverage inventory in the execution
+      plan. Wire policy-hash verification and separate v1 statistical output from D007 product
+      dispositions. Do not use the unchanged v1 assessor alone as release approval.
     - Depends on: T004.2, T005, T007
-    - Requirements: Requirement 3 AC1–AC5; Requirement 4 AC1–AC4; Requirement 6 AC1–AC4
+    - Requirements: Requirement 3 AC1–AC5, AC7, AC8 (pre-sample policy; final review T004.4); Requirement 4 AC1–AC4; Requirement 6 AC1–AC4
     - Design: design.md#evidence-applicability-and-benchmark-contract
-    - Files: `verification.md`, `benchmark-protocol.md`, `performance-results.md`, `performance-results.json`
+    - Files: `t0043-results.md/json`, `t0043-evidence/`, `t0043-validation.json`,
+      `t0043-execution-plan.md`, `tests/src/App/DocumentPerformanceTrace.*`,
+      `DocumentPerformanceProbe.py`, `document_performance_fidelity.py`,
+      `run_document_performance_probe.py`, `run_document_performance_comparison.py`,
+      `verification.md`, `benchmark-protocol.md`, `acceptance-policy-v2.md/json`,
+      `cost-benefit-review.md/json`, `performance-results.md`, `performance-results.json`
     - Acceptance: Assign comparative baseline/change evidence to retained parser/tree optimizations
       and any buffered-save patch. Record per-change build/revision/fixture provenance and
       attribution limits; a combined document-open gain cannot silently stand in for each change.
@@ -730,12 +762,35 @@ non-regression contract. Earlier source-fix tests do not prove speedup.
     - Validation: Run the focused regression cases in acceptance on the T019 pinned revision; record
       commands, results and limits in verification.md.
     - Evidence mode: artifact
-    - Evidence: Pending.
+    - Evidence: 2026-11-08: t0043-results.md/json, t0043-evidence/manifest.json and t0043-validation.json record accepted P03 five-cell/240-worker and P02 three-cell/144-worker comparisons: 320 measured, 48 warm-up and 16 diagnostic workers; zero accepted worker failures/retries/replacements/pooling. Pre/post audits pass 31,647/32,199 bindings; exact source/build/link/ABI/runtime/policy capsules and 559/353-file private evidence seals retained. Both arms pass full qualified geometry-manifest/persistent-object/payload/calibration checks and 91 native cases each per comparison; 20 Python cases pass normal/optimized. P03 primary hooks improve locally, whole-open CIs cross zero, RSS rises and Draft remains legacy FAIL; P02 primary saves improve and controls remain INCONCLUSIVE with zero-payload hooks prospectively N/A. Earlier 135-row verifier-scope attempt is explicitly ineligible, audited/preserved and never pooled; additive manifest repair independently CAD/performance reviewed. P08 has a source-reviewed current-effect attribution exclusion preserving T014/T017/T007, no speed claim, sole residual owner T004.4; B011 inactive. Final CAD/statistical/privacy reviews clear publication; historical receipts/authority snapshots and unrelated console work preserved. Same pair reused; debug untouched. Package lint/traceability pass. T004.4 is next; parent T004, SC-005 and T010 applicability remain open; no production acceptance.
     - Owner: local-developer
-    - Resolved decisions: D001
+    - Resolved decisions: D001, D007
     - Candidate manifest: spec003-linux-x86_64-debug-candidate-20261106-v1; see
       validation-manifest.md and record actual execution provenance.
-    - Context evidence: D001 inventory is predeclared; current comparative measurements remain pending.
+    - Context evidence: D001 inventory remains the measurement baseline; D007 review-plan binding is required before new sampling. Accepted P03/P02 comparisons and the reviewed P08 exclusion are recorded in t0043-results.md/json; D007 workflow dispositions remain T004.4.
+
+  - Status: Complete per-change measurement/disposition under prospectively frozen D007; original statistical labels preserved. T004.4 owns workflow cost-benefit/operating scope, including tails and process peaks; T010 final applicability.
+  - [ ] T004.4 Review retained optimizations' workflow cost-benefit and operating scope.
+    - Depends on: T004.3
+    - Requirements: Requirement 3 AC1, AC3, AC4, AC5, AC7, AC8; SC-005
+    - Design: design.md#cost-benefit-acceptance-policy
+    - Files: `acceptance-policy-v2.md/json`, `cost-benefit-review.md/json`,
+      `d007-validation.json`, `verification.md`, `performance-results.md`, `tasks.md`
+    - Acceptance: Resolve each retained change's D007 trigger review with absolute benefit/tails,
+      confidence, workflow frequency, transient/retained memory/RSS, materialized-image count,
+      overlapping work, operating scope, rationale/mitigation and accountable owner. Use existing
+      applicable evidence or reviewed accounting/equivalence; collect targeted new evidence only
+      for real unanswered applicability questions, never solely to clear old numeric vetoes.
+      Address P05 many-image memory and P07 first-use/tail experience; do not infer BIM host cause.
+      A justified trade-off may be accepted without rewriting an algorithm to old numeric caps.
+      Preserve original v1 outcomes and keep final-source/platform obligations with T010.
+    - Validation: Independent review of the complete evidence and trigger-closure fields;
+      benchmark only under a new predeclared plan when actual evidence gaps require it.
+    - Evidence mode: artifact
+    - Evidence: Pending.
+    - Context evidence: D007 selects policy and implementation direction; final operating-scope decisions remain, not new algorithm work. T004.3 reports local P03 hook gains without whole-open confidence; Draft open-p95 legacy failure; P02 primary median/p95 gains but maximum 5054.700→5193.201 ms; process peaks about 1.7–2.1 MiB higher. Review those triggers plus unknown workflow frequency/concurrency under D007; no automatic rerun solely for old numeric vetoes.
+    - Owner: local-developer
+    - Resolved decisions: D007
 
 ## Phase 4 — Prepare Delivery And Close
 
@@ -751,7 +806,7 @@ promotion and owned residual dispositions are complete.
   - Acceptance: D003 confirms exact final source/dependency revisions and platform scope; all
     affected automated, archive, calibration/lifecycle, visual/manual and benchmark evidence is
     rerun or has reviewed equivalence. Build/focused/full-suite results and per-optimization timings
-    satisfy D001; no unresolved MoE acceptance blocker remains.
+    satisfy mandatory hard gates and the owner-reviewed D007 workflow dispositions; no unresolved MoE acceptance blocker remains.
   - Validation: See verification.md#quality-gates and the linked criteria.
   - Evidence mode: command
   - Evidence: Pending.
@@ -805,7 +860,7 @@ promotion and owned residual dispositions are complete.
       Requirement 6 (all acceptance criteria)
     - Files: `verification.md`, `docs/reference/document-open-performance.md`
     - Acceptance: Rerun affected measurements/manual checks or record reviewed equivalence tied to
-      D003 final revisions; assemble per-optimization comparative results with D001 pass decisions,
+      D003 final revisions; assemble per-optimization D001 statistical outcomes and separate D007 cost-benefit decisions,
       first-frame/show latency, memory effects, platform limits and focused commit boundaries. Old
       timing assembly alone is insufficient.
     - Evidence mode: artifact

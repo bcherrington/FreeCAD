@@ -1,0 +1,38 @@
+{
+  "scope": "Exact D007 completion-time authority preserved before continuing T004.3; current package-root documents may advance",
+  "validation_sha256": "8111c809da5a6c272beb6f9fc1f0312a02e8cbdbe0202e692200905e40dd3542",
+  "files": {
+    "requirements.md": {
+      "snapshot": "requirements.md.txt",
+      "sha256": "0cd3cf1e953f6941ae5a7cbed62535a1b31f385a0ee7294df4548f2b8d78ca06"
+    },
+    "design.md": {
+      "snapshot": "design.md.txt",
+      "sha256": "a4ee585de4c2f53dc2e0413b24a57beccef4fa4bedacb4ee9b2c54bc57512783"
+    },
+    "tasks.md": {
+      "snapshot": "tasks.md.txt",
+      "sha256": "fed9648cba57258a2d8b1a0b33af6a2fc883060d724b5fc0a87fecce74992ce0"
+    },
+    "open-decisions.md": {
+      "snapshot": "open-decisions.md.txt",
+      "sha256": "25f057ba8c24c4da21e6a240bd40692cb41834bd2b785d59b0d90fa06b6e37a8"
+    },
+    "canonical-context.md": {
+      "snapshot": "canonical-context.md.txt",
+      "sha256": "9a53e76afe88f3bd047ee17f1d63200e3542cd5507a7a1c2e69d2acef83f1729"
+    },
+    "performance-results.md": {
+      "snapshot": "performance-results.md.txt",
+      "sha256": "30cb751ff4f059011bd47f2d0bcdd687cde24e7519c29ce13795a4afb8ed6e19"
+    },
+    "traceability.md": {
+      "snapshot": "traceability.md.txt",
+      "sha256": "0482996d6e5f9da23c2ec9bbf6b89df18acbcb9f6c0781d0e080768087d1a0fc"
+    },
+    "verification.md": {
+      "snapshot": "verification.md.txt",
+      "sha256": "a258df18d2ec7854346caf12b2a9d26a88b57b2da0b09e4a39bdc768992ff37f"
+    }
+  }
+}

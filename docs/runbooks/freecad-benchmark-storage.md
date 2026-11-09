@@ -66,10 +66,58 @@ into each arm's XDG directory consumes gigabytes without improving runtime
 isolation. Cache hits do not replace source/output verification or correctness tests.
 Do not change global cache configuration as a side effect of a campaign.
 
-The retained P01 pair compares scalar and buffered restore. It is a seed for later
-work, not an already-qualified P07 comparison: both future P07 arms must retain the
-same buffered restore and safety fixes, differing only in the reviewed visibility
-condition. Source, probe and environment changes require new applicability checks.
+The pair retained at the initial P01 cleanup is a reusable seed. It has since been
+advanced in place through P07 diagnostics and P04/P05 comparisons, with each older
+native replay explicitly retired before replacement. Use retained refs and campaign
+receipts to identify its current source and outputs; directory names do not identify
+a qualified experiment. Source, probe, build and environment changes require new
+applicability checks. Preserve shared correctness behavior when varying an algorithm.
+
+## Isolated benchmark launch
+
+Launch both the Python namespace wrapper and its inner checker with `-I -S -B`
+when using `--isolated-python`. Pin the actual controller interpreter and verify
+required pidfd/subreaper capabilities before campaign artifacts. Keep the existing
+bounded cleanup limited to descendants owned by that standalone controller.
+
+A protocol may capture locked Pixi activation once and launch its exact native
+Python directly for each fresh process. Freeze the capture operation, selected
+environment mapping, interpreter/module/native closure, and resolved tools; qualify
+the final command before sampling. Construct worker environments from that mapping.
+Keep environment values and XAUTHORITY locators private and exclude credentials;
+never collect authentication cookies.
+
+Give each arm independent HOME, configuration, FreeCAD data, temp, Mesa and XDG
+state. Inventory every writable tree before and after a campaign, and reject
+symlinks in controlled fresh cache trees. A Mesa/XDG-only inventory does not cover
+preferences loaded from HOME/configuration or files retained in FreeCAD data/temp.
+Avoid repeated environment validation/activation inside an observation loop: perform
+full frozen-input checks before and after collection, and keep per-worker setup
+outside the declared timing endpoint.
+
+## Preserve controlling source and failed campaigns
+
+Before freezing a campaign, copy every mutable controlling script, imported local
+helper and policy/rubric document into a byte-exact source capsule. Record a manifest
+from each original path to its content hash and capsule file. Verify both copies,
+then bind the capsule and manifest in the freeze. A hash of a live root-worktree
+file alone cannot recover the reviewed implementation after that worktree advances.
+Keep native source refs and actual binary/build identities separately.
+
+If review discovers a fidelity or provenance gap during collection, stop the owned
+standalone controller through its pinned process handle so its existing finally
+path cleans only its own descendants. Retain the failed status, all complete and
+partial observations, raw output, abort reason and source capsule. When possible,
+audit the unchanged inputs/runtime before changing the verifier. Record the exact
+hashes and sizes of this disposition evidence and bind that receipt in any corrected
+campaign; never backfill missing verification into old observations.
+
+A verifier repair needs fresh qualification, independent review, distinct artifact/
+cache destinations and a new frozen complete schedule. Mark the earlier attempt
+ineligible and keep it separate; do not pool or replace individual observations.
+This recovery is different from repeating qualified measurements to clear a numeric
+review trigger. The governing acceptance policy decides whether such a trigger
+needs further work.
 
 ## Recorded retirement
 
