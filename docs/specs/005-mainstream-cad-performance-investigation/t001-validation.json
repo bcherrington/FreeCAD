@@ -1,0 +1,205 @@
+{
+  "schema": "freecad-spec005-t001-validation/v1",
+  "date": "2026-11-09",
+  "task": "T001",
+  "task_complete": true,
+  "status": "complete-input-freeze",
+  "source_commit": "877ebdfb3e09518d7139a4ef71d83d5071dad616",
+  "docs_base": "5fcf6b1f412d2ded149cbca6c1345a86606964b0",
+  "current_artifacts_sha256": {
+    "docs/specs/005-mainstream-cad-performance-investigation/canonical-context.md": "2719354de8dc877eab315ae20b7afe34532db1a58e7a0222e6d8b760d77ad7d4",
+    "docs/specs/005-mainstream-cad-performance-investigation/design.md": "06250538875cde8d264195ff604282ec0f4420c4da33fc2de699291ab4f5c5cd",
+    "docs/specs/005-mainstream-cad-performance-investigation/fixtures/canonical/Q-aligned-slot.FCStd": "eb83bc9e64ac4a1a3f9848bb8217d01f66ccca41e56f77abe0898350f073dd0b",
+    "docs/specs/005-mainstream-cad-performance-investigation/fixtures/canonical/Q-near-axis.FCStd": "b9fa51bd8930df5bbd1aeb4d75d43d2dcfbf3447d46139dbc2f453fb397d861d",
+    "docs/specs/005-mainstream-cad-performance-investigation/fixtures/canonical/Q-near-tangent.FCStd": "042821f597f88bd0df5768bde58cb32ea5ece3d05f23d8d3a42cb2616b102012",
+    "docs/specs/005-mainstream-cad-performance-investigation/fixtures/canonical/Q-symmetry.FCStd": "47ae564d253fb282ee2305da3a64c3128db2e66c95fae0a83a1a19a00fa27d69",
+    "docs/specs/005-mainstream-cad-performance-investigation/fixtures/canonical/W01-large.FCStd": "48e9fd02ed7cb9be5db77a0230678fe242777a357190c682972831ac64cbe9cb",
+    "docs/specs/005-mainstream-cad-performance-investigation/fixtures/canonical/W01-small.FCStd": "0ebdad94bda97357fbf33c90d025e39d1b3061ec37dda7930a9087288435b315",
+    "docs/specs/005-mainstream-cad-performance-investigation/fixtures/canonical/W02-large.FCStd": "00e2bba244aedebc8da3f4b3d644240718091ff6b0f1a789053cb1d5088489c8",
+    "docs/specs/005-mainstream-cad-performance-investigation/fixtures/canonical/W02-small.FCStd": "3d83b49f49a23c42dfed7cfa5fcb22a38ab43c107d09fd29b30b3d75ab6131a7",
+    "docs/specs/005-mainstream-cad-performance-investigation/fixtures/canonical/W03-large.FCStd": "f0fda106c36de8a3a07cda9d8a6174676197e80505b4e70efc7387127230f5ed",
+    "docs/specs/005-mainstream-cad-performance-investigation/fixtures/canonical/W03-small.FCStd": "e0faecd6b85946b2dddd2d7c0c445c9d49d3053705a3c80e1b1edf266f5bae13",
+    "docs/specs/005-mainstream-cad-performance-investigation/fixtures/canonical/W03-tree-large.FCStd": "dfacbb38942dd9ad88e214f2ceee13665b9d48698890156d3d1c9d89655f3ed2",
+    "docs/specs/005-mainstream-cad-performance-investigation/fixtures/canonical/W03-tree-small.FCStd": "7fd81c9975b87c1b999dd8c6da11b42412de2c0a4c6fe3b2589feecded27cd79",
+    "docs/specs/005-mainstream-cad-performance-investigation/fixtures/canonical/W04-large.FCStd": "06ca50e43ad83c52a306d4ef26ebb0b73a8300f7f993b4efd49738b1d292ac44",
+    "docs/specs/005-mainstream-cad-performance-investigation/fixtures/canonical/W04-large.step": "299aca83d5d07cb4c8888668c9a5a513f9d17ab92f89054a41780c6212b7aff6",
+    "docs/specs/005-mainstream-cad-performance-investigation/fixtures/canonical/W04-small.FCStd": "c605ee449ffa8a4efb3fa5283944ae198b0f488a6991ae412bdb5b4630f3157d",
+    "docs/specs/005-mainstream-cad-performance-investigation/fixtures/canonical/W04-small.step": "7f5aeff87926cc7b54d8ce955ce1aae1b77de77d5a1d579edde155135b2c7158",
+    "docs/specs/005-mainstream-cad-performance-investigation/fixtures/canonical/W05-ordinary.FCStd": "10e592c8ab401dec30df18a3dd51ca202926fba4c293813119f3f885611d83b3",
+    "docs/specs/005-mainstream-cad-performance-investigation/fixtures/canonical/W06-large.FCStd": "1ce7ba50631f6e4a3198a4e236ddec0084a7bbdc81328c12f04e5dfe8cecdc9e",
+    "docs/specs/005-mainstream-cad-performance-investigation/fixtures/canonical/W06-small.FCStd": "083e6fa3eeb5a6e7965004f6ac4700646e90c73660f47798dce4b9459948a33f",
+    "docs/specs/005-mainstream-cad-performance-investigation/fixtures/executed-canonical-check.py.txt": "c269c558222cda9cb50de580851f0832673165f4aa14b165e2adcd24bdc88dc6",
+    "docs/specs/005-mainstream-cad-performance-investigation/fixtures/executed-input-inventory.py.txt": "e38f35517287003f22bed5eda16a418bdbe77db4a3843343af9e0b283948821c",
+    "docs/specs/005-mainstream-cad-performance-investigation/fixtures/executed-isolation-probe.py.txt": "dc966a0d236ac623319bbef6d3411d6a530baaa7c928b66d0f4aaf9cf0989f49",
+    "docs/specs/005-mainstream-cad-performance-investigation/fixtures/executed-prepare-v1.py.txt": "24fb7eb03ea6c82279456fbf7e5be78e70cf66b75bbe20c37f30f6300b944b40",
+    "docs/specs/005-mainstream-cad-performance-investigation/fixtures/executed-prepare-v2.py.txt": "bed2a7af9ad79e07780acc373da147f235408566ac38b9b52b6f88d2410de321",
+    "docs/specs/005-mainstream-cad-performance-investigation/fixtures/executed-t001-validation.py.txt": "6069c69e8adf7bfec9b81c71e29cfe0dbace2bd4d4c2a1028d33ab4edfc0d44b",
+    "docs/specs/005-mainstream-cad-performance-investigation/fixtures/freeze_canonical.py": "5be2017338517b1243dc2d9348f26c56cdf5fd09d47e34296cc44c91222349c9",
+    "docs/specs/005-mainstream-cad-performance-investigation/fixtures/generate_auxiliary.py": "3f09c217c3a535b8ab30548b24caea6d96790a0eb1138cbc8cf79057727da3f8",
+    "docs/specs/005-mainstream-cad-performance-investigation/fixtures/generate_fixtures.py": "7399d78d37f7b8586f06800353efadd3cb9d9063a09b1d97c94d0f5d44b5e1c3",
+    "docs/specs/005-mainstream-cad-performance-investigation/measurement-plan.json": "0dd6c69b5884d1d247d28c28f6464e8327475835226f845e4498ea321c688217",
+    "docs/specs/005-mainstream-cad-performance-investigation/open-decisions.md": "904428d8f0c041b4dd349153165700230196ed8d2950451ad025a67d1cb2af20",
+    "docs/specs/005-mainstream-cad-performance-investigation/requirements.md": "74833a5a3d3be9c70e825ed1cbfe888efa2b71aa98cbd145f326b58f9845355e",
+    "docs/specs/005-mainstream-cad-performance-investigation/spec.md": "99abc242001bd8c4d402fe46dc5b9fe3a312267bc264e2de850e7d0b8f210a5d",
+    "docs/specs/005-mainstream-cad-performance-investigation/t001-fixture-preparation.json": "d73e1a0f12574ad77baf276f4d49189a6d0ff8ffc883a8bf030f8186a9e86761",
+    "docs/specs/005-mainstream-cad-performance-investigation/t001-results.md": "3824e51c8d566e2e6078a8b928d1eeca11b808704280f263f54bd047ab37e858",
+    "docs/specs/005-mainstream-cad-performance-investigation/tasks.md": "bc2da589d843eceeb2e6cccb12ec252a9c5b9b54f3284e567ab42e9d338e1fe5",
+    "docs/specs/005-mainstream-cad-performance-investigation/traceability.md": "395880efaf6694aa50ff5cbeb4a3fdf70f1cc2e0ec325126a5072a8bef62881b",
+    "docs/specs/005-mainstream-cad-performance-investigation/verification.md": "73d407cbb5f708e070914b15671454c170991dd739035bec0e60d196c0cb44a0",
+    "docs/specs/005-mainstream-cad-performance-investigation/workload-manifest.json": "6eeceb6449d57349a6048bc94c2e98e02cb5db72e7965be3a0ddef83fcc15cde",
+    "docs/specs/README.md": "016f79d645494c96c83dc08d182472aaaf6d6bd961519cbc0a9a4fda046d454f"
+  },
+  "source_config_sha256": {
+    "pixi.toml": "4bbfec7ed7c655c5b0faa03562681c7e88f31af507fb9ae03e5fedfd07007703",
+    "pixi.lock": "45727758e595efad731c9bc71e429719040b1509ad686d762ad52ba84e44ec5c",
+    "CMakePresets.json": "96bfc5a80bfe78dfe8002c2686216ffd1c0f82d25304f4b695fd73d5ef2d777d",
+    "CMakeLists.txt": "76e52f6f0e9197c82bc62a819736190f6a80da3377fe1011645fbd10a01f824f",
+    "src/App/Document.cpp": "e8e470d58c227f81d5c132b48dcbd35f5cea4535da1f0efcea5a9ab6595c38aa",
+    "src/Gui/Tree.cpp": "72558fca8657764c858f3bfc5e278042ee3d407fbb1f2c232a7357e6821bf8da",
+    "src/Mod/Assembly/JointObject.py": "e430ef406257cb78070a3ad700281a6da71c76cf6813222a9a0e29581196df41",
+    "src/Mod/Assembly/App/AssemblyObject.cpp": "07bb85d913d810a4280a46425d7ccbd6fbc4eaf36d0718079c8ac8466e219ea6",
+    "src/Mod/Sketcher/App/Sketch.cpp": "9c49191feaca5bc8aa854a2753cf99740e96aa53847c3903af4fdf59a1b18387",
+    "src/Mod/PartDesign/App/FeatureLinearPattern.cpp": "ba40823ae47942949315fb67a7ea83498136ef964596eadf3bfcad54793abf60"
+  },
+  "authoring_receipt_sha256": "8b7d167f9642abdc80c199700127e81be54dff3f6ca7be524b380006cad4293b",
+  "prior_authority_resolution": {
+    "docs/specs/005-mainstream-cad-performance-investigation/canonical-context.md": {
+      "commit": "877ebdfb3e09518d7139a4ef71d83d5071dad616",
+      "sha256": "42d14bfce0c9231a674f00b6eab7a3c5b2e150d1e5bc1d135a97243a84fd31f1"
+    },
+    "docs/specs/005-mainstream-cad-performance-investigation/design.md": {
+      "commit": "877ebdfb3e09518d7139a4ef71d83d5071dad616",
+      "sha256": "cc4ad2f981999af8cc0415933eb49eba8455de4afa936d30deb6879da776b171"
+    },
+    "docs/specs/005-mainstream-cad-performance-investigation/open-decisions.md": {
+      "commit": "877ebdfb3e09518d7139a4ef71d83d5071dad616",
+      "sha256": "aa07184be341b57932a1120dadb0d29189685fda3a41902c47fccf31ab19da18"
+    },
+    "docs/specs/005-mainstream-cad-performance-investigation/requirements.md": {
+      "commit": "877ebdfb3e09518d7139a4ef71d83d5071dad616",
+      "sha256": "acccd20e0b80366c97f3e06e03221b65c034ba6cbfeb247554bcd1af1d845055"
+    },
+    "docs/specs/005-mainstream-cad-performance-investigation/spec.md": {
+      "commit": "877ebdfb3e09518d7139a4ef71d83d5071dad616",
+      "sha256": "ecd4b7851139ac4d7dee7e4ffcc99167caea1cfc3d236c569d08e71cb571dbaf"
+    },
+    "docs/specs/005-mainstream-cad-performance-investigation/tasks.md": {
+      "commit": "877ebdfb3e09518d7139a4ef71d83d5071dad616",
+      "sha256": "9bc6fea3f4d6f3f9ca99b8cd40d0b2f25dea02f76d551ebac16e57b568fda1d3"
+    },
+    "docs/specs/005-mainstream-cad-performance-investigation/traceability.md": {
+      "commit": "877ebdfb3e09518d7139a4ef71d83d5071dad616",
+      "sha256": "95ff47ed048a0bb68609e0a1a4cd2cc6c0d33c13eaa4505104f559ab9ce71b21"
+    },
+    "docs/specs/005-mainstream-cad-performance-investigation/verification.md": {
+      "commit": "877ebdfb3e09518d7139a4ef71d83d5071dad616",
+      "sha256": "7c5b4a1dbe689bc0d52e8c1d199a75581f671b9718fe36cf2b076dfcb4a9102f"
+    },
+    "docs/specs/README.md": {
+      "commit": "877ebdfb3e09518d7139a4ef71d83d5071dad616",
+      "sha256": "c544d0c02bf7108c65e7d83aaa83a0c14d01cca41b5637a534dcdad27539fa26"
+    },
+    "docs/backlog/README.md": {
+      "commit": "877ebdfb3e09518d7139a4ef71d83d5071dad616",
+      "sha256": "9a72771dd3497f5db9caff67ddfbc8b10ef94fa45f99f4b22cd5983a76bacf05"
+    },
+    "docs/backlog/sketcher-performance.md": {
+      "commit": "877ebdfb3e09518d7139a4ef71d83d5071dad616",
+      "sha256": "b8c880f227a8695d2e11622005b7841dc3419ed44566c969f5807d153d621e37"
+    },
+    "docs/backlog/spec003-follow-ups.md": {
+      "commit": "877ebdfb3e09518d7139a4ef71d83d5071dad616",
+      "sha256": "fca076a3736c70b90f489cec05be16828b4bc5d3364029bacec673606eda16a3"
+    }
+  },
+  "checks": {
+    "canonical_native_files": 17,
+    "canonical_step_files": 2,
+    "canonical_total_bytes": 1026459,
+    "native_canonical_reopen": 17,
+    "step_canonical_read": 2,
+    "fixtures": 17,
+    "streams": 8,
+    "cells": 60,
+    "scheduled_rows": 390,
+    "warmups": 65,
+    "future_timed_attempts": 325,
+    "actual_timing_study_rows": 0,
+    "round_robin_blocks": 5,
+    "profile_cap": 16,
+    "source_recipe_files": 3,
+    "preparation_source_snapshots": 5,
+    "completion_checker_snapshots": 1,
+    "links_verified": 48,
+    "stable_task_ids": 12,
+    "product_source_unchanged": true,
+    "unrelated_console_preserved": true,
+    "whitespace": "root and nested docs passed",
+    "joint_disk_reservation_bytes": 37648072704,
+    "package_lint": "zero diagnostics; final tool check performed separately",
+    "task_traceability": "final T001/T002 task-context checks performed separately"
+  },
+  "decisions": {
+    "D001": "resolved selected fixtures/oracles/collection/resource contract",
+    "D002": "open; T002 actual runtime/runner/semantic qualification"
+  },
+  "study_eligible": false,
+  "new_release_builds": 0,
+  "new_performance_campaigns": 0,
+  "preparation_runtime": "existing Debug modules only; identity inventory in t001-fixture-preparation.json, never a Release baseline",
+  "independent_reviews": [
+    {
+      "agent": "cad_integrity_expert",
+      "roles": [
+        "CAD/geometry engineering",
+        "FreeCAD lifecycle"
+      ],
+      "result": "cleared arithmetic/geometry/recipe scope",
+      "resolved": [
+        "rank(J)=rank(JT)=remaining J parameter count wording",
+        "explicit sparse W06 limit",
+        "assembly graph/connector/status/allowed-motion qualification remains T002"
+      ]
+    },
+    {
+      "agent": "p01_instrumentation_review",
+      "roles": [
+        "numerical/performance",
+        "QA/provenance"
+      ],
+      "result": "final clearance",
+      "resolved": [
+        "privacy/publication whitelist",
+        "separate preview/commit and cancel oracle",
+        "jointly feasible reservation and pre-study feasibility",
+        "seeded round-robin and QR balanced pairs",
+        "explicit QR cutoff-sensitivity gate and prospective amendment",
+        "canonical JSON/hash/unused-control precision"
+      ]
+    },
+    {
+      "agent": "t004_plan_review",
+      "roles": [
+        "operations",
+        "developer process",
+        "documentation"
+      ],
+      "result": "final clearance",
+      "resolved": [
+        "durable canonical bytes not ignored-only restore path",
+        "executed runner/checker/input/isolation source and output bindings",
+        "owned observed parameter/data paths and preference key restoration",
+        "exact preparation versus qualified measurement boundary"
+      ]
+    }
+  ],
+  "next_task": "T002",
+  "limits": [
+    "No study row or accepted timing value exists; only fixture preparation/roundtrip checks ran.",
+    "Old Release outputs and Debug preparation are ineligible for timing; T002 must rebuild/qualify actual source/compiler/binaries/modules/driver/argv/environment.",
+    "QR near-tangent must be proven threshold-sensitive under actual native scaling/cutoffs; otherwise prospectively amend inputs before Q01.",
+    "Full post-reopen assembly graph/allowed-motion/status, persistent reference, preview/cancel/frame and rank/DoF oracles remain T002.",
+    "T002 must reserve remaining disk maxima and project all rows/profiles/telemetry/cleanup within frozen time limits before study launch.",
+    "Canonical public fixtures and metadata are LGPL-2.1-or-later; runtime provenance remains private unless schema-whitelisted."
+  ]
+}

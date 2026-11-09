@@ -18,7 +18,7 @@ and historical evidence remain within each package.
 | --- | --- | --- | --- |
 | 001 | [CAD thumbnailing](001-cad-file-thumbnailing/spec.md) | Extraction baseline only | T001 — Resolve STL rendering and resource contracts |
 | 002 | [Compact rails](002-compact-view-rails-rework/spec.md) | Proposed; no current rails | T001 — Decide rail scope, geometry and persistence contracts |
-| 005 | [Mainstream CAD performance investigation](005-mainstream-cad-performance-investigation/spec.md) | Investigation planned; no profiling results | T001 — Freeze representative workloads, semantic oracles and the collection plan |
+| 005 | [Mainstream CAD performance investigation](005-mainstream-cad-performance-investigation/spec.md) | T001 inputs frozen; no profiling results | T002 — Qualify the shared runner, stage attribution and runtime identities |
 
 No execution dependency is established between these packages. Performance
 measurements require an exact chosen source revision and fixture; rail work must

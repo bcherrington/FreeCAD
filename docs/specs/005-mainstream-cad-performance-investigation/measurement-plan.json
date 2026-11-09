@@ -1,0 +1,3878 @@
+{
+  "schema": "freecad-spec005-measurement-plan/v1",
+  "id": "spec005-mainstream-cad-screening-20261109-v1",
+  "status": "prospective T001 contract; not a T002 study freeze or authorization to collect",
+  "date": "2026-11-09",
+  "owner": "local-developer",
+  "workload_manifest_sha256": "6eeceb6449d57349a6048bc94c2e98e02cb5db72e7965be3a0ddef83fcc15cde",
+  "source_scope": {
+    "root_commit": "877ebdfb3e09518d7139a4ef71d83d5071dad616",
+    "docs_commit": "5fcf6b1f412d2ded149cbca6c1345a86606964b0",
+    "latest_product_source_commit": "21903ca31f",
+    "source_patch": null,
+    "tracked_source_diff": "",
+    "config_source_sha256": {
+      "pixi.toml": "4bbfec7ed7c655c5b0faa03562681c7e88f31af507fb9ae03e5fedfd07007703",
+      "pixi.lock": "45727758e595efad731c9bc71e429719040b1509ad686d762ad52ba84e44ec5c",
+      "CMakePresets.json": "96bfc5a80bfe78dfe8002c2686216ffd1c0f82d25304f4b695fd73d5ef2d777d",
+      "CMakeLists.txt": "76e52f6f0e9197c82bc62a819736190f6a80da3377fe1011645fbd10a01f824f",
+      "src/App/Document.cpp": "e8e470d58c227f81d5c132b48dcbd35f5cea4535da1f0efcea5a9ab6595c38aa",
+      "src/Gui/Tree.cpp": "72558fca8657764c858f3bfc5e278042ee3d407fbb1f2c232a7357e6821bf8da",
+      "src/Mod/Assembly/JointObject.py": "e430ef406257cb78070a3ad700281a6da71c76cf6813222a9a0e29581196df41",
+      "src/Mod/Assembly/App/AssemblyObject.cpp": "07bb85d913d810a4280a46425d7ccbd6fbc4eaf36d0718079c8ac8466e219ea6",
+      "src/Mod/Sketcher/App/Sketch.cpp": "9c49191feaca5bc8aa854a2753cf99740e96aa53847c3903af4fdf59a1b18387",
+      "src/Mod/PartDesign/App/FeatureLinearPattern.cpp": "ba40823ae47942949315fb67a7ea83498136ef964596eadf3bfcad54793abf60"
+    },
+    "recursive_dependencies": [
+      "a75212b9f3b14162edd62d540cbf9273d5a59d20 src/3rdParty/GSL (v4.0.0-115-ga75212b)",
+      " 4be80eef02a3486cda0d78f3ccbb308d207a9639 src/3rdParty/OndselSolver (PR#11363-116-g4be80ee)",
+      " 50e37f04e7027661ea2318d0425b7836ac819568 src/3rdParty/coin (v4.0.5-130-g50e37f04e)",
+      " 118ac5a21bcf57f0f90e2b0e681c9dcbf07074c2 src/3rdParty/coin/cpack.d (cpack.d-1_0_0-2-g118ac5a)",
+      " 6217657eef6aec24a0e4ecea4695031c1a622cf3 src/3rdParty/coin/docs/doxygen-awesome (v2.3.2-4-g6217657)",
+      " 515f038d32f163a976acd8a8cd9e8d26e1d0b884 src/3rdParty/pivy (0.6.5-133-g515f038)",
+      " 745c1b1ebc8bc684439210c5fa237d2c6287153b src/Mod/AddonManager (745c1b1)"
+    ]
+  },
+  "selected_timing_build": {
+    "preset": "conda-linux-release",
+    "build_directory": "build/release",
+    "build_type": "Release",
+    "cxx_flags": "-O3 -DNDEBUG; actual full flags/compiler/linkage and probe state pending T002",
+    "tasks": [
+      "pixi run --locked configure-release",
+      "pixi run --locked build-release -j 2"
+    ],
+    "reason": "User-facing optimized baseline, unlike Debug-only overhead; use existing output directory in place, no new worktree/build pair. Old Release bytes are explicitly ineligible; T002 reconfigures/builds and qualifies current source before any sample. Debug is preparation/correctness/diagnostic only, never pooled.",
+    "actual_executable_libraries_loaded_modules": "pending_T002",
+    "source_symbol_probe_strategy": "pending_T002; perf policy may prevent sampling. Source-confirm tool capability/overhead or bounded opt-in probe with trace-OFF build; a different build mode requires prospective amendment, not silently pooling timings."
+  },
+  "selected_platform_scope": {
+    "os": "Linux x86_64",
+    "session": "native X11, owned process/window on current Intel Mesa renderer",
+    "gpu_choice": "Intel UHD/TGL Mesa; NVIDIA present but not selected",
+    "viewport_pixels": [
+      1280,
+      720
+    ],
+    "input_theme_style": "Qt defaults as source-confirmed by T002; preserve current IBus/XMODIFIERS profile in owned namespaces, no GNOME/IBus memory-safety claim",
+    "tessellation": {
+      "deviation": 0.5,
+      "angular_deflection_degrees": 28.5,
+      "mode": "shaded-with-edges",
+      "line_width": 1,
+      "verification": "T002 records exact effective property/settings and triangle counts; no quality lowering"
+    },
+    "driver_renderer_library_realization": "pending_T002; do not infer realized hardware from a label",
+    "other_platforms": "unqualified; no Wayland/NVIDIA/softwareGL or Windows/macOS extrapolation"
+  },
+  "host_inventory_only": {
+    "system": "Linux",
+    "release": "7.0.0-42-generic",
+    "machine": "x86_64",
+    "logical_cpus": 16,
+    "cpu_model": "11th Gen Intel(R) Core(TM) i7-11850H @ 2.50GHz",
+    "mem_total_kib": 32574396,
+    "session_type": "x11",
+    "desktop": "X-Cinnamon",
+    "free_disk_bytes_at_snapshot": 39533875200,
+    "governors": [
+      "powersave"
+    ]
+  },
+  "ineligible_release_inventory": {
+    "build/release/CMakeCache.txt": {
+      "sha256": "25ac4b92709fce463b7acccf280798c0749e26adb1ac0c34f69974eb128a6d75",
+      "bytes": 371046
+    },
+    "build/release/build.ninja": {
+      "sha256": "44b9a45d56568639f72fe129eac9ac19ef852091b5b29c64cf18d1bfeb787560",
+      "bytes": 28460946
+    },
+    "build/release/bin/FreeCAD": {
+      "sha256": "a210d79bd35eed9d18bae9b3874eb5da7355015fb43c3e2fa2b39935153aa005",
+      "bytes": 165008
+    },
+    "build/release/bin/FreeCADCmd": {
+      "sha256": "41d0654635df92e8b56df3b3ef774bbd81c9741ca7ae97a703a66e417b9a2fb5",
+      "bytes": 109216
+    },
+    "build/release/lib/libFreeCADApp.so": {
+      "sha256": "895f73ce6074bd813c72b158b732bf0f2c47fce4579b281d2460997d6f60fa8f",
+      "bytes": 9204872
+    },
+    "build/release/lib/libFreeCADGui.so": {
+      "sha256": "da80294adce968f8ff91bd927d8f9d9da8cb5918a305235409e81b6be4dd556f",
+      "bytes": 44530344
+    }
+  },
+  "preparation_only_debug_modules": {
+    "build/debug/bin/FreeCADCmd": {
+      "sha256": "94e535ce3c2f48d6294e52d0d0e7180a13ce5a002fd3b62656eb36ad9adca772",
+      "bytes": 606312
+    },
+    "build/debug/lib/FreeCAD.so": {
+      "sha256": "f52aaa42e16120733d4340a8f6fc2c78d6dcd9f8829cde766178b1caa6b4961a",
+      "bytes": 350712
+    },
+    "build/debug/lib/libFreeCADApp.so": {
+      "sha256": "2b395849fc5d1f4de52af4c2f67ce921e4068e9991d6b976f021a7e8b24c75d3",
+      "bytes": 71816608
+    },
+    "build/debug/Mod/Part/Part.so": {
+      "sha256": "ca65989579b2a5183dda6e461e79d2dd56af781716860025d16d8723d20e060e",
+      "bytes": 68164128
+    },
+    "build/debug/Mod/Sketcher/Sketcher.so": {
+      "sha256": "7105327a33054d4efc3d6dcd3817e82fa9d9f14c61b19e5fdec31b158c8d5cb2",
+      "bytes": 65962200
+    },
+    "build/debug/Mod/PartDesign/_PartDesign.so": {
+      "sha256": "4ae4d552973c5b59352e8e366d83a75a0d3000d948cbf452f864b1b0f00efc9a",
+      "bytes": 19316440
+    },
+    "build/debug/Mod/Assembly/AssemblyApp.so": {
+      "sha256": "3642d46ca7753c8f6ecf4dd15f7e30c157d1601e964851c573326ca665cc8bf8",
+      "bytes": 7150496
+    }
+  },
+  "fixed_schedule": {
+    "warmups_per_cell": 1,
+    "screening_attempts_per_cell": 5,
+    "qr_warmups": "one fresh process per arm",
+    "qr_pairs": 5,
+    "qr_arms": {
+      "A": "existing dense QR",
+      "B": "existing sparse QR",
+      "source_enum_mapping": "pending_T002, no default/threshold/tolerance changes"
+    },
+    "minimum_valid_coverage": "5/5 eligible attempts per nonpaired cell; 5/5 complete eligible matched pairs per Q01 cell, with successful unpooled warmups",
+    "nonreplacement": "No invalid/missing/excluded/timeout row is replenished; coverage failure yields inconclusive/stop, never continue until good rows. Recovery is a separate prospectively frozen complete schedule with no replacement/pooling of originals.",
+    "extension": "A 20-pair comparison, if selected, requires a new freeze before samples; exactly10AB/10BA seeded order, all20pairs required. It never augments/pools the screening distribution.",
+    "schedule_sha256": "0eca25a6fc83a301588b87c79099ddb6a03f402dc7713f7f0c07730ab7aa5bcf",
+    "attempts": [
+      {
+        "id": "R01.W01-large.width-plus4.correct-visible-result.warmup",
+        "cell_id": "R01.W01-large.width-plus4.correct-visible-result",
+        "phase": "warmup",
+        "timed": false,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "R01.W01-large.width-plus4.app-recompute-complete.warmup",
+        "cell_id": "R01.W01-large.width-plus4.app-recompute-complete",
+        "phase": "warmup",
+        "timed": false,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "R01.W02-small.width-plus4.app-recompute-complete.warmup",
+        "cell_id": "R01.W02-small.width-plus4.app-recompute-complete",
+        "phase": "warmup",
+        "timed": false,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "R01.W02-large.width-plus4.app-recompute-complete.warmup",
+        "cell_id": "R01.W02-large.width-plus4.app-recompute-complete",
+        "phase": "warmup",
+        "timed": false,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "R01.W02-small.width-plus4.correct-visible-result.warmup",
+        "cell_id": "R01.W02-small.width-plus4.correct-visible-result",
+        "phase": "warmup",
+        "timed": false,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "R01.W02-large.width-plus4.correct-visible-result.warmup",
+        "cell_id": "R01.W02-large.width-plus4.correct-visible-result",
+        "phase": "warmup",
+        "timed": false,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "R01.W01-small.width-plus4.correct-visible-result.warmup",
+        "cell_id": "R01.W01-small.width-plus4.correct-visible-result",
+        "phase": "warmup",
+        "timed": false,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "R01.W01-small.width-plus4.app-recompute-complete.warmup",
+        "cell_id": "R01.W01-small.width-plus4.app-recompute-complete",
+        "phase": "warmup",
+        "timed": false,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "R01.W01-large.width-plus4.correct-visible-result.attempt01",
+        "cell_id": "R01.W01-large.width-plus4.correct-visible-result",
+        "phase": "screening",
+        "block": 1,
+        "attempt": 1,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "R01.W01-large.width-plus4.app-recompute-complete.attempt01",
+        "cell_id": "R01.W01-large.width-plus4.app-recompute-complete",
+        "phase": "screening",
+        "block": 1,
+        "attempt": 1,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "R01.W02-small.width-plus4.app-recompute-complete.attempt01",
+        "cell_id": "R01.W02-small.width-plus4.app-recompute-complete",
+        "phase": "screening",
+        "block": 1,
+        "attempt": 1,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "R01.W02-large.width-plus4.app-recompute-complete.attempt01",
+        "cell_id": "R01.W02-large.width-plus4.app-recompute-complete",
+        "phase": "screening",
+        "block": 1,
+        "attempt": 1,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "R01.W02-small.width-plus4.correct-visible-result.attempt01",
+        "cell_id": "R01.W02-small.width-plus4.correct-visible-result",
+        "phase": "screening",
+        "block": 1,
+        "attempt": 1,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "R01.W02-large.width-plus4.correct-visible-result.attempt01",
+        "cell_id": "R01.W02-large.width-plus4.correct-visible-result",
+        "phase": "screening",
+        "block": 1,
+        "attempt": 1,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "R01.W01-small.width-plus4.correct-visible-result.attempt01",
+        "cell_id": "R01.W01-small.width-plus4.correct-visible-result",
+        "phase": "screening",
+        "block": 1,
+        "attempt": 1,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "R01.W01-small.width-plus4.app-recompute-complete.attempt01",
+        "cell_id": "R01.W01-small.width-plus4.app-recompute-complete",
+        "phase": "screening",
+        "block": 1,
+        "attempt": 1,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "R01.W01-large.width-plus4.correct-visible-result.attempt02",
+        "cell_id": "R01.W01-large.width-plus4.correct-visible-result",
+        "phase": "screening",
+        "block": 2,
+        "attempt": 2,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "R01.W01-small.width-plus4.app-recompute-complete.attempt02",
+        "cell_id": "R01.W01-small.width-plus4.app-recompute-complete",
+        "phase": "screening",
+        "block": 2,
+        "attempt": 2,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "R01.W01-small.width-plus4.correct-visible-result.attempt02",
+        "cell_id": "R01.W01-small.width-plus4.correct-visible-result",
+        "phase": "screening",
+        "block": 2,
+        "attempt": 2,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "R01.W02-large.width-plus4.correct-visible-result.attempt02",
+        "cell_id": "R01.W02-large.width-plus4.correct-visible-result",
+        "phase": "screening",
+        "block": 2,
+        "attempt": 2,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "R01.W02-small.width-plus4.correct-visible-result.attempt02",
+        "cell_id": "R01.W02-small.width-plus4.correct-visible-result",
+        "phase": "screening",
+        "block": 2,
+        "attempt": 2,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "R01.W02-large.width-plus4.app-recompute-complete.attempt02",
+        "cell_id": "R01.W02-large.width-plus4.app-recompute-complete",
+        "phase": "screening",
+        "block": 2,
+        "attempt": 2,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "R01.W02-small.width-plus4.app-recompute-complete.attempt02",
+        "cell_id": "R01.W02-small.width-plus4.app-recompute-complete",
+        "phase": "screening",
+        "block": 2,
+        "attempt": 2,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "R01.W01-large.width-plus4.app-recompute-complete.attempt02",
+        "cell_id": "R01.W01-large.width-plus4.app-recompute-complete",
+        "phase": "screening",
+        "block": 2,
+        "attempt": 2,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "R01.W02-small.width-plus4.app-recompute-complete.attempt03",
+        "cell_id": "R01.W02-small.width-plus4.app-recompute-complete",
+        "phase": "screening",
+        "block": 3,
+        "attempt": 3,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "R01.W02-large.width-plus4.app-recompute-complete.attempt03",
+        "cell_id": "R01.W02-large.width-plus4.app-recompute-complete",
+        "phase": "screening",
+        "block": 3,
+        "attempt": 3,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "R01.W02-small.width-plus4.correct-visible-result.attempt03",
+        "cell_id": "R01.W02-small.width-plus4.correct-visible-result",
+        "phase": "screening",
+        "block": 3,
+        "attempt": 3,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "R01.W02-large.width-plus4.correct-visible-result.attempt03",
+        "cell_id": "R01.W02-large.width-plus4.correct-visible-result",
+        "phase": "screening",
+        "block": 3,
+        "attempt": 3,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "R01.W01-small.width-plus4.correct-visible-result.attempt03",
+        "cell_id": "R01.W01-small.width-plus4.correct-visible-result",
+        "phase": "screening",
+        "block": 3,
+        "attempt": 3,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "R01.W01-small.width-plus4.app-recompute-complete.attempt03",
+        "cell_id": "R01.W01-small.width-plus4.app-recompute-complete",
+        "phase": "screening",
+        "block": 3,
+        "attempt": 3,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "R01.W01-large.width-plus4.correct-visible-result.attempt03",
+        "cell_id": "R01.W01-large.width-plus4.correct-visible-result",
+        "phase": "screening",
+        "block": 3,
+        "attempt": 3,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "R01.W01-large.width-plus4.app-recompute-complete.attempt03",
+        "cell_id": "R01.W01-large.width-plus4.app-recompute-complete",
+        "phase": "screening",
+        "block": 3,
+        "attempt": 3,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "R01.W02-small.width-plus4.app-recompute-complete.attempt04",
+        "cell_id": "R01.W02-small.width-plus4.app-recompute-complete",
+        "phase": "screening",
+        "block": 4,
+        "attempt": 4,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "R01.W01-large.width-plus4.app-recompute-complete.attempt04",
+        "cell_id": "R01.W01-large.width-plus4.app-recompute-complete",
+        "phase": "screening",
+        "block": 4,
+        "attempt": 4,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "R01.W01-large.width-plus4.correct-visible-result.attempt04",
+        "cell_id": "R01.W01-large.width-plus4.correct-visible-result",
+        "phase": "screening",
+        "block": 4,
+        "attempt": 4,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "R01.W01-small.width-plus4.app-recompute-complete.attempt04",
+        "cell_id": "R01.W01-small.width-plus4.app-recompute-complete",
+        "phase": "screening",
+        "block": 4,
+        "attempt": 4,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "R01.W01-small.width-plus4.correct-visible-result.attempt04",
+        "cell_id": "R01.W01-small.width-plus4.correct-visible-result",
+        "phase": "screening",
+        "block": 4,
+        "attempt": 4,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "R01.W02-large.width-plus4.correct-visible-result.attempt04",
+        "cell_id": "R01.W02-large.width-plus4.correct-visible-result",
+        "phase": "screening",
+        "block": 4,
+        "attempt": 4,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "R01.W02-small.width-plus4.correct-visible-result.attempt04",
+        "cell_id": "R01.W02-small.width-plus4.correct-visible-result",
+        "phase": "screening",
+        "block": 4,
+        "attempt": 4,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "R01.W02-large.width-plus4.app-recompute-complete.attempt04",
+        "cell_id": "R01.W02-large.width-plus4.app-recompute-complete",
+        "phase": "screening",
+        "block": 4,
+        "attempt": 4,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "R01.W02-small.width-plus4.correct-visible-result.attempt05",
+        "cell_id": "R01.W02-small.width-plus4.correct-visible-result",
+        "phase": "screening",
+        "block": 5,
+        "attempt": 5,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "R01.W02-large.width-plus4.correct-visible-result.attempt05",
+        "cell_id": "R01.W02-large.width-plus4.correct-visible-result",
+        "phase": "screening",
+        "block": 5,
+        "attempt": 5,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "R01.W01-small.width-plus4.correct-visible-result.attempt05",
+        "cell_id": "R01.W01-small.width-plus4.correct-visible-result",
+        "phase": "screening",
+        "block": 5,
+        "attempt": 5,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "R01.W01-small.width-plus4.app-recompute-complete.attempt05",
+        "cell_id": "R01.W01-small.width-plus4.app-recompute-complete",
+        "phase": "screening",
+        "block": 5,
+        "attempt": 5,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "R01.W01-large.width-plus4.correct-visible-result.attempt05",
+        "cell_id": "R01.W01-large.width-plus4.correct-visible-result",
+        "phase": "screening",
+        "block": 5,
+        "attempt": 5,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "R01.W01-large.width-plus4.app-recompute-complete.attempt05",
+        "cell_id": "R01.W01-large.width-plus4.app-recompute-complete",
+        "phase": "screening",
+        "block": 5,
+        "attempt": 5,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "R01.W02-small.width-plus4.app-recompute-complete.attempt05",
+        "cell_id": "R01.W02-small.width-plus4.app-recompute-complete",
+        "phase": "screening",
+        "block": 5,
+        "attempt": 5,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "R01.W02-large.width-plus4.app-recompute-complete.attempt05",
+        "cell_id": "R01.W02-large.width-plus4.app-recompute-complete",
+        "phase": "screening",
+        "block": 5,
+        "attempt": 5,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "S01.W06-large.sketch-drag-width.correct-visible-result.warmup",
+        "cell_id": "S01.W06-large.sketch-drag-width.correct-visible-result",
+        "phase": "warmup",
+        "timed": false,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "S01.W05-ordinary.constraint-remove-add-width.correct-visible-result.warmup",
+        "cell_id": "S01.W05-ordinary.constraint-remove-add-width.correct-visible-result",
+        "phase": "warmup",
+        "timed": false,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "S01.W06-large.sketch-width-plus4.correct-visible-result.warmup",
+        "cell_id": "S01.W06-large.sketch-width-plus4.correct-visible-result",
+        "phase": "warmup",
+        "timed": false,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "S01.W05-ordinary.sketch-width-plus4.correct-visible-result.warmup",
+        "cell_id": "S01.W05-ordinary.sketch-width-plus4.correct-visible-result",
+        "phase": "warmup",
+        "timed": false,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "S01.W06-large.constraint-remove-add-width.correct-visible-result.warmup",
+        "cell_id": "S01.W06-large.constraint-remove-add-width.correct-visible-result",
+        "phase": "warmup",
+        "timed": false,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "S01.W05-ordinary.sketch-drag-width.correct-visible-result.warmup",
+        "cell_id": "S01.W05-ordinary.sketch-drag-width.correct-visible-result",
+        "phase": "warmup",
+        "timed": false,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "S01.W06-large.sketch-drag-width.correct-visible-result.attempt01",
+        "cell_id": "S01.W06-large.sketch-drag-width.correct-visible-result",
+        "phase": "screening",
+        "block": 1,
+        "attempt": 1,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "S01.W05-ordinary.constraint-remove-add-width.correct-visible-result.attempt01",
+        "cell_id": "S01.W05-ordinary.constraint-remove-add-width.correct-visible-result",
+        "phase": "screening",
+        "block": 1,
+        "attempt": 1,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "S01.W06-large.sketch-width-plus4.correct-visible-result.attempt01",
+        "cell_id": "S01.W06-large.sketch-width-plus4.correct-visible-result",
+        "phase": "screening",
+        "block": 1,
+        "attempt": 1,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "S01.W05-ordinary.sketch-width-plus4.correct-visible-result.attempt01",
+        "cell_id": "S01.W05-ordinary.sketch-width-plus4.correct-visible-result",
+        "phase": "screening",
+        "block": 1,
+        "attempt": 1,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "S01.W06-large.constraint-remove-add-width.correct-visible-result.attempt01",
+        "cell_id": "S01.W06-large.constraint-remove-add-width.correct-visible-result",
+        "phase": "screening",
+        "block": 1,
+        "attempt": 1,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "S01.W05-ordinary.sketch-drag-width.correct-visible-result.attempt01",
+        "cell_id": "S01.W05-ordinary.sketch-drag-width.correct-visible-result",
+        "phase": "screening",
+        "block": 1,
+        "attempt": 1,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "S01.W06-large.sketch-drag-width.correct-visible-result.attempt02",
+        "cell_id": "S01.W06-large.sketch-drag-width.correct-visible-result",
+        "phase": "screening",
+        "block": 2,
+        "attempt": 2,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "S01.W05-ordinary.sketch-drag-width.correct-visible-result.attempt02",
+        "cell_id": "S01.W05-ordinary.sketch-drag-width.correct-visible-result",
+        "phase": "screening",
+        "block": 2,
+        "attempt": 2,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "S01.W06-large.constraint-remove-add-width.correct-visible-result.attempt02",
+        "cell_id": "S01.W06-large.constraint-remove-add-width.correct-visible-result",
+        "phase": "screening",
+        "block": 2,
+        "attempt": 2,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "S01.W05-ordinary.sketch-width-plus4.correct-visible-result.attempt02",
+        "cell_id": "S01.W05-ordinary.sketch-width-plus4.correct-visible-result",
+        "phase": "screening",
+        "block": 2,
+        "attempt": 2,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "S01.W06-large.sketch-width-plus4.correct-visible-result.attempt02",
+        "cell_id": "S01.W06-large.sketch-width-plus4.correct-visible-result",
+        "phase": "screening",
+        "block": 2,
+        "attempt": 2,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "S01.W05-ordinary.constraint-remove-add-width.correct-visible-result.attempt02",
+        "cell_id": "S01.W05-ordinary.constraint-remove-add-width.correct-visible-result",
+        "phase": "screening",
+        "block": 2,
+        "attempt": 2,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "S01.W06-large.sketch-width-plus4.correct-visible-result.attempt03",
+        "cell_id": "S01.W06-large.sketch-width-plus4.correct-visible-result",
+        "phase": "screening",
+        "block": 3,
+        "attempt": 3,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "S01.W05-ordinary.sketch-width-plus4.correct-visible-result.attempt03",
+        "cell_id": "S01.W05-ordinary.sketch-width-plus4.correct-visible-result",
+        "phase": "screening",
+        "block": 3,
+        "attempt": 3,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "S01.W06-large.constraint-remove-add-width.correct-visible-result.attempt03",
+        "cell_id": "S01.W06-large.constraint-remove-add-width.correct-visible-result",
+        "phase": "screening",
+        "block": 3,
+        "attempt": 3,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "S01.W05-ordinary.sketch-drag-width.correct-visible-result.attempt03",
+        "cell_id": "S01.W05-ordinary.sketch-drag-width.correct-visible-result",
+        "phase": "screening",
+        "block": 3,
+        "attempt": 3,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "S01.W06-large.sketch-drag-width.correct-visible-result.attempt03",
+        "cell_id": "S01.W06-large.sketch-drag-width.correct-visible-result",
+        "phase": "screening",
+        "block": 3,
+        "attempt": 3,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "S01.W05-ordinary.constraint-remove-add-width.correct-visible-result.attempt03",
+        "cell_id": "S01.W05-ordinary.constraint-remove-add-width.correct-visible-result",
+        "phase": "screening",
+        "block": 3,
+        "attempt": 3,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "S01.W06-large.sketch-width-plus4.correct-visible-result.attempt04",
+        "cell_id": "S01.W06-large.sketch-width-plus4.correct-visible-result",
+        "phase": "screening",
+        "block": 4,
+        "attempt": 4,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "S01.W05-ordinary.constraint-remove-add-width.correct-visible-result.attempt04",
+        "cell_id": "S01.W05-ordinary.constraint-remove-add-width.correct-visible-result",
+        "phase": "screening",
+        "block": 4,
+        "attempt": 4,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "S01.W06-large.sketch-drag-width.correct-visible-result.attempt04",
+        "cell_id": "S01.W06-large.sketch-drag-width.correct-visible-result",
+        "phase": "screening",
+        "block": 4,
+        "attempt": 4,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "S01.W05-ordinary.sketch-drag-width.correct-visible-result.attempt04",
+        "cell_id": "S01.W05-ordinary.sketch-drag-width.correct-visible-result",
+        "phase": "screening",
+        "block": 4,
+        "attempt": 4,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "S01.W06-large.constraint-remove-add-width.correct-visible-result.attempt04",
+        "cell_id": "S01.W06-large.constraint-remove-add-width.correct-visible-result",
+        "phase": "screening",
+        "block": 4,
+        "attempt": 4,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "S01.W05-ordinary.sketch-width-plus4.correct-visible-result.attempt04",
+        "cell_id": "S01.W05-ordinary.sketch-width-plus4.correct-visible-result",
+        "phase": "screening",
+        "block": 4,
+        "attempt": 4,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "S01.W06-large.constraint-remove-add-width.correct-visible-result.attempt05",
+        "cell_id": "S01.W06-large.constraint-remove-add-width.correct-visible-result",
+        "phase": "screening",
+        "block": 5,
+        "attempt": 5,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "S01.W05-ordinary.sketch-drag-width.correct-visible-result.attempt05",
+        "cell_id": "S01.W05-ordinary.sketch-drag-width.correct-visible-result",
+        "phase": "screening",
+        "block": 5,
+        "attempt": 5,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "S01.W06-large.sketch-drag-width.correct-visible-result.attempt05",
+        "cell_id": "S01.W06-large.sketch-drag-width.correct-visible-result",
+        "phase": "screening",
+        "block": 5,
+        "attempt": 5,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "S01.W05-ordinary.constraint-remove-add-width.correct-visible-result.attempt05",
+        "cell_id": "S01.W05-ordinary.constraint-remove-add-width.correct-visible-result",
+        "phase": "screening",
+        "block": 5,
+        "attempt": 5,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "S01.W06-large.sketch-width-plus4.correct-visible-result.attempt05",
+        "cell_id": "S01.W06-large.sketch-width-plus4.correct-visible-result",
+        "phase": "screening",
+        "block": 5,
+        "attempt": 5,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "S01.W05-ordinary.sketch-width-plus4.correct-visible-result.attempt05",
+        "cell_id": "S01.W05-ordinary.sketch-width-plus4.correct-visible-result",
+        "phase": "screening",
+        "block": 5,
+        "attempt": 5,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "Q01.W06-large.qr-radius.app-recompute-complete.warmup.A",
+        "cell_id": "Q01.W06-large.qr-radius.app-recompute-complete",
+        "phase": "warmup",
+        "arm": "A",
+        "timed": false,
+        "process": "fresh-owned-arm-process"
+      },
+      {
+        "id": "Q01.W06-large.qr-radius.app-recompute-complete.warmup.B",
+        "cell_id": "Q01.W06-large.qr-radius.app-recompute-complete",
+        "phase": "warmup",
+        "arm": "B",
+        "timed": false,
+        "process": "fresh-owned-arm-process"
+      },
+      {
+        "id": "Q01.W05-ordinary.qr-radius.app-recompute-complete.warmup.A",
+        "cell_id": "Q01.W05-ordinary.qr-radius.app-recompute-complete",
+        "phase": "warmup",
+        "arm": "A",
+        "timed": false,
+        "process": "fresh-owned-arm-process"
+      },
+      {
+        "id": "Q01.W05-ordinary.qr-radius.app-recompute-complete.warmup.B",
+        "cell_id": "Q01.W05-ordinary.qr-radius.app-recompute-complete",
+        "phase": "warmup",
+        "arm": "B",
+        "timed": false,
+        "process": "fresh-owned-arm-process"
+      },
+      {
+        "id": "Q01.Q-symmetry.qr-symmetry.app-recompute-complete.warmup.A",
+        "cell_id": "Q01.Q-symmetry.qr-symmetry.app-recompute-complete",
+        "phase": "warmup",
+        "arm": "A",
+        "timed": false,
+        "process": "fresh-owned-arm-process"
+      },
+      {
+        "id": "Q01.Q-symmetry.qr-symmetry.app-recompute-complete.warmup.B",
+        "cell_id": "Q01.Q-symmetry.qr-symmetry.app-recompute-complete",
+        "phase": "warmup",
+        "arm": "B",
+        "timed": false,
+        "process": "fresh-owned-arm-process"
+      },
+      {
+        "id": "Q01.Q-aligned-slot.qr-aligned-slot.app-recompute-complete.warmup.A",
+        "cell_id": "Q01.Q-aligned-slot.qr-aligned-slot.app-recompute-complete",
+        "phase": "warmup",
+        "arm": "A",
+        "timed": false,
+        "process": "fresh-owned-arm-process"
+      },
+      {
+        "id": "Q01.Q-aligned-slot.qr-aligned-slot.app-recompute-complete.warmup.B",
+        "cell_id": "Q01.Q-aligned-slot.qr-aligned-slot.app-recompute-complete",
+        "phase": "warmup",
+        "arm": "B",
+        "timed": false,
+        "process": "fresh-owned-arm-process"
+      },
+      {
+        "id": "Q01.Q-near-tangent.qr-near-tangent.app-recompute-complete.warmup.A",
+        "cell_id": "Q01.Q-near-tangent.qr-near-tangent.app-recompute-complete",
+        "phase": "warmup",
+        "arm": "A",
+        "timed": false,
+        "process": "fresh-owned-arm-process"
+      },
+      {
+        "id": "Q01.Q-near-tangent.qr-near-tangent.app-recompute-complete.warmup.B",
+        "cell_id": "Q01.Q-near-tangent.qr-near-tangent.app-recompute-complete",
+        "phase": "warmup",
+        "arm": "B",
+        "timed": false,
+        "process": "fresh-owned-arm-process"
+      },
+      {
+        "id": "Q01.W06-large.qr-radius.app-recompute-complete.pair01.A",
+        "cell_id": "Q01.W06-large.qr-radius.app-recompute-complete",
+        "phase": "screening",
+        "block": 1,
+        "pair": 1,
+        "order_in_pair": 1,
+        "arm": "A",
+        "timed": true,
+        "process": "fresh-owned-arm-process"
+      },
+      {
+        "id": "Q01.W06-large.qr-radius.app-recompute-complete.pair01.B",
+        "cell_id": "Q01.W06-large.qr-radius.app-recompute-complete",
+        "phase": "screening",
+        "block": 1,
+        "pair": 1,
+        "order_in_pair": 2,
+        "arm": "B",
+        "timed": true,
+        "process": "fresh-owned-arm-process"
+      },
+      {
+        "id": "Q01.W05-ordinary.qr-radius.app-recompute-complete.pair01.A",
+        "cell_id": "Q01.W05-ordinary.qr-radius.app-recompute-complete",
+        "phase": "screening",
+        "block": 1,
+        "pair": 1,
+        "order_in_pair": 1,
+        "arm": "A",
+        "timed": true,
+        "process": "fresh-owned-arm-process"
+      },
+      {
+        "id": "Q01.W05-ordinary.qr-radius.app-recompute-complete.pair01.B",
+        "cell_id": "Q01.W05-ordinary.qr-radius.app-recompute-complete",
+        "phase": "screening",
+        "block": 1,
+        "pair": 1,
+        "order_in_pair": 2,
+        "arm": "B",
+        "timed": true,
+        "process": "fresh-owned-arm-process"
+      },
+      {
+        "id": "Q01.Q-symmetry.qr-symmetry.app-recompute-complete.pair01.A",
+        "cell_id": "Q01.Q-symmetry.qr-symmetry.app-recompute-complete",
+        "phase": "screening",
+        "block": 1,
+        "pair": 1,
+        "order_in_pair": 1,
+        "arm": "A",
+        "timed": true,
+        "process": "fresh-owned-arm-process"
+      },
+      {
+        "id": "Q01.Q-symmetry.qr-symmetry.app-recompute-complete.pair01.B",
+        "cell_id": "Q01.Q-symmetry.qr-symmetry.app-recompute-complete",
+        "phase": "screening",
+        "block": 1,
+        "pair": 1,
+        "order_in_pair": 2,
+        "arm": "B",
+        "timed": true,
+        "process": "fresh-owned-arm-process"
+      },
+      {
+        "id": "Q01.Q-aligned-slot.qr-aligned-slot.app-recompute-complete.pair01.B",
+        "cell_id": "Q01.Q-aligned-slot.qr-aligned-slot.app-recompute-complete",
+        "phase": "screening",
+        "block": 1,
+        "pair": 1,
+        "order_in_pair": 1,
+        "arm": "B",
+        "timed": true,
+        "process": "fresh-owned-arm-process"
+      },
+      {
+        "id": "Q01.Q-aligned-slot.qr-aligned-slot.app-recompute-complete.pair01.A",
+        "cell_id": "Q01.Q-aligned-slot.qr-aligned-slot.app-recompute-complete",
+        "phase": "screening",
+        "block": 1,
+        "pair": 1,
+        "order_in_pair": 2,
+        "arm": "A",
+        "timed": true,
+        "process": "fresh-owned-arm-process"
+      },
+      {
+        "id": "Q01.Q-near-tangent.qr-near-tangent.app-recompute-complete.pair01.B",
+        "cell_id": "Q01.Q-near-tangent.qr-near-tangent.app-recompute-complete",
+        "phase": "screening",
+        "block": 1,
+        "pair": 1,
+        "order_in_pair": 1,
+        "arm": "B",
+        "timed": true,
+        "process": "fresh-owned-arm-process"
+      },
+      {
+        "id": "Q01.Q-near-tangent.qr-near-tangent.app-recompute-complete.pair01.A",
+        "cell_id": "Q01.Q-near-tangent.qr-near-tangent.app-recompute-complete",
+        "phase": "screening",
+        "block": 1,
+        "pair": 1,
+        "order_in_pair": 2,
+        "arm": "A",
+        "timed": true,
+        "process": "fresh-owned-arm-process"
+      },
+      {
+        "id": "Q01.W06-large.qr-radius.app-recompute-complete.pair02.B",
+        "cell_id": "Q01.W06-large.qr-radius.app-recompute-complete",
+        "phase": "screening",
+        "block": 2,
+        "pair": 2,
+        "order_in_pair": 1,
+        "arm": "B",
+        "timed": true,
+        "process": "fresh-owned-arm-process"
+      },
+      {
+        "id": "Q01.W06-large.qr-radius.app-recompute-complete.pair02.A",
+        "cell_id": "Q01.W06-large.qr-radius.app-recompute-complete",
+        "phase": "screening",
+        "block": 2,
+        "pair": 2,
+        "order_in_pair": 2,
+        "arm": "A",
+        "timed": true,
+        "process": "fresh-owned-arm-process"
+      },
+      {
+        "id": "Q01.Q-near-tangent.qr-near-tangent.app-recompute-complete.pair02.A",
+        "cell_id": "Q01.Q-near-tangent.qr-near-tangent.app-recompute-complete",
+        "phase": "screening",
+        "block": 2,
+        "pair": 2,
+        "order_in_pair": 1,
+        "arm": "A",
+        "timed": true,
+        "process": "fresh-owned-arm-process"
+      },
+      {
+        "id": "Q01.Q-near-tangent.qr-near-tangent.app-recompute-complete.pair02.B",
+        "cell_id": "Q01.Q-near-tangent.qr-near-tangent.app-recompute-complete",
+        "phase": "screening",
+        "block": 2,
+        "pair": 2,
+        "order_in_pair": 2,
+        "arm": "B",
+        "timed": true,
+        "process": "fresh-owned-arm-process"
+      },
+      {
+        "id": "Q01.Q-aligned-slot.qr-aligned-slot.app-recompute-complete.pair02.B",
+        "cell_id": "Q01.Q-aligned-slot.qr-aligned-slot.app-recompute-complete",
+        "phase": "screening",
+        "block": 2,
+        "pair": 2,
+        "order_in_pair": 1,
+        "arm": "B",
+        "timed": true,
+        "process": "fresh-owned-arm-process"
+      },
+      {
+        "id": "Q01.Q-aligned-slot.qr-aligned-slot.app-recompute-complete.pair02.A",
+        "cell_id": "Q01.Q-aligned-slot.qr-aligned-slot.app-recompute-complete",
+        "phase": "screening",
+        "block": 2,
+        "pair": 2,
+        "order_in_pair": 2,
+        "arm": "A",
+        "timed": true,
+        "process": "fresh-owned-arm-process"
+      },
+      {
+        "id": "Q01.Q-symmetry.qr-symmetry.app-recompute-complete.pair02.A",
+        "cell_id": "Q01.Q-symmetry.qr-symmetry.app-recompute-complete",
+        "phase": "screening",
+        "block": 2,
+        "pair": 2,
+        "order_in_pair": 1,
+        "arm": "A",
+        "timed": true,
+        "process": "fresh-owned-arm-process"
+      },
+      {
+        "id": "Q01.Q-symmetry.qr-symmetry.app-recompute-complete.pair02.B",
+        "cell_id": "Q01.Q-symmetry.qr-symmetry.app-recompute-complete",
+        "phase": "screening",
+        "block": 2,
+        "pair": 2,
+        "order_in_pair": 2,
+        "arm": "B",
+        "timed": true,
+        "process": "fresh-owned-arm-process"
+      },
+      {
+        "id": "Q01.W05-ordinary.qr-radius.app-recompute-complete.pair02.B",
+        "cell_id": "Q01.W05-ordinary.qr-radius.app-recompute-complete",
+        "phase": "screening",
+        "block": 2,
+        "pair": 2,
+        "order_in_pair": 1,
+        "arm": "B",
+        "timed": true,
+        "process": "fresh-owned-arm-process"
+      },
+      {
+        "id": "Q01.W05-ordinary.qr-radius.app-recompute-complete.pair02.A",
+        "cell_id": "Q01.W05-ordinary.qr-radius.app-recompute-complete",
+        "phase": "screening",
+        "block": 2,
+        "pair": 2,
+        "order_in_pair": 2,
+        "arm": "A",
+        "timed": true,
+        "process": "fresh-owned-arm-process"
+      },
+      {
+        "id": "Q01.Q-symmetry.qr-symmetry.app-recompute-complete.pair03.B",
+        "cell_id": "Q01.Q-symmetry.qr-symmetry.app-recompute-complete",
+        "phase": "screening",
+        "block": 3,
+        "pair": 3,
+        "order_in_pair": 1,
+        "arm": "B",
+        "timed": true,
+        "process": "fresh-owned-arm-process"
+      },
+      {
+        "id": "Q01.Q-symmetry.qr-symmetry.app-recompute-complete.pair03.A",
+        "cell_id": "Q01.Q-symmetry.qr-symmetry.app-recompute-complete",
+        "phase": "screening",
+        "block": 3,
+        "pair": 3,
+        "order_in_pair": 2,
+        "arm": "A",
+        "timed": true,
+        "process": "fresh-owned-arm-process"
+      },
+      {
+        "id": "Q01.Q-aligned-slot.qr-aligned-slot.app-recompute-complete.pair03.A",
+        "cell_id": "Q01.Q-aligned-slot.qr-aligned-slot.app-recompute-complete",
+        "phase": "screening",
+        "block": 3,
+        "pair": 3,
+        "order_in_pair": 1,
+        "arm": "A",
+        "timed": true,
+        "process": "fresh-owned-arm-process"
+      },
+      {
+        "id": "Q01.Q-aligned-slot.qr-aligned-slot.app-recompute-complete.pair03.B",
+        "cell_id": "Q01.Q-aligned-slot.qr-aligned-slot.app-recompute-complete",
+        "phase": "screening",
+        "block": 3,
+        "pair": 3,
+        "order_in_pair": 2,
+        "arm": "B",
+        "timed": true,
+        "process": "fresh-owned-arm-process"
+      },
+      {
+        "id": "Q01.Q-near-tangent.qr-near-tangent.app-recompute-complete.pair03.A",
+        "cell_id": "Q01.Q-near-tangent.qr-near-tangent.app-recompute-complete",
+        "phase": "screening",
+        "block": 3,
+        "pair": 3,
+        "order_in_pair": 1,
+        "arm": "A",
+        "timed": true,
+        "process": "fresh-owned-arm-process"
+      },
+      {
+        "id": "Q01.Q-near-tangent.qr-near-tangent.app-recompute-complete.pair03.B",
+        "cell_id": "Q01.Q-near-tangent.qr-near-tangent.app-recompute-complete",
+        "phase": "screening",
+        "block": 3,
+        "pair": 3,
+        "order_in_pair": 2,
+        "arm": "B",
+        "timed": true,
+        "process": "fresh-owned-arm-process"
+      },
+      {
+        "id": "Q01.W06-large.qr-radius.app-recompute-complete.pair03.B",
+        "cell_id": "Q01.W06-large.qr-radius.app-recompute-complete",
+        "phase": "screening",
+        "block": 3,
+        "pair": 3,
+        "order_in_pair": 1,
+        "arm": "B",
+        "timed": true,
+        "process": "fresh-owned-arm-process"
+      },
+      {
+        "id": "Q01.W06-large.qr-radius.app-recompute-complete.pair03.A",
+        "cell_id": "Q01.W06-large.qr-radius.app-recompute-complete",
+        "phase": "screening",
+        "block": 3,
+        "pair": 3,
+        "order_in_pair": 2,
+        "arm": "A",
+        "timed": true,
+        "process": "fresh-owned-arm-process"
+      },
+      {
+        "id": "Q01.W05-ordinary.qr-radius.app-recompute-complete.pair03.A",
+        "cell_id": "Q01.W05-ordinary.qr-radius.app-recompute-complete",
+        "phase": "screening",
+        "block": 3,
+        "pair": 3,
+        "order_in_pair": 1,
+        "arm": "A",
+        "timed": true,
+        "process": "fresh-owned-arm-process"
+      },
+      {
+        "id": "Q01.W05-ordinary.qr-radius.app-recompute-complete.pair03.B",
+        "cell_id": "Q01.W05-ordinary.qr-radius.app-recompute-complete",
+        "phase": "screening",
+        "block": 3,
+        "pair": 3,
+        "order_in_pair": 2,
+        "arm": "B",
+        "timed": true,
+        "process": "fresh-owned-arm-process"
+      },
+      {
+        "id": "Q01.Q-symmetry.qr-symmetry.app-recompute-complete.pair04.A",
+        "cell_id": "Q01.Q-symmetry.qr-symmetry.app-recompute-complete",
+        "phase": "screening",
+        "block": 4,
+        "pair": 4,
+        "order_in_pair": 1,
+        "arm": "A",
+        "timed": true,
+        "process": "fresh-owned-arm-process"
+      },
+      {
+        "id": "Q01.Q-symmetry.qr-symmetry.app-recompute-complete.pair04.B",
+        "cell_id": "Q01.Q-symmetry.qr-symmetry.app-recompute-complete",
+        "phase": "screening",
+        "block": 4,
+        "pair": 4,
+        "order_in_pair": 2,
+        "arm": "B",
+        "timed": true,
+        "process": "fresh-owned-arm-process"
+      },
+      {
+        "id": "Q01.W05-ordinary.qr-radius.app-recompute-complete.pair04.A",
+        "cell_id": "Q01.W05-ordinary.qr-radius.app-recompute-complete",
+        "phase": "screening",
+        "block": 4,
+        "pair": 4,
+        "order_in_pair": 1,
+        "arm": "A",
+        "timed": true,
+        "process": "fresh-owned-arm-process"
+      },
+      {
+        "id": "Q01.W05-ordinary.qr-radius.app-recompute-complete.pair04.B",
+        "cell_id": "Q01.W05-ordinary.qr-radius.app-recompute-complete",
+        "phase": "screening",
+        "block": 4,
+        "pair": 4,
+        "order_in_pair": 2,
+        "arm": "B",
+        "timed": true,
+        "process": "fresh-owned-arm-process"
+      },
+      {
+        "id": "Q01.W06-large.qr-radius.app-recompute-complete.pair04.A",
+        "cell_id": "Q01.W06-large.qr-radius.app-recompute-complete",
+        "phase": "screening",
+        "block": 4,
+        "pair": 4,
+        "order_in_pair": 1,
+        "arm": "A",
+        "timed": true,
+        "process": "fresh-owned-arm-process"
+      },
+      {
+        "id": "Q01.W06-large.qr-radius.app-recompute-complete.pair04.B",
+        "cell_id": "Q01.W06-large.qr-radius.app-recompute-complete",
+        "phase": "screening",
+        "block": 4,
+        "pair": 4,
+        "order_in_pair": 2,
+        "arm": "B",
+        "timed": true,
+        "process": "fresh-owned-arm-process"
+      },
+      {
+        "id": "Q01.Q-near-tangent.qr-near-tangent.app-recompute-complete.pair04.B",
+        "cell_id": "Q01.Q-near-tangent.qr-near-tangent.app-recompute-complete",
+        "phase": "screening",
+        "block": 4,
+        "pair": 4,
+        "order_in_pair": 1,
+        "arm": "B",
+        "timed": true,
+        "process": "fresh-owned-arm-process"
+      },
+      {
+        "id": "Q01.Q-near-tangent.qr-near-tangent.app-recompute-complete.pair04.A",
+        "cell_id": "Q01.Q-near-tangent.qr-near-tangent.app-recompute-complete",
+        "phase": "screening",
+        "block": 4,
+        "pair": 4,
+        "order_in_pair": 2,
+        "arm": "A",
+        "timed": true,
+        "process": "fresh-owned-arm-process"
+      },
+      {
+        "id": "Q01.Q-aligned-slot.qr-aligned-slot.app-recompute-complete.pair04.A",
+        "cell_id": "Q01.Q-aligned-slot.qr-aligned-slot.app-recompute-complete",
+        "phase": "screening",
+        "block": 4,
+        "pair": 4,
+        "order_in_pair": 1,
+        "arm": "A",
+        "timed": true,
+        "process": "fresh-owned-arm-process"
+      },
+      {
+        "id": "Q01.Q-aligned-slot.qr-aligned-slot.app-recompute-complete.pair04.B",
+        "cell_id": "Q01.Q-aligned-slot.qr-aligned-slot.app-recompute-complete",
+        "phase": "screening",
+        "block": 4,
+        "pair": 4,
+        "order_in_pair": 2,
+        "arm": "B",
+        "timed": true,
+        "process": "fresh-owned-arm-process"
+      },
+      {
+        "id": "Q01.Q-near-tangent.qr-near-tangent.app-recompute-complete.pair05.B",
+        "cell_id": "Q01.Q-near-tangent.qr-near-tangent.app-recompute-complete",
+        "phase": "screening",
+        "block": 5,
+        "pair": 5,
+        "order_in_pair": 1,
+        "arm": "B",
+        "timed": true,
+        "process": "fresh-owned-arm-process"
+      },
+      {
+        "id": "Q01.Q-near-tangent.qr-near-tangent.app-recompute-complete.pair05.A",
+        "cell_id": "Q01.Q-near-tangent.qr-near-tangent.app-recompute-complete",
+        "phase": "screening",
+        "block": 5,
+        "pair": 5,
+        "order_in_pair": 2,
+        "arm": "A",
+        "timed": true,
+        "process": "fresh-owned-arm-process"
+      },
+      {
+        "id": "Q01.W06-large.qr-radius.app-recompute-complete.pair05.B",
+        "cell_id": "Q01.W06-large.qr-radius.app-recompute-complete",
+        "phase": "screening",
+        "block": 5,
+        "pair": 5,
+        "order_in_pair": 1,
+        "arm": "B",
+        "timed": true,
+        "process": "fresh-owned-arm-process"
+      },
+      {
+        "id": "Q01.W06-large.qr-radius.app-recompute-complete.pair05.A",
+        "cell_id": "Q01.W06-large.qr-radius.app-recompute-complete",
+        "phase": "screening",
+        "block": 5,
+        "pair": 5,
+        "order_in_pair": 2,
+        "arm": "A",
+        "timed": true,
+        "process": "fresh-owned-arm-process"
+      },
+      {
+        "id": "Q01.W05-ordinary.qr-radius.app-recompute-complete.pair05.B",
+        "cell_id": "Q01.W05-ordinary.qr-radius.app-recompute-complete",
+        "phase": "screening",
+        "block": 5,
+        "pair": 5,
+        "order_in_pair": 1,
+        "arm": "B",
+        "timed": true,
+        "process": "fresh-owned-arm-process"
+      },
+      {
+        "id": "Q01.W05-ordinary.qr-radius.app-recompute-complete.pair05.A",
+        "cell_id": "Q01.W05-ordinary.qr-radius.app-recompute-complete",
+        "phase": "screening",
+        "block": 5,
+        "pair": 5,
+        "order_in_pair": 2,
+        "arm": "A",
+        "timed": true,
+        "process": "fresh-owned-arm-process"
+      },
+      {
+        "id": "Q01.Q-symmetry.qr-symmetry.app-recompute-complete.pair05.B",
+        "cell_id": "Q01.Q-symmetry.qr-symmetry.app-recompute-complete",
+        "phase": "screening",
+        "block": 5,
+        "pair": 5,
+        "order_in_pair": 1,
+        "arm": "B",
+        "timed": true,
+        "process": "fresh-owned-arm-process"
+      },
+      {
+        "id": "Q01.Q-symmetry.qr-symmetry.app-recompute-complete.pair05.A",
+        "cell_id": "Q01.Q-symmetry.qr-symmetry.app-recompute-complete",
+        "phase": "screening",
+        "block": 5,
+        "pair": 5,
+        "order_in_pair": 2,
+        "arm": "A",
+        "timed": true,
+        "process": "fresh-owned-arm-process"
+      },
+      {
+        "id": "Q01.Q-aligned-slot.qr-aligned-slot.app-recompute-complete.pair05.B",
+        "cell_id": "Q01.Q-aligned-slot.qr-aligned-slot.app-recompute-complete",
+        "phase": "screening",
+        "block": 5,
+        "pair": 5,
+        "order_in_pair": 1,
+        "arm": "B",
+        "timed": true,
+        "process": "fresh-owned-arm-process"
+      },
+      {
+        "id": "Q01.Q-aligned-slot.qr-aligned-slot.app-recompute-complete.pair05.A",
+        "cell_id": "Q01.Q-aligned-slot.qr-aligned-slot.app-recompute-complete",
+        "phase": "screening",
+        "block": 5,
+        "pair": 5,
+        "order_in_pair": 2,
+        "arm": "A",
+        "timed": true,
+        "process": "fresh-owned-arm-process"
+      },
+      {
+        "id": "F01.W01-small.fillet-corner.preview-and-accepted-visible-result.warmup",
+        "cell_id": "F01.W01-small.fillet-corner.preview-and-accepted-visible-result",
+        "phase": "warmup",
+        "timed": false,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "F01.W01-small.pattern-plus1.preview-and-accepted-visible-result.warmup",
+        "cell_id": "F01.W01-small.pattern-plus1.preview-and-accepted-visible-result",
+        "phase": "warmup",
+        "timed": false,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "F01.W01-large.fillet-corner.preview-and-accepted-visible-result.warmup",
+        "cell_id": "F01.W01-large.fillet-corner.preview-and-accepted-visible-result",
+        "phase": "warmup",
+        "timed": false,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "F01.W01-large.boolean-cut.preview-and-accepted-visible-result.warmup",
+        "cell_id": "F01.W01-large.boolean-cut.preview-and-accepted-visible-result",
+        "phase": "warmup",
+        "timed": false,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "F01.W01-small.chamfer-corner.preview-and-accepted-visible-result.warmup",
+        "cell_id": "F01.W01-small.chamfer-corner.preview-and-accepted-visible-result",
+        "phase": "warmup",
+        "timed": false,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "F01.W01-small.boolean-cut.preview-and-accepted-visible-result.warmup",
+        "cell_id": "F01.W01-small.boolean-cut.preview-and-accepted-visible-result",
+        "phase": "warmup",
+        "timed": false,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "F01.W01-large.boolean-fuse.preview-and-accepted-visible-result.warmup",
+        "cell_id": "F01.W01-large.boolean-fuse.preview-and-accepted-visible-result",
+        "phase": "warmup",
+        "timed": false,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "F01.W01-large.chamfer-corner.preview-and-accepted-visible-result.warmup",
+        "cell_id": "F01.W01-large.chamfer-corner.preview-and-accepted-visible-result",
+        "phase": "warmup",
+        "timed": false,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "F01.W01-small.boolean-fuse.preview-and-accepted-visible-result.warmup",
+        "cell_id": "F01.W01-small.boolean-fuse.preview-and-accepted-visible-result",
+        "phase": "warmup",
+        "timed": false,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "F01.W01-large.pattern-plus1.preview-and-accepted-visible-result.warmup",
+        "cell_id": "F01.W01-large.pattern-plus1.preview-and-accepted-visible-result",
+        "phase": "warmup",
+        "timed": false,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "F01.W01-small.fillet-corner.preview-and-accepted-visible-result.attempt01",
+        "cell_id": "F01.W01-small.fillet-corner.preview-and-accepted-visible-result",
+        "phase": "screening",
+        "block": 1,
+        "attempt": 1,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "F01.W01-small.pattern-plus1.preview-and-accepted-visible-result.attempt01",
+        "cell_id": "F01.W01-small.pattern-plus1.preview-and-accepted-visible-result",
+        "phase": "screening",
+        "block": 1,
+        "attempt": 1,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "F01.W01-large.fillet-corner.preview-and-accepted-visible-result.attempt01",
+        "cell_id": "F01.W01-large.fillet-corner.preview-and-accepted-visible-result",
+        "phase": "screening",
+        "block": 1,
+        "attempt": 1,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "F01.W01-large.boolean-cut.preview-and-accepted-visible-result.attempt01",
+        "cell_id": "F01.W01-large.boolean-cut.preview-and-accepted-visible-result",
+        "phase": "screening",
+        "block": 1,
+        "attempt": 1,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "F01.W01-small.chamfer-corner.preview-and-accepted-visible-result.attempt01",
+        "cell_id": "F01.W01-small.chamfer-corner.preview-and-accepted-visible-result",
+        "phase": "screening",
+        "block": 1,
+        "attempt": 1,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "F01.W01-small.boolean-cut.preview-and-accepted-visible-result.attempt01",
+        "cell_id": "F01.W01-small.boolean-cut.preview-and-accepted-visible-result",
+        "phase": "screening",
+        "block": 1,
+        "attempt": 1,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "F01.W01-large.boolean-fuse.preview-and-accepted-visible-result.attempt01",
+        "cell_id": "F01.W01-large.boolean-fuse.preview-and-accepted-visible-result",
+        "phase": "screening",
+        "block": 1,
+        "attempt": 1,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "F01.W01-large.chamfer-corner.preview-and-accepted-visible-result.attempt01",
+        "cell_id": "F01.W01-large.chamfer-corner.preview-and-accepted-visible-result",
+        "phase": "screening",
+        "block": 1,
+        "attempt": 1,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "F01.W01-small.boolean-fuse.preview-and-accepted-visible-result.attempt01",
+        "cell_id": "F01.W01-small.boolean-fuse.preview-and-accepted-visible-result",
+        "phase": "screening",
+        "block": 1,
+        "attempt": 1,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "F01.W01-large.pattern-plus1.preview-and-accepted-visible-result.attempt01",
+        "cell_id": "F01.W01-large.pattern-plus1.preview-and-accepted-visible-result",
+        "phase": "screening",
+        "block": 1,
+        "attempt": 1,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "F01.W01-small.fillet-corner.preview-and-accepted-visible-result.attempt02",
+        "cell_id": "F01.W01-small.fillet-corner.preview-and-accepted-visible-result",
+        "phase": "screening",
+        "block": 2,
+        "attempt": 2,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "F01.W01-large.pattern-plus1.preview-and-accepted-visible-result.attempt02",
+        "cell_id": "F01.W01-large.pattern-plus1.preview-and-accepted-visible-result",
+        "phase": "screening",
+        "block": 2,
+        "attempt": 2,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "F01.W01-small.boolean-fuse.preview-and-accepted-visible-result.attempt02",
+        "cell_id": "F01.W01-small.boolean-fuse.preview-and-accepted-visible-result",
+        "phase": "screening",
+        "block": 2,
+        "attempt": 2,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "F01.W01-large.chamfer-corner.preview-and-accepted-visible-result.attempt02",
+        "cell_id": "F01.W01-large.chamfer-corner.preview-and-accepted-visible-result",
+        "phase": "screening",
+        "block": 2,
+        "attempt": 2,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "F01.W01-large.boolean-fuse.preview-and-accepted-visible-result.attempt02",
+        "cell_id": "F01.W01-large.boolean-fuse.preview-and-accepted-visible-result",
+        "phase": "screening",
+        "block": 2,
+        "attempt": 2,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "F01.W01-small.boolean-cut.preview-and-accepted-visible-result.attempt02",
+        "cell_id": "F01.W01-small.boolean-cut.preview-and-accepted-visible-result",
+        "phase": "screening",
+        "block": 2,
+        "attempt": 2,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "F01.W01-small.chamfer-corner.preview-and-accepted-visible-result.attempt02",
+        "cell_id": "F01.W01-small.chamfer-corner.preview-and-accepted-visible-result",
+        "phase": "screening",
+        "block": 2,
+        "attempt": 2,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "F01.W01-large.boolean-cut.preview-and-accepted-visible-result.attempt02",
+        "cell_id": "F01.W01-large.boolean-cut.preview-and-accepted-visible-result",
+        "phase": "screening",
+        "block": 2,
+        "attempt": 2,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "F01.W01-large.fillet-corner.preview-and-accepted-visible-result.attempt02",
+        "cell_id": "F01.W01-large.fillet-corner.preview-and-accepted-visible-result",
+        "phase": "screening",
+        "block": 2,
+        "attempt": 2,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "F01.W01-small.pattern-plus1.preview-and-accepted-visible-result.attempt02",
+        "cell_id": "F01.W01-small.pattern-plus1.preview-and-accepted-visible-result",
+        "phase": "screening",
+        "block": 2,
+        "attempt": 2,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "F01.W01-large.fillet-corner.preview-and-accepted-visible-result.attempt03",
+        "cell_id": "F01.W01-large.fillet-corner.preview-and-accepted-visible-result",
+        "phase": "screening",
+        "block": 3,
+        "attempt": 3,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "F01.W01-large.boolean-cut.preview-and-accepted-visible-result.attempt03",
+        "cell_id": "F01.W01-large.boolean-cut.preview-and-accepted-visible-result",
+        "phase": "screening",
+        "block": 3,
+        "attempt": 3,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "F01.W01-small.chamfer-corner.preview-and-accepted-visible-result.attempt03",
+        "cell_id": "F01.W01-small.chamfer-corner.preview-and-accepted-visible-result",
+        "phase": "screening",
+        "block": 3,
+        "attempt": 3,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "F01.W01-small.boolean-cut.preview-and-accepted-visible-result.attempt03",
+        "cell_id": "F01.W01-small.boolean-cut.preview-and-accepted-visible-result",
+        "phase": "screening",
+        "block": 3,
+        "attempt": 3,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "F01.W01-large.boolean-fuse.preview-and-accepted-visible-result.attempt03",
+        "cell_id": "F01.W01-large.boolean-fuse.preview-and-accepted-visible-result",
+        "phase": "screening",
+        "block": 3,
+        "attempt": 3,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "F01.W01-large.chamfer-corner.preview-and-accepted-visible-result.attempt03",
+        "cell_id": "F01.W01-large.chamfer-corner.preview-and-accepted-visible-result",
+        "phase": "screening",
+        "block": 3,
+        "attempt": 3,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "F01.W01-small.boolean-fuse.preview-and-accepted-visible-result.attempt03",
+        "cell_id": "F01.W01-small.boolean-fuse.preview-and-accepted-visible-result",
+        "phase": "screening",
+        "block": 3,
+        "attempt": 3,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "F01.W01-large.pattern-plus1.preview-and-accepted-visible-result.attempt03",
+        "cell_id": "F01.W01-large.pattern-plus1.preview-and-accepted-visible-result",
+        "phase": "screening",
+        "block": 3,
+        "attempt": 3,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "F01.W01-small.fillet-corner.preview-and-accepted-visible-result.attempt03",
+        "cell_id": "F01.W01-small.fillet-corner.preview-and-accepted-visible-result",
+        "phase": "screening",
+        "block": 3,
+        "attempt": 3,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "F01.W01-small.pattern-plus1.preview-and-accepted-visible-result.attempt03",
+        "cell_id": "F01.W01-small.pattern-plus1.preview-and-accepted-visible-result",
+        "phase": "screening",
+        "block": 3,
+        "attempt": 3,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "F01.W01-large.fillet-corner.preview-and-accepted-visible-result.attempt04",
+        "cell_id": "F01.W01-large.fillet-corner.preview-and-accepted-visible-result",
+        "phase": "screening",
+        "block": 4,
+        "attempt": 4,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "F01.W01-small.pattern-plus1.preview-and-accepted-visible-result.attempt04",
+        "cell_id": "F01.W01-small.pattern-plus1.preview-and-accepted-visible-result",
+        "phase": "screening",
+        "block": 4,
+        "attempt": 4,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "F01.W01-small.fillet-corner.preview-and-accepted-visible-result.attempt04",
+        "cell_id": "F01.W01-small.fillet-corner.preview-and-accepted-visible-result",
+        "phase": "screening",
+        "block": 4,
+        "attempt": 4,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "F01.W01-large.pattern-plus1.preview-and-accepted-visible-result.attempt04",
+        "cell_id": "F01.W01-large.pattern-plus1.preview-and-accepted-visible-result",
+        "phase": "screening",
+        "block": 4,
+        "attempt": 4,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "F01.W01-small.boolean-fuse.preview-and-accepted-visible-result.attempt04",
+        "cell_id": "F01.W01-small.boolean-fuse.preview-and-accepted-visible-result",
+        "phase": "screening",
+        "block": 4,
+        "attempt": 4,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "F01.W01-large.chamfer-corner.preview-and-accepted-visible-result.attempt04",
+        "cell_id": "F01.W01-large.chamfer-corner.preview-and-accepted-visible-result",
+        "phase": "screening",
+        "block": 4,
+        "attempt": 4,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "F01.W01-large.boolean-fuse.preview-and-accepted-visible-result.attempt04",
+        "cell_id": "F01.W01-large.boolean-fuse.preview-and-accepted-visible-result",
+        "phase": "screening",
+        "block": 4,
+        "attempt": 4,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "F01.W01-small.boolean-cut.preview-and-accepted-visible-result.attempt04",
+        "cell_id": "F01.W01-small.boolean-cut.preview-and-accepted-visible-result",
+        "phase": "screening",
+        "block": 4,
+        "attempt": 4,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "F01.W01-small.chamfer-corner.preview-and-accepted-visible-result.attempt04",
+        "cell_id": "F01.W01-small.chamfer-corner.preview-and-accepted-visible-result",
+        "phase": "screening",
+        "block": 4,
+        "attempt": 4,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "F01.W01-large.boolean-cut.preview-and-accepted-visible-result.attempt04",
+        "cell_id": "F01.W01-large.boolean-cut.preview-and-accepted-visible-result",
+        "phase": "screening",
+        "block": 4,
+        "attempt": 4,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "F01.W01-small.chamfer-corner.preview-and-accepted-visible-result.attempt05",
+        "cell_id": "F01.W01-small.chamfer-corner.preview-and-accepted-visible-result",
+        "phase": "screening",
+        "block": 5,
+        "attempt": 5,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "F01.W01-small.boolean-cut.preview-and-accepted-visible-result.attempt05",
+        "cell_id": "F01.W01-small.boolean-cut.preview-and-accepted-visible-result",
+        "phase": "screening",
+        "block": 5,
+        "attempt": 5,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "F01.W01-large.boolean-fuse.preview-and-accepted-visible-result.attempt05",
+        "cell_id": "F01.W01-large.boolean-fuse.preview-and-accepted-visible-result",
+        "phase": "screening",
+        "block": 5,
+        "attempt": 5,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "F01.W01-large.chamfer-corner.preview-and-accepted-visible-result.attempt05",
+        "cell_id": "F01.W01-large.chamfer-corner.preview-and-accepted-visible-result",
+        "phase": "screening",
+        "block": 5,
+        "attempt": 5,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "F01.W01-small.boolean-fuse.preview-and-accepted-visible-result.attempt05",
+        "cell_id": "F01.W01-small.boolean-fuse.preview-and-accepted-visible-result",
+        "phase": "screening",
+        "block": 5,
+        "attempt": 5,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "F01.W01-large.pattern-plus1.preview-and-accepted-visible-result.attempt05",
+        "cell_id": "F01.W01-large.pattern-plus1.preview-and-accepted-visible-result",
+        "phase": "screening",
+        "block": 5,
+        "attempt": 5,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "F01.W01-small.fillet-corner.preview-and-accepted-visible-result.attempt05",
+        "cell_id": "F01.W01-small.fillet-corner.preview-and-accepted-visible-result",
+        "phase": "screening",
+        "block": 5,
+        "attempt": 5,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "F01.W01-small.pattern-plus1.preview-and-accepted-visible-result.attempt05",
+        "cell_id": "F01.W01-small.pattern-plus1.preview-and-accepted-visible-result",
+        "phase": "screening",
+        "block": 5,
+        "attempt": 5,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "F01.W01-large.fillet-corner.preview-and-accepted-visible-result.attempt05",
+        "cell_id": "F01.W01-large.fillet-corner.preview-and-accepted-visible-result",
+        "phase": "screening",
+        "block": 5,
+        "attempt": 5,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "F01.W01-large.boolean-cut.preview-and-accepted-visible-result.attempt05",
+        "cell_id": "F01.W01-large.boolean-cut.preview-and-accepted-visible-result",
+        "phase": "screening",
+        "block": 5,
+        "attempt": 5,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "A01.W03-large.assembly-revolute10.correct-visible-result.warmup",
+        "cell_id": "A01.W03-large.assembly-revolute10.correct-visible-result",
+        "phase": "warmup",
+        "timed": false,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "A01.W03-small.assembly-source12.correct-visible-result.warmup",
+        "cell_id": "A01.W03-small.assembly-source12.correct-visible-result",
+        "phase": "warmup",
+        "timed": false,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "A01.W03-small.assembly-revolute10.correct-visible-result.warmup",
+        "cell_id": "A01.W03-small.assembly-revolute10.correct-visible-result",
+        "phase": "warmup",
+        "timed": false,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "A01.W03-large.assembly-source12.correct-visible-result.warmup",
+        "cell_id": "A01.W03-large.assembly-source12.correct-visible-result",
+        "phase": "warmup",
+        "timed": false,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "A01.W03-large.assembly-revolute10.correct-visible-result.attempt01",
+        "cell_id": "A01.W03-large.assembly-revolute10.correct-visible-result",
+        "phase": "screening",
+        "block": 1,
+        "attempt": 1,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "A01.W03-small.assembly-source12.correct-visible-result.attempt01",
+        "cell_id": "A01.W03-small.assembly-source12.correct-visible-result",
+        "phase": "screening",
+        "block": 1,
+        "attempt": 1,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "A01.W03-small.assembly-revolute10.correct-visible-result.attempt01",
+        "cell_id": "A01.W03-small.assembly-revolute10.correct-visible-result",
+        "phase": "screening",
+        "block": 1,
+        "attempt": 1,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "A01.W03-large.assembly-source12.correct-visible-result.attempt01",
+        "cell_id": "A01.W03-large.assembly-source12.correct-visible-result",
+        "phase": "screening",
+        "block": 1,
+        "attempt": 1,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "A01.W03-large.assembly-revolute10.correct-visible-result.attempt02",
+        "cell_id": "A01.W03-large.assembly-revolute10.correct-visible-result",
+        "phase": "screening",
+        "block": 2,
+        "attempt": 2,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "A01.W03-large.assembly-source12.correct-visible-result.attempt02",
+        "cell_id": "A01.W03-large.assembly-source12.correct-visible-result",
+        "phase": "screening",
+        "block": 2,
+        "attempt": 2,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "A01.W03-small.assembly-revolute10.correct-visible-result.attempt02",
+        "cell_id": "A01.W03-small.assembly-revolute10.correct-visible-result",
+        "phase": "screening",
+        "block": 2,
+        "attempt": 2,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "A01.W03-small.assembly-source12.correct-visible-result.attempt02",
+        "cell_id": "A01.W03-small.assembly-source12.correct-visible-result",
+        "phase": "screening",
+        "block": 2,
+        "attempt": 2,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "A01.W03-small.assembly-revolute10.correct-visible-result.attempt03",
+        "cell_id": "A01.W03-small.assembly-revolute10.correct-visible-result",
+        "phase": "screening",
+        "block": 3,
+        "attempt": 3,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "A01.W03-large.assembly-source12.correct-visible-result.attempt03",
+        "cell_id": "A01.W03-large.assembly-source12.correct-visible-result",
+        "phase": "screening",
+        "block": 3,
+        "attempt": 3,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "A01.W03-large.assembly-revolute10.correct-visible-result.attempt03",
+        "cell_id": "A01.W03-large.assembly-revolute10.correct-visible-result",
+        "phase": "screening",
+        "block": 3,
+        "attempt": 3,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "A01.W03-small.assembly-source12.correct-visible-result.attempt03",
+        "cell_id": "A01.W03-small.assembly-source12.correct-visible-result",
+        "phase": "screening",
+        "block": 3,
+        "attempt": 3,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "A01.W03-small.assembly-revolute10.correct-visible-result.attempt04",
+        "cell_id": "A01.W03-small.assembly-revolute10.correct-visible-result",
+        "phase": "screening",
+        "block": 4,
+        "attempt": 4,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "A01.W03-small.assembly-source12.correct-visible-result.attempt04",
+        "cell_id": "A01.W03-small.assembly-source12.correct-visible-result",
+        "phase": "screening",
+        "block": 4,
+        "attempt": 4,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "A01.W03-large.assembly-revolute10.correct-visible-result.attempt04",
+        "cell_id": "A01.W03-large.assembly-revolute10.correct-visible-result",
+        "phase": "screening",
+        "block": 4,
+        "attempt": 4,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "A01.W03-large.assembly-source12.correct-visible-result.attempt04",
+        "cell_id": "A01.W03-large.assembly-source12.correct-visible-result",
+        "phase": "screening",
+        "block": 4,
+        "attempt": 4,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "A01.W03-large.assembly-revolute10.correct-visible-result.attempt05",
+        "cell_id": "A01.W03-large.assembly-revolute10.correct-visible-result",
+        "phase": "screening",
+        "block": 5,
+        "attempt": 5,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "A01.W03-small.assembly-source12.correct-visible-result.attempt05",
+        "cell_id": "A01.W03-small.assembly-source12.correct-visible-result",
+        "phase": "screening",
+        "block": 5,
+        "attempt": 5,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "A01.W03-small.assembly-revolute10.correct-visible-result.attempt05",
+        "cell_id": "A01.W03-small.assembly-revolute10.correct-visible-result",
+        "phase": "screening",
+        "block": 5,
+        "attempt": 5,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "A01.W03-large.assembly-source12.correct-visible-result.attempt05",
+        "cell_id": "A01.W03-large.assembly-source12.correct-visible-result",
+        "phase": "screening",
+        "block": 5,
+        "attempt": 5,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "V01.W04-large.viewport-orbit.source-qualified-frame-witness.fixed-rate-60Hz.warmup",
+        "cell_id": "V01.W04-large.viewport-orbit.source-qualified-frame-witness.fixed-rate-60Hz",
+        "phase": "warmup",
+        "timed": false,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "V01.W03-tree-large.viewport-orbit.source-qualified-frame-witness.fixed-rate-60Hz.warmup",
+        "cell_id": "V01.W03-tree-large.viewport-orbit.source-qualified-frame-witness.fixed-rate-60Hz",
+        "phase": "warmup",
+        "timed": false,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "V01.W04-large.viewport-pick-top.accepted-selection-highlight.warmup",
+        "cell_id": "V01.W04-large.viewport-pick-top.accepted-selection-highlight",
+        "phase": "warmup",
+        "timed": false,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "V01.W04-large.viewport-orbit.source-qualified-frame-witness.completion-gated.warmup",
+        "cell_id": "V01.W04-large.viewport-orbit.source-qualified-frame-witness.completion-gated",
+        "phase": "warmup",
+        "timed": false,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "V01.W03-large.viewport-orbit.source-qualified-frame-witness.completion-gated.warmup",
+        "cell_id": "V01.W03-large.viewport-orbit.source-qualified-frame-witness.completion-gated",
+        "phase": "warmup",
+        "timed": false,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "V01.W04-large.viewport-pick-top.preselection-highlight.warmup",
+        "cell_id": "V01.W04-large.viewport-pick-top.preselection-highlight",
+        "phase": "warmup",
+        "timed": false,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "V01.W04-small.viewport-orbit.source-qualified-frame-witness.completion-gated.warmup",
+        "cell_id": "V01.W04-small.viewport-orbit.source-qualified-frame-witness.completion-gated",
+        "phase": "warmup",
+        "timed": false,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "V01.W04-small.viewport-orbit.source-qualified-frame-witness.fixed-rate-60Hz.warmup",
+        "cell_id": "V01.W04-small.viewport-orbit.source-qualified-frame-witness.fixed-rate-60Hz",
+        "phase": "warmup",
+        "timed": false,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "V01.W04-large.viewport-orbit.source-qualified-frame-witness.fixed-rate-60Hz.attempt01",
+        "cell_id": "V01.W04-large.viewport-orbit.source-qualified-frame-witness.fixed-rate-60Hz",
+        "phase": "screening",
+        "block": 1,
+        "attempt": 1,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "V01.W03-tree-large.viewport-orbit.source-qualified-frame-witness.fixed-rate-60Hz.attempt01",
+        "cell_id": "V01.W03-tree-large.viewport-orbit.source-qualified-frame-witness.fixed-rate-60Hz",
+        "phase": "screening",
+        "block": 1,
+        "attempt": 1,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "V01.W04-large.viewport-pick-top.accepted-selection-highlight.attempt01",
+        "cell_id": "V01.W04-large.viewport-pick-top.accepted-selection-highlight",
+        "phase": "screening",
+        "block": 1,
+        "attempt": 1,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "V01.W04-large.viewport-orbit.source-qualified-frame-witness.completion-gated.attempt01",
+        "cell_id": "V01.W04-large.viewport-orbit.source-qualified-frame-witness.completion-gated",
+        "phase": "screening",
+        "block": 1,
+        "attempt": 1,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "V01.W03-large.viewport-orbit.source-qualified-frame-witness.completion-gated.attempt01",
+        "cell_id": "V01.W03-large.viewport-orbit.source-qualified-frame-witness.completion-gated",
+        "phase": "screening",
+        "block": 1,
+        "attempt": 1,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "V01.W04-large.viewport-pick-top.preselection-highlight.attempt01",
+        "cell_id": "V01.W04-large.viewport-pick-top.preselection-highlight",
+        "phase": "screening",
+        "block": 1,
+        "attempt": 1,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "V01.W04-small.viewport-orbit.source-qualified-frame-witness.completion-gated.attempt01",
+        "cell_id": "V01.W04-small.viewport-orbit.source-qualified-frame-witness.completion-gated",
+        "phase": "screening",
+        "block": 1,
+        "attempt": 1,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "V01.W04-small.viewport-orbit.source-qualified-frame-witness.fixed-rate-60Hz.attempt01",
+        "cell_id": "V01.W04-small.viewport-orbit.source-qualified-frame-witness.fixed-rate-60Hz",
+        "phase": "screening",
+        "block": 1,
+        "attempt": 1,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "V01.W04-large.viewport-orbit.source-qualified-frame-witness.fixed-rate-60Hz.attempt02",
+        "cell_id": "V01.W04-large.viewport-orbit.source-qualified-frame-witness.fixed-rate-60Hz",
+        "phase": "screening",
+        "block": 2,
+        "attempt": 2,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "V01.W04-small.viewport-orbit.source-qualified-frame-witness.fixed-rate-60Hz.attempt02",
+        "cell_id": "V01.W04-small.viewport-orbit.source-qualified-frame-witness.fixed-rate-60Hz",
+        "phase": "screening",
+        "block": 2,
+        "attempt": 2,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "V01.W04-small.viewport-orbit.source-qualified-frame-witness.completion-gated.attempt02",
+        "cell_id": "V01.W04-small.viewport-orbit.source-qualified-frame-witness.completion-gated",
+        "phase": "screening",
+        "block": 2,
+        "attempt": 2,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "V01.W04-large.viewport-pick-top.preselection-highlight.attempt02",
+        "cell_id": "V01.W04-large.viewport-pick-top.preselection-highlight",
+        "phase": "screening",
+        "block": 2,
+        "attempt": 2,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "V01.W03-large.viewport-orbit.source-qualified-frame-witness.completion-gated.attempt02",
+        "cell_id": "V01.W03-large.viewport-orbit.source-qualified-frame-witness.completion-gated",
+        "phase": "screening",
+        "block": 2,
+        "attempt": 2,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "V01.W04-large.viewport-orbit.source-qualified-frame-witness.completion-gated.attempt02",
+        "cell_id": "V01.W04-large.viewport-orbit.source-qualified-frame-witness.completion-gated",
+        "phase": "screening",
+        "block": 2,
+        "attempt": 2,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "V01.W04-large.viewport-pick-top.accepted-selection-highlight.attempt02",
+        "cell_id": "V01.W04-large.viewport-pick-top.accepted-selection-highlight",
+        "phase": "screening",
+        "block": 2,
+        "attempt": 2,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "V01.W03-tree-large.viewport-orbit.source-qualified-frame-witness.fixed-rate-60Hz.attempt02",
+        "cell_id": "V01.W03-tree-large.viewport-orbit.source-qualified-frame-witness.fixed-rate-60Hz",
+        "phase": "screening",
+        "block": 2,
+        "attempt": 2,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "V01.W04-large.viewport-pick-top.accepted-selection-highlight.attempt03",
+        "cell_id": "V01.W04-large.viewport-pick-top.accepted-selection-highlight",
+        "phase": "screening",
+        "block": 3,
+        "attempt": 3,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "V01.W04-large.viewport-orbit.source-qualified-frame-witness.completion-gated.attempt03",
+        "cell_id": "V01.W04-large.viewport-orbit.source-qualified-frame-witness.completion-gated",
+        "phase": "screening",
+        "block": 3,
+        "attempt": 3,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "V01.W03-large.viewport-orbit.source-qualified-frame-witness.completion-gated.attempt03",
+        "cell_id": "V01.W03-large.viewport-orbit.source-qualified-frame-witness.completion-gated",
+        "phase": "screening",
+        "block": 3,
+        "attempt": 3,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "V01.W04-large.viewport-pick-top.preselection-highlight.attempt03",
+        "cell_id": "V01.W04-large.viewport-pick-top.preselection-highlight",
+        "phase": "screening",
+        "block": 3,
+        "attempt": 3,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "V01.W04-small.viewport-orbit.source-qualified-frame-witness.completion-gated.attempt03",
+        "cell_id": "V01.W04-small.viewport-orbit.source-qualified-frame-witness.completion-gated",
+        "phase": "screening",
+        "block": 3,
+        "attempt": 3,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "V01.W04-small.viewport-orbit.source-qualified-frame-witness.fixed-rate-60Hz.attempt03",
+        "cell_id": "V01.W04-small.viewport-orbit.source-qualified-frame-witness.fixed-rate-60Hz",
+        "phase": "screening",
+        "block": 3,
+        "attempt": 3,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "V01.W04-large.viewport-orbit.source-qualified-frame-witness.fixed-rate-60Hz.attempt03",
+        "cell_id": "V01.W04-large.viewport-orbit.source-qualified-frame-witness.fixed-rate-60Hz",
+        "phase": "screening",
+        "block": 3,
+        "attempt": 3,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "V01.W03-tree-large.viewport-orbit.source-qualified-frame-witness.fixed-rate-60Hz.attempt03",
+        "cell_id": "V01.W03-tree-large.viewport-orbit.source-qualified-frame-witness.fixed-rate-60Hz",
+        "phase": "screening",
+        "block": 3,
+        "attempt": 3,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "V01.W04-large.viewport-pick-top.accepted-selection-highlight.attempt04",
+        "cell_id": "V01.W04-large.viewport-pick-top.accepted-selection-highlight",
+        "phase": "screening",
+        "block": 4,
+        "attempt": 4,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "V01.W03-tree-large.viewport-orbit.source-qualified-frame-witness.fixed-rate-60Hz.attempt04",
+        "cell_id": "V01.W03-tree-large.viewport-orbit.source-qualified-frame-witness.fixed-rate-60Hz",
+        "phase": "screening",
+        "block": 4,
+        "attempt": 4,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "V01.W04-large.viewport-orbit.source-qualified-frame-witness.fixed-rate-60Hz.attempt04",
+        "cell_id": "V01.W04-large.viewport-orbit.source-qualified-frame-witness.fixed-rate-60Hz",
+        "phase": "screening",
+        "block": 4,
+        "attempt": 4,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "V01.W04-small.viewport-orbit.source-qualified-frame-witness.fixed-rate-60Hz.attempt04",
+        "cell_id": "V01.W04-small.viewport-orbit.source-qualified-frame-witness.fixed-rate-60Hz",
+        "phase": "screening",
+        "block": 4,
+        "attempt": 4,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "V01.W04-small.viewport-orbit.source-qualified-frame-witness.completion-gated.attempt04",
+        "cell_id": "V01.W04-small.viewport-orbit.source-qualified-frame-witness.completion-gated",
+        "phase": "screening",
+        "block": 4,
+        "attempt": 4,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "V01.W04-large.viewport-pick-top.preselection-highlight.attempt04",
+        "cell_id": "V01.W04-large.viewport-pick-top.preselection-highlight",
+        "phase": "screening",
+        "block": 4,
+        "attempt": 4,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "V01.W03-large.viewport-orbit.source-qualified-frame-witness.completion-gated.attempt04",
+        "cell_id": "V01.W03-large.viewport-orbit.source-qualified-frame-witness.completion-gated",
+        "phase": "screening",
+        "block": 4,
+        "attempt": 4,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "V01.W04-large.viewport-orbit.source-qualified-frame-witness.completion-gated.attempt04",
+        "cell_id": "V01.W04-large.viewport-orbit.source-qualified-frame-witness.completion-gated",
+        "phase": "screening",
+        "block": 4,
+        "attempt": 4,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "V01.W03-large.viewport-orbit.source-qualified-frame-witness.completion-gated.attempt05",
+        "cell_id": "V01.W03-large.viewport-orbit.source-qualified-frame-witness.completion-gated",
+        "phase": "screening",
+        "block": 5,
+        "attempt": 5,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "V01.W04-large.viewport-pick-top.preselection-highlight.attempt05",
+        "cell_id": "V01.W04-large.viewport-pick-top.preselection-highlight",
+        "phase": "screening",
+        "block": 5,
+        "attempt": 5,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "V01.W04-small.viewport-orbit.source-qualified-frame-witness.completion-gated.attempt05",
+        "cell_id": "V01.W04-small.viewport-orbit.source-qualified-frame-witness.completion-gated",
+        "phase": "screening",
+        "block": 5,
+        "attempt": 5,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "V01.W04-small.viewport-orbit.source-qualified-frame-witness.fixed-rate-60Hz.attempt05",
+        "cell_id": "V01.W04-small.viewport-orbit.source-qualified-frame-witness.fixed-rate-60Hz",
+        "phase": "screening",
+        "block": 5,
+        "attempt": 5,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "V01.W04-large.viewport-orbit.source-qualified-frame-witness.fixed-rate-60Hz.attempt05",
+        "cell_id": "V01.W04-large.viewport-orbit.source-qualified-frame-witness.fixed-rate-60Hz",
+        "phase": "screening",
+        "block": 5,
+        "attempt": 5,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "V01.W03-tree-large.viewport-orbit.source-qualified-frame-witness.fixed-rate-60Hz.attempt05",
+        "cell_id": "V01.W03-tree-large.viewport-orbit.source-qualified-frame-witness.fixed-rate-60Hz",
+        "phase": "screening",
+        "block": 5,
+        "attempt": 5,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "V01.W04-large.viewport-pick-top.accepted-selection-highlight.attempt05",
+        "cell_id": "V01.W04-large.viewport-pick-top.accepted-selection-highlight",
+        "phase": "screening",
+        "block": 5,
+        "attempt": 5,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "V01.W04-large.viewport-orbit.source-qualified-frame-witness.completion-gated.attempt05",
+        "cell_id": "V01.W04-large.viewport-orbit.source-qualified-frame-witness.completion-gated",
+        "phase": "screening",
+        "block": 5,
+        "attempt": 5,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "T01.W03-tree-large.tree-delete-undo.correct-tree-model-result.warmup",
+        "cell_id": "T01.W03-tree-large.tree-delete-undo.correct-tree-model-result",
+        "phase": "warmup",
+        "timed": false,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "T01.W03-tree-small.tree-populate.correct-tree-model-result.warmup",
+        "cell_id": "T01.W03-tree-small.tree-populate.correct-tree-model-result",
+        "phase": "warmup",
+        "timed": false,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "T01.W03-tree-small.tree-select.correct-tree-model-result.warmup",
+        "cell_id": "T01.W03-tree-small.tree-select.correct-tree-model-result",
+        "phase": "warmup",
+        "timed": false,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "T01.W03-tree-small.tree-expand-collapse.correct-tree-model-result.warmup",
+        "cell_id": "T01.W03-tree-small.tree-expand-collapse.correct-tree-model-result",
+        "phase": "warmup",
+        "timed": false,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "T01.W03-tree-large.tree-expand-collapse.correct-tree-model-result.warmup",
+        "cell_id": "T01.W03-tree-large.tree-expand-collapse.correct-tree-model-result",
+        "phase": "warmup",
+        "timed": false,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "T01.W03-tree-small.tree-delete-undo.correct-tree-model-result.warmup",
+        "cell_id": "T01.W03-tree-small.tree-delete-undo.correct-tree-model-result",
+        "phase": "warmup",
+        "timed": false,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "T01.W03-tree-large.tree-select.correct-tree-model-result.warmup",
+        "cell_id": "T01.W03-tree-large.tree-select.correct-tree-model-result",
+        "phase": "warmup",
+        "timed": false,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "T01.W03-tree-large.tree-populate.correct-tree-model-result.warmup",
+        "cell_id": "T01.W03-tree-large.tree-populate.correct-tree-model-result",
+        "phase": "warmup",
+        "timed": false,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "T01.W03-tree-large.tree-delete-undo.correct-tree-model-result.attempt01",
+        "cell_id": "T01.W03-tree-large.tree-delete-undo.correct-tree-model-result",
+        "phase": "screening",
+        "block": 1,
+        "attempt": 1,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "T01.W03-tree-small.tree-populate.correct-tree-model-result.attempt01",
+        "cell_id": "T01.W03-tree-small.tree-populate.correct-tree-model-result",
+        "phase": "screening",
+        "block": 1,
+        "attempt": 1,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "T01.W03-tree-small.tree-select.correct-tree-model-result.attempt01",
+        "cell_id": "T01.W03-tree-small.tree-select.correct-tree-model-result",
+        "phase": "screening",
+        "block": 1,
+        "attempt": 1,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "T01.W03-tree-small.tree-expand-collapse.correct-tree-model-result.attempt01",
+        "cell_id": "T01.W03-tree-small.tree-expand-collapse.correct-tree-model-result",
+        "phase": "screening",
+        "block": 1,
+        "attempt": 1,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "T01.W03-tree-large.tree-expand-collapse.correct-tree-model-result.attempt01",
+        "cell_id": "T01.W03-tree-large.tree-expand-collapse.correct-tree-model-result",
+        "phase": "screening",
+        "block": 1,
+        "attempt": 1,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "T01.W03-tree-small.tree-delete-undo.correct-tree-model-result.attempt01",
+        "cell_id": "T01.W03-tree-small.tree-delete-undo.correct-tree-model-result",
+        "phase": "screening",
+        "block": 1,
+        "attempt": 1,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "T01.W03-tree-large.tree-select.correct-tree-model-result.attempt01",
+        "cell_id": "T01.W03-tree-large.tree-select.correct-tree-model-result",
+        "phase": "screening",
+        "block": 1,
+        "attempt": 1,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "T01.W03-tree-large.tree-populate.correct-tree-model-result.attempt01",
+        "cell_id": "T01.W03-tree-large.tree-populate.correct-tree-model-result",
+        "phase": "screening",
+        "block": 1,
+        "attempt": 1,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "T01.W03-tree-large.tree-delete-undo.correct-tree-model-result.attempt02",
+        "cell_id": "T01.W03-tree-large.tree-delete-undo.correct-tree-model-result",
+        "phase": "screening",
+        "block": 2,
+        "attempt": 2,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "T01.W03-tree-large.tree-populate.correct-tree-model-result.attempt02",
+        "cell_id": "T01.W03-tree-large.tree-populate.correct-tree-model-result",
+        "phase": "screening",
+        "block": 2,
+        "attempt": 2,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "T01.W03-tree-large.tree-select.correct-tree-model-result.attempt02",
+        "cell_id": "T01.W03-tree-large.tree-select.correct-tree-model-result",
+        "phase": "screening",
+        "block": 2,
+        "attempt": 2,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "T01.W03-tree-small.tree-delete-undo.correct-tree-model-result.attempt02",
+        "cell_id": "T01.W03-tree-small.tree-delete-undo.correct-tree-model-result",
+        "phase": "screening",
+        "block": 2,
+        "attempt": 2,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "T01.W03-tree-large.tree-expand-collapse.correct-tree-model-result.attempt02",
+        "cell_id": "T01.W03-tree-large.tree-expand-collapse.correct-tree-model-result",
+        "phase": "screening",
+        "block": 2,
+        "attempt": 2,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "T01.W03-tree-small.tree-expand-collapse.correct-tree-model-result.attempt02",
+        "cell_id": "T01.W03-tree-small.tree-expand-collapse.correct-tree-model-result",
+        "phase": "screening",
+        "block": 2,
+        "attempt": 2,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "T01.W03-tree-small.tree-select.correct-tree-model-result.attempt02",
+        "cell_id": "T01.W03-tree-small.tree-select.correct-tree-model-result",
+        "phase": "screening",
+        "block": 2,
+        "attempt": 2,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "T01.W03-tree-small.tree-populate.correct-tree-model-result.attempt02",
+        "cell_id": "T01.W03-tree-small.tree-populate.correct-tree-model-result",
+        "phase": "screening",
+        "block": 2,
+        "attempt": 2,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "T01.W03-tree-small.tree-select.correct-tree-model-result.attempt03",
+        "cell_id": "T01.W03-tree-small.tree-select.correct-tree-model-result",
+        "phase": "screening",
+        "block": 3,
+        "attempt": 3,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "T01.W03-tree-small.tree-expand-collapse.correct-tree-model-result.attempt03",
+        "cell_id": "T01.W03-tree-small.tree-expand-collapse.correct-tree-model-result",
+        "phase": "screening",
+        "block": 3,
+        "attempt": 3,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "T01.W03-tree-large.tree-expand-collapse.correct-tree-model-result.attempt03",
+        "cell_id": "T01.W03-tree-large.tree-expand-collapse.correct-tree-model-result",
+        "phase": "screening",
+        "block": 3,
+        "attempt": 3,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "T01.W03-tree-small.tree-delete-undo.correct-tree-model-result.attempt03",
+        "cell_id": "T01.W03-tree-small.tree-delete-undo.correct-tree-model-result",
+        "phase": "screening",
+        "block": 3,
+        "attempt": 3,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "T01.W03-tree-large.tree-select.correct-tree-model-result.attempt03",
+        "cell_id": "T01.W03-tree-large.tree-select.correct-tree-model-result",
+        "phase": "screening",
+        "block": 3,
+        "attempt": 3,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "T01.W03-tree-large.tree-populate.correct-tree-model-result.attempt03",
+        "cell_id": "T01.W03-tree-large.tree-populate.correct-tree-model-result",
+        "phase": "screening",
+        "block": 3,
+        "attempt": 3,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "T01.W03-tree-large.tree-delete-undo.correct-tree-model-result.attempt03",
+        "cell_id": "T01.W03-tree-large.tree-delete-undo.correct-tree-model-result",
+        "phase": "screening",
+        "block": 3,
+        "attempt": 3,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "T01.W03-tree-small.tree-populate.correct-tree-model-result.attempt03",
+        "cell_id": "T01.W03-tree-small.tree-populate.correct-tree-model-result",
+        "phase": "screening",
+        "block": 3,
+        "attempt": 3,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "T01.W03-tree-small.tree-select.correct-tree-model-result.attempt04",
+        "cell_id": "T01.W03-tree-small.tree-select.correct-tree-model-result",
+        "phase": "screening",
+        "block": 4,
+        "attempt": 4,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "T01.W03-tree-small.tree-populate.correct-tree-model-result.attempt04",
+        "cell_id": "T01.W03-tree-small.tree-populate.correct-tree-model-result",
+        "phase": "screening",
+        "block": 4,
+        "attempt": 4,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "T01.W03-tree-large.tree-delete-undo.correct-tree-model-result.attempt04",
+        "cell_id": "T01.W03-tree-large.tree-delete-undo.correct-tree-model-result",
+        "phase": "screening",
+        "block": 4,
+        "attempt": 4,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "T01.W03-tree-large.tree-populate.correct-tree-model-result.attempt04",
+        "cell_id": "T01.W03-tree-large.tree-populate.correct-tree-model-result",
+        "phase": "screening",
+        "block": 4,
+        "attempt": 4,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "T01.W03-tree-large.tree-select.correct-tree-model-result.attempt04",
+        "cell_id": "T01.W03-tree-large.tree-select.correct-tree-model-result",
+        "phase": "screening",
+        "block": 4,
+        "attempt": 4,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "T01.W03-tree-small.tree-delete-undo.correct-tree-model-result.attempt04",
+        "cell_id": "T01.W03-tree-small.tree-delete-undo.correct-tree-model-result",
+        "phase": "screening",
+        "block": 4,
+        "attempt": 4,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "T01.W03-tree-large.tree-expand-collapse.correct-tree-model-result.attempt04",
+        "cell_id": "T01.W03-tree-large.tree-expand-collapse.correct-tree-model-result",
+        "phase": "screening",
+        "block": 4,
+        "attempt": 4,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "T01.W03-tree-small.tree-expand-collapse.correct-tree-model-result.attempt04",
+        "cell_id": "T01.W03-tree-small.tree-expand-collapse.correct-tree-model-result",
+        "phase": "screening",
+        "block": 4,
+        "attempt": 4,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "T01.W03-tree-large.tree-expand-collapse.correct-tree-model-result.attempt05",
+        "cell_id": "T01.W03-tree-large.tree-expand-collapse.correct-tree-model-result",
+        "phase": "screening",
+        "block": 5,
+        "attempt": 5,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "T01.W03-tree-small.tree-delete-undo.correct-tree-model-result.attempt05",
+        "cell_id": "T01.W03-tree-small.tree-delete-undo.correct-tree-model-result",
+        "phase": "screening",
+        "block": 5,
+        "attempt": 5,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "T01.W03-tree-large.tree-select.correct-tree-model-result.attempt05",
+        "cell_id": "T01.W03-tree-large.tree-select.correct-tree-model-result",
+        "phase": "screening",
+        "block": 5,
+        "attempt": 5,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "T01.W03-tree-large.tree-populate.correct-tree-model-result.attempt05",
+        "cell_id": "T01.W03-tree-large.tree-populate.correct-tree-model-result",
+        "phase": "screening",
+        "block": 5,
+        "attempt": 5,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "T01.W03-tree-large.tree-delete-undo.correct-tree-model-result.attempt05",
+        "cell_id": "T01.W03-tree-large.tree-delete-undo.correct-tree-model-result",
+        "phase": "screening",
+        "block": 5,
+        "attempt": 5,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "T01.W03-tree-small.tree-populate.correct-tree-model-result.attempt05",
+        "cell_id": "T01.W03-tree-small.tree-populate.correct-tree-model-result",
+        "phase": "screening",
+        "block": 5,
+        "attempt": 5,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "T01.W03-tree-small.tree-select.correct-tree-model-result.attempt05",
+        "cell_id": "T01.W03-tree-small.tree-select.correct-tree-model-result",
+        "phase": "screening",
+        "block": 5,
+        "attempt": 5,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "T01.W03-tree-small.tree-expand-collapse.correct-tree-model-result.attempt05",
+        "cell_id": "T01.W03-tree-small.tree-expand-collapse.correct-tree-model-result",
+        "phase": "screening",
+        "block": 5,
+        "attempt": 5,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "I01.W04-small.step-import.correct-visible-result.warmup",
+        "cell_id": "I01.W04-small.step-import.correct-visible-result",
+        "phase": "warmup",
+        "timed": false,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "I01.W04-large.step-import.correct-visible-result.warmup",
+        "cell_id": "I01.W04-large.step-import.correct-visible-result",
+        "phase": "warmup",
+        "timed": false,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "I01.W04-large.native-save.save-return-and-output-close.warmup",
+        "cell_id": "I01.W04-large.native-save.save-return-and-output-close",
+        "phase": "warmup",
+        "timed": false,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "I01.W03-large.native-save.save-return-and-output-close.warmup",
+        "cell_id": "I01.W03-large.native-save.save-return-and-output-close",
+        "phase": "warmup",
+        "timed": false,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "I01.W02-large.native-open.correct-visible-result.warmup",
+        "cell_id": "I01.W02-large.native-open.correct-visible-result",
+        "phase": "warmup",
+        "timed": false,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "I01.W02-large.native-save.save-return-and-output-close.warmup",
+        "cell_id": "I01.W02-large.native-save.save-return-and-output-close",
+        "phase": "warmup",
+        "timed": false,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "I01.W04-large.native-open.correct-visible-result.warmup",
+        "cell_id": "I01.W04-large.native-open.correct-visible-result",
+        "phase": "warmup",
+        "timed": false,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "I01.W01-small.native-open.correct-visible-result.warmup",
+        "cell_id": "I01.W01-small.native-open.correct-visible-result",
+        "phase": "warmup",
+        "timed": false,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "I01.W02-large.native-open.app-restore-complete.warmup",
+        "cell_id": "I01.W02-large.native-open.app-restore-complete",
+        "phase": "warmup",
+        "timed": false,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "I01.W01-small.native-save.save-return-and-output-close.warmup",
+        "cell_id": "I01.W01-small.native-save.save-return-and-output-close",
+        "phase": "warmup",
+        "timed": false,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "I01.W03-large.native-open.correct-visible-result.warmup",
+        "cell_id": "I01.W03-large.native-open.correct-visible-result",
+        "phase": "warmup",
+        "timed": false,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "I01.W04-small.step-import.correct-visible-result.attempt01",
+        "cell_id": "I01.W04-small.step-import.correct-visible-result",
+        "phase": "screening",
+        "block": 1,
+        "attempt": 1,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "I01.W04-large.step-import.correct-visible-result.attempt01",
+        "cell_id": "I01.W04-large.step-import.correct-visible-result",
+        "phase": "screening",
+        "block": 1,
+        "attempt": 1,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "I01.W04-large.native-save.save-return-and-output-close.attempt01",
+        "cell_id": "I01.W04-large.native-save.save-return-and-output-close",
+        "phase": "screening",
+        "block": 1,
+        "attempt": 1,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "I01.W03-large.native-save.save-return-and-output-close.attempt01",
+        "cell_id": "I01.W03-large.native-save.save-return-and-output-close",
+        "phase": "screening",
+        "block": 1,
+        "attempt": 1,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "I01.W02-large.native-open.correct-visible-result.attempt01",
+        "cell_id": "I01.W02-large.native-open.correct-visible-result",
+        "phase": "screening",
+        "block": 1,
+        "attempt": 1,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "I01.W02-large.native-save.save-return-and-output-close.attempt01",
+        "cell_id": "I01.W02-large.native-save.save-return-and-output-close",
+        "phase": "screening",
+        "block": 1,
+        "attempt": 1,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "I01.W04-large.native-open.correct-visible-result.attempt01",
+        "cell_id": "I01.W04-large.native-open.correct-visible-result",
+        "phase": "screening",
+        "block": 1,
+        "attempt": 1,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "I01.W01-small.native-open.correct-visible-result.attempt01",
+        "cell_id": "I01.W01-small.native-open.correct-visible-result",
+        "phase": "screening",
+        "block": 1,
+        "attempt": 1,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "I01.W02-large.native-open.app-restore-complete.attempt01",
+        "cell_id": "I01.W02-large.native-open.app-restore-complete",
+        "phase": "screening",
+        "block": 1,
+        "attempt": 1,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "I01.W01-small.native-save.save-return-and-output-close.attempt01",
+        "cell_id": "I01.W01-small.native-save.save-return-and-output-close",
+        "phase": "screening",
+        "block": 1,
+        "attempt": 1,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "I01.W03-large.native-open.correct-visible-result.attempt01",
+        "cell_id": "I01.W03-large.native-open.correct-visible-result",
+        "phase": "screening",
+        "block": 1,
+        "attempt": 1,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "I01.W04-small.step-import.correct-visible-result.attempt02",
+        "cell_id": "I01.W04-small.step-import.correct-visible-result",
+        "phase": "screening",
+        "block": 2,
+        "attempt": 2,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "I01.W03-large.native-open.correct-visible-result.attempt02",
+        "cell_id": "I01.W03-large.native-open.correct-visible-result",
+        "phase": "screening",
+        "block": 2,
+        "attempt": 2,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "I01.W01-small.native-save.save-return-and-output-close.attempt02",
+        "cell_id": "I01.W01-small.native-save.save-return-and-output-close",
+        "phase": "screening",
+        "block": 2,
+        "attempt": 2,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "I01.W02-large.native-open.app-restore-complete.attempt02",
+        "cell_id": "I01.W02-large.native-open.app-restore-complete",
+        "phase": "screening",
+        "block": 2,
+        "attempt": 2,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "I01.W01-small.native-open.correct-visible-result.attempt02",
+        "cell_id": "I01.W01-small.native-open.correct-visible-result",
+        "phase": "screening",
+        "block": 2,
+        "attempt": 2,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "I01.W04-large.native-open.correct-visible-result.attempt02",
+        "cell_id": "I01.W04-large.native-open.correct-visible-result",
+        "phase": "screening",
+        "block": 2,
+        "attempt": 2,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "I01.W02-large.native-save.save-return-and-output-close.attempt02",
+        "cell_id": "I01.W02-large.native-save.save-return-and-output-close",
+        "phase": "screening",
+        "block": 2,
+        "attempt": 2,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "I01.W02-large.native-open.correct-visible-result.attempt02",
+        "cell_id": "I01.W02-large.native-open.correct-visible-result",
+        "phase": "screening",
+        "block": 2,
+        "attempt": 2,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "I01.W03-large.native-save.save-return-and-output-close.attempt02",
+        "cell_id": "I01.W03-large.native-save.save-return-and-output-close",
+        "phase": "screening",
+        "block": 2,
+        "attempt": 2,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "I01.W04-large.native-save.save-return-and-output-close.attempt02",
+        "cell_id": "I01.W04-large.native-save.save-return-and-output-close",
+        "phase": "screening",
+        "block": 2,
+        "attempt": 2,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "I01.W04-large.step-import.correct-visible-result.attempt02",
+        "cell_id": "I01.W04-large.step-import.correct-visible-result",
+        "phase": "screening",
+        "block": 2,
+        "attempt": 2,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "I01.W04-large.native-save.save-return-and-output-close.attempt03",
+        "cell_id": "I01.W04-large.native-save.save-return-and-output-close",
+        "phase": "screening",
+        "block": 3,
+        "attempt": 3,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "I01.W03-large.native-save.save-return-and-output-close.attempt03",
+        "cell_id": "I01.W03-large.native-save.save-return-and-output-close",
+        "phase": "screening",
+        "block": 3,
+        "attempt": 3,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "I01.W02-large.native-open.correct-visible-result.attempt03",
+        "cell_id": "I01.W02-large.native-open.correct-visible-result",
+        "phase": "screening",
+        "block": 3,
+        "attempt": 3,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "I01.W02-large.native-save.save-return-and-output-close.attempt03",
+        "cell_id": "I01.W02-large.native-save.save-return-and-output-close",
+        "phase": "screening",
+        "block": 3,
+        "attempt": 3,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "I01.W04-large.native-open.correct-visible-result.attempt03",
+        "cell_id": "I01.W04-large.native-open.correct-visible-result",
+        "phase": "screening",
+        "block": 3,
+        "attempt": 3,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "I01.W01-small.native-open.correct-visible-result.attempt03",
+        "cell_id": "I01.W01-small.native-open.correct-visible-result",
+        "phase": "screening",
+        "block": 3,
+        "attempt": 3,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "I01.W02-large.native-open.app-restore-complete.attempt03",
+        "cell_id": "I01.W02-large.native-open.app-restore-complete",
+        "phase": "screening",
+        "block": 3,
+        "attempt": 3,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "I01.W01-small.native-save.save-return-and-output-close.attempt03",
+        "cell_id": "I01.W01-small.native-save.save-return-and-output-close",
+        "phase": "screening",
+        "block": 3,
+        "attempt": 3,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "I01.W03-large.native-open.correct-visible-result.attempt03",
+        "cell_id": "I01.W03-large.native-open.correct-visible-result",
+        "phase": "screening",
+        "block": 3,
+        "attempt": 3,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "I01.W04-small.step-import.correct-visible-result.attempt03",
+        "cell_id": "I01.W04-small.step-import.correct-visible-result",
+        "phase": "screening",
+        "block": 3,
+        "attempt": 3,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "I01.W04-large.step-import.correct-visible-result.attempt03",
+        "cell_id": "I01.W04-large.step-import.correct-visible-result",
+        "phase": "screening",
+        "block": 3,
+        "attempt": 3,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "I01.W04-large.native-save.save-return-and-output-close.attempt04",
+        "cell_id": "I01.W04-large.native-save.save-return-and-output-close",
+        "phase": "screening",
+        "block": 4,
+        "attempt": 4,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "I01.W04-large.step-import.correct-visible-result.attempt04",
+        "cell_id": "I01.W04-large.step-import.correct-visible-result",
+        "phase": "screening",
+        "block": 4,
+        "attempt": 4,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "I01.W04-small.step-import.correct-visible-result.attempt04",
+        "cell_id": "I01.W04-small.step-import.correct-visible-result",
+        "phase": "screening",
+        "block": 4,
+        "attempt": 4,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "I01.W03-large.native-open.correct-visible-result.attempt04",
+        "cell_id": "I01.W03-large.native-open.correct-visible-result",
+        "phase": "screening",
+        "block": 4,
+        "attempt": 4,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "I01.W01-small.native-save.save-return-and-output-close.attempt04",
+        "cell_id": "I01.W01-small.native-save.save-return-and-output-close",
+        "phase": "screening",
+        "block": 4,
+        "attempt": 4,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "I01.W02-large.native-open.app-restore-complete.attempt04",
+        "cell_id": "I01.W02-large.native-open.app-restore-complete",
+        "phase": "screening",
+        "block": 4,
+        "attempt": 4,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "I01.W01-small.native-open.correct-visible-result.attempt04",
+        "cell_id": "I01.W01-small.native-open.correct-visible-result",
+        "phase": "screening",
+        "block": 4,
+        "attempt": 4,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "I01.W04-large.native-open.correct-visible-result.attempt04",
+        "cell_id": "I01.W04-large.native-open.correct-visible-result",
+        "phase": "screening",
+        "block": 4,
+        "attempt": 4,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "I01.W02-large.native-save.save-return-and-output-close.attempt04",
+        "cell_id": "I01.W02-large.native-save.save-return-and-output-close",
+        "phase": "screening",
+        "block": 4,
+        "attempt": 4,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "I01.W02-large.native-open.correct-visible-result.attempt04",
+        "cell_id": "I01.W02-large.native-open.correct-visible-result",
+        "phase": "screening",
+        "block": 4,
+        "attempt": 4,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "I01.W03-large.native-save.save-return-and-output-close.attempt04",
+        "cell_id": "I01.W03-large.native-save.save-return-and-output-close",
+        "phase": "screening",
+        "block": 4,
+        "attempt": 4,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "I01.W02-large.native-open.correct-visible-result.attempt05",
+        "cell_id": "I01.W02-large.native-open.correct-visible-result",
+        "phase": "screening",
+        "block": 5,
+        "attempt": 5,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "I01.W02-large.native-save.save-return-and-output-close.attempt05",
+        "cell_id": "I01.W02-large.native-save.save-return-and-output-close",
+        "phase": "screening",
+        "block": 5,
+        "attempt": 5,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "I01.W04-large.native-open.correct-visible-result.attempt05",
+        "cell_id": "I01.W04-large.native-open.correct-visible-result",
+        "phase": "screening",
+        "block": 5,
+        "attempt": 5,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "I01.W01-small.native-open.correct-visible-result.attempt05",
+        "cell_id": "I01.W01-small.native-open.correct-visible-result",
+        "phase": "screening",
+        "block": 5,
+        "attempt": 5,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "I01.W02-large.native-open.app-restore-complete.attempt05",
+        "cell_id": "I01.W02-large.native-open.app-restore-complete",
+        "phase": "screening",
+        "block": 5,
+        "attempt": 5,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "I01.W01-small.native-save.save-return-and-output-close.attempt05",
+        "cell_id": "I01.W01-small.native-save.save-return-and-output-close",
+        "phase": "screening",
+        "block": 5,
+        "attempt": 5,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "I01.W03-large.native-open.correct-visible-result.attempt05",
+        "cell_id": "I01.W03-large.native-open.correct-visible-result",
+        "phase": "screening",
+        "block": 5,
+        "attempt": 5,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "I01.W04-small.step-import.correct-visible-result.attempt05",
+        "cell_id": "I01.W04-small.step-import.correct-visible-result",
+        "phase": "screening",
+        "block": 5,
+        "attempt": 5,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "I01.W04-large.step-import.correct-visible-result.attempt05",
+        "cell_id": "I01.W04-large.step-import.correct-visible-result",
+        "phase": "screening",
+        "block": 5,
+        "attempt": 5,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "I01.W04-large.native-save.save-return-and-output-close.attempt05",
+        "cell_id": "I01.W04-large.native-save.save-return-and-output-close",
+        "phase": "screening",
+        "block": 5,
+        "attempt": 5,
+        "timed": true,
+        "process": "fresh-owned-process"
+      },
+      {
+        "id": "I01.W03-large.native-save.save-return-and-output-close.attempt05",
+        "cell_id": "I01.W03-large.native-save.save-return-and-output-close",
+        "phase": "screening",
+        "block": 5,
+        "attempt": 5,
+        "timed": true,
+        "process": "fresh-owned-process"
+      }
+    ],
+    "raw_results_pending": true,
+    "between_cell_order": "seeded within-stream permutation; five round-robin blocks rotate/reverse cell order, one attempt/pair per cell per block; task/stream order linear. No cell-major five-attempt batches.",
+    "scope_rationale": "Focused operation/scale/endpoints only, not a full fixture\u00d7operation\u00d7platform\u00d7build factorial. GUI sequences record separate segment endpoints in one scheduled attempt where declared; App-only contexts remain separate cells. Full schedule stops at resource caps without selective completion."
+  },
+  "profile_rule": {
+    "limit": "max2 separate traced processes per stream total, not per cell",
+    "targets": {
+      "R01": [
+        {
+          "cell_id": "R01.W02-large.width-plus4.app-recompute-complete",
+          "arm": null
+        },
+        {
+          "cell_id": "R01.W02-large.width-plus4.correct-visible-result",
+          "arm": null
+        }
+      ],
+      "S01": [
+        {
+          "cell_id": "S01.W06-large.sketch-width-plus4.correct-visible-result",
+          "arm": null
+        },
+        {
+          "cell_id": "S01.W06-large.sketch-drag-width.correct-visible-result",
+          "arm": null
+        }
+      ],
+      "Q01": [
+        {
+          "cell_id": "Q01.W06-large.qr-radius.app-recompute-complete",
+          "arm": "A"
+        },
+        {
+          "cell_id": "Q01.W06-large.qr-radius.app-recompute-complete",
+          "arm": "B"
+        }
+      ],
+      "F01": [
+        {
+          "cell_id": "F01.W01-large.pattern-plus1.preview-and-accepted-visible-result",
+          "arm": null
+        },
+        {
+          "cell_id": "F01.W01-large.fillet-corner.preview-and-accepted-visible-result",
+          "arm": null
+        }
+      ],
+      "A01": [
+        {
+          "cell_id": "A01.W03-large.assembly-revolute10.correct-visible-result",
+          "arm": null
+        },
+        {
+          "cell_id": "A01.W03-large.assembly-source12.correct-visible-result",
+          "arm": null
+        }
+      ],
+      "V01": [
+        {
+          "cell_id": "V01.W04-large.viewport-orbit.source-qualified-frame-witness.completion-gated",
+          "arm": null
+        },
+        {
+          "cell_id": "V01.W04-large.viewport-orbit.source-qualified-frame-witness.fixed-rate-60Hz",
+          "arm": null
+        }
+      ],
+      "T01": [
+        {
+          "cell_id": "T01.W03-tree-large.tree-populate.correct-tree-model-result",
+          "arm": null
+        },
+        {
+          "cell_id": "T01.W03-tree-large.tree-delete-undo.correct-tree-model-result",
+          "arm": null
+        }
+      ],
+      "I01": [
+        {
+          "cell_id": "I01.W03-large.native-open.correct-visible-result",
+          "arm": null
+        },
+        {
+          "cell_id": "I01.W04-large.step-import.correct-visible-result",
+          "arm": null
+        }
+      ]
+    },
+    "timing_use": "descriptive attribution only, never pooled with untraced latency",
+    "changes": "A different posthoc diagnostic is labeled posthoc and separately identified; it cannot replace fixed targets or supply an acceptance tail."
+  },
+  "process_reset": {
+    "worker_concurrency": 1,
+    "default": "fresh owned process and profile per attempt/QR arm; fresh canonical work copy, verified recipe precursor and baseline semantic identity",
+    "qr_order": "fixed seeded schedule in attempts; arms sequential, never concurrent; identical precursor/warmups/cache; actual method/settings verified each arm and restored at final exit",
+    "same_process_exception": "No same-process QR in v1. Requires prospective amendment and demonstrated complete solver/cache/allocator/settings reset.",
+    "namespaces": [
+      "FreeCAD user/config/data/temp",
+      "XDG config/cache/data",
+      "Mesa cache"
+    ],
+    "user_site": "mask only user Python site in an owned mount namespace if needed; verify actual mapped modules. Do not uninstall/modify user packages.",
+    "operator_session": "Do not use --single-instance, global desktop capture, live operator document or preferences. Never kill unrelated processes; pause collection when unrelated FreeCAD/build/test activity fails eligibility."
+  },
+  "cache_policy": {
+    "default": "fresh process, no global kernel cache drop; OS page cache uncontrolled/recorded",
+    "fixture_copy": "new owned work copy per attempt (not falsely called OS-cold); no independent drive cache claim",
+    "warm_regime": "v1 has one separate untimed warmup process per cell/QR arm; no additional in-process per-attempt warmup. Fresh process is not OS-cold or solver-cold: baseline restore/reset may populate solver state and must be identical, qualified and recorded. A different warm-process regime requires a prospective amendment.",
+    "power_governor": "record and hold actual AC/governor/profile; do not alter global settings"
+  },
+  "host_eligibility": {
+    "preflight_seconds": 10,
+    "preflight_scope": "10-second quiet/admission window before each cell warmup; host trace remains continuous across round-robin blocks; each attempt rechecks the immediately preceding2s admission context and full-attempt host record. Owned startup/reset CPU is not non-owned contention.",
+    "postflight_seconds": 2,
+    "host_rate_hz": 1,
+    "required": [
+      "CPU utilization from proc counters, normalized by logical CPU count; owned-tree CPU accounted separately where measurable",
+      "MemAvailable and pswpin/pswpout deltas",
+      "memory PSI full; CPU governor/AC state",
+      "unrelated build/test/benchmark activity and additional FreeCAD activity"
+    ],
+    "gates": {
+      "nonowned_normalized_cpu_max_fraction": 0.2,
+      "mem_available_min_bytes": 8589934592,
+      "swap_io_allowed_delta": 0,
+      "memory_PSI_full_allowed_delta": 0,
+      "governor_or_AC_change_allowed": false,
+      "thermal_throttle_counter_delta_allowed": 0,
+      "max_temperature_c_if_exposed": 90
+    },
+    "missing": "Missing optional GPU/frequency/thermal sensors explicitly null. Missing required Linux admission metrics or unqualified sampling resolution blocks eligibility until prospectively resolved, not zero-filled.",
+    "during_attempt": "threshold/identity/clock breaches mark the scheduled attempt retained/ineligible, making its cell inconclusive under5/5. Short operations use fixed pre/post quiet windows and label coarse host attribution; load alone never proves cause.",
+    "active_operator": "Never terminate/modify operator activity to satisfy a quiet gate; wait or report eligibility limitation."
+  },
+  "metrics": {
+    "wall_clock": "monotonic_ns, exact operation endpoints from manifest; App return and correct frame separate",
+    "cpu": "owned process-tree user/system CPU plus context switches/I/O when source-confirmed",
+    "memory": "baseline immediately after reset/settle; whole-process high-water RSS separately from any T002-qualified operation-local peak; post-operation RSS at fixed2s quiescent point; logical transient/retained data and GPU measurements where available. Never subtract RSS high-water as retained memory or assume reclamation.",
+    "trace_overlap": "inclusive spans and concurrent intervals explicitly defined; no summed nested QR/kernel/recompute/tree/render totals or double-counted candidate saving",
+    "frame_events": "input timestamps/order, intended/accepted/coalesced/drop/render/readback/presentation identity/count; fixed-rate60Hz and completion-gated cells separate; source-qualified witness or honest narrower endpoint only"
+  },
+  "oracle_contract": {
+    "geometry_tolerance": {
+      "absolute_mm": 1e-07,
+      "relative": 1e-09,
+      "persisted_snapshot_rounding_digits": 9,
+      "assembly_placement_absolute_mm": 1e-06,
+      "angular_radians": 1e-07
+    },
+    "solid_checks": [
+      "analytic dimension/volume and hole counts/locations/radii",
+      "valid single solid and expected topology class or intentional-change map",
+      "persistent first-hole/corner geometric reference witnesses, not volume alone",
+      "geometry/constraint order/types, DoF/conflict/redundancy, joint/link/placement identities",
+      "transactions/undo/redo/save-reopen and tree observer/lifetime/eventual completion as applicable"
+    ],
+    "rank": "Both J/JT ranks, ordered diagnostic IDs and DoF must match independent rank(J)=rank(JT)=remaining J parameter count / analytic reduced-rank and geometry oracles. T002 binds native parameter bookkeeping and independent non-QR matrix reference before any paired study. Near-tangent analytic condition is recorded; disagreement rejects that fixture/configuration, never tune solver tolerance.",
+    "assembly": "full post-reopen graph/connector/status/allowed-motion oracle pending T002; T001 generic roundtrip alone is not joint solver qualification",
+    "failures": "oracle mismatch or corrupt output stops the cell/stream and excludes timing interpretation while retaining evidence; no faster-but-wrong acceptance"
+  },
+  "resource_bounds": {
+    "ordinary_action_seconds": 30,
+    "complex_or_io_action_seconds": 120,
+    "process_startup_seconds": 60,
+    "traced_process_seconds": 300,
+    "stream_total_wall_seconds_including_startup_warmups_profiles_telemetry_cleanup": 1800,
+    "whole_study_wall_seconds": 14400,
+    "max_owned_process_RSS_bytes": 4294967296,
+    "max_trace_bytes_per_profile": 134217728,
+    "max_profiles_per_stream": 2,
+    "max_raw_logs_bytes_per_stream": 33554432,
+    "max_canonical_fixtures_and_derived_copies_bytes": 1073741824,
+    "aggregate_private_evidence_hard_bytes": 4294967296,
+    "publication_cap_bytes": 67108864,
+    "min_free_disk_bytes": 26843545600,
+    "in_place_release_build_growth_hard_bytes": 6442450944,
+    "build_growth_scope": "all in-place build plus compiler-cache growth combined; no unreserved alternate build",
+    "build_jobs": 2,
+    "resource_admission": "Before build, free>=25GiB floor+6GiB remaining build/cache growth+4GiB remaining private reservation+64MiB remaining publication. Before study freeze after build: free>=floor+max(0,4GiB-retained_private)+max(0,64MiB-retained_public); reserve all remaining study maxima, not merely the next cell. T002 verifies full 390-row+profile/telemetry/cleanup duration estimate<=4h and each stream<=30min or requires prospective amendment BEFORE launch.",
+    "joint_reservation_bytes": 37648072704,
+    "guard": "check available bytes and owned-output sizes before each cell/profile/build step; hard stop before crossing either cap/free-space floor; preserve incomplete data and do not enlarge budgets silently",
+    "retention": "one existing Release directory reused in place, Debug kept for correctness. No per-stream build pairs, cache purge or automatic deletion of old evidence. Scope registry records ineligible earlier preparation outputs."
+  },
+  "evidence_publication_policy": {
+    "private_by_default": [
+      "raw observations/logs/profiles/host traces",
+      "loaded module maps, actual argv/env and process/window IDs",
+      "absolute timestamps and filesystem/auth locators",
+      "all screenshots/window captures until explicit public review"
+    ],
+    "private_storage": "owned directories0700, files0600, umask077, reject symlinks/out-of-root paths; no credentials or unrelated-window capture; no automatic public dump of runtime context",
+    "public_whitelist": [
+      "public generated fixture IDs and canonical byte/recipe hashes",
+      "curated repository-relative source/config paths, commits, tool versions and selected platform descriptors",
+      "opaque sample/cell ordinals and relative phase offsets",
+      "aggregate metrics, bounds, eligibility counts and explicit limitations",
+      "source-audited preparation isolation contract with owned paths; no inherited environment values"
+    ],
+    "public_exclusions": [
+      "usernames/home paths/PIDs/window IDs",
+      "absolute observation clocks",
+      "raw inherited environment or auth paths/tokens",
+      "private geometry or other application windows"
+    ],
+    "fixture_vs_runtime": "Public generated geometry does not make runtime provenance public. Publish only a separate schema-whitelisted sanitized artifact after privacy review; redacted raw evidence remains private."
+  },
+  "preview_oracle": {
+    "commands": "PartDesign interactive pattern/fillet/chamfer and PartDesign::Boolean TypeCut/Fuse with Tool body Group; source references FeatureBoolean.cpp/updatePreviewShape and ViewProviderBoolean.cpp plus FeatureTransformed.cpp",
+    "timings": "Emit separate preview-complete and accept-to-correct-result durations for every F01 attempt; never collapse to one aggregate number or add inclusive overlaps.",
+    "candidate_geometry": "Underlying proposed feature result must satisfy the same analytic dimensions/volume/topology/reference contract as accepted geometry. Preview visible scene may use source-defined base/tool or removed/added material overlays, not falsely interpreted as the final accepted mesh. T002 maps frozen semantic roles to actual scene nodes.",
+    "known_boolean_preview_roles": {
+      "Cut": "removed intersection volume2400, original base and tool20x20x12 at(W-10,20,0) as source-defined overlays; final result Vbase-2400",
+      "Fuse": "tool-compound overlay volume4800 with original base and known intersection2400; final result Vbase+2400"
+    },
+    "transaction": "Preview is an owned uncommitted transaction/candidate; canonical original unchanged. Normal transient view/model events are allowed, but persistent authored properties/tip/references cannot be committed before Accept.",
+    "cancel_gate": "T002 qualifies preview\u2192cancel/teardown\u2192baseline for every F01 cell: original authored geometry/properties/tip/links/selection/transaction state restored, no leftover feature/preview nodes or subscription/queued residue; source-defined nonsemantic cache/counter differences explicitly identified, never used to hide authored change.",
+    "accept_gate": "After preview Accept commits exactly the intended feature; accepted shape/reference/error and undo/redo oracle must pass. No preview/cancel measurement is claimed from fixture preparation."
+  },
+  "near_rank_coverage_gate": {
+    "candidate": "Q-near-tangent is analytically ill-conditioned (kappa1e5 baseline/5e4 action), NOT yet proven close to either native rank threshold. Q-near-axis is not a substitute.",
+    "T002_requirement": "Source-confirm both methods rank tolerances and native Jacobian scaling; map singular-value ratio and independent analytic/native matrix oracle. Require the near-rank cell to lie within0.1x..10x of at least one relevant effective numerical cutoff under frozen settings; do not modify those settings.",
+    "if_not_sensitive": "No nearly-rank-deficient coverage claim or Q01 study freeze. Prospectively amend T001 with an actually threshold-sensitive specimen/oracle, new canonical hash and schedule before Q01 samples; never relabel or tune cutoffs to manufacture it."
+  },
+  "canonical_hash_serialization": "SHA256 over UTF-8 json.dumps(value,sort_keys=True,separators=(\",\",\":\"),ensure_ascii=True), no trailing LF for recipe/oracle/schedule hashes. File SHA covers exact bytes including existing LF.",
+  "T002_required_study_freeze": [
+    "build current Release source in place and verify compiler/options/source-to-binary receipt",
+    "actual executable/all selected ELF/Python/driver/loaded module maps with user-site isolation proof",
+    "actual worker argv/environment/namespaces/process/display/viewport and capability-permission smoke tests",
+    "materialized derived work copies/checkpoints and reset, numerical/geometry/reference/assembly/tree oracle qualification",
+    "source-proven QR selection + observed per-run method, J/JT references and settings restoration",
+    "source-proven frame/pick/preview/solve endpoints, input pacing/admission and narrower presentation fallback",
+    "instrumentation/telemetry overhead, clocks, bounds, cleanup and final immutable study-freeze hashes"
+  ],
+  "amendment_rule": "T001 freezes semantic inputs/schedules/oracles/budgets. T002 may realize only the explicit frozen endpoint fallback menu and adapters; any different fixture/operation/oracle/schedule/cache/build mode/exclusion/resource policy needs a prospective T001 revision and new identity. Actual binary/probe changes require fresh affected T002 qualification. No sample is eligible from T001 inventory alone."
+}

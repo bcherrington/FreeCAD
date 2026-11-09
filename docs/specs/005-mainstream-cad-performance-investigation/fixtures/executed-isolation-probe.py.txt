@@ -1,0 +1,15 @@
+import sys
+from pathlib import Path
+sys.path.insert(0,str(Path.cwd()/'build/debug/lib'))
+sys.path.extend(str(p) for p in (Path.cwd()/'build/debug/Mod').iterdir() if p.is_dir())
+import FreeCAD as App
+import os,json
+from pathlib import Path
+r=Path.cwd();task=(r/'build/spec005-t001').resolve()
+paths={'user_app_data':App.getUserAppDataDir(),'user_parameter':App.ConfigGet('UserParameter'),'system_parameter':App.ConfigGet('SystemParameter')}
+for key,value in paths.items():
+ if value:
+  path=Path(value).resolve();assert path.is_relative_to(task),(key,str(path));paths[key]=str(path.relative_to(r))
+profile={k:str(Path(os.environ[k]).relative_to(r)) for k in ['FREECAD_USER_HOME','FREECAD_USER_DATA','FREECAD_USER_TEMP','XDG_CONFIG_HOME','XDG_CACHE_HOME','XDG_DATA_HOME']}
+out={'observed_FreeCAD_configuration':paths,'declared_owned_environment':profile,'phase':'T001 preparation isolation path check, not runtime-closure qualification','HOME_overridden':False}
+(task/'isolation-observed.json').write_text(json.dumps(out,indent=2)+'\n');print(json.dumps(out))

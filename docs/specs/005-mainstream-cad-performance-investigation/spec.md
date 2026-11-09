@@ -32,9 +32,9 @@ requirements source. No design-first exception or legacy migration is needed.
 
 ## Status
 
-Draft investigation package. All T001–T012 are pending. Next: **T001 — Freeze
-representative workloads, semantic oracles and the collection plan.** T001
-resolves D001; T002 qualifies actual endpoints/runtime/harness and resolves D002
-before any timed stream observation counts. Creation does not start profiling.
-B001/B011 retain their existing IDs and correctness contracts; archived source
-packages and other optional proposals stay unchanged.
+T001 is complete: the selected workloads, independent expectations, canonical
+bytes and fixed collection/resource plan are in [the T001 report](t001-results.md).
+T002–T012 remain pending. Next: **T002 — Qualify the shared runner, stage
+attribution and runtime identities.** D001 is resolved; D002 remains open.
+No performance study or optimization has run. B001/B011 keep their original
+correctness/exit contracts and are not completed by this planning gate.

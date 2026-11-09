@@ -1,0 +1,74 @@
+from pathlib import Path
+import hashlib,json,math,subprocess,re,zipfile,os,urllib.parse,getpass
+r=Path.cwd();p=r/'docs/specs/005-mainstream-cad-performance-investigation';out=r/'build/spec005-t001'
+sha=lambda f:hashlib.sha256(Path(f).read_bytes()).hexdigest()
+canonical=lambda d:hashlib.sha256(json.dumps(d,sort_keys=True,separators=(',',':')).encode()).hexdigest()
+m=json.loads((p/'workload-manifest.json').read_text());plan=json.loads((p/'measurement-plan.json').read_text());prep=json.loads((p/'t001-fixture-preparation.json').read_text())
+assert sha(p/'workload-manifest.json')==plan['workload_manifest_sha256'];assert sha(p/'t001-fixture-preparation.json')==m['preparation_receipt_sha256']
+count=0;total=0;fixture_by={f['id']:f for f in m['fixtures']};assert len(fixture_by)==17
+for f in m['fixtures']:
+ assert sha(p/f['recipe'])==f['recipe_sha256']
+ assert f['baseline_semantic_sha256']==canonical(next(x['baseline'] for x in prep['outputs'] if x['id']==f['id']))
+ for file in [f['canonical_file']]+([f['step_source']] if 'step_source'in f else []):
+  path=r/file['path'];assert path.is_file() and not path.is_symlink();assert path.is_relative_to(p/'fixtures/canonical');assert sha(path)==file['sha256'];assert path.stat().st_size==file['bytes'];count+=1;total+=file['bytes']
+  if path.suffix=='.FCStd':
+   with zipfile.ZipFile(path) as z:
+    assert b'LGPL-2.1-or-later' in z.read('Document.xml')
+    for n in z.namelist():assert b'/home/' not in z.read(n) and getpass.getuser().encode() not in z.read(n)
+assert count==19 and total==1026459
+for field in ['recipe_sha256','preparation_runner_snapshots','execution_source_snapshots']:
+ for name,h in prep[field].items():assert sha(p/name)==h,(field,name)
+for name,h in prep['private_execution_output_bindings'].items():assert sha(out/name)==h,name
+for file in prep['canonical_promotion']['files']:assert sha(r/file['canonical_path'])==file['canonical_sha256']
+assert sha(p/'fixtures/freeze_canonical.py')==prep['canonical_promotion']['helper_sha256']
+assert len(prep['canonical_reopen_validation']['native_reopened'])==17 and prep['canonical_reopen_validation']['step_files_read']==2
+cells=m['cells'];by={c['id']:c for c in cells};assert len(by)==len(cells)==60
+streams=m['streams'];assert len(streams)==8
+for c in cells:
+ assert fixture_by[c['fixture_id']]['canonical_file']['sha256']==c['canonical_sha256'];assert canonical(m['recipes'][c['recipe_id']])==c['recipe_sha256'];assert canonical(fixture_by[c['fixture_id']]['expected'])==c['oracle_sha256']
+ if 'step_sha256'in c:assert c['step_sha256']==fixture_by[c['fixture_id']]['step_source']['sha256']
+schedule=plan['fixed_schedule']['attempts'];assert canonical(schedule)==plan['fixed_schedule']['schedule_sha256'];assert len(schedule)==390;assert len({x['id'] for x in schedule})==390
+assert sum(x['timed'] for x in schedule)==325
+for c in cells:
+ rows=[x for x in schedule if x['cell_id']==c['id']];warm=[x for x in rows if not x['timed']];timed=[x for x in rows if x['timed']]
+ if c.get('paired'):
+  assert len(warm)==2 and len(timed)==10
+  orders=[]
+  for i in range(1,6):
+   pair=[x for x in timed if x['pair']==i];assert [x['arm'] for x in pair] in [['A','B'],['B','A']];assert [x['order_in_pair'] for x in pair]==[1,2];orders.append(''.join(x['arm'] for x in pair))
+   positions=[schedule.index(x) for x in pair];assert positions[1]==positions[0]+1
+  assert abs(orders.count('AB')-orders.count('BA'))==1
+ else:assert len(warm)==1 and len(timed)==5 and [x['attempt'] for x in timed]==[1,2,3,4,5]
+for s in streams:
+ for block in range(1,6):
+  members=[x for x in schedule if x['timed'] and x.get('block')==block and by[x['cell_id']]['stream']==s]
+  assert set(x['cell_id'] for x in members)=={c['id'] for c in cells if c['stream']==s}
+ assert len(plan['profile_rule']['targets'][s])==2
+ for target in plan['profile_rule']['targets'][s]:assert target['cell_id'] in by
+b=plan['resource_bounds'];assert b['joint_reservation_bytes']==b['min_free_disk_bytes']+b['in_place_release_build_growth_hard_bytes']+b['aggregate_private_evidence_hard_bytes']+b['publication_cap_bytes'];assert plan['host_inventory_only']['free_disk_bytes_at_snapshot']>=b['joint_reservation_bytes']
+assert b['max_profiles_per_stream']*b['max_trace_bytes_per_profile']*8+b['max_raw_logs_bytes_per_stream']*8+b['max_canonical_fixtures_and_derived_copies_bytes']+b['publication_cap_bytes']<b['aggregate_private_evidence_hard_bytes']
+assert (out.stat().st_mode&0o777)==0o700
+for name,h in m['source']['config_source_sha256'].items():assert sha(r/name)==h,name
+assert not subprocess.check_output(['git','diff','--name-only','--','src','tests','pixi.toml','pixi.lock','CMakePresets.json','CMakeLists.txt']).strip()
+# Preserve old authoring receipt and resolve its mutable authority through the actual commit.
+old=json.loads((p/'authoring-validation.json').read_text());prior={}
+for name,h in old['files_sha256'].items():
+ data=subprocess.check_output(['git','show','877ebdfb3e:'+name]);assert hashlib.sha256(data).hexdigest()==h,name;prior[name]={'commit':'877ebdfb3e09518d7139a4ef71d83d5071dad616','sha256':h}
+original=subprocess.check_output(['git','show','877ebdfb3e:docs/specs/005-mainstream-cad-performance-investigation/authoring-validation.json']);assert hashlib.sha256(original).hexdigest()==sha(p/'authoring-validation.json')
+tasks=(p/'tasks.md').read_text();markers={y:x for x,y in re.findall(r'^- \[([^\]]+)\] (T\d{3}) ',tasks,re.M)};assert len(markers)==12;assert all(markers[f'T{i:03d}']==' ' for i in range(2,13));complete=markers['T001']=='x';assert markers['T001'] in ['~','x']
+# All package Markdown links including new report/receipt; normal generated data are not executable links.
+links=0
+for f in p.glob('*.md'):
+ for link in re.findall(r'\[[^\]]*\]\(([^)]+)\)',f.read_text()):
+  if '://' in link:continue
+  target,_,anchor=link.partition('#');dest=f.parent/urllib.parse.unquote(target) if target else f
+  if dest.name=='t001-validation.json' and not dest.exists():continue
+  assert dest.exists(),(f.name,link);links+=1
+  if anchor and dest.suffix=='.md':assert anchor in [re.sub(r'[^\w\- ]','',x.lower()).replace(' ','-') for x in re.findall(r'(?m)^#+ (.*)$',dest.read_text())],(f,link)
+initial=json.loads((r/'build/spec003-t010/starting-environment.json').read_text());assert sha(r/'docs/design/python-console-standalone-window.md')==initial['console_doc_sha256']
+subprocess.run(['git','-c','core.whitespace=cr-at-eol','diff','--check'],check=True);subprocess.run(['git','-C','docs','-c','core.whitespace=cr-at-eol','diff','--check'],check=True)
+current=[x for x in p.rglob('*') if x.is_file() and '__pycache__' not in x.parts and x.name not in ['authoring-validation.json','t001-validation.json']]
+current.append(r/'docs/specs/README.md')
+assert '| T001 inputs frozen; no profiling results | T002' in (r/'docs/specs/README.md').read_text()
+receipt={'schema':'freecad-spec005-t001-validation/v1','date':'2026-11-09','task':'T001','task_complete':complete,'status':'complete-input-freeze' if complete else 'ready-for-guarded-completion','source_commit':m['source']['root_commit'],'docs_base':m['source']['docs_commit'],'current_artifacts_sha256':{str(x.relative_to(r)):sha(x) for x in sorted(current)},'source_config_sha256':m['source']['config_source_sha256'],'authoring_receipt_sha256':sha(p/'authoring-validation.json'),'prior_authority_resolution':prior,'checks':{'canonical_native_files':17,'canonical_step_files':2,'canonical_total_bytes':total,'native_canonical_reopen':17,'step_canonical_read':2,'fixtures':17,'streams':8,'cells':60,'scheduled_rows':390,'warmups':65,'future_timed_attempts':325,'actual_timing_study_rows':0,'round_robin_blocks':5,'profile_cap':16,'source_recipe_files':3,'preparation_source_snapshots':5,'completion_checker_snapshots':1,'links_verified':links,'stable_task_ids':12,'product_source_unchanged':True,'unrelated_console_preserved':True,'whitespace':'root and nested docs passed','joint_disk_reservation_bytes':b['joint_reservation_bytes'],'package_lint':'zero diagnostics; final tool check performed separately','task_traceability':'final T001/T002 task-context checks performed separately'},'decisions':{'D001':'resolved selected fixtures/oracles/collection/resource contract','D002':'open; T002 actual runtime/runner/semantic qualification'},'study_eligible':False,'new_release_builds':0,'new_performance_campaigns':0,'preparation_runtime':'existing Debug modules only; identity inventory in t001-fixture-preparation.json, never a Release baseline','independent_reviews':[{'agent':'cad_integrity_expert','roles':['CAD/geometry engineering','FreeCAD lifecycle'],'result':'cleared arithmetic/geometry/recipe scope','resolved':['rank(J)=rank(JT)=remaining J parameter count wording','explicit sparse W06 limit','assembly graph/connector/status/allowed-motion qualification remains T002']},{'agent':'p01_instrumentation_review','roles':['numerical/performance','QA/provenance'],'result':'final clearance','resolved':['privacy/publication whitelist','separate preview/commit and cancel oracle','jointly feasible reservation and pre-study feasibility','seeded round-robin and QR balanced pairs','explicit QR cutoff-sensitivity gate and prospective amendment','canonical JSON/hash/unused-control precision']},{'agent':'t004_plan_review','roles':['operations','developer process','documentation'],'result':'final clearance','resolved':['durable canonical bytes not ignored-only restore path','executed runner/checker/input/isolation source and output bindings','owned observed parameter/data paths and preference key restoration','exact preparation versus qualified measurement boundary']}],'next_task':'T002','limits':['No study row or accepted timing value exists; only fixture preparation/roundtrip checks ran.','Old Release outputs and Debug preparation are ineligible for timing; T002 must rebuild/qualify actual source/compiler/binaries/modules/driver/argv/environment.','QR near-tangent must be proven threshold-sensitive under actual native scaling/cutoffs; otherwise prospectively amend inputs before Q01.','Full post-reopen assembly graph/allowed-motion/status, persistent reference, preview/cancel/frame and rank/DoF oracles remain T002.','T002 must reserve remaining disk maxima and project all rows/profiles/telemetry/cleanup within frozen time limits before study launch.','Canonical public fixtures and metadata are LGPL-2.1-or-later; runtime provenance remains private unless schema-whitelisted.']}
+(p/'t001-validation.json').write_text(json.dumps(receipt,indent=2)+'\n');print(json.dumps({'complete':complete,'canonical_files':count,'bytes':total,'cells':60,'scheduled':len(schedule),'timed_study_rows_executed':0,'file_bindings':len(receipt['current_artifacts_sha256']),'prior_authority_blobs':len(prior),'links':links,'next':'T002'}))

@@ -314,3 +314,14 @@ this authoring task needs no application build or benchmark.
 - [Tasks](tasks.md)
 - [Verification](verification.md)
 - [Decisions](open-decisions.md)
+
+## T001 Selected Freeze
+
+D001 is resolved by [the workload registry](workload-manifest.json),
+[measurement plan](measurement-plan.json) and [preparation review](t001-results.md).
+The earlier workload/sampling descriptions are proposals refined by these exact
+v1 inputs; the requirements and hard correctness contracts remain governing.
+Canonical bytes are preserved under fixtures/canonical, not solely ignored build
+outputs. Actual Release build/runtime/runner and oracle realization remain T002.
+Prospective amendments retain v1 evidence and receive new identities; no study
+sample is eligible from a T001 inventory or preparation check.

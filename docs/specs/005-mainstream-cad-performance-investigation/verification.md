@@ -21,7 +21,7 @@ only. Actual evidence is attached to T001–T012 as they execute.
 | Gate | Required? | Status | Evidence |
 | --- | --- | --- | --- |
 | All six mainstream areas plus B001/B011 explicitly scoped | yes | authoring reviewed; runtime pending | Requirements/design/stream mapping |
-| Representative fixtures and collection/resource plan frozen | yes | pending T001 | Planned workload-manifest.json and measurement-plan.json |
+| Representative fixtures and collection/resource plan frozen | yes | passed T001; not runtime-qualified | workload-manifest.json; measurement-plan.json; t001-validation.json |
 | Source/build/runtime and harness qualified | yes | pending T002 | Planned qualification.md/json |
 | Eight streams and independent semantic oracles | yes | pending T003–T010 | Planned per-stream reports/raw manifests |
 | Ranked deduplicated eleven-field decisions | yes | pending T011 | Planned opportunities.md/json |
@@ -103,8 +103,9 @@ and revise coverage/scope before claiming investigation completion.
 
 ## Task Evidence
 
-T001–T012 are all pending. No source change, build, GUI session or benchmark was
-performed to author this package. Completed historical tasks remain archived and
+At authoring, T001–T012 were pending. T001 now prepares and freezes public
+fixtures and collection rules; T002–T012 remain pending. No product source change,
+new application build, live GUI session or performance study was performed. Completed historical tasks remain archived and
 are not implicitly reopened. Proposed file paths are not claims those artifacts exist.
 
 ## Evidence Log
@@ -172,7 +173,7 @@ or runtime validation. Runtime result review remains mandatory at T012.
 
 ## Readiness Decision
 
-- **Ready for T001 planning:** yes; independent authoring review and structural/link/traceability checks pass.
+- **T001 planning:** complete; see t001-results.md and t001-validation.json.
 - **Ready for timed stream execution:** no; D001/D002 and T001/T002 must complete.
 - **Ready for promotion:** no.
 - **Ready for release:** no.
@@ -194,3 +195,14 @@ Package lint reports zero diagnostics. Task-state audit emits 12 informational
 broad-task hints, with no errors/warnings: per-stream tasks each own one bounded
 report, and T001/T002 now have explicit per-outcome completion gates. Those hints
 do not establish or waive runtime acceptance. No investigation task is complete.
+
+## T001 Fixture And Collection Freeze
+
+T001 and D001 are complete. [The T001 report](t001-results.md),
+[fixture preparation](t001-fixture-preparation.json) and
+[validation receipt](t001-validation.json) bind actual canonical bytes and
+executed preparation checks, independent reviews and prospective study contracts.
+Source-code/rank/correct-frame/runtime/harness qualification remains T002/D002.
+No planned row, even a warmup, has executed as a performance study. The initial
+authoring-validation.json remains an unchanged historical checkpoint, resolving
+its old mutable-document hashes at committed root 877ebdfb3e.

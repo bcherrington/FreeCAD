@@ -65,8 +65,8 @@ of speedups or authorization to change production algorithms/defaults.
 
 ## Staged Readiness
 
-- **Current stage:** requirements/design/task authoring; runtime investigation not started.
-- **Next stage:** T001 freeze representative fixture and collection contracts, resolving D001.
+- **Current stage:** T001 fixture/oracle/collection freeze complete; no timed study started.
+- **Next stage:** T002 qualifies the shared runner and actual Release/runtime identity, resolving D002.
 - **Ready to design when:** selected eight streams and correctness/provenance boundaries are mapped; initial design below is subject to expert authoring review.
 - **Design-first exception:** no.
 - **Optional artifacts recommended:** canonical-context.md and open-decisions.md for ownership and execution gates.

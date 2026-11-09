@@ -38,9 +38,9 @@ accepted contract requires reconciliation and cannot silently redefine it.
 | --- | --- | --- |
 | requirements.md | Current investigation requirements and correctness properties | No runtime completion inferred |
 | design.md | Proposed workload/endpoint/measurement/decision contracts | Exact fixtures/probes frozen by T001/T002 |
-| tasks.md | Linear T001–T012 queue | All pending; do not jump tasks or hide partial work |
+| tasks.md | Linear T001–T012 queue | T001 complete; T002 next; do not hide partial work |
 | verification.md; traceability.md | Coverage and readiness gates | Lint/context are not measured evidence |
-| open-decisions.md | D001/D002 owner and blocking phase | Planning decisions resolved prospectively |
+| open-decisions.md | D001 resolved; D002 owned by T002 | Qualification decisions resolved prospectively |
 
 
 ## Ownership And Boundaries
@@ -57,10 +57,17 @@ Use actual declared tools/capabilities, not assumed profiler/runtime APIs.
 
 ## Current Next Action
 
-T001 planning is the only initial action. Resolve D001 with a frozen fixture and
-collection plan; T002 then resolves D002 and qualifies the runner. No stream
-samples are accepted before both gates. Findings may be negative or limited;
-new implementation proposals require explicit scope and affected validation.
+T001 is complete and D001 resolved. Current frozen inputs are
+[workload-manifest.json](workload-manifest.json),
+[measurement-plan.json](measurement-plan.json) and the durable public canonical
+files. [T001 results](t001-results.md) and its validation receipt document actual
+preparation, provenance and limits. The prior authoring receipt is an immutable
+checkpoint whose mutable document bindings resolve through root `877ebdfb3e`.
+
+T002 must qualify actual Release binaries, loaded runtime, runner/endpoints,
+full semantic oracles and resource feasibility, then resolve D002 before samples.
+Keep the v1 input bytes unchanged; new inputs/policies need a prospective version
+and recorded review, not retroactive replacement. No timing result is claimed.
 
 ## Always-Canonical External Sources
 
@@ -99,3 +106,11 @@ new implementation proposals require explicit scope and affected validation.
 | Measurement/reset/oracle/isolation procedure | docs/runbooks/mainstream-cad-performance-investigation.md | yes |
 | B001/B011 final evidence and decisions | Existing backlog entries; one owned implementation destination if pursued | yes |
 | Raw audit evidence and closure identity | Retained package and history log/index under repository policy | yes |
+
+## Completion-Time Evidence
+
+The T001 receipt binds completion-time mutable documentation and immutable v1
+inputs. Later task routing/documentation changes resolve older bytes through the
+actual T001 package commit in Git history, rather than rewriting old receipt
+hashes. Canonical fixture bytes are versioned with the package; ignored build
+outputs are not the only recovery source.

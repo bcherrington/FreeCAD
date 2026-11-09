@@ -12,8 +12,8 @@ last_reviewed: 2026-11-09
 ## Context And Execution
 
 Read canonical-context.md, requirements.md, design.md, traceability.md,
-verification.md and the decision ledger before execution. All tasks are pending:
-authored planning is not measured evidence. Use guarded task-state updates and
+verification.md and the decision ledger before execution. T001 is complete; T002 is next. Authored planning and fixture preparation
+are not measured performance evidence. Use guarded task-state updates and
 normally one task in progress. Stable IDs are identities; line numbers are not.
 User scope is investigation of six mainstream areas plus B001 and B011.
 
@@ -31,36 +31,38 @@ T001 -> T002 -> T003 -> T004 -> T005 -> T006 -> T007 -> T008 -> T009 -> T010 -> 
 
 ## Delivery Slices
 
-- [ ] T001 Freeze representative workloads, semantic oracles and the collection plan.
+- [x] T001 Freeze representative workloads, semantic oracles and the collection plan.
   - Depends on: none
   - Requirements: Requirement 1 (all acceptance criteria)
   - Properties: CP-001, CP-002, CP-003, CP-004, CP-005
   - Design: design.md#workloads-and-provenance
-  - Files: `workload-manifest.json`, `measurement-plan.json`, `open-decisions.md`
+  - Files: `workload-manifest.json`, `measurement-plan.json`, `open-decisions.md`,
+    `fixtures/`, `t001-fixture-preparation.json`, `t001-results.md`, `t001-validation.json`
   - Acceptance: All six workload families, ordinary/larger controls and eight stream recipes are mapped; exact source/build/runtime scope, reset/oracles, fixed scheduled-attempt counts/order, minimum valid coverage and inconclusive/stop rules (no replacement/optional stopping), cache/host-load/exclusion policy, time/disk budgets and private/public boundaries are recorded. Resolve D001 before T002; no sample is accepted under an unfrozen plan. Any recovery study has a separate prospective freeze/schedule and never replaces or pools original attempts.
   - Validation: verification.md#investigation-gates and the frozen stream/oracle contract; archive raw evidence and exact identities.
   - Evidence mode: artifact
-  - Evidence: Pending.
+  - Evidence: t001-results.md; workload-manifest.json; measurement-plan.json; t001-fixture-preparation.json; t001-validation.json; fixtures/canonical/. All three completion outcomes verified: 17 public FCStd plus 2 STEP canonical files (1,026,459 bytes) are preserved with exact hashes, public metadata and reproducible semantic recipes; all 17 reopened and both STEP files read with preparation checks. Eight streams map to 60 focused cells and 390 fixed scheduled rows (65 warmups, 325 future timed attempts), with independent operation/reset/oracle contracts, counterbalanced QR and round-robin order, privacy/preview/rank/host/resource gates. D001 resolved after three independent CAD, numerical/performance/QA and operations/process reviews. Final direct checks verify canonical and cross-artifact hashes, 12 prior authoring authority blobs, source preservation, schedules, limits and links; SLM lint zero diagnostics and T002 context zero gaps. No Release build, study row or performance result is qualified; D002 remains open for T002.
   - Owner: local-developer
 
-  Completion outcomes (all required; currently pending):
+  Completion outcomes (all required; all verified for T001):
 
   | Outcome | Required evidence | Status |
   | --- | --- | --- |
-  | Fixture registry | All six families, rights/provenance/hash/counts and owned originals/copies | pending |
-  | Operation/oracle registry | Exact edit class/reset/drag branch and independent semantic outcomes per stream | pending |
-  | Collection/resource freeze | Sample/cache/host-load/exclusion/timeout/process/disk contract and D001 resolution | pending |
+  | Fixture registry | All six families, rights/provenance/hash/counts and owned originals/copies | verified; t001-validation.json |
+  | Operation/oracle registry | Exact edit class/reset/drag branch and independent semantic outcomes per stream | verified; t001-validation.json |
+  | Collection/resource freeze | Sample/cache/host-load/exclusion/timeout/process/disk contract and D001 resolution | verified; t001-validation.json |
 
   Record each outcome separately; keep the task partial/in progress until all
   outcomes pass. Do not begin the next parent task from one successful outcome.
 
+  - Status: Complete prospective workload, semantic oracle and collection/resource freeze. Next T002 qualification; v1 inputs remain immutable and no study sample is eligible yet.
 - [ ] T002 Qualify the shared runner, stage attribution and runtime identities.
   - Depends on: T001
   - Requirements: Requirement 1 (all acceptance criteria)
   - Properties: CP-001, CP-002, CP-003, CP-004, CP-005
   - Design: design.md#collection-and-attribution
-  - Files: `qualification.md`, `qualification.json`, `measurement-plan.json`, `open-decisions.md`
-  - Acceptance: Source-confirm interfaces/endpoints and existing QR controls; verify actual binaries/dependencies/loaded modules and owned preferences/session. Smoke-test reset, completion, correctness, timeout and preservation paths; quantify tracing overhead, freeze resulting harness/probe hashes and resolve D002. No production tracing/default change.
+  - Files: `qualification.md`, `qualification.json`, `study-freeze.json`, `open-decisions.md`
+  - Acceptance: Source-confirm interfaces/endpoints and existing QR controls; verify actual binaries/dependencies/loaded modules and owned preferences/session. Smoke-test reset, completion, correctness, timeout and preservation paths; quantify tracing overhead, freeze resulting harness/probe hashes and resolve D002. Read frozen workload/measurement JSON without overwriting v1; bind exact hashes in study-freeze.json. No production tracing/default change.
   - Validation: verification.md#investigation-gates and the frozen stream/oracle contract; archive raw evidence and exact identities.
   - Evidence mode: artifact
   - Evidence: Pending.
