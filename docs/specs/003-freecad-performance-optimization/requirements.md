@@ -4,7 +4,7 @@ doc_type: spec
 artifact_type: requirements
 status: draft
 owner: local-developer
-last_reviewed: 2026-11-06
+last_reviewed: 2026-11-09
 ---
 
 # Requirements
@@ -178,7 +178,10 @@ comparable workflow and build mode.
    qualified measurements solely to clear old numeric vetoes. Evidence-applicability
    changes SHALL retain AC5's requalification/equivalence obligation.
 
-D007 AC7/AC8 are supplemental acceptance work owned by T004/T004.4/T010/T011.
+D007 AC7/AC8 local workflow review is complete in
+[t0044-cost-benefit-review.md/json](t0044-cost-benefit-review.md), with explicit
+selected scopes, accounting and ownership. Final composition/platform applicability
+remains T010 and whole-spec acceptance/closure remains T011.
 Completed measurement/correctness tasks retain their completion-time criterion
 contracts; adding these clauses does not retroactively reopen those tasks.
 

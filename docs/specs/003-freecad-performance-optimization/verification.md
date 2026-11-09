@@ -4,7 +4,7 @@ doc_type: spec
 artifact_type: verification
 status: code-derived
 owner: local-developer
-last_reviewed: 2026-11-08
+last_reviewed: 2026-11-09
 ---
 
 # Performance Optimization Reconciliation
@@ -970,28 +970,27 @@ at the nested docs boundary; executed checks and exact identities establish proo
 
 ## Next Actions
 
-1. **T004.4 — Review retained optimizations’ workflow cost-benefit and operating scope.**
-   T022/D005 planning and T004.1/T004.2/T004.3 measurement/disposition are complete.
-   Apply D007 to absolute gains, confidence/tails, workflow frequency, memory and
-   concurrency; preserve original classifications and the reviewed P08 exclusion.
-2. Keep exact source/build/fixture, geometry and runtime provenance. Evidence-affecting
-   changes need affected requalification or an independently reviewed equivalence;
-   do not repeat complete qualified measurements merely to clear old numeric vetoes.
-3. Complete parent T004 only after its D007 workflow dispositions, then advance
-   T010 exact-final/platform applicability and T011 promotion/closure.
+1. **T010.1 — Confirm final production revisions and invalidate affected evidence.**
+   T004.4 resolves D007 workflow/operating scope for all eight changes; parent T004
+   local comparison/review is complete. Exact final composition and platform
+   applicability remain open; SC-005 and whole-spec acceptance are not implied.
+2. Preserve source/build/fixture/geometry/runtime provenance. Requalify affected
+   evidence or review equivalence for actual changes; do not rerun complete
+   qualified campaigns solely to clear original numeric triggers.
+3. Follow T010.2–T010.4 build/test/platform/manual gates, then T011 promotion/closure.
 4. B009/B010/B011 remain inactive optional work and cannot waive current hard gates.
 
 ## Quality Gates
 
 | Gate | Required? | Status | Evidence |
 | --- | --- | --- | --- |
-| Requirements and decisions accepted | yes | partial | D001 protocol recorded; D002 routes to B009; D003 initial policy recorded; D004 campaign completed; D005/T022 and D007 resolved; workflow dispositions T004.4 and final T010.1 confirmation pending |
+| Requirements and decisions accepted | yes | partial | D001 protocol recorded; D002 routes to B009; D003 initial policy recorded; D004 campaign completed; D005/T022 and D007 resolved; T004.4 scoped dispositions complete; final T010.1 confirmation pending |
 | MoE source-safety blockers resolved | yes | partial | Phase 2 local image/tree/map/archive safety and broader checkpoints complete; exact-final/platform applicability remains T010 |
 | Candidate and final evidence applicability | yes | partial | T019 initial manifest plus exact T020/T004 scoped source/build/runtime receipts recorded; T010 final reconciliation pending |
-| Predeclared per-optimization performance/resource acceptance | yes | incomplete | T020/T004.1/T004.2/T004.3 measurements/exclusions complete; original v1 failures/uncertainty retained; D007 workflow review T004.4 and T010 remain |
+| Predeclared per-optimization performance/resource acceptance | yes | incomplete | T020/T004.1/T004.2/T004.3 measurements/exclusions complete; original v1 failures/uncertainty retained; D007 scoped review T004.4 complete; final T010 remains |
 | Complete task/criterion evidence | yes | pending | tasks.md; traceability.md |
 | Focused current correctness and failure tests | yes | passed locally | T003/T006 image, T007 tree, T015/T016/T005 numeric/identity and T018/T002 failure/aggregate compatibility checkpoints pass on their recorded profiles; T010 reconfirms final/platform applicability |
-| Current measurements and platform/manual acceptance | yes | incomplete | Scoped current measurements recorded; D007 product/workflow dispositions T004.4 and exact-final/platform applicability T010 remain |
+| Current measurements and platform/manual acceptance | yes | incomplete | Scoped current measurements recorded; D007 product/workflow dispositions T004.4 complete; exact-final/platform applicability T010 remains |
 | Durable promotion and residual ownership | yes | pending | requirements.md durable impact |
 | Review and closure metadata | yes | pending | No closure claimed |
 
@@ -1512,3 +1511,22 @@ independently reviewed current-effect attribution exclusion preserving T014/T017
 T007 behavior, with no independent speed claim and T004.4 as its sole residual
 owner; B011 remains inactive. T004.4 is next for actual workflow cost-benefit and
 operating-scope dispositions; T010 retains final composition/platform applicability.
+
+## T004.4 Workflow Cost-Benefit And Operating Scope
+
+[t0044-cost-benefit-review.md/json](t0044-cost-benefit-review.md) records every
+D007 required field for P01–P08, with local-developer ownership. P05 many-image
+logical accounting and selected bounded inventory are explicit; P07 uses full
+20-pair tails and keeps exploratory n=2 decomposition separate. P06/P08 adopt
+reviewed attribution exclusions without standalone benefit claims. Unknown
+population frequency is handled by selected workflow scope; BIM host cause is
+not inferred. Hard-gate evidence remains scoped to its qualified receipts.
+
+[t0044-validation.json](t0044-validation.json) binds the completed review,
+independent CAD/performance/operations-document reviews, preserved source
+artifacts, eight exact prior-authority snapshots and document/accounting checks.
+No source changes, native tests or new benchmark samples were needed for this
+review. Frozen D007/prior review/results/receipts are unchanged. Lasting scoped
+decisions are promoted to the reference and runbook; final promotion/closure
+remains T011. T004/T004.4 local acceptance is complete. Next T010.1; SC-005 and
+whole-spec final production acceptance remain open.

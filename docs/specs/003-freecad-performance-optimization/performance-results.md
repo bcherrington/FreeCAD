@@ -9,6 +9,26 @@ last_reviewed: 2026-11-08
 
 # Current Performance Measurement And Acceptance Status
 
+## Current Disposition — T004.4, 2026-11-09
+
+[T004.4 review](t0044-cost-benefit-review.md) and its
+[JSON](t0044-cost-benefit-review.json) resolve all P01–P08 D007 triggers with
+explicit selected operating scopes and accountable ownership. P01–P05/P07 are
+retained with scoped tradeoffs; P06/P08 retain reviewed attribution exclusions.
+P05 accepts bounded memory-for-speed accounting (three 4096-equivalent planes,
+one conversion, adequate headroom); P07 accepts occasional measured first-use
+stalls (p95 1.843 s; maximum 1.931 s) for the hidden/subset workflow. Population
+frequency and long-lived/GPU memory remain unknown, not invented assumptions.
+No new benchmarks, legacy reclassification or host-cause claim. T004 local review
+is complete; next T010.1 confirms final composition/platform applicability.
+SC-005/final production acceptance remain open. The historical checkpoint
+`performance-results.json` and all dated sections below remain unchanged evidence
+for their original checkpoints; this section supersedes their next-task routing.
+
+See [validation](t0044-validation.json), [durable reference](../../reference/document-open-performance.md)
+and [runbook](../../runbooks/freecad-performance-optimization.md).
+
+
 T020 and T004.1/T004.2/T004.3 measurements/dispositions are complete. **Current product
 review uses owner-selected D007 cost-benefit policy**, adopted after these results.
 P04/P05/P07 are retained directions; the original D001 v1 classifications below

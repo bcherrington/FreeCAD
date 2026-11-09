@@ -4,7 +4,7 @@ doc_type: spec
 artifact_type: design
 status: draft
 owner: local-developer
-last_reviewed: 2026-11-08
+last_reviewed: 2026-11-09
 ---
 
 # Technical Design
@@ -421,7 +421,7 @@ keep D001 criteria unchanged and bound diagnostics/revalidation. T022 planning i
 complete; T004.1/T004.2 measurements and dispositions are complete. P01/P05 fail
 overall D001, P04 timing is inconclusive and retained P07 remains unaccepted.
 D007 now selects cost-benefit review rather than blanket numeric vetoes; all v1
-outcomes remain unchanged. T004.3 measurement/disposition is complete; T004.4 is next. No policy decision IDs
+outcomes remain unchanged. T004.3 measurement/disposition and T004.4 scoped review are complete; T010.1 is next. No policy decision IDs
 remain open; parent T004 owns workflow/operating-scope review and T010 final
 applicability. Mandatory hard gates and these reviews still precede production approval.
 T021's historical decision discovery and all T020 records remain unchanged.
@@ -521,9 +521,9 @@ runs before/after collection; per-worker environment construction is pure. The
 original P04 operator launch and independently checked live process identity
 supply reviewed actual-controller equivalence without changing its frozen code.
 See the conversion plan, prospective reconciliation, P05 launch plan and results.
-Original numeric outcomes remain preserved. Unresolved D007 trigger reviews and
-workflow/operating-scope dispositions, rather than numeric breaches themselves,
-remain acceptance work owned by T004/T004.4.
+Original numeric outcomes remain preserved. The completed
+[t0044-cost-benefit-review.md](t0044-cost-benefit-review.md) resolves D007 trigger
+reviews and selected operating scopes. T010 confirms final applicability.
 
 ## Cost-Benefit Acceptance Policy
 
@@ -543,8 +543,9 @@ posthoc judgments; applicability changes still require qualification/equivalence
 P04's supported local improvement need not be rerun merely for dispersion. P05's
 speed/memory direction is retained with transient and retained allocation scaling
 explicit. P07 stays full-resolution and retained, with first-use/tail experience
-still reviewed. Completed T004.3 freezes bind D007 before samples; T004.4 resolves retained-change
-operating scope, while T010 retains exact final integration/platform obligations.
+reviewed in T004.4. Completed T004.3 freezes bind D007 before samples;
+[t0044-cost-benefit-review.md/json](t0044-cost-benefit-review.md) records retained-change
+operating scopes, while T010 retains exact final integration/platform obligations.
 The seven prior authority snapshots preserve completed T004.2 bindings unchanged.
 
 

@@ -1,0 +1,271 @@
+{
+  "schema": "freecad-spec003-operating-scope-review/v1",
+  "task": "T004.4",
+  "date": "2026-11-09",
+  "policy": "D007",
+  "owner": "local-developer",
+  "review_complete": true,
+  "production_accepted": false,
+  "new_runtime_samples": 0,
+  "method": "Retrospective product review of qualified completed comparisons; P05 many-image logical accounting and bounded operating-scope selection. No statistical reclassification, pooling or causal host-load inference. P02/P03 measurements prospectively froze D007; this disposition uses their existing evidence.",
+  "required_review_fields": [
+    "legacy_outcome_and_trigger",
+    "evidence_and_source_scope",
+    "absolute_and_relative_benefit",
+    "paired_confidence_and_tail_behavior",
+    "operation_frequency",
+    "transient_and_retained_memory_and_process_peak",
+    "concurrency_and_operating_scope",
+    "uncertainty_and_applicability",
+    "rationale_and_mitigation",
+    "owner_and_residual_tasks",
+    "decision_and_production_acceptance_scope"
+  ],
+  "source_bindings": {
+    "acceptance-policy-v2.md": "6d6df53ac04877b1b74973caa184cafab8251ba1ac10a6b505c7dde7f893069f",
+    "acceptance-policy-v2.json": "c60114f73521dad78e4926f5d3404a02f64c2f7aac861cc06b817240a57bda57",
+    "cost-benefit-review.md": "c6d3e040128802955c5446d4b077090b99b649459f50516c218acb30cf081eab",
+    "cost-benefit-review.json": "6e9a5754b48371d135597feeaf71ade7274f407d0904658cec9080e79caaab7a",
+    "d007-validation.json": "8111c809da5a6c272beb6f9fc1f0312a02e8cbdbe0202e692200905e40dd3542",
+    "t004-p01-results.md": "022eacc3ea8736c2904ab5eec785073eb34d2f10912950fc4e7215ecb1b2085a",
+    "t004-p01-results.json": "9d0800efc7b30547e5f2e3b8cd87b842a75e5e508b75e940a5ef5c1b610229e4",
+    "t004-p01-validation.json": "bb87921850f29387e7e93457a5eea598df8682e05e0b2f58a1e6b78d9784d235",
+    "performance-recovery-2-results.md": "31c6969e1125e916068f67f7f94293dbbff84be67f2990533db66ec80eddace8",
+    "performance-recovery-2-results.json": "4e97b2e5afe810fcaf57b07308a749d3a65dcf9477016b5d122e740a793ac4a4",
+    "t020-validation.json": "e36059ed548bc6066aac57f97635dd24557941cc562a28b0259c25dc6fb1ffb3",
+    "t020-measurement-review.md": "28d90cf02c84a53c4935cd27957ef3d58b9f72e6cd2939149a47f1b644e37fa9",
+    "t004-p07-diagnostic-results.md": "c3a4b85c48528a68d1654aa621bac0520a7e3faf1852451161cf3b0d394e9621",
+    "t004-p07-diagnostic-results.json": "451816cb929f55e29a68bcf6c731e7b3d0cfc62ab6e07426b42d99b97ea9d6fe",
+    "t004-p07-diagnostic-validation.json": "639c76358b2a346c9067ace5f4d7815c0965e95068ae17dadd3ec22faff6100b",
+    "t004-conversion-results.md": "6e3c6b6050e7b91f54510e2728bcdf6ba24f19bb5ed0c682122414bb6c3664e3",
+    "t004-conversion-results.json": "26276b113b0804f1c7f56f91cda1ba2fe569805ce6396dd8544e434fa904e82d",
+    "t004-conversion-validation.json": "0a2de89f97be30485ff28fa729b915dd35073b5d87fc2627de1fbb754f528e51",
+    "t0043-results.md": "c9df13b155f55f9e4b3e6c6b5b11131516a8f8ea51e8b9c59ba81209915390d4",
+    "t0043-results.json": "3d786cee0bb21523a25ca17ba56adfe2973b9759d3fa33dd4b977c9651dc8c68",
+    "t0043-validation.json": "90414b47b8df05896040c7926ccf4715249ec18721d0f9c2324779b9b9e89e87",
+    "t004-execution-plan.md": "dbee00a9754d7d685fe813b1531049ba9ed40986f077c9013ee0f4747a8b2231",
+    "t006-validation.json": "7e97171772e221915f6721202f94ddb7bd8c94b742c47b5fff4a1c7e35e6f18e",
+    "t014-validation.json": "47337388595663b7dd84c3f8010d458a93b6ce2bc3a9ee739e87fad12750682f",
+    "t017-validation.json": "f969cdcb2e367685c30ab3adef4eca77622957207fc3999eb92ab787a00aa58e",
+    "t007-validation.json": "2154c5c17294eb74d7895f295c3348731392a2b4154b5a4cb10035c26dae7950"
+  },
+  "comparisons": {
+    "P01": {
+      "legacy_outcome_and_trigger": "Original overall FAIL: BIM open-p95; ArchDetail/PartDesign inconclusive. All original classifications preserved.",
+      "evidence_and_source_scope": "t004-p01-results.md/json; t004-p01-validation.json. Five qualified cells, 240 workers, 20 measured pairs/cell; pinned source/build/runtime and included-file fidelity/error checks. Console-open scope, not GUI frame timing.",
+      "absolute_and_relative_benefit": "Included-file primary payload median 513.92 to 26.79 ms (-94.8%); console open 1183.27 to 704.44 ms (-40.5%). Control workloads have little/no included payload; no equivalent gain claimed.",
+      "paired_confidence_and_tail_behavior": "Primary payload paired-ratio 95% bootstrap CI [0.05186, 0.05482], 20 measured pairs/cell. BIM open p95 2784.98 to 3347.69 ms (+562.71); ArchDetail p95 4907.17 to 5375.69 ms. No attribution to host load and no guarantee for latency-sensitive BIM/Arch opens.",
+      "operation_frequency": "Population frequency unknown. Benefit applies per included-file-rich open; no weighted average or claim that every document benefits.",
+      "transient_and_retained_memory_and_process_peak": "Original resource gates pass. Buffered restore adds bounded temporary storage; campaign process peaks do not establish long-lived allocator behavior or retained-memory neutrality.",
+      "concurrency_and_operating_scope": "Retain for ordinary interactive desktop and non-deadline batch opens within recorded fixture/source/runtime scope. Overlapping opens not measured; no concurrency multiplier or hard latency SLA approved.",
+      "uncertainty_and_applicability": "BIM tail cause unresolved; accepting observed workflow risk does not establish causality. Exact final composition/platform remains T010.",
+      "rationale_and_mitigation": "Accept large payload-path benefit with disclosed control tails. Keep current byte/error/permissions semantics; report workflow-specific regressions rather than discard on percentage alone.",
+      "owner_and_residual_tasks": "local-developer owns scoped disposition; T010 confirms final source/platform applicability. A strict latency target or changed overlap pattern requires an explicit applicability review.",
+      "decision_and_production_acceptance_scope": "Retain; scoped D007 tradeoff accepted. No v1 pass reclassification or final production approval.",
+      "trigger_review_complete": true,
+      "production_accepted": false,
+      "owner": "local-developer"
+    },
+    "P02": {
+      "legacy_outcome_and_trigger": "Primary PASS; small zero-payload controls INCONCLUSIVE. Review maximum and process-peak increases.",
+      "evidence_and_source_scope": "t0043-results.md/json; t0043-validation.json; t0043-evidence/p02-statistics.json. 144 workers, three cells; byte/ZIP/failure/read-only and geometry/payload checks; qualified defined ABI.",
+      "absolute_and_relative_benefit": "Primary full-save medians 2695.169 to 2113.726 ms; paired saved 519.219 ms (95% CI 434.823 to 644.572). Hook medians 1897.657 to 1338.029 ms; paired saved 513.575 ms (CI 473.478 to 598.862).",
+      "paired_confidence_and_tail_behavior": "Twenty measured pairs/cell. Full-save p95 4158.546 to 3214.055 ms, but maximum 5054.700 to 5193.201 ms (+138.501). PartDesign p95 112.365 to 115.386 ms; no deadline guarantee or uniform control speedup.",
+      "operation_frequency": "Save frequency unknown; per-save gain matters when included-file payload is substantial. Zero-payload fixtures do not establish benefit.",
+      "transient_and_retained_memory_and_process_peak": "64 KiB temporary buffer per active save in source. Median process peak primary 335.22 to 337.28 MiB, controls roughly +1.6 to +1.7 MiB; includes preparation and is not incremental retained memory.",
+      "concurrency_and_operating_scope": "Retain qualified payload-rich serial saves; one active benchmark save. Overlapping saves have at least one buffer per active operation; total process memory/overlap not measured. No new concurrency or latency guarantee.",
+      "uncertainty_and_applicability": "Scalar comparator and ABI/provider qualification are explicitly scoped; final production source/build remains T010. Population and long-lived RSS unknown.",
+      "rationale_and_mitigation": "Accept about half-second paired save benefit and improved p95 despite the observed worse maximum/small process peaks. Preserve visible archive errors and byte identity.",
+      "owner_and_residual_tasks": "local-developer; T010 final composition/platform. Reassess changed buffer lifetime, archive error path or materially concurrent workload, not old dispersion alone.",
+      "decision_and_production_acceptance_scope": "Retain; scoped D007 tradeoff accepted; production acceptance remains false.",
+      "trigger_review_complete": true,
+      "production_accepted": false,
+      "owner": "local-developer"
+    },
+    "P03": {
+      "legacy_outcome_and_trigger": "Primary hooks PASS; whole-open confidence crosses zero; Draft overall legacy FAIL and higher process peaks.",
+      "evidence_and_source_scope": "t0043-results.md/json; t0043-validation.json; t0043-evidence/p03-statistics.json. 240 accepted workers/five cells; safe grammar and owning-token versus bounded-view comparison, not literal historical Boost replay. Earlier 135-row verifier-scope attempt excluded, never pooled.",
+      "absolute_and_relative_benefit": "BIM hook paired saved 5.924 ms (CI 4.696 to 6.803), paired ratio CI 0.884 to 0.923. Arch hook paired saved 1.780 ms (CI 1.194 to 2.522), ratio CI 0.900 to 0.951. Whole-open improvement not established.",
+      "paired_confidence_and_tail_behavior": "Twenty measured pairs/cell. Draft open median 400.312 to 392.163 ms, p95 803.774 to 1002.837 ms, maximum 1052.9 to 1617.7 ms. Hook is sub-ms. Accept this measured uncertainty for ordinary desktop scope, not a Draft latency SLA or host-cause explanation.",
+      "operation_frequency": "Map-token frequency varies by document and is not a population measurement. Claim bounded local parsing benefit only, no noticeable whole-open speedup.",
+      "transient_and_retained_memory_and_process_peak": "BIM median process peak 280.30 to 281.99 MiB; Arch 266.70 to 268.67 MiB. Bounded views avoid owning token strings locally; fresh-process peaks do not prove total-memory reduction or neutrality.",
+      "concurrency_and_operating_scope": "Retain qualified safe parser on recorded serial restore workloads, ordinary interactive use. Concurrent restore throughput and strict Draft response deadlines outside performance approval.",
+      "uncertainty_and_applicability": "Whole-open CIs crossing zero and Draft tail remain disclosed. Exact geometry-manifest scope is the qualified one; no universal topological-name proof. Long-lived RSS unknown.",
+      "rationale_and_mitigation": "Accept modest local benefit and safe bounded implementation with no end-to-end speed promise; preserve numeric overflow/grammar/lifetime/identity hard gates. Tail regression reports trigger workflow review.",
+      "owner_and_residual_tasks": "local-developer owns decision; T010 confirms final composition/platform. New parser semantics or a strict latency requirement need affected qualification.",
+      "decision_and_production_acceptance_scope": "Retain; local-hook tradeoff accepted, whole-open benefit unproven; production acceptance false.",
+      "trigger_review_complete": true,
+      "production_accepted": false,
+      "owner": "local-developer"
+    },
+    "P04": {
+      "legacy_outcome_and_trigger": "Original timing INCONCLUSIVE from dispersion although all timing/resource numeric thresholds pass.",
+      "evidence_and_source_scope": "t004-conversion-results.md/json and t004-conversion-validation.json. Three direct-format cells among 13 qualified conversion cells; exact pixel/orientation/ownership checks and actual-interpreter equivalence limits retained.",
+      "absolute_and_relative_benefit": "Primary raster medians approximately 928.30 to 92.21 ms and 769.75 to 79.59 ms; paired ratio CIs about [0.090,0.107] and [0.089,0.108]. Small raster 89.89 to 11.68 ms. Local conversion only.",
+      "paired_confidence_and_tail_behavior": "Twenty measured pairs/cell. Primary IQR/median 31.1% to 15.5% and 17.9% to 16.9%; small control 162.1% to 102.6%. Paired confidence supports local primary gain; original dispersion labels remain. No universal GUI multiplier or latency SLA.",
+      "operation_frequency": "Conversion once per materialization; image count/replacement frequency population unknown. No weighted whole-document or repeated cached-show benefit claimed.",
+      "transient_and_retained_memory_and_process_peak": "All original resource gates pass for direct formats. Conversion storage/ownership qualified; fresh-process RSS does not establish allocator/GPU residency or long-lived reclamation.",
+      "concurrency_and_operating_scope": "Retain qualified direct formats/dimensions on one active conversion, within recorded native conversion profile. Concurrent conversion and different formats/sizes need applicability assessment.",
+      "uncertainty_and_applicability": "Conversion microbenchmarks do not predict exact GUI frame/open time. High relative variation in a small cell is not hidden or rerun away.",
+      "rationale_and_mitigation": "Accept large absolute/local gains despite dispersion; preserve resolution, pixels, orientation, lifetime and calibration. No extra optimization solely to satisfy 10% IQR.",
+      "owner_and_residual_tasks": "local-developer; T010 final source/platform/profile confirmation. New direct-format routes require fidelity and applicable evidence.",
+      "decision_and_production_acceptance_scope": "Retain; qualified local-conversion benefit accepted with scope limits; production acceptance false.",
+      "trigger_review_complete": true,
+      "production_accepted": false,
+      "owner": "local-developer"
+    },
+    "P05": {
+      "legacy_outcome_and_trigger": "Five large fallback cases original resource FAIL; timing INCONCLUSIVE despite numeric timing passes. Five small controls pass resources.",
+      "evidence_and_source_scope": "t004-conversion-results.md/json; t004-conversion-validation.json. Qualified fallback formats at 4096 and 512 dimensions, pixel/orientation/ownership checks. Many-image figures below are reviewed logical accounting, not an empirical many-image campaign.",
+      "absolute_and_relative_benefit": "Large-case paired conversion savings approximately 276 to 505 ms, current conversion medians approximately 53 to 97 ms. Local materialization benefit, not whole-workflow confidence.",
+      "paired_confidence_and_tail_behavior": "Twenty measured pairs/cell. Across five large cells, paired-ratio 95% bootstrap CI endpoints span [0.0848, 0.2320]; this is a range across separate cell intervals, not a pooled CI. Baseline IQR/median ranges 11.6% to 90.2%, current 5.5% to 27.3%. Exact per-cell p95/max and confidence are reproduced below and in supporting_P05_large_conversion_cells. Original timing remains INCONCLUSIVE. No long-lived or many-image tail distribution measured; no guaranteed conversion deadline.",
+      "operation_frequency": "Cost is incurred per newly materialized/replaced image, retained cost persists per materialized plane. Frequency unknown; do not assume all files contain a single image.",
+      "transient_and_retained_memory_and_process_peak": "Per 4096x4096 fallback conversion: +64 MiB temporary decoded RGBA payload. Additional retained Coin payload: indexed gray +48 MiB/plane; gray-alpha and Gray16 +32 MiB/plane; premultiplied and SVG cases +0. At N planes, gray extra is 48N MiB (32N for the two other cases); K overlapping conversions add 64K MiB temporary. At 512 these terms scale by 1/64. Source lifetime ends after conversion, allocator RSS reclamation unmeasured. GPU and old/new-copy overlap unmeasured; do not sum these with unrelated measured process peaks.",
+      "concurrency_and_operating_scope": "Select a bounded review scope: serial materialization, at most three materialized 4096-equivalent fallback planes, each dimension no larger than the qualified 4096 case. This permits up to 144 MiB extra retained gray payload (96 MiB for gray-alpha/Gray16) plus a separately accounted 64 MiB active temporary. Three is an explicit local operating-scope decision, not a tested three-fallback result, a software clamp, or an assertion about typical users. Actual decoded/base/Coin/driver memory and headroom must also fit. Many-image counts above three, K>1, replacement overlap, larger dimensions and sustained allocator reuse are outside this performance approval.",
+      "uncertainty_and_applicability": "No universal RAM budget, GPU bound, population count or RSS ceiling inferred. Selected accounting scope is conditional on adequate actual memory headroom; it does not promise this fits every machine or narrow FreeCAD functionality.",
+      "rationale_and_mitigation": "Accept speed/fidelity benefit at the explicit bounded inventory; retain full resolution and calibration. Inventory images and formats before extrapolating. If scope must grow, review the accounting/headroom and collect only evidence needed for a real gap; do not force a source rewrite to the old 1 MiB trigger.",
+      "owner_and_residual_tasks": "local-developer owns selected scope and headroom judgment; T010 confirms final composition and stated scope. Broader operating scope requires a separately recorded extension decision with relevant evidence, not silent approval.",
+      "decision_and_production_acceptance_scope": "Retain; bounded memory-for-speed tradeoff accepted by reviewed accounting. Broad many-image/overlap approval and production approval not granted.",
+      "trigger_review_complete": true,
+      "production_accepted": false,
+      "owner": "local-developer"
+    },
+    "P06": {
+      "legacy_outcome_and_trigger": "Reviewed attribution exclusion, no independent speed classification.",
+      "evidence_and_source_scope": "t020-measurement-review.md and t004-execution-plan.md P06 inventory; qualified T006/T020 restore/import lifecycle guard shared with P07.",
+      "absolute_and_relative_benefit": "No separable speedup claim; generalized guard preserves pending images through restore/import.",
+      "paired_confidence_and_tail_behavior": "No independent P06 timing distribution is identifiable under the qualified common lifecycle; do not manufacture one by unsafe guard removal.",
+      "operation_frequency": "Relevant per restore/import; population frequency unknown.",
+      "transient_and_retained_memory_and_process_peak": "No independent P06 memory saving claimed; P07 contains measured hidden/materialized logical storage.",
+      "concurrency_and_operating_scope": "Retain shared qualified guard; zero premature loads required. No concurrency extension beyond qualified GUI lifecycle.",
+      "uncertainty_and_applicability": "Attribution exclusion does not remove the mandatory functional/provenance checks.",
+      "rationale_and_mitigation": "Adopt reviewed exclusion as final T004 disposition. Preserve generalized restore/import behavior and lifecycle identity; no benchmark solely to split shared effects.",
+      "owner_and_residual_tasks": "local-developer; T010 checks final lifecycle composition/platform. No independent performance residual remains in T004.",
+      "decision_and_production_acceptance_scope": "Retain under reviewed non-identifiability exclusion; no standalone benefit or production approval.",
+      "trigger_review_complete": true,
+      "production_accepted": false,
+      "owner": "local-developer"
+    },
+    "P07": {
+      "legacy_outcome_and_trigger": "Original recovery-2 overall FAIL: first-show budget, all-visible p95 and PartDesign control; other timing INCONCLUSIVE. Original 500/1000 ms limits remain diagnostic triggers.",
+      "evidence_and_source_scope": "performance-recovery-2-results.md/json; t020-validation.json; t004-p07-diagnostic-results.md/json separate exploratory n=2/arm (never pooled or used as a tail acceptance sample). Twenty-pair recovery-2 tails govern this review, not the diagnostic.",
+      "absolute_and_relative_benefit": "Hidden-open medians 3321.13 to 1736.84 ms; paired median saved 1726.52 ms and ratio CI [0.479,0.539]. Open+first-show medians 3390.18 to 2565.95 ms but original result INCONCLUSIVE. Repeat median 7.78 to 7.66 ms. Avoided work only for images never shown; otherwise deferred.",
+      "paired_confidence_and_tail_behavior": "First-show median 71.66 to 857.91 ms; p95 103.36 to 1843.09 ms; maximum 132.69 to 1930.75 ms. Open+first p95 6570.10 to 5488.32 ms. All-visible p95 11922.84 to 14979.88 ms; PartDesign median 284.79 to 318.75 ms. Accept occasional first-use stalls in selected hidden/subset workflow; neither sub-second response nor whole-workflow universal gain is promised.",
+      "operation_frequency": "Select opens with images hidden and remaining hidden or only a subset revealed. Frequency in the user population is unknown; opening all images immediately is outside performance-benefit approval. Already-materialized repeat display does not reload.",
+      "transient_and_retained_memory_and_process_peak": "Hidden maximum RSS 921.39 to 832.16 MiB; peak Coin payload 280.04 to 186.69 MiB, decoded 93.35 MiB both. All-visible RSS 918.21 to 920.04 MiB; Coin 280.04 MiB both. Savings are scoped peak observations, not permanent savings after all images are shown. GPU residency unmeasured.",
+      "concurrency_and_operating_scope": "Retain qualified three-image hidden fixture workflow on the recorded desktop profile, serial first demand. One first-show materializes one image and leaves two pending; repeat adds no load. Immediate-all-image and concurrent-demand responsiveness claims excluded. P05 format/count accounting applies separately to fallback payloads; do not combine unrelated arm deltas.",
+      "uncertainty_and_applicability": "No idle-host inference or explanation of older BIM tail. Diagnostic decomposition (~80% lazy first-show read/decode) is descriptive only. Broader platform, long-lived memory and composed final source remain T010.",
+      "rationale_and_mitigation": "Accept hidden-open speed and avoided materialization/storage for images never needed, in exchange for observed occasional first-use latency up to about 1.93 s in this sample. Keep full resolution/calibration and safe lifecycle; no newly invented 1 s global budget, background loader or placeholder change.",
+      "owner_and_residual_tasks": "local-developer owns this selected experience; T010 confirms exact final profile/source and scope. Strict first-frame deadlines or broader immediate-all-visible use need an explicit applicability review.",
+      "decision_and_production_acceptance_scope": "Retain; scoped hidden/subset workflow tradeoff accepted. Legacy failures remain; production acceptance false.",
+      "trigger_review_complete": true,
+      "production_accepted": false,
+      "owner": "local-developer"
+    },
+    "P08": {
+      "legacy_outcome_and_trigger": "Reviewed current-effect attribution exclusion; historical suppression is subsumed by correctness repairs.",
+      "evidence_and_source_scope": "t0043-results.md/json P08 disposition; T014/T017/T007 source and functional receipts. Current safe fallback timer/finish flush must remain.",
+      "absolute_and_relative_benefit": "No separate tree speedup claimed; historical blanket timer suppression cannot be isolated by a safe raw revert.",
+      "paired_confidence_and_tail_behavior": "No independent comparable timing/tail distribution; exclusion is source-reviewed rather than an unmeasured gain.",
+      "operation_frequency": "Restore/tree-update frequency population unknown.",
+      "transient_and_retained_memory_and_process_peak": "No independent retained-memory or process-peak saving claimed. Receiver lifetime checks remain hard gates.",
+      "concurrency_and_operating_scope": "Retain qualified current GUI tree lifecycle and event-loop behavior. No nested/open-depth concurrency design extension or larger-model speed promise.",
+      "uncertainty_and_applicability": "Do not treat old suppression source presence as current measurable speed benefit. B011 remains inactive, not a prerequisite to this attribution disposition.",
+      "rationale_and_mitigation": "Adopt reviewed exclusion; preserve T014 lifetime, T017 fallback/finish and T007 correctness. Resolve T004.4 attribution residual without unsafe historical counterfactual or new timing campaign.",
+      "owner_and_residual_tasks": "local-developer; T010 confirms final source/platform. No remaining T004 performance residual; optional further optimization stays B011.",
+      "decision_and_production_acceptance_scope": "Retain qualified correctness-preserving tree path under reviewed exclusion; production acceptance false.",
+      "trigger_review_complete": true,
+      "production_accepted": false,
+      "owner": "local-developer"
+    }
+  },
+  "next_task": "T010.1",
+  "review_boundary": "T004 applicable measurement/exclusion and workflow dispositions complete; SC-005 final composition/platform acceptance and whole-spec approval remain T010/T011.",
+  "supporting_P05_large_conversion_cells": {
+    "indexed-gray-4096": {
+      "measured_pairs": 20,
+      "bootstrap_ratio_interval": [
+        0.20809448902197944,
+        0.223017490317624
+      ],
+      "baseline": {
+        "p95": 1811.3498608000002,
+        "maximum": 1913.708937,
+        "iqr_over_median": 0.1382666725011106
+      },
+      "change": {
+        "p95": 280.92527345,
+        "maximum": 295.140968,
+        "iqr_over_median": 0.055080022225207845
+      }
+    },
+    "indexed-gray-alpha-4096": {
+      "measured_pairs": 20,
+      "bootstrap_ratio_interval": [
+        0.21760372456002192,
+        0.23199898355211615
+      ],
+      "baseline": {
+        "p95": 1824.0526755500002,
+        "maximum": 1906.937602,
+        "iqr_over_median": 0.11559052389349533
+      },
+      "change": {
+        "p95": 319.3476054,
+        "maximum": 338.084216,
+        "iqr_over_median": 0.12212803709364735
+      }
+    },
+    "premultiplied-4096": {
+      "measured_pairs": 20,
+      "bootstrap_ratio_interval": [
+        0.11606961096316873,
+        0.13126336845187742
+      ],
+      "baseline": {
+        "p95": 1343.57641515,
+        "maximum": 1398.027492,
+        "iqr_over_median": 0.13157379194037125
+      },
+      "change": {
+        "p95": 105.1970681,
+        "maximum": 109.89824,
+        "iqr_over_median": 0.0878328739121725
+      }
+    },
+    "gray16-4096": {
+      "measured_pairs": 20,
+      "bootstrap_ratio_interval": [
+        0.1468874931617914,
+        0.1603263302217498
+      ],
+      "baseline": {
+        "p95": 1573.6265561,
+        "maximum": 1588.29414,
+        "iqr_over_median": 0.35166892690396323
+      },
+      "change": {
+        "p95": 198.66940530000002,
+        "maximum": 233.345361,
+        "iqr_over_median": 0.13691318560278834
+      }
+    },
+    "svg-4096": {
+      "measured_pairs": 20,
+      "bootstrap_ratio_interval": [
+        0.08479643307469312,
+        0.12866730726124442
+      ],
+      "baseline": {
+        "p95": 2076.4910435,
+        "maximum": 2139.877789,
+        "iqr_over_median": 0.9016616244633848
+      },
+      "change": {
+        "p95": 123.87831800000008,
+        "maximum": 215.600267,
+        "iqr_over_median": 0.27342856001776183
+      }
+    }
+  }
+}

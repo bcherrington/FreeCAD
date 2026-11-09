@@ -1,0 +1,39 @@
+{
+  "schema": "freecad-spec003-authority-archive/v1",
+  "source_root_commit": "ef2ce9545f",
+  "bound_by": "t0043-validation.json current_authority_snapshot",
+  "files": {
+    "requirements.md": {
+      "artifact": "requirements.md.txt",
+      "sha256": "0cd3cf1e953f6941ae5a7cbed62535a1b31f385a0ee7294df4548f2b8d78ca06"
+    },
+    "design.md": {
+      "artifact": "design.md.txt",
+      "sha256": "fec965f74777f7f6a38067ad5a871f44783f18f5c69c60801e21cf97cef9ce50"
+    },
+    "tasks.md": {
+      "artifact": "tasks.md.txt",
+      "sha256": "1fc9c44120b394d474364a0f5a71dd2da3eceaab4dd42c5259f91a659a19f048"
+    },
+    "open-decisions.md": {
+      "artifact": "open-decisions.md.txt",
+      "sha256": "25f057ba8c24c4da21e6a240bd40692cb41834bd2b785d59b0d90fa06b6e37a8"
+    },
+    "canonical-context.md": {
+      "artifact": "canonical-context.md.txt",
+      "sha256": "a7f58380042c5c99b2ddee928303a3baf47c139344d2e91dc5dca3542d8ae4c1"
+    },
+    "performance-results.md": {
+      "artifact": "performance-results.md.txt",
+      "sha256": "9cb13df24313f497a25421df3712f7f68b00cbdd93d2d01f0c9091ad0afa2a70"
+    },
+    "traceability.md": {
+      "artifact": "traceability.md.txt",
+      "sha256": "70a350c5aa684cf693d13a36e34a45cc4e95c84efc418d721e55948b58a4bb94"
+    },
+    "verification.md": {
+      "artifact": "verification.md.txt",
+      "sha256": "dcabc837b2f4ab1997fe5243e0b7d49b2646cf83b07e35b965440e8bad5aab82"
+    }
+  }
+}

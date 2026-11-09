@@ -4,7 +4,7 @@ doc_type: spec
 artifact_type: tasks
 status: draft
 owner: local-developer
-last_reviewed: 2026-11-08
+last_reviewed: 2026-11-09
 ---
 
 # Tasks
@@ -43,7 +43,7 @@ that explicit routing verified.
 | 2B — Tree | T014/T017/T007 complete | Receiver/completion fixes and current functional qualification |
 | 2C — CAD maps | T015/T016/T005 complete | Bounded parsing and CAD reference identity qualified |
 | 2D — Archives | T018/T002/T002.1/T002.2 complete | Archive error outcomes and compatibility qualified |
-| 3 — Performance | T020 measurement complete → T022/D005 plan complete → T004.1/T004.2/T004.3 measurements/exclusion complete → **T004.4 cost-benefit review** | Mandatory hard gates and D007 workflow/operating-scope dispositions |
+| 3 — Performance | T020 measurement complete → T022/D005 plan complete → T004.1/T004.2/T004.3 measurements/exclusions and T004.4 scoped review complete | Mandatory hard gates and D007 workflow/operating-scope dispositions |
 | 4 — Delivery | T010 → T011 | Exact final evidence, platform checks, promotion and closure |
 
 Complete each fix and its focused regression before advancing, then close the
@@ -84,7 +84,7 @@ none -> T008
 
 Exit satisfied: T021/T019 evidence retained, T009 scope disposition recorded, and T001
 resolved D001 with the original benchmark protocol. That was the earlier planning
-checkpoint. Current next action is T004.4 under owner-selected D007;
+checkpoint. Current next action is T010.1 after the completed D007 scoped review;
 completed T022/T004.1/T004.2/T004.3 measurements are not reopened.
 
 - [x] T021 Expose lifecycle decisions and verify execution guardrails.
@@ -613,8 +613,10 @@ not waive Phase 3 exit or reopen completed Phase 2 semantic correctness.
 
 2026-11-08: T022/D005 planning is complete under t004-execution-plan.md. Retain P07
 with unchanged D001 budgets. T004.1 and T004.2 comparable measurements/dispositions
-are complete; T004.3 parser/save comparisons and the reviewed P08 exclusion are now complete. T004.4 is next. D007 selects retained directions by cost-benefit, with v1 labels preserved.
-Phase 3 exit remains unmet; parent T004 owns workflow/operating-scope residuals.
+are complete; T004.3 parser/save comparisons and the reviewed P08 exclusion are complete.
+T004.4 resolves all eight D007 workflow/operating-scope dispositions; v1 labels are
+preserved. Phase 3 local review is complete; final composition/platform and SC-005
+acceptance remain T010.
 
 Exit: T020/T004 provide complete applicable comparison evidence, preserve D001 v1
 statistics, pass mandatory correctness/provenance/coverage gates and resolve D007
@@ -668,14 +670,15 @@ workflow cost-benefit/operating-scope reviews. Earlier source-fix tests do not p
   - Resolved decisions: D005
   - Status: Technical plan complete; D005 resolved. T004.1 construction/qualification may begin, with sampling gated by exact new arm/build/probe/fixture qualification. P07 remains NOT ACCEPTED.
 
-- [~] T004 Remeasure restore and image conversion comparably.
+- [x] T004 Remeasure restore and image conversion comparably.
   - Depends on: T001, T002, T003, T005, T006, T007, T020, T022
   - Requirements: Requirement 1 AC1–AC3; Requirement 2 AC1–AC3; Requirement 3 AC1–AC8; Requirement 4
     AC1–AC4; Requirement 5 AC1–AC4; Requirement 6 AC1–AC4
   - Design: design.md#high-level-design; design.md#low-level-design
   - Files: `verification.md`, `benchmark-protocol.md`, `performance-results.md`, `performance-results.json`,
     `t004-execution-plan.md`, `t004-comparison-readiness.json`, `acceptance-policy-v2.md/json`,
-    `cost-benefit-review.md/json`, `d007-validation.json`
+    `cost-benefit-review.md/json`, `d007-validation.json`,
+    `t0044-cost-benefit-review.md/json`, `t0044-validation.json`
   - Acceptance: Applicable comparison evidence and D007 cost-benefit dispositions cover the
     pinned source/fixture/build composition and every retained restore/save, parser, image/lazy
     and tree change or explicit reviewed exclusion. Preserve all D001 v1 outcomes. Mandatory
@@ -683,21 +686,14 @@ workflow cost-benefit/operating-scope reviews. Earlier source-fix tests do not p
     workflows, tails, material memory/concurrency and operating scope in T004.4.
   - Validation: See verification.md#quality-gates and the linked criteria.
   - Evidence mode: artifact
-  - Evidence: Historical D001 v1 measurements: T004.1 completed five P01 cells/240 observations;
-    T004.2 completed 13 P04/P05 cells/624 observations and consumed separate T020/P07 GUI
-    evidence. All original audits/classifications are preserved. Current D007 retains P04/P05/P07
-    directions by cost-benefit; cost-benefit-review.md/json records the explicitly retrospective
-    review and unknown workload/concurrency questions. T004.3 then T004.4 are next; parent T004
-    owns consolidated operating-scope review, with final-source/platform evidence at T010.
+  - Evidence: 2026-11-09: T004.1/T004.2/T004.3 provide complete applicable scoped comparisons or reviewed exclusions; t0044-cost-benefit-review.md/json and t0044-validation.json complete all P01-P08 D007 workflow/operating-scope dispositions after independent CAD, performance/governance and operations/docs review. Historical D001 outcomes and all26 bound source artifacts remain unchanged; eight exact T004.3 completion-time authority files archived. Local hard gates remain qualified by original receipts, explicit P05 memory accounting/headroom and P07 first-use tradeoffs accepted in selected scopes. No new benchmarks or production approval. Durable reference and runbook record lasting decisions. T010 owns exact final source/build/platform applicability and SC-005 final acceptance; T011 owns closure.
   - Resolved decisions: D001, D007
   - Candidate manifest: spec003-linux-x86_64-debug-candidate-20261106-v1; see validation-manifest.md
     and record actual execution provenance.
   - Context evidence: Historical May restore and image improvements cannot establish current
     performance acceptance.
 
-  - Status: Aggregate acceptance remains in progress. T004.1/T004.2 measurements complete;
-    T004.3 then T004.4 next. D007 replaces numeric vetoes with explicit cost-benefit review;
-    parent T004 owns workflow/operating-scope residuals, with no production approval.
+  - Status: Complete applicable local measurement/exclusion and D007 scoped cost-benefit review. All four children complete. Next T010.1; final composition/platform, SC-005 and whole-spec production acceptance remain open.
   - [x] T004.1 Record comparable restore/open benchmark runs under D001.
     - Depends on: T001, T002, T003, T005, T006, T007, T020, T022
     - Requirements: Requirement 1, Requirement 2; Requirement 3 AC1–AC6 (completion-time measurement contract)
@@ -770,12 +766,15 @@ workflow cost-benefit/operating-scope reviews. Earlier source-fix tests do not p
     - Context evidence: D001 inventory remains the measurement baseline; D007 review-plan binding is required before new sampling. Accepted P03/P02 comparisons and the reviewed P08 exclusion are recorded in t0043-results.md/json; D007 workflow dispositions remain T004.4.
 
   - Status: Complete per-change measurement/disposition under prospectively frozen D007; original statistical labels preserved. T004.4 owns workflow cost-benefit/operating scope, including tails and process peaks; T010 final applicability.
-  - [ ] T004.4 Review retained optimizations' workflow cost-benefit and operating scope.
+  - [x] T004.4 Review retained optimizations' workflow cost-benefit and operating scope.
     - Depends on: T004.3
     - Requirements: Requirement 3 AC1, AC3, AC4, AC5, AC7, AC8; SC-005
     - Design: design.md#cost-benefit-acceptance-policy
     - Files: `acceptance-policy-v2.md/json`, `cost-benefit-review.md/json`,
-      `d007-validation.json`, `verification.md`, `performance-results.md`, `tasks.md`
+      `d007-validation.json` (preserved), `t0044-cost-benefit-review.md/json`,
+      `t0044-validation.json`, `t0044-prior-authority/`, `verification.md`,
+      `performance-results.md`, `tasks.md`, `../../reference/document-open-performance.md`,
+      `../../runbooks/freecad-performance-optimization.md`
     - Acceptance: Resolve each retained change's D007 trigger review with absolute benefit/tails,
       confidence, workflow frequency, transient/retained memory/RSS, materialized-image count,
       overlapping work, operating scope, rationale/mitigation and accountable owner. Use existing
@@ -787,11 +786,12 @@ workflow cost-benefit/operating-scope reviews. Earlier source-fix tests do not p
     - Validation: Independent review of the complete evidence and trigger-closure fields;
       benchmark only under a new predeclared plan when actual evidence gaps require it.
     - Evidence mode: artifact
-    - Evidence: Pending.
+    - Evidence: 2026-11-09: t0044-cost-benefit-review.md/json and t0044-validation.json resolve all eleven D007 fields for P01-P08 using existing qualified evidence and reviewed accounting. P01/P02/P03/P04/P05/P07 retained in explicit selected scopes; P06/P08 attribution exclusions adopted without independent speed claims. P05 <=3 materialized 4096-equivalent fallback planes/one conversion is a headroom-conditional accounting scope, not a tested count/software clamp; temporary/retained/RSS/GPU limits explicit. P07 full20pair first-show p95 1843.09/max1930.75ms accepted only for hidden/subset workflow; n=2 diagnostic remains separate. No BIM host-cause inference or v1 reclassification. Independent CAD, performance/governance and operations/docs reviews clear corrected final content. All26 immutable source bindings, eight prior-authority snapshots,88 fields, exact five-cell P05 tails, logical accounting and new links/privacy checked; scoped hooks exit0 but exclude docs. Durable reference/runbook promoted. No new source changes/builds/runtime samples. Final source/platform and SC-005 acceptance remain T010; closure T011.
     - Context evidence: D007 selects policy and implementation direction; final operating-scope decisions remain, not new algorithm work. T004.3 reports local P03 hook gains without whole-open confidence; Draft open-p95 legacy failure; P02 primary median/p95 gains but maximum 5054.700→5193.201 ms; process peaks about 1.7–2.1 MiB higher. Review those triggers plus unknown workflow frequency/concurrency under D007; no automatic rerun solely for old numeric vetoes.
     - Owner: local-developer
     - Resolved decisions: D007
 
+  - Status: Complete scoped D007 workflow/operating-scope review. Parent T004 local review may close; next T010.1 confirms exact final source/build/platform applicability. No final production approval.
 ## Phase 4 — Prepare Delivery And Close
 
 Exit: exact final-production evidence applicability, required broad/platform checks, durable
