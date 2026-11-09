@@ -2,12 +2,20 @@
 title: FreeCAD performance optimization
 doc_type: spec
 artifact_type: brief
-status: draft
+status: archived
 owner: local-developer
-last_reviewed: 2026-11-07
+last_reviewed: 2026-11-09
 ---
 
 # Feature Brief
+
+> Retained in place as historical evidence after local Linux delivery. Current
+> contracts are in the [reference](../../reference/document-open-performance.md)
+> and [runbook](../../runbooks/freecad-performance-optimization.md). Earlier
+> checkpoint and next-task prose below is historical. See the
+> [closure review](../../reviews/spec003-performance-closure.md) and
+> [closure log](../../history/spec-closure-log.md) for current disposition,
+> actual implementation commits and explicitly pending cleanup commit metadata.
 
 Reconcile implemented document-open optimizations with the remaining correctness, measurement and
 review gates. Keep compact rail geometry in package 002.
@@ -78,3 +86,13 @@ T004.1 measurement is complete; P01 and retained P07 remain unaccepted under D00
 [baseline-status.md](baseline-status.md) holds existing implementation facts;
 remaining execution checkpoints are pending until current evidence is recorded.
 Optional new investigations have [owned backlog routes](../../backlog/spec003-follow-ups.md).
+
+## Final Local Disposition
+
+Delivery and T011 promotion are complete for the declared Linux scope. The
+qualified implementation is commit `21903ca31f` with docs evidence `756c03a`.
+All 40 required tasks are complete; two optional investigations remain routed
+with durable owners. No upstream/release/cross-platform approval is implied.
+The package stays in place for exact evidence and historical consumers. Its
+promotion/archive changes are uncommitted until requested; no cleanup commit
+identity is claimed in advance.

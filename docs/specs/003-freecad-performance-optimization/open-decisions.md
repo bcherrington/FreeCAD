@@ -2,12 +2,20 @@
 title: Performance optimization open decisions
 doc_type: spec
 artifact_type: open-decisions
-status: draft
+status: archived
 owner: local-developer
 last_reviewed: 2026-11-09
 ---
 
 # Open Decisions
+
+> Retained in place as historical evidence after local Linux delivery. Current
+> contracts are in the [reference](../../reference/document-open-performance.md)
+> and [runbook](../../runbooks/freecad-performance-optimization.md). Earlier
+> checkpoint and next-task prose below is historical. See the
+> [closure review](../../reviews/spec003-performance-closure.md) and
+> [closure log](../../history/spec-closure-log.md) for current disposition,
+> actual implementation commits and explicitly pending cleanup commit metadata.
 
 ## Purpose
 
@@ -299,7 +307,7 @@ compose and generic/Fusion for native viewer/memory, with user-site packages
 hidden and actual mapped libraries hashed. Windows/macOS/Wayland/other drivers
 and GNOME/IBus memory scope remain unqualified.
 
-T010 and all four children are complete for the declared Linux scope; next T011 promotion/closure.
+T010 and all four children are complete for the declared Linux scope; T011 records local closure and retained history.
 
 This is delegated local technical acceptance, not upstream/release or cross-platform
 approval. Current P01/P07 local-direction retention does not certify their old

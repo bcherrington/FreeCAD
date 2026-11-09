@@ -2,12 +2,20 @@
 title: FreeCAD performance optimization traceability
 doc_type: spec
 artifact_type: traceability
-status: draft
+status: archived
 owner: local-developer
 last_reviewed: 2026-11-09
 ---
 
 # Traceability Matrix
+
+> Retained in place as historical evidence after local Linux delivery. Current
+> contracts are in the [reference](../../reference/document-open-performance.md)
+> and [runbook](../../runbooks/freecad-performance-optimization.md). Earlier
+> checkpoint and next-task prose below is historical. See the
+> [closure review](../../reviews/spec003-performance-closure.md) and
+> [closure log](../../history/spec-closure-log.md) for current disposition,
+> actual implementation commits and explicitly pending cleanup commit metadata.
 
 Current performance policy: **D007 cost-benefit review** in
 [acceptance-policy-v2.md](acceptance-policy-v2.md). Original D001 v1 outcomes and
@@ -59,49 +67,49 @@ product decisions. Correctness/provenance/coverage gates remain mandatory.
 | T018 | Requirement 1 | Requirement 1 AC1–AC3 | design.md#archive-failure-compatibility-policy | requirements.md#durable-impact | verification.md#t018-document-level-archive-failure-recovery | docs/reference/document-open-performance.md; docs/runbooks/freecad-performance-optimization.md | none |
 | T019 | Requirement 3 | Requirement 3 AC1, AC2, AC5 | design.md#evidence-applicability-and-benchmark-contract | requirements.md#durable-impact | verification.md#quality-gates | docs/reference/document-open-performance.md; docs/runbooks/freecad-performance-optimization.md | none |
 | T020 | Requirement 2, Requirement 3, Requirement 5 | Requirement 3 AC3, AC4; Requirement 2 AC1; Requirement 5 AC1–AC4 | design.md#evidence-applicability-and-benchmark-contract | requirements.md#durable-impact | verification.md#quality-gates | docs/reference/document-open-performance.md; docs/runbooks/freecad-performance-optimization.md | none |
-| T021 | Requirement 3 | Requirement 3 AC6 | design.md#cost-benefit-acceptance-policy | Requirement 3 AC7, AC8; SC-005 | T004, T004.3, T004.4, T010, T011 | D007 policy/review and per-change applicable evidence | verification.md#d007-cost-benefit-policy-revision | partial-blocking | T004.4 scoped review complete; T010 final applicability pending |
-| design.md#open-questions | requirements.md#durable-impact | verification.md#quality-gates | docs/reference/document-open-performance.md; docs/runbooks/freecad-performance-optimization.md | none |
+| T021 | Requirement 3 | Requirement 3 AC6 | design.md#open-questions | requirements.md#durable-impact | verification.md#moe-review-findings | docs/reference/document-open-performance.md; docs/runbooks/freecad-performance-optimization.md | none |
 | T022 | Requirement 3, Requirement 5 | Requirement 3 AC1–AC5; Requirement 5 AC1–AC4 | design.md#evidence-applicability-and-benchmark-contract; design.md#open-questions | requirements.md#durable-impact | verification.md#quality-gates | docs/reference/document-open-performance.md; docs/runbooks/freecad-performance-optimization.md | none |
 
 ## Requirement To Delivery Matrix
 
 | Requirement | Priority | Acceptance Criteria | Design Sections | Tasks | Verification | Durable Targets | Coverage State | Residual Destination |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Requirement 1 | must-have | AC1, AC2, AC3 | design.md#low-level-design | T002, T004, T010, T011, T018 | verification.md#t002-included-file-compatibility-checkpoint | docs/reference/document-open-performance.md | complete | none for local Requirement 1; T010 reconfirms final/platform applicability |
-| Requirement 2 | must-have | AC1, AC2, AC3 | design.md#low-level-design | T003, T004, T006, T009, T010, T011, T012, T013, T020 | verification.md | docs/reference/document-open-performance.md | complete | none for local Requirement 2; T010 reconfirms final/platform applicability |
-| Requirement 3 | must-have | AC1, AC2, AC3, AC4, AC5, AC6, AC7, AC8 | design.md#low-level-design | T001, T004, T004.4, T008, T010, T011, T019, T020, T021, T022 | verification.md | docs/reference/document-open-performance.md | partial-blocking | T004.4 D007 scoped review complete; T010 final applicability pending; local-developer |
-| Requirement 4 | must-have | AC1, AC2, AC3, AC4 | design.md#low-level-design | T004, T005, T010, T011, T015, T016 | verification.md#t005-aggregate-element-map-parser-compatibility | docs/reference/document-open-performance.md | complete | none for local Requirement 4; T010 reconfirms final/platform applicability |
-| Requirement 5 | must-have | AC1, AC2, AC3, AC4 | design.md#low-level-design | T004, T006, T009, T010, T011, T013, T020, T022 | verification.md#t006-deferred-image-plane-lifecycle | docs/reference/document-open-performance.md | complete | Local semantic correctness remains qualified; P07 D001 failures remain historical; D007 responsiveness/operating-scope review and T010 applicability remain |
-| Requirement 6 | must-have | AC1, AC2, AC3, AC4 | design.md#low-level-design | T004, T007, T010, T011, T014, T017 | verification.md#t007-tree-functional-qualification | docs/reference/document-open-performance.md | complete | none for local Requirement 6; T010 reconfirms final/platform applicability |
+| Requirement 1 | must-have | AC1, AC2, AC3 | design.md#low-level-design | T002, T004, T010, T011, T018 | verification.md#t002-included-file-compatibility-checkpoint | docs/reference/document-open-performance.md | complete | none within declared Linux scope; T010 final evidence and promoted contract |
+| Requirement 2 | must-have | AC1, AC2, AC3 | design.md#low-level-design | T003, T004, T006, T009, T010, T011, T012, T013, T020 | verification.md | docs/reference/document-open-performance.md | complete | none within declared Linux scope; T010 final evidence and promoted contract |
+| Requirement 3 | must-have | AC1, AC2, AC3, AC4, AC5, AC6, AC7, AC8 | design.md#low-level-design | T001, T004, T004.4, T008, T010, T011, T019, T020, T021, T022 | verification.md | docs/reference/document-open-performance.md | complete | D007 local directions/first-use/logical-RAM accepted; T010 final runtime/equivalence complete; B010 optional, not an acceptance gap |
+| Requirement 4 | must-have | AC1, AC2, AC3, AC4 | design.md#low-level-design | T004, T005, T010, T011, T015, T016 | verification.md#t005-aggregate-element-map-parser-compatibility | docs/reference/document-open-performance.md | complete | none within declared Linux scope; T010 final evidence and promoted contract |
+| Requirement 5 | must-have | AC1, AC2, AC3, AC4 | design.md#low-level-design | T004, T006, T009, T010, T011, T013, T020, T022 | verification.md#t006-deferred-image-plane-lifecycle | docs/reference/document-open-performance.md | complete | T010 current lifecycle proof complete; D007 hidden/subset local scope accepted; original v1 failures unchanged |
+| Requirement 6 | must-have | AC1, AC2, AC3, AC4 | design.md#low-level-design | T004, T007, T010, T011, T014, T017 | verification.md#t007-tree-functional-qualification | docs/reference/document-open-performance.md | complete | none within declared Linux scope; T010 final evidence and promoted contract |
 
 ## Correctness Property Coverage
 
 | Property | Requirements | Design Sections | Tasks | Tests Or Verification | Residual Risk |
 | --- | --- | --- | --- | --- | --- |
-| CP-001 | Requirement 1 | design.md#moe-safety-and-compatibility-contracts | T002, T018 | verification.md#t002-included-file-compatibility-checkpoint | T018 policy/matrix and T002 aggregate bytes/ZIP/permissions/notifications/hook compatibility complete locally; T010 final/platform gate remains |
-| CP-002 | Requirement 2, Requirement 5 | design.md#moe-safety-and-compatibility-contracts | T003, T006, T013 | verification.md#t006-deferred-image-plane-lifecycle | T013/T003/T006 pass locally; final applicability and Qt/IBus memory-profile diagnosis remain T010 |
-| CP-003 | Requirement 6 | design.md#moe-safety-and-compatibility-contracts | T007, T014, T017 | verification.md#t014-tree-widget-receiver-lifetime | T014/T017 corrections and T007 small/larger pinned-document tree qualification pass locally; T010 final/platform applicability remains |
+| CP-001 | Requirement 1 | design.md#moe-safety-and-compatibility-contracts | T002, T018 | verification.md#t002-included-file-compatibility-checkpoint | T018 policy/matrix and T002 aggregate bytes/ZIP/permissions/notifications/hook compatibility complete locally; T010 final Linux applicability complete |
+| CP-002 | Requirement 2, Requirement 5 | design.md#moe-safety-and-compatibility-contracts | T003, T006, T013 | verification.md#t006-deferred-image-plane-lifecycle | T013/T003/T006 pass locally; T010 final applicability complete; generic/Fusion+compose memory profile qualified, GNOME/IBus unqualified |
+| CP-003 | Requirement 6 | design.md#moe-safety-and-compatibility-contracts | T007, T014, T017 | verification.md#t014-tree-widget-receiver-lifetime | T014/T017 corrections and T007 small/larger pinned-document tree qualification pass locally; T010 final Linux applicability complete |
 | CP-004 | Requirement 2 | design.md#moe-safety-and-compatibility-contracts | T003, T012 | verification.md#t012-extent-and-arithmetic-correction--2026-11-06 | T012 correction plus T003 expanded format/extent/access/render matrix pass locally |
-| CP-005 | Requirement 4 | design.md#moe-safety-and-compatibility-contracts | T005, T015, T016 | verification.md#t005-aggregate-element-map-parser-compatibility | T015/T016 and T005 aggregate numeric/identity acceptance complete locally; T010 final applicability remains |
+| CP-005 | Requirement 4 | design.md#moe-safety-and-compatibility-contracts | T005, T015, T016 | verification.md#t005-aggregate-element-map-parser-compatibility | T015/T016 and T005 aggregate numeric/identity acceptance complete locally; T010 final Linux applicability complete |
 
 ## Design To Implementation Matrix
 
 | Design Section | Requirements | Tasks | Interfaces Or Files | Verification | Coverage State | Residual Destination |
 | --- | --- | --- | --- | --- | --- | --- |
-| design.md#moe-safety-and-compatibility-contracts | Requirement 1, Requirement 2, Requirement 4, Requirement 5, Requirement 6 | T012, T013, T014, T015, T016, T017, T018 | Per-task App/Base/Gui/test file scope | verification.md#moe-regression-matrix | partial-blocking | tasks.md; local-developer |
-| design.md#evidence-applicability-and-benchmark-contract | Requirement 3 | T001, T004, T019, T020, T022, T010 | Validation manifest and comparison evidence | verification.md#quality-gates | partial-blocking | tasks.md; local-developer |
+| design.md#moe-safety-and-compatibility-contracts | Requirement 1, Requirement 2, Requirement 4, Requirement 5, Requirement 6 | T012, T013, T014, T015, T016, T017, T018 | Per-task App/Base/Gui/test file scope | verification.md#moe-regression-matrix | complete | none within declared Linux scope; t010-results.md |
+| design.md#evidence-applicability-and-benchmark-contract | Requirement 3 | T001, T004, T019, T020, T022, T010 | Validation manifest and comparison evidence | verification.md#quality-gates | complete | none within declared Linux scope; t010-results.md |
 | design.md#open-questions | Requirement 3 AC6 | T021 | open-decisions.md | verification.md#moe-review-findings | complete | none; T021 documentation discovery verified |
-| design.md#operational-considerations | Requirement 1, Requirement 2, Requirement 3, Requirement 4, Requirement 5, Requirement 6 | T011 | Declared durable targets and follow-up ownership | verification.md#durable-promotion-and-cleanup | partial-blocking | T011; local-developer |
+| design.md#operational-considerations | Requirement 1, Requirement 2, Requirement 3, Requirement 4, Requirement 5, Requirement 6 | T011 | Declared durable targets and follow-up ownership | verification.md#durable-promotion-and-cleanup | complete | T011 promotion/closure record; B009/B010/B011 owned outside delivery |
 
 ## Success Criteria Coverage
 
 | Criterion | Current tasks | Verification | Disposition |
 | --- | --- | --- | --- |
-| SC-001 | T002, T018 | verification.md#t002-included-file-compatibility-checkpoint | Complete locally via T018/T002; T010 reconfirms final/platform applicability |
-| SC-002 | T001, T003, T004, T012, T020 | verification.md | Image safety/fidelity qualified; T020 measurement complete, P07 timing rejected and T022/D005/T004 acceptance remains |
-| SC-003 | T019, T010 | verification.md | Open; exact-final-revision evidence reconciliation |
-| SC-004 | T012, T013, T014, T015, T016, T017, T018, T021 | verification.md#moe-review-findings | Open; source corrections and regression evidence required |
-| SC-005 | T001, T004, T004.4, T020, T022, T010 | verification.md | Open final applicability: T004.4 workflow/operating-scope review complete; T010 final source/platform confirmation pending; original v1 failures/inconclusive outcomes unchanged |
+| SC-001 | T002, T018 | verification.md#t002-included-file-compatibility-checkpoint | Complete locally; archive aggregate and final T010 applicability pass |
+| SC-002 | T001, T003, T004, T012, T020 | verification.md | Complete within D007 scoped conversion/lazy-image decisions; original D001 failures remain unchanged, no current numeric timing guarantee |
+| SC-003 | T019, T010 | verification.md | Complete; exact committed source equals qualified T010 composition at 21903ca31f |
+| SC-004 | T012, T013, T014, T015, T016, T017, T018, T021 | verification.md#moe-review-findings | Complete; F001–F009 dispositions, current regressions and final Linux proof recorded |
+| SC-005 | T001, T004, T004.4, T020, T022, T010 | verification.md | Complete local D007 disposition and T010 reviewed applicability; original v1 failures/inconclusive outcomes unchanged |
+
 
 ## Open Decision Impact
 
@@ -123,34 +131,34 @@ initial identity/policy only. Each source fix, test, measurement or manual resul
 must carry its actual source/dependency/build/fixture receipt and applicability
 revision; the v1 intake snapshot does not certify changed binaries. D003 is
 resolved initially; T010.1 now confirms the exact final local Linux production
-confirmation. F008 as a whole remains open until comparative and final evidence gates
-are satisfied; D001 planning is complete.
+confirmation. F008 is complete under T004 comparative/exclusion evidence, D007 scoped review
+and T010 final source/runtime applicability; original outcomes remain unchanged.
 
 ## MoE Finding Coverage
 
 | Finding | Requirements | Owning Tasks | Verification | Disposition |
 | --- | --- | --- | --- | --- |
-| F001 | Requirement 2 AC2, AC3; CP-004 | T012, T003 | verification.md#t012-extent-and-arithmetic-correction--2026-11-06 | T012 correction and T003 current local fidelity/access qualification complete; T010 final applicability remains |
-| F002 | Requirement 5 AC2–AC4; CP-002 | T013, T006 | verification.md#t006-deferred-image-plane-lifecycle | T013 correction and T006 current local lifecycle qualification complete; T010 final applicability remains |
-| F003 | Requirement 6 AC3; CP-003 | T014, T007 | verification.md#t014-tree-widget-receiver-lifetime | T014 correction, destroy/recreate/open and queued-work checks pass locally under Memcheck; T007 current broader tree checkpoint passes; T010 final platform applicability remains |
-| F004 | Requirement 4 AC1–AC4; CP-005 | T015, T016, T005 | verification.md#t005-aggregate-element-map-parser-compatibility | T015/T016 correction/identity and T005 all-criterion aggregate acceptance complete locally; T010 final/platform gate remains |
-| F005 | Requirement 6 AC1, AC4; CP-003 | T017, T007 | verification.md#t017-tree-restore-completion | T017 local idle restore/load/import/failure completion and observer qualification pass; T007 current broader tree checkpoint passes; T010 final applicability remains |
-| F006 | Requirement 1 AC1–AC3; CP-001 | T018, T002 | verification.md#t002-included-file-compatibility-checkpoint | T018 preserved failure policy/metadata/save and T002 aggregate compatibility accepted locally; T010 final/platform gate remains |
-| F007 | Requirement 3 AC3, AC4 | T020, T004 | verification.md#moe-regression-matrix | Two campaigns preserved; corrected campaign valid/complete and P07 rejected; T020 measurement done, T022/D005 plan complete; T004 acceptance remains |
-| F008 | Requirement 3 AC1–AC5 | T019, T001, T004.3, T010 | verification.md#quality-gates | Initial candidate/policy recorded by T019; D001 protocol complete; per-change comparisons/exclusions recorded by T004.3; T004.4 scoped review complete; exact-final evidence remains pending |
-| F009 | Requirement 3 AC6 | T021 | verification.md#moe-review-findings | Documentation discovery/guardrails verified; owner decisions remain open |
+| F001 | Requirement 2 AC2, AC3; CP-004 | T012, T003 | verification.md#t012-extent-and-arithmetic-correction--2026-11-06 | Complete: T012/T003 extent/arithmetic/fidelity checks; T010 final qualified source and rendered/native evidence. |
+| F002 | Requirement 5 AC2–AC4; CP-002 | T013, T006 | verification.md#t006-deferred-image-plane-lifecycle | Complete: T013/T006 calibration/lifecycle checks; T010 adds App-only restore ready/late regressions and native stage proof. |
+| F003 | Requirement 6 AC3; CP-003 | T014, T007 | verification.md#t014-tree-widget-receiver-lifetime | Complete: T014/T007 receiver lifetime and queued-work qualification; T010 final full graph and scoped memory checks. |
+| F004 | Requirement 4 AC1–AC4; CP-005 | T015, T016, T005 | verification.md#t005-aggregate-element-map-parser-compatibility | Complete: T015/T016/T005 numeric/ownership/reference identity; T010 exact core-binary bridge and CAD roundtrips. |
+| F005 | Requirement 6 AC1, AC4; CP-003 | T017, T007 | verification.md#t017-tree-restore-completion | Complete: T017/T007 idle restore/load/import/failure completion; T010 final tree/full graph. |
+| F006 | Requirement 1 AC1–AC3; CP-001 | T018, T002 | verification.md#t002-included-file-compatibility-checkpoint | Complete: T018/T002 failure policy and aggregate bytes/permissions/notifications; T010 final App/Reader/full graph. |
+| F007 | Requirement 3 AC3, AC4 | T020, T004 | verification.md#moe-regression-matrix | Complete: corrected campaign endpoints retained; original P07 rejection unchanged; D007 narrowed direction/first-use/logical-RAM decision and T010 reviewed applicability. |
+| F008 | Requirement 3 AC1–AC5 | T019, T001, T004.3, T010 | verification.md#quality-gates | Complete: pinned source/build/runtime/fixtures, comparative/exclusion evidence and T010 final qualification; exact commit-to-patch bridge recorded. |
+| F009 | Requirement 3 AC6 | T021 | verification.md#moe-review-findings | Complete: T021 decision discovery/guardrails; D001–D007 all resolved; historical selection is not execution authority. |
 
 ## Execution Phase Coverage
 
 | Phase | Required active tasks | Optional/routed records | Completion rule |
 | --- | --- | --- | --- |
-| 1 — Planning | T021, T019 retained; T009 scope disposition; T001 complete | D002/B009 proposal stays deferred | D001 resolved; Phase 3 active |
-| 2A — Images | T012/T013/T003/T006 and children complete | none | Local checkpoint complete; T010 final/platform applicability remains |
-| 2B — Tree | T014/T017/T007/T007.1 complete | T007.2 routed to B011 | Current functional tests required; future optimization profile is owned outside current runtime gate |
+| 1 — Planning | T021, T019 retained; T009 scope disposition; T001 complete | D002/B009 proposal stays deferred | D001 resolved; planning complete |
+| 2A — Images | T012/T013/T003/T006 and children complete | none | Local checkpoint and T010 final Linux applicability complete |
+| 2B — Tree | T014/T017/T007/T007.1 complete | T007.2 routed to B011 | Current functional qualification complete; future optimization profile owned outside delivery |
 | 2C — CAD maps | T015/T016/T005 complete | none | Numeric/identity fixtures and checkpoint pass |
 | 2D — Archives | T018/T002/T002.1/T002.2 complete | none | Current archive policy/error/compatibility pass |
 | 3 — Performance | T020/T004.1/T004.2/T004.3 measurements/dispositions and T004.4 scoped review complete | T008 routed to B010 | Mandatory hard gates and D007 reviewed workflow/operating scope; v1 outcomes preserved |
-| 4 — Delivery | T010/T011 and children | Audit B009/B010/B011 ownership | Exact final evidence/platform gates, promotion and closure |
+| 4 — Delivery | T010/T011 and children | Audit B009/B010/B011 ownership | Exact final Linux evidence, promotion and local closure complete |
 
 ## Baseline Versus Execution
 
@@ -160,7 +168,7 @@ current qualification checkpoints; the replan itself marked none complete. T003/
 subsequently completed their local acceptance with scoped runtime receipts; T007
 has now completed the current tree checkpoint. Existing
 completed T019/T021 evidence and immutable manifests are retained. Requirement
-coverage is complete locally for Requirements 2/5/6 and partial-blocking elsewhere;
+coverage is complete for all six requirements within the declared local Linux scope;
 code presence and deferred optional proposals
 do not satisfy runtime criteria. T009 completes only its explicit routing
 acceptance, not Requirement 2/5 runtime evidence.
@@ -205,17 +213,17 @@ map to completed [T004.4](t0044-cost-benefit-review.md), its
 [validation](t0044-validation.json). All P01–P08 triggers/exclusions have an
 explicit selected scope and owner. This supersedes earlier pending-review routing,
 including the P08 residual; B011 remains inactive. Parent T004 local acceptance
-is complete. SC-005 exact-final source/platform acceptance remains T010;
-whole-spec closure remains T011. No historical outcomes are reclassified.
+is complete. SC-005 exact-final Linux acceptance is complete in T010;
+T011 records local closure. No historical outcomes are reclassified.
 
 | Durable destination | Promoted current content | Remaining ownership |
 | --- | --- | --- |
-| [Performance reference](../../reference/document-open-performance.md) | Scoped retained decisions and memory accounting | local-developer; T010 final applicability |
-| [Review runbook](../../runbooks/freecad-performance-optimization.md) | Extension/review/validation and recovery procedure | local-developer; T011 final promotion audit |
+| [Performance reference](../../reference/document-open-performance.md) | Scoped retained decisions and memory accounting | local-developer; final applicability completed in T010 |
+| [Review runbook](../../runbooks/freecad-performance-optimization.md) | Extension/review/validation and recovery procedure | local-developer; final promotion audited in T011 |
 
 ## T010 Final Source And Runtime Disposition
 
-T010 and all four children are complete for the declared Linux scope; next T011 promotion/closure.
+T010 and all four children are complete for the declared Linux scope; T011 records local closure and retained history.
 
 | Criterion group | Final evidence | Boundary |
 | --- | --- | --- |
@@ -224,7 +232,7 @@ T010 and all four children are complete for the declared Linux scope; next T011 
 | Requirement6 tree/lifetime/recompute | Final eight target suites/full graph; idempotent preview close | No independent P08 speed claim |
 | Requirement3/SC-005 | P01–P08 reviewed local directions/exclusions; actual final source/runtime/native proof | P01/P07 old numeric timings/runtime closure not exact-final; no new SLA |
 | Platform scope | User-selected Linux-only; declared X11/offscreen softwareGL/compose, generic/Fusion native viewer/memory and process user-site mask | Windows/macOS/Wayland/other drivers and GNOME/IBus memory unqualified |
-| Final documentation/closure | Active reference/runbook updated; T010 receipt and prior authority archive | Whole-spec promotion/closure remains T011 |
+| Final documentation/closure | Active reference/runbook updated; T010 receipt and prior authority archive | Promotion and local closure recorded by T011; cleanup commit pending |
 
 Original v1 outcomes remain unchanged. Scope-specific final acceptance does not
 turn disabled/skipped tests into passing coverage or certify a general release.

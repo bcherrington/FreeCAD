@@ -4,7 +4,7 @@ doc_type: reference
 artifact_type: reference
 status: active
 owner: local-developer
-last_reviewed: 2026-11-08
+last_reviewed: 2026-11-09
 ---
 
 # Specification Index
@@ -18,7 +18,6 @@ and historical evidence remain within each package.
 | --- | --- | --- | --- |
 | 001 | [CAD thumbnailing](001-cad-file-thumbnailing/spec.md) | Extraction baseline only | T001 — Resolve STL rendering and resource contracts |
 | 002 | [Compact rails](002-compact-view-rails-rework/spec.md) | Proposed; no current rails | T001 — Decide rail scope, geometry and persistence contracts |
-| 003 | [Performance](003-freecad-performance-optimization/spec.md) | Implemented paths with incomplete acceptance | T011 — Promotion and whole-spec closure audit (T010 and all children complete; Linux-only acceptance) |
 
 No execution dependency is established between these packages. Performance
 measurements require an exact chosen source revision and fixture; rail work must
@@ -35,3 +34,10 @@ is retained in place as history. Current behavior is in
 [the promoted reference](../reference/sketcher-external-reference-reattachment.md);
 actual implementation/cleanup commits and qualification limits are recorded in
 the closure log and archive index.
+
+[003 Performance](003-freecad-performance-optimization/spec.md) is retained in place
+as history after T011 local Linux closure. Current guidance is the
+[promoted reference](../reference/document-open-performance.md) and
+[runbook](../runbooks/freecad-performance-optimization.md). Other platforms and
+current numeric timing promises remain unqualified. Actual implementation and
+pending cleanup commit state are recorded in the closure log/archive index.

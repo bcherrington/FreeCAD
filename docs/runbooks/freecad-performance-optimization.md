@@ -40,7 +40,7 @@ contents out of public artifacts.
 | --- | --- |
 | [Scoped reference](../reference/document-open-performance.md) | Current decisions, limits and memory formulas |
 | [T004.4 review](../specs/003-freecad-performance-optimization/t0044-cost-benefit-review.md) | Per-change rationale and complete trigger closure |
-| [D007 policy](../specs/003-freecad-performance-optimization/acceptance-policy-v2.json) | Mandatory hard gates and eleven required review fields |
+| [Promoted decision contract](../reference/document-open-performance.md#cost-benefit-decision-contract) | Mandatory hard gates and eleven review fields; old D007 JSON is historical evidence |
 | [Storage runbook](freecad-benchmark-storage.md) | Reuse one qualified pair and preserve aborted evidence |
 
 ## Config And Code Touchpoints
@@ -51,7 +51,7 @@ contents out of public artifacts.
 | Element maps | `src/App/ElementMapRestore.h`, `src/App/ElementMap.cpp` | Safe parser and identity behavior | Qualified grammar, overflow and geometry-manifest identity |
 | Image conversion/lifecycle | `src/Gui/BitmapFactory.cpp`, `src/Gui/ViewProviderImagePlane.cpp` | Materialization and decoded/Coin lifetimes | Pixels/orientation/calibration/ownership/pending-load checks |
 | Tree lifecycle | `src/Gui/Tree.cpp` | Restore/import fallback and finish behavior | Receiver lifetime, safe fallback and finish/flush checks |
-| Evidence contract | Spec003 policy, campaign receipts and task queue | Read pinned hashes; advance current authority only | Immutable history, reviewed applicability and SLM lint/traceability |
+| Evidence contract | Promoted reference and historical campaign receipts | Read pinned hashes; create a dated review for changed scope | Immutable history, reviewed applicability and independent review |
 
 ## Procedure
 
@@ -105,7 +105,7 @@ no universal RAM threshold or mandatory full campaign rerun.
 
 ## Validation
 
-Check every D007 field for every retained change/exclusion; reconcile the measured
+Check all eleven fields in the promoted reference for every retained change/exclusion; reconcile the measured
 values with bound source artifacts, verify logical memory arithmetic and explicit
 unknown frequency/overlap. Verify original result and receipt hashes, links,
 privacy and task-state consistency, then run package lint/traceability. Record
@@ -117,14 +117,17 @@ If applicability or fidelity fails, stop the affected acceptance claim and prese
 the evidence. Restore the prior documented decision or qualify an affected fix.
 Retain the previous signed commits and archived authority; do not erase a failed
 campaign or raw-revert shared lifecycle/tree safety repairs to manufacture a
-counterfactual. Reuse the existing benchmark pair when new evidence is justified.
+counterfactual. Follow the storage runbook: reuse a pair only after auditing current source,
+outputs, runtime and cache inventory and freezing/qualifying the new campaign.
+Otherwise rebuild; retired binaries/caches are not resumable evidence.
 
 ## Escalation
 
 The local-developer owner resolves changed operating scope, insufficient headroom,
 new strict latency requirements or incompatible provenance. A safety/fidelity/error
 failure blocks affected acceptance regardless of speed. Exact final source or
-platform uncertainty remains a T010 gate; closure remains T011.
+platform uncertainty requires affected requalification against the promoted
+reference. The historical T010 gate is complete for its declared Linux profile.
 
 ## Final Native Runtime And Restore Checks
 
@@ -161,3 +164,14 @@ and old premature-load classification omitted App-only restore. Preserve them as
 historical data. Use source-supported local directions and new functional gates
 for scoped D007 decisions; freeze a new masked-runtime campaign before making
 current absolute/tail/budget claims.
+
+## Package Closure And Future Work
+
+Spec003 is retained in place for audit evidence. The reference and this runbook
+are current guidance; historical next-task prose and frozen task-time policy are
+not a new queue. B009/B010/B011 remain owned optional investigations in the
+[backlog](../backlog/spec003-follow-ups.md). Changes in platform, source or desired
+numeric claims need their own affected validation plan; local closure grants no
+upstream approval. Preserve original hash-bound authority through its recorded
+Git commit rather than rewriting receipts when current docs evolve. See the
+[closure log](../history/spec-closure-log.md) for actual commit/pending-cleanup state.

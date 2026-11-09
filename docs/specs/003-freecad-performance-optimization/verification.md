@@ -2,12 +2,20 @@
 title: Performance optimization reconciliation
 doc_type: spec
 artifact_type: verification
-status: code-derived
+status: archived
 owner: local-developer
 last_reviewed: 2026-11-09
 ---
 
 # Performance Optimization Reconciliation
+
+> Retained in place as historical evidence after local Linux delivery. Current
+> contracts are in the [reference](../../reference/document-open-performance.md)
+> and [runbook](../../runbooks/freecad-performance-optimization.md). Earlier
+> checkpoint and next-task prose below is historical. See the
+> [closure review](../../reviews/spec003-performance-closure.md) and
+> [closure log](../../history/spec-closure-log.md) for current disposition,
+> actual implementation commits and explicitly pending cleanup commit metadata.
 
 Current performance policy: **D007 cost-benefit review** in
 [acceptance-policy-v2.md](acceptance-policy-v2.md). Original D001 v1 outcomes and
@@ -970,12 +978,10 @@ at the nested docs boundary; executed checks and exact identities establish proo
 
 ## Next Actions
 
-1. **T011 — Promote durable documentation, audit residual ownership and close the spec.**
-   T010 and all four children are complete for the declared Linux scope. Reconcile
-   the closure tool's treatment of routed T008/T007.2 with owned B010/B011 destinations.
-   Do not mark routed implementation work complete to satisfy a closure tool.
-2. Complete the promotion/closure audit; B009/B010/B011 remain optional and inactive.
-   No new source change or numeric performance promise is selected.
+No active delivery task remains. T011 records local closure; commit the promotion/
+archive metadata and reconcile actual cleanup commit identifiers when requested.
+Optional B009/B010/B011 remain owned outside delivery. Future scope extensions
+must follow the promoted reference/runbook.
 
 ## Quality Gates
 
@@ -985,11 +991,11 @@ at the nested docs boundary; executed checks and exact identities establish proo
 | MoE source-safety blockers resolved | yes | passed for qualified composition | Three independent reviews; final five-file patch; focused/native/full checks |
 | Candidate and final evidence applicability | yes | passed for declared Linux runtime | Final v3 source manifest, build receipt, applicability and module hashes |
 | Per-optimization performance/resource acceptance | yes | scoped D007 acceptance | Original v1 outcomes unchanged; reviewed directions/first-use/logical RAM; no current numeric timing claim |
-| Complete task/criterion evidence | yes | T010 complete; T011 pending | tasks.md; traceability.md; t010-validation.json |
+| Complete task/criterion evidence | yes | T010/T011 complete locally | tasks.md; traceability.md; t010-validation.json |
 | Focused current correctness and failure tests | yes | passed locally | Final focused targets, CAD/native regressions and scoped Memcheck |
 | Current measurements and platform/manual acceptance | yes | Linux local scope passed | Final runtime-bound manual checks and reviewed equivalence; other platforms/profiles unqualified |
-| Durable promotion and residual ownership | yes | final audit pending T011 | Active reference/runbook; requirements.md durable impact |
-| Review and closure metadata | yes | T010 reviewed; closure pending T011 | Whole spec remains draft |
+| Durable promotion and residual ownership | yes | promoted and audited locally | Active reference/runbook; requirements.md durable impact |
+| Review and closure metadata | yes | reviewed; local closure recorded | Retained in place as history; cleanup commit pending |
 
 ## Evidence Log
 
@@ -1530,7 +1536,7 @@ whole-spec final production acceptance remain open.
 
 ## T010 Final Linux Composition And Review
 
-T010 and all four children are complete for the declared Linux scope; next T011 promotion/closure.
+T010 and all four children are complete for the declared Linux scope; T011 records local closure and retained history.
 
 [t010-results.md/json](t010-results.md), [the final source manifest](t010-final-source-manifest.json),
 [build receipt](t010-build-receipt.json), [applicability matrix](t010-applicability.json)
@@ -1579,3 +1585,18 @@ flags only. No testcase filter/exclusion or lock change is introduced.
 The public viewer capture contains a generated scene only. Independent CAD,
 performance/statistical and operations/document reviews are recorded in the
 validation receipt. T011 still owns final promotion audit and whole-spec closure.
+
+## T011 Promotion And Closure Audit
+
+The [closure review](../../reviews/spec003-performance-closure.md) and
+[t011-validation.json](t011-validation.json) supersede earlier next-task prose
+for final package disposition. T010 is committed at `21903ca31f` / docs `756c03a`.
+T011 changes documentation only. Current behavior, hard contracts and decision
+rules are promoted to the reference/runbook; B009/B010/B011 remain owned and
+optional. B012/B013 are now actually repaired and qualified by T010.
+
+All six requirements/26 criteria, five correctness properties, five success
+criteria and nine expert findings have explicit final local dispositions.
+Original timing outcomes and immutable receipts remain unchanged. The final
+closure check must be reported truthfully: the two valid routed records are
+explicitly dispositioned tool limitations, not passing investigations.

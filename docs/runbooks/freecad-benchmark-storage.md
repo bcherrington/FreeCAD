@@ -1,9 +1,9 @@
 ---
 title: Retain and reuse FreeCAD benchmark builds
 doc_type: runbook
-status: current
+status: active
 owner: local-developer
-last_reviewed: 2026-11-08
+last_reviewed: 2026-11-09
 applies_to:
   - Local FreeCAD benchmark campaigns
   - Spec 003 build and evidence storage
@@ -116,8 +116,8 @@ A verifier repair needs fresh qualification, independent review, distinct artifa
 cache destinations and a new frozen complete schedule. Mark the earlier attempt
 ineligible and keep it separate; do not pool or replace individual observations.
 This recovery is different from repeating qualified measurements to clear a numeric
-review trigger. The governing acceptance policy decides whether such a trigger
-needs further work.
+review trigger. The [promoted decision contract](../reference/document-open-performance.md#cost-benefit-decision-contract)
+decides whether such a trigger needs further work.
 
 ## Recorded retirement
 

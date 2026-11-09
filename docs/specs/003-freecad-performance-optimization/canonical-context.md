@@ -2,18 +2,37 @@
 title: FreeCAD performance optimization requirements canonical context
 doc_type: spec
 artifact_type: canonical-context
-status: draft
+status: archived
 owner: local-developer
 last_reviewed: 2026-11-09
 ---
 
 # Canonical Context
 
+> Retained in place as historical evidence after local Linux delivery. Current
+> contracts are in the [reference](../../reference/document-open-performance.md)
+> and [runbook](../../runbooks/freecad-performance-optimization.md). Earlier
+> checkpoint and next-task prose below is historical. See the
+> [closure review](../../reviews/spec003-performance-closure.md) and
+> [closure log](../../history/spec-closure-log.md) for current disposition,
+> actual implementation commits and explicitly pending cleanup commit metadata.
+
+## Final Authority
+
+T010's qualified composition is committed as `21903ca31f` (docs `756c03a`).
+Current guidance is the [promoted reference](../../reference/document-open-performance.md)
+and [runbook](../../runbooks/freecad-performance-optimization.md). Earlier
+checkpoint rows and next-task prose below remain dated history. T011 records
+closure separately; frozen policy/results/receipts are never rewritten to follow
+new documentation. Old mutable authorities are resolved from the exact committed
+Git snapshots declared by the T011 receipt.
+
 ## Purpose
 
 Prevent historical intended behavior and dated local measurements from becoming
 current implementation claims. This package was migrated from unnumbered legacy
-artifacts on 2026-11-06. Its current acceptance remains draft.
+artifacts on 2026-11-06. Its initial acceptance was draft; final bounded Linux acceptance is recorded by
+T010/T011 and the promoted contracts.
 
 ## Authority Hierarchy
 
@@ -44,7 +63,7 @@ historical notes override code, tests, policy or live evidence.
 | open-decisions.md | Authoritative decision status/ownership | D001–D007 | D007 selects current cost-benefit policy; original D001 v1 results remain unchanged; D005/D006 are historical execution selections; no production acceptance |
 | validation-manifest.md and validation-manifest.json | Candidate identity and evidence applicability | T019 initial local Linux candidate | Historical binaries ineligible; actual new-build/runtime receipt required |
 | benchmark-protocol.md; benchmark-plan.json; benchmark-runner.py | Predeclared measurement contract and bounded collector | T001/D001 | Immutable D001 v1 measurement/statistical contract; current product review uses D007 |
-| tasks.md | Four-phase delivery queue and explicit next action | This package | T012/T013/T003/T006/T014/T017/T007/T015/T016/T005/T018/T002 complete; T020 measurement/disposition complete; T022/D005 planning complete; T004.1 measurement complete; original P01 v1 failure preserved; T004.2/T004.3 measurement/disposition complete; T004.4 scoped review complete; T004 local evidence/review complete; T010 and all four children complete for the declared Linux scope; next T011; phase order/dependencies govern execution |
+| tasks.md | Four-phase delivery queue and explicit next action | This package | T012/T013/T003/T006/T014/T017/T007/T015/T016/T005/T018/T002 complete; T020 measurement/disposition complete; T022/D005 planning complete; T004.1 measurement complete; original P01 v1 failure preserved; T004.2/T004.3 measurement/disposition complete; T004.4 scoped review complete; T004 local evidence/review complete; T010 and all four children complete for the declared Linux scope; T011 local closure recorded; earlier phase ordering is historical |
 | performance-results.md; performance-results.json | Current acceptance checkpoint and narrative | T020; T004.1; D001–D007 | JSON remains the immutable P01/v1 checkpoint; mutable narrative routes current D007 directions and separate review |
 | t004-conversion-results.md/json; t004-conversion-evidence/; t004-conversion-validation.json | Completed T004.2 conversion measurements/dispositions | All13cells/624observations,485native+56Python checks; both campaign audits pass | D001 v1: P04 INCONCLUSIVE, P05 FAIL; current product directions are in D007 review; T004.3/T004.4 complete; see scoped review; no production acceptance |
 | t0043-results.md/json; t0043-evidence/; t0043-validation.json | Completed T004.3 parser/save measurements and reviewed tree exclusion | Accepted P03/P02 campaigns: 384 fresh observations, full geometry/payload/property/runtime checks; prior incomplete-identity attempt retained ineligible | Primary P03 hook gains only; Draft overall legacy failure retained; P08 has no independent timing claim; T004.4 records completed D007 workflow decisions |
@@ -141,7 +160,7 @@ stays dated or is retained with an explicit audit-only role.
 
 ## T010 Current Final Evidence
 
-T010 and all four children are complete for the declared Linux scope; next T011 promotion/closure.
+T010 and all four children are complete for the declared Linux scope; T011 records local closure and retained history.
 
 [t010-results.md/json](t010-results.md), [t010-validation.json](t010-validation.json),
 [t010-final-source-manifest.json](t010-final-source-manifest.json),

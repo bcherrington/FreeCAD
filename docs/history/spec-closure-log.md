@@ -3,7 +3,7 @@ title: Specification closure log
 doc_type: history
 status: active
 owner: local-developer
-last_reviewed: 2026-11-08
+last_reviewed: 2026-11-09
 ---
 
 # Spec Closure Log
@@ -96,3 +96,47 @@ last_reviewed: 2026-11-08
   The shared branch and other agents' work are preserved. No install, public
   submission or live operator CAD/MCP delivery is claimed. The package is
   retained in place for reproducible evidence; current knowledge is promoted.
+
+### 2026-11-09 - 003-freecad-performance-optimization
+
+- **Spec:** `docs/specs/003-freecad-performance-optimization/`
+- **Title:** FreeCAD document/image performance optimization
+- **Final spec commit:** pending
+- **Closure cleanup commit:** pending
+- **Closure action:** retained-as-history
+- **Durable docs updated:**
+  - `docs/reference/document-open-performance.md`
+  - `docs/runbooks/freecad-performance-optimization.md`
+  - `docs/runbooks/freecad-benchmark-storage.md`
+  - `docs/backlog/README.md`
+  - `docs/backlog/spec003-follow-ups.md`
+  - `docs/backlog/reattachment-delivery-follow-ups.md`
+- **Verification summary:** T010 source composition is committed as `21903ca31f`,
+  matching docs evidence `756c03a`. Actual qualified Linux build/focused/CAD/native/
+  scoped-memory and full CTest checks pass: 2436 registered, 2426 passes, zero
+  failures, two existing skips, eight disabled. T011 is documentation-only: all
+  six requirements/26 criteria, five correctness properties, five success criteria
+  and F001–F009 have final bounded dispositions. Durable contracts, all eleven
+  D007 review fields and operational recovery/change rules are promoted. Original
+  D001 policies/results/receipts and T010 completion-time authority remain immutable;
+  the T011 receipt resolves old mutable bindings through committed Git snapshots.
+  See [the closure review](../reviews/spec003-performance-closure.md) and
+  [final receipt](../specs/003-freecad-performance-optimization/t011-validation.json).
+- **Tool exception:** closure_check in SLM 0.6.1 reports valid routed T008/T007.2
+  as TASK_NOT_VERIFIED because task_verified accepts only complete markers.
+  These two findings are explicitly dispositioned against the repository's routed
+  follow-up contract. No passed closure-tool result or executed investigation is
+  claimed. All other blockers must be zero in the final receipt.
+- **Residual risks:** Linux-only local acceptance; Windows/macOS/Wayland/other
+  drivers and GNOME/IBus memory unqualified. Scoped Memcheck excludes leak and
+  undefined-value analysis. P01/P07 historical external Python closure is incomplete;
+  old timing/tail/RSS values and old App-restore classifier do not prove current
+  numeric performance. D007 retains local directions/first-use/logical RAM; P05
+  inventory/concurrency/headroom bounds remain. No new timing campaign or upstream
+  approval is claimed.
+- **Follow-up:** local-developer owns deferred B009/B010/B011. B012/B013 are
+  completed locally by the actual T010 repairs; B014 external delivery stays
+  proposed. No install, push, PR, live operator delivery or benchmark build deletion.
+  Package is retained in place; active inventory excludes it. Implementation and
+  evidence commit identifiers are actual; promotion/cleanup identifiers remain
+  explicitly pending and must be reconciled after a user-requested commit.

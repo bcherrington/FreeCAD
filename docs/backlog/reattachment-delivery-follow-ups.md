@@ -4,7 +4,7 @@ doc_type: reference
 artifact_type: reference
 status: active
 owner: local-developer
-last_reviewed: 2026-11-08
+last_reviewed: 2026-11-09
 ---
 
 # Reattachment Delivery Follow-Ups
@@ -16,8 +16,8 @@ spec 004. No upstream issue was filed and no maintainer approval is inferred.
 
 ## B012 Isolated Measurement Handler Registration
 
-- Status: proposed; priority PR prep.
-- Evidence: `MeasureElementType.testDatumAreaHandlerReturnsInvalidResult` fails at
+- Status: completed locally in T010 commit `21903ca31f`; priority PR prep.
+- Historical evidence (spec004): `MeasureElementType.testDatumAreaHandlerReturnsInvalidResult` fails at
   `tests/src/Mod/Measure/App/MeasureElementType.cpp:146`: the `Part` area geometry
   handler is null before the measurement is attempted. It reproduces in both the
   initial and final owned-profile full CTest runs.
@@ -32,10 +32,15 @@ spec 004. No upstream issue was filed and no maintainer approval is inferred.
   CTest, or an explicit owning-test correction with regression evidence. Until
   resolved, the repository-wide run must not be called fully passing.
 
+Resolution: the test fixture imports the real Measure module after application
+initialization. The original invalid-result assertion passes in isolation and in
+the final unfiltered Linux full graph. [T010 evidence](../specs/003-freecad-performance-optimization/t010-results.md)
+binds source, runtime and results. The earlier next action/exit above is historical.
+
 ## B013 Part Loft Task Selector Test
 
-- Status: proposed; priority PR prep.
-- Evidence: `TaskInlineAcceptProgressTest_Tests_run` fails in
+- Status: completed locally in T010 commit `21903ca31f`; priority PR prep.
+- Historical evidence (spec004): `TaskInlineAcceptProgressTest_Tests_run` fails in
   `loftAcceptUsesInlineProgressInsteadOfModalDialog`: BlockingLoftProfile and
   LoftProfile are absent from the available-object selector; acceptance reports
   that at least two profiles are required and the dialog remains open.
@@ -49,6 +54,11 @@ spec 004. No upstream issue was filed and no maintainer approval is inferred.
   weaken the inline-progress expectation to obtain a green run.
 - Exit: the profiles can be selected and the existing loft acceptance test passes,
   followed by the affected Part GUI suite and repository-wide validation.
+
+Resolution: finite single-edge profiles are admitted by the Part loft selector,
+preserving closed-wire/single-vertex logic. The original selector/inline-progress
+test passes in isolation and the final Linux full graph. The earlier next action/exit
+above is historical. Other-platform and clean-upstream qualification remains B014.
 
 ## B014 Upstream Reattachment Delivery
 

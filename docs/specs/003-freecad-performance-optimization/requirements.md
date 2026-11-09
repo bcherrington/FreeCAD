@@ -2,12 +2,20 @@
 title: FreeCAD performance optimization requirements
 doc_type: spec
 artifact_type: requirements
-status: draft
+status: archived
 owner: local-developer
 last_reviewed: 2026-11-09
 ---
 
 # Requirements
+
+> Retained in place as historical evidence after local Linux delivery. Current
+> contracts are in the [reference](../../reference/document-open-performance.md)
+> and [runbook](../../runbooks/freecad-performance-optimization.md). Earlier
+> checkpoint and next-task prose below is historical. See the
+> [closure review](../../reviews/spec003-performance-closure.md) and
+> [closure log](../../history/spec-closure-log.md) for current disposition,
+> actual implementation commits and explicitly pending cleanup commit metadata.
 
 Current performance policy: **D007 cost-benefit review** in
 [acceptance-policy-v2.md](acceptance-policy-v2.md). Original D001 v1 outcomes and
@@ -53,6 +61,9 @@ review gates. Keep compact rail geometry in package 002.
 
 ## Durable Source Baseline
 
+Historical intake table: these observations predate promotion. Current authority
+is the promoted reference/runbook linked below, not this intake baseline.
+
 | Source | Current behavior relied on | Confidence | Notes |
 | --- | --- | --- | --- |
 | `src/App/PropertyFile.cpp` | No durable document-open performance contract exists. The current source and dated verification define a partial baseline; the archived Sketcher package owns a different workload. | source-inspected | Revision d0644236e41f35a849b12a1e77941aa88354496f; see verification.md. |
@@ -62,21 +73,26 @@ review gates. Keep compact rail geometry in package 002.
 | `src/Gui/ViewProviderImagePlane.cpp` | No durable document-open performance contract exists. The current source and dated verification define a partial baseline; the archived Sketcher package owns a different workload. | source-inspected | Revision d0644236e41f35a849b12a1e77941aa88354496f; see verification.md. |
 | `src/Gui/Tree.cpp` | No durable document-open performance contract exists. The current source and dated verification define a partial baseline; the archived Sketcher package owns a different workload. | source-inspected | Revision d0644236e41f35a849b12a1e77941aa88354496f; see verification.md. |
 
+The table above records intake at d0644236e4, before promotion. Current durable
+contracts are in [the reference](../../reference/document-open-performance.md)
+and [runbook](../../runbooks/freecad-performance-optimization.md), qualified by
+T010 at source commit `21903ca31f`.
+
 ## Durable Impact
 
 | Durable area | Action | Target | Notes |
 | --- | --- | --- | --- |
-| reference/design | add | `docs/reference/document-open-performance.md` | Proposed promotion destination; publish only accepted current behavior. |
-| operations | add | `docs/runbooks/freecad-performance-optimization.md` | Validation, recovery and limitations before closure. |
+| reference/design | promoted | `docs/reference/document-open-performance.md` | Promoted accepted behavior, compatibility contracts and D007 decision rules. |
+| operations | promoted | `docs/runbooks/freecad-performance-optimization.md` | Validation, recovery and limitations before closure. |
 | follow-up | modify | `docs/backlog/README.md` | Route unfinished decisions/work with owner before closure. |
 
 ## Staged Readiness
 
-- **Current stage:** reconcile
-- **Next stage:** T001 planning/D001 protocol, then the four-phase execution sequence.
+- **Current stage:** closed locally; retained as history
+- **Next stage:** no new implementation; preserve history and commit closure metadata.
 - **Design-first exception:** no. Legacy exploration is retained as history.
-- **Downstream review needed:** design, tasks, traceability and verification after decisions.
-- **Ready to implement:** no blanket readiness; use task context and resolve its blocking decisions.
+- **Downstream review needed:** no new delivery review; future scope needs its own validation.
+- **Ready to implement:** delivery implemented and T010 qualified; optional work requires its own scope.
 
 ## Requirements
 
@@ -181,7 +197,7 @@ comparable workflow and build mode.
 D007 AC7/AC8 local workflow review is complete in
 [t0044-cost-benefit-review.md/json](t0044-cost-benefit-review.md), with explicit
 selected scopes, accounting and ownership. T010 confirms final composition/platform
-applicability for the declared Linux scope; whole-spec acceptance/closure remains T011.
+applicability for the declared Linux scope; local closure is recorded by T011.
 Completed measurement/correctness tasks retain their completion-time criterion
 contracts; adding these clauses does not retroactively reopen those tasks.
 
@@ -328,7 +344,7 @@ qualitative improvement targets require a recorded decision before validation.
 
 ## T010 Local Final Scope
 
-T010 and all four children are complete for the declared Linux scope; next T011 promotion/closure.
+T010 and all four children are complete for the declared Linux scope; T011 records local closure and retained history.
 
 The owner's final platform selection is Linux-only. The source manifest and
 review explicitly bound backend/theme/input-method/module closure. Current
@@ -338,4 +354,4 @@ P01/P07 timing budgets. Requirement3 AC5 is fulfilled by fresh applicable tests
 plus independently reviewed, hash-bound equivalence, not old timing assembly.
 The old classifier's App-restore blind spot is disclosed and corrected with new
 normal-build regressions and stage proof. No original statistical outcome is
-reclassified. T011 owns whole-spec acceptance/closure and final promotion audit.
+reclassified. T011 records local closure and promotion; cleanup commit metadata is pending the requested commit.

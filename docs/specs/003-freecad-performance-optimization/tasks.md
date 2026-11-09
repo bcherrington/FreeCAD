@@ -2,12 +2,20 @@
 title: FreeCAD performance optimization tasks
 doc_type: spec
 artifact_type: tasks
-status: draft
+status: archived
 owner: local-developer
 last_reviewed: 2026-11-09
 ---
 
 # Tasks
+
+> Retained in place as historical evidence after local Linux delivery. Current
+> contracts are in the [reference](../../reference/document-open-performance.md)
+> and [runbook](../../runbooks/freecad-performance-optimization.md). Earlier
+> checkpoint and next-task prose below is historical. See the
+> [closure review](../../reviews/spec003-performance-closure.md) and
+> [closure log](../../history/spec-closure-log.md) for current disposition,
+> actual implementation commits and explicitly pending cleanup commit metadata.
 
 Current performance policy: **D007 cost-benefit review** in
 [acceptance-policy-v2.md](acceptance-policy-v2.md). Original D001 v1 outcomes and
@@ -84,7 +92,7 @@ none -> T008
 
 Exit satisfied: T021/T019 evidence retained, T009 scope disposition recorded, and T001
 resolved D001 with the original benchmark protocol. That was the earlier planning
-checkpoint. Current next action is T011 after completed T010 Linux qualification;
+checkpoint. There is no active delivery task after T011 local closure;
 completed T022/T004.1/T004.2/T004.3 measurements are not reopened.
 
 - [x] T021 Expose lifecycle decisions and verify execution guardrails.
@@ -879,7 +887,7 @@ promotion and owned residual dispositions are complete.
       validation-manifest.md and record actual execution provenance.
 
   - Status: Complete final source/runtime/document review for bounded Linux acceptance. No new timing campaign or release/cross-platform approval. Next T011.
-- [ ] T011 Promote performance contracts and route residual work.
+- [x] T011 Promote performance contracts and route residual work.
   - Depends on: T010, T019, T021, T009
   - Requirements: Requirement 1, Requirement 2, Requirement 3, Requirement 4, Requirement 5,
     Requirement 6 (all acceptance criteria)
@@ -892,14 +900,14 @@ promotion and owned residual dispositions are complete.
     review/closure/archive metadata. Deferred new investigations do not need execution for this core
     slice to close.
   - Validation: See verification.md#quality-gates and the linked criteria.
-  - Evidence mode: command
-  - Evidence: Pending.
+  - Evidence mode: artifact
+  - Evidence: All three children are complete. The durable reference and runbooks promote current behavior, hard contracts, all eleven D007 review fields and operational change/recovery rules. B009/B010/B011 remain owned and deferred; T008/T007.2 remain truthful routed records. B012/B013 are completed by actual T010 repairs. The closure review and receipt bind acceptance, independent reviews and immutable prior authority. Qualified source 21903ca31f is unchanged; later shared build drift is excluded. Local Linux closure retains the package as history and records actual final/archive commits, without upstream/release/cross-platform approval.
   - Candidate manifest: spec003-linux-x86_64-debug-candidate-20261106-v1; see validation-manifest.md
     and record actual execution provenance.
-  - Context evidence: No current closure or durable promotion claim; legacy plan/checklist remains
-    historical.
+  - Completion-time context: Local Linux delivery and durable promotion are complete. Legacy plan/checklist remains historical; optional investigations stay routed.
 
-  - [ ] T011.1 Promote accepted performance behavior/design and operational validation to durable targets.
+  - Status: Complete local Linux delivery, durable promotion and owned residual audit. Retain package as history; no upstream/release/cross-platform approval.
+  - [x] T011.1 Promote accepted performance behavior/design and operational validation to durable targets.
     - Depends on: T010, T019, T021, T009
     - Requirements: Requirement 1, Requirement 2, Requirement 3, Requirement 4, Requirement 5,
       Requirement 6 (all acceptance criteria)
@@ -908,11 +916,12 @@ promotion and owned residual dispositions are complete.
     - Acceptance: Promote accepted performance behavior/design and operational validation to durable
       targets.
     - Evidence mode: artifact
-    - Evidence: Pending.
+    - Evidence: docs/reference/document-open-performance.md now promotes current compatibility/lifecycle contracts, source/test authority and all eleven D007 review fields; docs/runbooks/freecad-performance-optimization.md promotes qualification, recovery, runtime isolation and eligibility-based storage reuse. Historical policies/results remain immutable. Committed source 21903ca31f equals the T010 qualified patch; no source/runtime change. Final expert review and link/hash validation are T011.3.
     - Candidate manifest: spec003-linux-x86_64-debug-candidate-20261106-v1; see
       validation-manifest.md and record actual execution provenance.
 
-  - [ ] T011.2 Route conditional GUI/startup, reduced-resolution and other residual work to owned destinations.
+  - Status: Promoted accepted local Linux behavior/design and operational validation; historical evidence links no longer replace the durable contract.
+  - [x] T011.2 Route conditional GUI/startup, reduced-resolution and other residual work to owned destinations.
     - Depends on: T011.1
     - Requirements: Requirement 1, Requirement 2, Requirement 3, Requirement 4, Requirement 5,
       Requirement 6 (all acceptance criteria)
@@ -922,11 +931,12 @@ promotion and owned residual dispositions are complete.
       any newly discovered residual to one owned destination without discarding required current
       correctness/performance acceptance.
     - Evidence mode: artifact
-    - Evidence: Pending.
+    - Evidence: docs/backlog/README.md and spec003-follow-ups.md verify B009/B010/B011 deferred/local-developer ownership, activation/exit criteria, current-source manifests and non-blocking scope. T008/T007.2 remain routed [>] with original acceptance and durable destinations, not falsely completed investigations. B012/B013 are reconciled as done using T010 commit21903ca31f and isolated/full0failure evidence; B014 remains proposed. docs/reviews/spec003-performance-closure.md dispositions closure-tool routed-task false positives without editing the plugin.
     - Candidate manifest: spec003-linux-x86_64-debug-candidate-20261106-v1; see
       validation-manifest.md and record actual execution provenance.
 
-  - [ ] T011.3 Verify acceptance/review coverage and record actual closure/archive metadata.
+  - Status: All residual work has explicit durable ownership/scope; no current safety or acceptance defect is deferred.
+  - [x] T011.3 Verify acceptance/review coverage and record actual closure/archive metadata.
     - Depends on: T011.2
     - Requirements: Requirement 1, Requirement 2, Requirement 3, Requirement 4, Requirement 5,
       Requirement 6 (all acceptance criteria)
@@ -934,10 +944,11 @@ promotion and owned residual dispositions are complete.
       `docs/runbooks/freecad-performance-optimization.md`, `docs/backlog/README.md`
     - Acceptance: Verify acceptance/review coverage and record actual closure/archive metadata.
     - Evidence mode: artifact
-    - Evidence: Pending.
+    - Evidence: docs/reviews/spec003-performance-closure.md; t011-validation.json; t011-validation-check.py.txt. All 6 requirements, 26 unchanged acceptance criteria, 5 properties, 5 success criteria and F001–F009 have final local dispositions. Independent documentation/process/operations and performance/provenance/QA reviews cleared substantive findings. Direct checks verify 140 prior/source bindings, 30 source hashes, the exact committed T010 patch, 11 prior authority Git blobs, 42 stable IDs, frozen package artifacts, links, privacy and whitespace. Two changed shared build libraries are observed, not qualified. Only valid routed T008/T007.2 are excepted from the closure tool result. Actual final package/archive commits are reconciled in scoped cleanup.
     - Candidate manifest: spec003-linux-x86_64-debug-candidate-20261106-v1; see
       validation-manifest.md and record actual execution provenance.
 
+  - Status: Complete final local acceptance/promotion review. Linux-only; retained-in-place archive and actual commit metadata finalized by scoped closure commits.
 ## Routed Follow-Ups — Outside Active Delivery
 
 These are evidence-bearing routing records, not completed investigations. Their original conditional
@@ -975,11 +986,13 @@ closure; T011 audits routing/ownership.
   - Status: Owned optional routing outcome outside T007 current runtime acceptance; not a completed profile.
   - Owner: local-developer
   - Original prerequisite: T007.1 current qualification before future B011 profiling.
-## Legacy Task Disposition
+## Historical Migration-Time Task Disposition
 
 The full 37-item checklist and May measurement tables are retained in
 [legacy-tasks.md](legacy-tasks.md). Their original checkmarks are historical.
-Plan epic IDs remain searchable in [plan.md](plan.md).
+Plan epic IDs remain searchable in [plan.md](plan.md). The table below records
+the migration checkpoint, not current completion; final local coverage is in
+traceability.md and the T011 receipt.
 
 | Historical scope | Current task(s) | Reconciliation |
 | --- | --- | --- |

@@ -2,12 +2,20 @@
 title: FreeCAD performance optimization technical design
 doc_type: spec
 artifact_type: design
-status: draft
+status: archived
 owner: local-developer
 last_reviewed: 2026-11-09
 ---
 
 # Technical Design
+
+> Retained in place as historical evidence after local Linux delivery. Current
+> contracts are in the [reference](../../reference/document-open-performance.md)
+> and [runbook](../../runbooks/freecad-performance-optimization.md). Earlier
+> checkpoint and next-task prose below is historical. See the
+> [closure review](../../reviews/spec003-performance-closure.md) and
+> [closure log](../../history/spec-closure-log.md) for current disposition,
+> actual implementation commits and explicitly pending cleanup commit metadata.
 
 Current performance policy: **D007 cost-benefit review** in
 [acceptance-policy-v2.md](acceptance-policy-v2.md). Original D001 v1 outcomes and
