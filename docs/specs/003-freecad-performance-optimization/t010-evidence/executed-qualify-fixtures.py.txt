@@ -1,0 +1,82 @@
+# Private execution helper: public output contains opaque identities/counts only.
+import FreeCAD as App
+import Part
+from pathlib import Path
+import os,sys,json,hashlib,importlib.util,zipfile,xml.etree.ElementTree as ET
+root=Path.cwd();out=root/'build/spec003-t010';fixture_id=sys.argv[1];output=Path(sys.argv[2]);output.mkdir(parents=True,exist_ok=True)
+def load(name,path):
+ spec=importlib.util.spec_from_file_location(name,path);m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m);return m
+checks=load('final_checks',root/'tests/src/Gui/ImagePerformanceProbe.py');fidelity=load('final_fidelity',root/'tests/src/App/document_performance_fidelity.py')
+def fp(x):return hashlib.sha256(json.dumps(x,sort_keys=True,separators=(',',':')).encode()).hexdigest()
+def digest(f):return hashlib.sha256(Path(f).read_bytes()).hexdigest()
+contexts=[];source=None
+for group in ['p03-corrected','p02']:
+ freeze=json.loads((root/'build/spec003-t004-parser-tree-save'/group/'freeze.json').read_text())
+ if fixture_id in freeze['cells']:
+  cell=freeze['cells'][fixture_id];context=json.loads(Path(cell['context']).read_text());assert digest(cell['context'])==cell['context_sha256']
+  contexts.append((group,context));source=Path(cell['fixture'])
+if source is None:
+ manifest=json.loads((root/'docs/specs/003-freecad-performance-optimization/t010-final-source-manifest.json').read_text());source=root/next(x['path'] for x in manifest['fixtures'] if x['id']==fixture_id)
+assert source.is_file();original=digest(source);os.environ['SPEC003_FIXTURE_PATH']=str(source)
+context_file=output/'qualification-context.json';context_file.write_text(json.dumps(contexts[0][1] if contexts else {}));os.environ['SPEC003_CONTEXT_PATH']=str(context_file)
+def completed(doc):
+ assert doc and not doc.Restoring and not doc.Recomputing
+ n=doc.recompute() if doc.mustExecute() else 0
+ assert not doc.Recomputing and not doc.mustExecute()
+ return n
+def payloads(doc,archive):
+ rows=[]
+ with zipfile.ZipFile(archive) as z:
+  tree=ET.fromstring(z.read('Document.xml'));objects={x.get('name'):x for x in tree.findall('./ObjectData/Object')}
+  for obj in sorted(doc.Objects,key=lambda x:x.Name):
+   for prop in obj.PropertiesList:
+    if obj.getTypeIdOfProperty(prop)!='App::PropertyFileIncluded':continue
+    value=getattr(obj,prop)
+    if not value:continue
+    elem=objects[obj.Name].find("./Properties/Property[@name='"+prop+"']/FileIncluded");assert elem is not None
+    entry=elem.get('file') or elem.get('data');data=z.read(entry);h=hashlib.sha256(data).hexdigest();assert Path(value).stat().st_size==len(data) and digest(value)==h
+    rows.append([obj.Name,prop,len(data),h])
+ return rows
+saved=output/'roundtrip.FCStd';doc=None
+try:
+ doc=App.openDocument(str(source));recompute=completed(doc);model=checks.model_snapshot(doc);geometry=fidelity.geometric_state(doc,model);gm=fidelity.geometry_manifest(doc,model);persistent=fidelity.persistent_state(doc);payload=payloads(doc,source)
+ sketches=[o for o in doc.Objects if o.isDerivedFrom('Sketcher::SketchObject')]
+ inventory={'sketches':len(sketches),'sketches_with_external_refs':sum(bool(o.ExternalGeometry) for o in sketches),'external_reference_entries':sum(len(o.ExternalGeometry) for o in sketches),'invalid_sketches':sum(not o.isValid() for o in sketches),'touched_sketches_after_completion':sum('Touched' in o.State for o in sketches),'runtime_external_reattach_calls':0,'reattach_call_basis':'Harness and document restore never call the new explicit reattachExternal API; source admission rejects isRestoring.','solver_failure_branch_observability':'No dedicated runtime GCS failure counter in normal build. Valid final states/identities and final solver tests support reviewed applicability; do not assert all intermediate fallback branches were unexecuted.'}
+ matches=[]
+ for group,c in contexts:
+  identity=c['document_identity'];actual={'normative_state_sha256':fp(model),'geometry_manifest_sha256':fp(gm),'persistent_state_sha256':fp(persistent),'payload_identity_sha256':fp(payload)}
+  comparison={k:actual[k]==identity[k] for k in actual};matches.append({'campaign':group,'identity_matches':comparison,'completion_recompute_count':recompute,'prior_completion_recompute_count':identity['completion_recompute_count']})
+  assert all(comparison.values()),'Final initial fixture identity differs from campaign'
+ doc.saveAs(str(saved));assert checks.model_snapshot(doc)==model;assert payloads(doc,saved)==payload
+ App.closeDocument(doc.Name);doc=App.openDocument(str(saved));after_recompute=completed(doc);after_model=checks.model_snapshot(doc);after_geometry=fidelity.geometric_state(doc,after_model);after_persistent=fidelity.persistent_state(doc)
+ assert fidelity.without_geometry_hashes(model)==fidelity.without_geometry_hashes(after_model),'Nongeometry model differs'
+ original_geometry_pass=fidelity.equivalent_geometry(geometry,after_geometry);sphere_supplement=False
+ if not original_geometry_pass and fixture_id=='AssemblyExample':
+  supplement=load('assembly_sphere_supplement',out/'assembly-sphere-supplement.py')
+  assert geometry.keys()==after_geometry.keys()
+  sphere_supplement=all(fidelity.equivalent_invariants(geometry[k][1],after_geometry[k][1]) and (fidelity.equivalent_brep(geometry[k][0],after_geometry[k][0]) or supplement.equivalent_spherical_basis(geometry[k][0],after_geometry[k][0],fidelity)) for k in geometry)
+ if not original_geometry_pass and not sphere_supplement:
+  differences=[]
+  for key in geometry.keys()|after_geometry.keys():
+   if key not in geometry or key not in after_geometry:differences.append({'key':list(key),'missing':True});continue
+   a,b=geometry[key],after_geometry[key]
+   if not fidelity.equivalent_brep(a[0],b[0]) or not fidelity.equivalent_invariants(a[1],b[1]):
+    different_lines=[i for i,(x,y) in enumerate(zip(a[0].splitlines(),b[0].splitlines())) if x!=y]
+    differences.append({'key':list(key),'brep_equal':a[0]==b[0],'brep_equivalent':fidelity.equivalent_brep(a[0],b[0]),'invariants_equivalent':fidelity.equivalent_invariants(a[1],b[1]),'before_invariants':a[1],'after_invariants':b[1],'first_different_line':different_lines[0] if different_lines else None,'different_line_examples':[[a[0].splitlines()[i],b[0].splitlines()[i]] for i in different_lines[:3]],'before_header':a[0].splitlines()[:3],'after_header':b[0].splitlines()[:3]})
+  (output/'geometry-differences.json').write_text(json.dumps(differences,indent=2)+'\n')
+  raise AssertionError('Geometry semantics differ')
+ assert persistent==after_persistent,'Persistent identity differs'
+ assert payloads(doc,saved)==payload,'Payload identity differs'
+ reopened_gm=fidelity.geometry_manifest(doc,after_model)
+ for row,(group,c) in zip(matches,contexts):
+  identity=c['document_identity'];checks2={k:v==identity[k] for k,v in {'reopened_normative_state_sha256':fp(after_model),'reopened_geometry_manifest_sha256':fp(reopened_gm),'reopened_persistent_state_sha256':fp(after_persistent)}.items() if identity.get(k) is not None}
+  row['reopened_identity_matches']=checks2
+  assert all(checks2.values()),'Final reopened fixture identity differs from campaign'
+ report={'fixture_id':fixture_id,'fixture_sha256':original,'result':'passed','model_objects':len(model),'geometry_entries':len(gm),'persistent_inventory':persistent['inventory'],'included_files':len(payload),'included_bytes':sum(x[2] for x in payload),'completion_recompute_count':recompute,'reopened_recompute_count':after_recompute,'campaign_identity_comparisons':matches,'Sketcher_reachability':inventory,'original_geometry_oracle_pass':original_geometry_pass,'Assembly_only_sphere_supplement_pass':sphere_supplement,'checks':{'model_references_calibration_proxy_class':True,'all_PartShape_geometry_and_referenced_subshapes':True,'persistent_properties':True,'payloads':True,'save_reopen':True},'identities':{'model':fp(model),'geometry_manifest':fp(gm),'persistent':fp(persistent),'payload':fp(payload)},'scope':'Normal-debug final composition qualification, not benchmark samples; same declared geometry oracle and private-data publication limits. Proxy internals/document metadata outside oracle.'}
+ (output/'result.json').write_text(json.dumps(report,indent=2)+'\n');print(json.dumps({'fixture_id':fixture_id,'result':'passed','objects':len(model),'campaign_comparisons':len(matches),'sketches':inventory['sketches'],'external_sketches':inventory['sketches_with_external_refs']}))
+finally:
+ if doc:App.closeDocument(doc.Name)
+ assert digest(source)==original
+ if saved.exists():saved.unlink()
+ backup=saved.with_suffix('.FCStd1')
+ if backup.exists():backup.unlink()

@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TestCase name="ImagePlaneTest">
+  <Environment>
+    <QtVersion>6.11.3</QtVersion>
+    <QtBuild>Qt 6.11.3 (x86_64&#x002D;little_endian&#x002D;lp64 shared (dynamic) release build; by GCC 15.3.0)</QtBuild>
+    <QTestVersion>6.11.3</QTestVersion>
+  </Environment>
+  <TestFunction name="initTestCase">
+    <Incident type="pass" file="" line="0" />
+    <Duration msecs="138.252"/>
+  </TestFunction>
+  <TestFunction name="earlyShowDefersUntilCompletion">
+    <Incident type="pass" file="" line="0">
+      <DataTag><![CDATA[app-restore-ready]]></DataTag>
+    </Incident>
+    <Duration msecs="12.6995"/>
+  </TestFunction>
+  <TestFunction name="earlyShowDefersUntilCompletion">
+    <Incident type="pass" file="" line="0">
+      <DataTag><![CDATA[app-restore-late]]></DataTag>
+    </Incident>
+    <Duration msecs="3.21463"/>
+  </TestFunction>
+  <TestFunction name="cleanupTestCase">
+    <Incident type="pass" file="" line="0" />
+    <Duration msecs="0.371687"/>
+  </TestFunction>
+  <Duration msecs="155.079"/>
+</TestCase>

@@ -113,7 +113,7 @@ product decisions. Correctness/provenance/coverage gates remain mandatory.
 | D005 | Resolved technical plan: retain P07, unchanged D001 criteria, bounded diagnostics and source/revalidation plan; no acceptance waiver | Requirement 3 AC1–AC5; Requirement 5 AC1–AC4 | T022, T004, T004.1, T004.2, T010, T010.1 | Complete measured evidence does not waive failed D001 or authorize retained P07 |
 | D006 | Resolved pre-sample P01 coverage disposition: two structural-zero controls have no payload timing claim; all five cells and other gates remain required | Requirement 3 AC1, AC3, AC5 | T004.1, T004, T010 | open-decisions.md; t004-source-review/p01-public-payload-coverage.json |
 | D002 | Resolved scope/routing; no new behavior approved | Requirement 2, Requirement 5 | T009, T011 | B009 in docs/backlog/spec003-follow-ups.md |
-| D003 | Resolved initial candidate/policy; final reconfirmation at T010.1 remains required | Requirement 3 AC2, AC5 | T019, T010.1 | validation-manifest.md; actual source/build/fixture receipts must track fixes and final PR composition |
+| D003 | Initial candidate policy and T010.1 final Linux base-plus-patch/runtime scope confirmed | Requirement 3 AC2, AC5 | T019, T010.1 | validation-manifest.md; actual source/build/fixture receipts must track fixes and final PR composition |
 
 ## Candidate Manifest Binding
 
@@ -122,7 +122,7 @@ All tasks directly or transitively dependent on T019 use
 initial identity/policy only. Each source fix, test, measurement or manual result
 must carry its actual source/dependency/build/fixture receipt and applicability
 revision; the v1 intake snapshot does not certify changed binaries. D003 is
-resolved initially, while T010.1 remains mandatory for exact final production
+resolved initially; T010.1 now confirms the exact final local Linux production
 confirmation. F008 as a whole remains open until comparative and final evidence gates
 are satisfied; D001 planning is complete.
 
@@ -212,3 +212,19 @@ whole-spec closure remains T011. No historical outcomes are reclassified.
 | --- | --- | --- |
 | [Performance reference](../../reference/document-open-performance.md) | Scoped retained decisions and memory accounting | local-developer; T010 final applicability |
 | [Review runbook](../../runbooks/freecad-performance-optimization.md) | Extension/review/validation and recovery procedure | local-developer; T011 final promotion audit |
+
+## T010 Final Source And Runtime Disposition
+
+T010 and all four children are complete for the declared Linux scope; next T011 promotion/closure.
+
+| Criterion group | Final evidence | Boundary |
+| --- | --- | --- |
+| Requirements1/4 archive/map/identity | Final build/focused/full receipts; seven original campaign identities; three P02 reopened identities; separate CAD roundtrips | Original oracle bounds retained; proxy internals/document metadata excluded |
+| Requirements2/5 image fidelity/lifecycle |82 bitmap cases;42 rendered Qt passes;26 lifecycle Qt/Memcheck passes; native full-pixel/calibration/stage trace | App-only restore now covered; original old counter not complete proof |
+| Requirement6 tree/lifetime/recompute | Final eight target suites/full graph; idempotent preview close | No independent P08 speed claim |
+| Requirement3/SC-005 | P01–P08 reviewed local directions/exclusions; actual final source/runtime/native proof | P01/P07 old numeric timings/runtime closure not exact-final; no new SLA |
+| Platform scope | User-selected Linux-only; declared X11/offscreen softwareGL/compose, generic/Fusion native viewer/memory and process user-site mask | Windows/macOS/Wayland/other drivers and GNOME/IBus memory unqualified |
+| Final documentation/closure | Active reference/runbook updated; T010 receipt and prior authority archive | Whole-spec promotion/closure remains T011 |
+
+Original v1 outcomes remain unchanged. Scope-specific final acceptance does not
+turn disabled/skipped tests into passing coverage or certify a general release.

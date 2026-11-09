@@ -1,0 +1,92 @@
+# Run only as a fresh FreeCAD macro; generated public scene or isolated private copy.
+import FreeCAD as App
+import FreeCADGui as Gui
+from pathlib import Path
+import os,json,hashlib,time,traceback,subprocess,sys
+from PySide6 import QtCore,QtGui,QtWidgets,QtOpenGLWidgets
+from pivy import coin
+import shiboken6
+root=Path.cwd();out=root/'build/spec003-t010';mode=os.environ.get('T010_GUI_MODE','generated');work=out/('native-'+mode);work.mkdir(exist_ok=True)
+def fp(data):return hashlib.sha256(data).hexdigest()
+def texture(obj):
+ search=coin.SoSearchAction();search.setType(coin.SoTexture2.getClassTypeId());search.setSearchingAll(True);search.apply(obj.ViewObject.RootNode);assert search.getPath() is not None
+ return search.getPath().getTail()
+def field(obj):
+ # The Pivy raw-byte overload decodes image bytes as UTF-8; use its ASCII field serialization.
+ words=str(texture(obj).image.get()).split();width,height,components=map(int,words[:3]);dims=[width,height]
+ if width==0 or height==0:return {'dimensions':dims,'components':components,'sha256':None}
+ assert 0<width<=32767 and 0<height<=32767 and 1<=components<=4
+ assert len(words[3:])==width*height
+ raw=b''.join(int(word,0).to_bytes(components,'big') for word in words[3:])
+ return {'dimensions':dims,'components':components,'sha256':fp(raw)}
+
+def loaded_runtime():
+ files={}
+ for line in Path('/proc/self/maps').read_text().splitlines():
+  parts=line.split(maxsplit=5)
+  if len(parts)<6:continue
+  f=Path(parts[5])
+  if f.is_file() and '.so' in f.name:
+   name=str(f).replace(str(root),'${REPO_ROOT}')
+   if name not in files:files[name]=fp(f.read_bytes())
+ return files
+
+def mark(stage):
+ (out/('reachability-current-'+mode+'.txt')).write_text('P07-'+mode+'-'+stage)
+ print('T010_STAGE '+stage,flush=True)
+def drain():
+ QtCore.QCoreApplication.sendPostedEvents(None,QtCore.QEvent.Type.DeferredDelete)
+ QtWidgets.QApplication.processEvents(QtCore.QEventLoop.ProcessEventsFlag.AllEvents,20)
+ QtCore.QCoreApplication.sendPostedEvents(None,QtCore.QEvent.Type.DeferredDelete)
+def run():
+ try:
+  mark('startup')
+  main=Gui.getMainWindow();main.resize(1280,900);Gui.activateWorkbench('NoneWorkbench');main.showNormal();QtWidgets.QApplication.processEvents()
+  if mode=='generated':
+   image=QtGui.QImage(256,128,QtGui.QImage.Format.Format_ARGB32);image.fill(QtGui.QColor(20,60,180,255));p=QtGui.QPainter(image);p.fillRect(0,0,128,64,QtGui.QColor('red'));p.fillRect(128,64,128,64,QtGui.QColor('yellow'));p.end();source=work/'source.png';assert image.save(str(source));doc=App.newDocument('T010NativeScene')
+   planes=[]
+   for i in range(3):
+    obj=doc.addObject('Image::ImagePlane','ImagePlane');obj.ImageFile=str(source);obj.XSize=123.25;obj.YSize=67.5;obj.Placement.Base=App.Vector(i*140,0,0);obj.ViewObject.Visibility=False;planes.append(obj)
+  else:
+   inputs=json.loads((out/'reachability-inputs.json').read_text());mark('open-original');doc=App.openDocument(inputs['gridfinity-drawer-v1.3']);mark('hide-original');planes=[o for o in doc.Objects if o.TypeId=='Image::ImagePlane'];assert len(planes)==3
+   for obj in planes:obj.ViewObject.Visibility=False
+  before_calibration=[[o.XSize.Value,o.YSize.Value,list(o.Placement.toMatrix().A)] for o in planes];names=[o.Name for o in planes]
+  mark('prepare-save');doc.recompute();saved=work/'hidden-copy.FCStd';doc.saveAs(str(saved));mark('close-original');App.closeDocument(doc.Name);drain();assert not App.listDocuments();mark('open-hidden-derivative');doc=App.openDocument(str(saved));planes=[doc.getObject(n) for n in names];assert all(not o.ViewObject.Visibility for o in planes);mark('hidden-frame')
+  view=Gui.activeDocument().activeView();view.viewTop();view.fitAll();Gui.updateGui();QtWidgets.QApplication.processEvents();initial=[field(o) for o in planes];assert all(r['sha256'] is None for r in initial), 'Hidden restored texture materialized'
+  mdi=main.findChild(QtWidgets.QMdiArea);assert mdi;deadline=time.monotonic()+10
+  while not mdi.subWindowList():
+   assert time.monotonic()<deadline,'Document subwindow creation timeout';QtWidgets.QApplication.processEvents(QtCore.QEventLoop.ProcessEventsFlag.AllEvents,5)
+  QtCore.QCoreApplication.sendPostedEvents(None,QtCore.QEvent.Type.DeferredDelete);active=mdi.activeSubWindow();assert active is not None,'No active document subwindow';widgets=active.findChildren(QtOpenGLWidgets.QOpenGLWidget);assert len(widgets)==1,'Ambiguous native viewport';native=widgets[0];view.getViewer().setEnabledNaviCube(False);swaps=[0];native.frameSwapped.connect(lambda:swaps.__setitem__(0,swaps[0]+1))
+  def frame():
+   loop=QtCore.QEventLoop();native.frameSwapped.connect(loop.quit);QtCore.QTimer.singleShot(5000,loop.quit);native.update();view.redraw();loop.exec();native.frameSwapped.disconnect(loop.quit);image=native.grabFramebuffer();assert not image.isNull();return image
+  opened=frame();assert not opened.isNull();open_hash=fp(bytes(opened.constBits()))
+  mark('first-show');target=planes[0];assert all(n in target.PropertiesList for n in ['ImageFile','XSize','YSize']);target.ViewObject.Visibility=True;view.fitAll();view.redraw();Gui.updateGui();QtWidgets.QApplication.processEvents();shown=[field(o) for o in planes];assert shown[0]['sha256'] and all(r['sha256'] is None for r in shown[1:]), 'First show materialization inventory differs'
+  q=QtGui.QImage(target.ImageFile);assert not q.isNull();reference=q.convertToFormat(QtGui.QImage.Format.Format_RGBA8888).flipped(QtCore.Qt.Orientation.Vertical)
+  assert shown[0]['dimensions']==[q.width(),q.height()] and shown[0]['components']==4 and shown[0]['sha256']==fp(bytes(reference.constBits())),'Full resolution/pixels differ'
+  first=frame();assert not first.isNull();first_hash=fp(bytes(first.constBits()));assert first_hash!=open_hash, 'Visible image has no frame effect'
+  mark('repeat-show');target.ViewObject.Visibility=False;target.ViewObject.Visibility=True;view.redraw();Gui.updateGui();QtWidgets.QApplication.processEvents();repeated=[field(o) for o in planes];assert repeated==shown,'Repeat texture inventory differs'
+  after_calibration=[[o.XSize.Value,o.YSize.Value,list(o.Placement.toMatrix().A)] for o in planes];assert before_calibration==after_calibration
+  mark('collect-runtime');runtime=loaded_runtime();assert not any('/.local/' in n for n in runtime),'User-site library escaped isolation';compose=[n for n in runtime if 'platforminputcontexts' in n];assert any('libcompose' in n for n in compose) and not any('libibus' in n for n in compose)
+  report={'schema':'freecad-spec003-final-native-viewer/v1','mode':mode,'result':'passed','root_commit':os.environ['T010_FINAL_ROOT'],'initial_hidden_materialized_count':0,'first_show_materialized_count':1,'remaining_hidden_count':2,'repeat_texture_inventory_equal':True,'repeat_load_count_claim':'No direct normal-build counter; unchanged materialized texture inventory plus source/lifecycle tests qualify cache behavior.','full_resolution_pixels_orientation':True,'calibration_placement_equal':True,'live_named_image_properties':True,'native_widget':native.metaObject().className(),'frame_swaps_observed':swaps[0],'open_frame_sha256':open_hash,'first_show_frame_sha256':first_hash,'first_frame_timing_claim':'Functional correct-frame observation only; no benchmark sample, latency assertion or final timing reclassification.','renderer':{'backend':'native X11/xcb','software_GL':os.environ.get('LIBGL_ALWAYS_SOFTWARE'),'format_version':str(native.format().version())},'input_method_modules':compose,'loaded_module_sha256':runtime,'user_site_hidden_from_process':True,'user_site_mapped_libraries':0,'python_user_site_flag':sys.flags.no_user_site,'fixture_handling':'Generated public pattern scene' if mode=='generated' else 'Isolated visibility-only hidden derivative of checksum-pinned private source; no path/model values or frames published.'}
+  if mode=='generated':
+   capture_tool='${USER_HOME}/.codex/skills/capture-app-window/scripts/capture_app_window.py'
+   windows=json.loads(subprocess.check_output(['/usr/bin/python3',capture_tool,'list','--pid',str(os.getpid())]));owned=next(w for w in windows if w['xid']==int(main.winId()));assert owned['pid']==os.getpid()
+   capture=json.loads(subprocess.check_output(['/usr/bin/python3',capture_tool,'capture','--window-id',owned['xid_hex'],'--output',str(work/'application-window.png')]))
+   report['window_capture']=capture
+  
+  if mode=='generated':(work/'result.json').write_text(json.dumps(report,indent=2)+'\n')
+  main.setWindowTitle('Spec003 T010 native viewer ready');print('T010 native '+mode+' PASS')
+  if mode=='generated':
+   keeper=QtCore.QTimer(main);keeper.timeout.connect(lambda:main.setWindowTitle('Spec003 T010 native viewer ready'));keeper.start(10);main._t010_title_keeper=keeper;QtCore.QTimer.singleShot(60000,QtWidgets.QApplication.quit)
+  else:
+   mark('close-hidden-derivative');App.closeDocument(doc.Name);deadline=time.monotonic()+5
+   while True:
+    drain();viewer_visible=shiboken6.isValid(native) and native.isVisible()
+    if not App.listDocuments() and Gui.activeDocument() is None and not viewer_visible:break
+    assert time.monotonic()<deadline,'Document or owned viewer remains after close'
+   report['post_close_no_documents_or_document_viewer']=True
+   report['retained_mdi_subwindow_count']=len(main.findChild(QtWidgets.QMdiArea).subWindowList())
+   mark('post-close-complete');(work/'result.json').write_text(json.dumps(report,indent=2)+'\n');QtCore.QTimer.singleShot(0,QtWidgets.QApplication.quit)
+ except Exception:
+  (work/'failure.txt').write_text(traceback.format_exc());main.setWindowTitle('Spec003 T010 native viewer diagnostic');print('T010 native check FAILED');QtCore.QTimer.singleShot(20000,QtWidgets.QApplication.quit)
+QtCore.QTimer.singleShot(0,run)

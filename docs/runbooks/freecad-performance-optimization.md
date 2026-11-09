@@ -125,3 +125,39 @@ The local-developer owner resolves changed operating scope, insufficient headroo
 new strict latency requirements or incompatible provenance. A safety/fidelity/error
 failure blocks affected acceptance regardless of speed. Exact final source or
 platform uncertainty remains a T010 gate; closure remains T011.
+
+## Final Native Runtime And Restore Checks
+
+Use [the final source/runtime receipt](../specs/003-freecad-performance-optimization/t010-results.md)
+for the accepted Linux profile and exact patch. Normal build probe options stay
+OFF. Test App-only restore before GUI restore, GUI restore, import, first show,
+repeat show and final document-owned viewer close. Ignore retained non-document
+Start tabs when checking ownership; do not ignore missing-image or scene-removal
+warnings. Trace and fix real failures before claiming clean qualification.
+
+For isolated viewer checks, use a task-owned display and explicit process/window
+identity; omit `--single-instance`, which can forward work to an existing session.
+Publish generated public scenes only. Keep private model paths/content/frames out
+of committed artifacts. Preserve failed harness, preflight and qualification
+attempts separately, with their eligibility status.
+
+FreeCAD's embedded Python explicitly enables user-site modules, so ordinary
+environment flags alone do not establish isolation. The recorded validation uses
+a process-only mount namespace to hide the user-site directory and verifies
+actual mapped modules against the final build and selected lock/host closure.
+Do not uninstall or modify user packages. Confirm actual dependency files rather
+than equating installed package metadata with runtime closure.
+
+Nested Pixi probing may fail inside that namespace. Activate and verify the locked
+Pixi environment first, then use the exact CTest body from the repository task
+under the mask, recording the diagnostic equivalence and all test outcomes.
+Do not silently solve the lock, fabricate platform metadata or filter failing
+tests. Existing source-level skips/disabled cases must remain explicit coverage
+limits. The qualified native viewer/memory profile is compose + generic/Fusion
+on X11 softwareGL; it is not an IBus/GNOME memory-safety certificate.
+
+The old P01/P07 numeric results have incomplete external embedded-Python closure,
+and old premature-load classification omitted App-only restore. Preserve them as
+historical data. Use source-supported local directions and new functional gates
+for scoped D007 decisions; freeze a new masked-runtime campaign before making
+current absolute/tail/budget claims.

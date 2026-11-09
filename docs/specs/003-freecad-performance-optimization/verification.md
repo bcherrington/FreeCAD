@@ -970,29 +970,26 @@ at the nested docs boundary; executed checks and exact identities establish proo
 
 ## Next Actions
 
-1. **T010.1 — Confirm final production revisions and invalidate affected evidence.**
-   T004.4 resolves D007 workflow/operating scope for all eight changes; parent T004
-   local comparison/review is complete. Exact final composition and platform
-   applicability remain open; SC-005 and whole-spec acceptance are not implied.
-2. Preserve source/build/fixture/geometry/runtime provenance. Requalify affected
-   evidence or review equivalence for actual changes; do not rerun complete
-   qualified campaigns solely to clear original numeric triggers.
-3. Follow T010.2–T010.4 build/test/platform/manual gates, then T011 promotion/closure.
-4. B009/B010/B011 remain inactive optional work and cannot waive current hard gates.
+1. **T011 — Promote durable documentation, audit residual ownership and close the spec.**
+   T010 and all four children are complete for the declared Linux scope. Reconcile
+   the closure tool's treatment of routed T008/T007.2 with owned B010/B011 destinations.
+   Do not mark routed implementation work complete to satisfy a closure tool.
+2. Complete the promotion/closure audit; B009/B010/B011 remain optional and inactive.
+   No new source change or numeric performance promise is selected.
 
 ## Quality Gates
 
 | Gate | Required? | Status | Evidence |
 | --- | --- | --- | --- |
-| Requirements and decisions accepted | yes | partial | D001 protocol recorded; D002 routes to B009; D003 initial policy recorded; D004 campaign completed; D005/T022 and D007 resolved; T004.4 scoped dispositions complete; final T010.1 confirmation pending |
-| MoE source-safety blockers resolved | yes | partial | Phase 2 local image/tree/map/archive safety and broader checkpoints complete; exact-final/platform applicability remains T010 |
-| Candidate and final evidence applicability | yes | partial | T019 initial manifest plus exact T020/T004 scoped source/build/runtime receipts recorded; T010 final reconciliation pending |
-| Predeclared per-optimization performance/resource acceptance | yes | incomplete | T020/T004.1/T004.2/T004.3 measurements/exclusions complete; original v1 failures/uncertainty retained; D007 scoped review T004.4 complete; final T010 remains |
-| Complete task/criterion evidence | yes | pending | tasks.md; traceability.md |
-| Focused current correctness and failure tests | yes | passed locally | T003/T006 image, T007 tree, T015/T016/T005 numeric/identity and T018/T002 failure/aggregate compatibility checkpoints pass on their recorded profiles; T010 reconfirms final/platform applicability |
-| Current measurements and platform/manual acceptance | yes | incomplete | Scoped current measurements recorded; D007 product/workflow dispositions T004.4 complete; exact-final/platform applicability T010 remains |
-| Durable promotion and residual ownership | yes | pending | requirements.md durable impact |
-| Review and closure metadata | yes | pending | No closure claimed |
+| Requirements and decisions accepted | yes | passed for Linux local scope | D003 owner selection; D007 dispositions; t010-results.md; t010-validation.json |
+| MoE source-safety blockers resolved | yes | passed for qualified composition | Three independent reviews; final five-file patch; focused/native/full checks |
+| Candidate and final evidence applicability | yes | passed for declared Linux runtime | Final v3 source manifest, build receipt, applicability and module hashes |
+| Per-optimization performance/resource acceptance | yes | scoped D007 acceptance | Original v1 outcomes unchanged; reviewed directions/first-use/logical RAM; no current numeric timing claim |
+| Complete task/criterion evidence | yes | T010 complete; T011 pending | tasks.md; traceability.md; t010-validation.json |
+| Focused current correctness and failure tests | yes | passed locally | Final focused targets, CAD/native regressions and scoped Memcheck |
+| Current measurements and platform/manual acceptance | yes | Linux local scope passed | Final runtime-bound manual checks and reviewed equivalence; other platforms/profiles unqualified |
+| Durable promotion and residual ownership | yes | final audit pending T011 | Active reference/runbook; requirements.md durable impact |
+| Review and closure metadata | yes | T010 reviewed; closure pending T011 | Whole spec remains draft |
 
 ## Evidence Log
 
@@ -1530,3 +1527,55 @@ review. Frozen D007/prior review/results/receipts are unchanged. Lasting scoped
 decisions are promoted to the reference and runbook; final promotion/closure
 remains T011. T004/T004.4 local acceptance is complete. Next T010.1; SC-005 and
 whole-spec final production acceptance remain open.
+
+## T010 Final Linux Composition And Review
+
+T010 and all four children are complete for the declared Linux scope; next T011 promotion/closure.
+
+[t010-results.md/json](t010-results.md), [the final source manifest](t010-final-source-manifest.json),
+[build receipt](t010-build-receipt.json), [applicability matrix](t010-applicability.json)
+and [validation](t010-validation.json) identify base `b5f1581921` plus the exact
+five-file corrective patch. Source selection changed only after actual blockers
+were observed; earlier failed and green attempts remain distinct evidence.
+
+The final patch restores finite loft edge admission, initializes the real Measure
+test module, defers image loading during App-only restore and makes preview hide
+idempotent. The two new App-only ready/late rows fail old code and pass the fix.
+Current native stage traces show six empty initialization calls, one nonempty
+first-show load, zero App-restoring loads, zero image/preview warnings and a
+successful document-owned viewer close. A retained Start tab is not a leaked
+model window. Full-resolution pixels, calibration and hidden0→show1/leaves2
+are verified on the final module closure. Scoped Memcheck passes26 Qt cases
+with zero access errors and only the existing libunwind suppression.
+
+Earlier viewer runs loaded user-site NumPy despite environment flags and are
+ineligible. Accepted GUI runs mask that directory in an owned namespace and bind
+actual mapped modules to the final build/patch. Generic/Fusion+compose is the
+native viewer/memory profile. Windows/macOS/Wayland/other GPUs/drivers and
+GNOME/IBus memory qualification remain unqualified under the user's Linux-only
+selection. No source or user package was altered to create this isolation.
+
+P01/P07 historical external Python DSO closure is unknown; their absolute,
+tail, whole-open and RSS figures are historical, not final-composition proof.
+Old premature-load counting omitted App-only restore. Keep the old results and
+labels unchanged; the corrected source and new proof establish the current
+hard gate. P02/P03 isolated workers and full maps exclude that runtime concern.
+D007 retains local directions and the hidden/subset first-use/logical-memory
+tradeoff without a numeric SLA or exact-final timing claim. Numeric production
+claims would require a newly frozen masked-runtime campaign.
+
+Seven original campaign fixture identities match; exact reopened campaign
+identities exist for three P02 fixtures. Other roundtrips are separately checked
+semantically. Core binary hashes remain exact across the last GUI-only changes.
+Assembly uses an explicit sphere-only supplemental oracle with eight negative
+checks; the original seven campaign oracles remain unchanged. See the reports
+for bounds, prior-run disposition and skips/disabled coverage limits.
+
+The full task uses the repository's exact CTest graph after locked Pixi
+activation. Nested Pixi probing fails in the namespace before tests; the final
+lower-level route runs the same `ctest --test-dir build/debug` body with reporting
+flags only. No testcase filter/exclusion or lock change is introduced.
+
+The public viewer capture contains a generated scene only. Independent CAD,
+performance/statistical and operations/document reviews are recorded in the
+validation receipt. T011 still owns final promotion audit and whole-spec closure.

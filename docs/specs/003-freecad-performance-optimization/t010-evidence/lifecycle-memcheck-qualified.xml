@@ -1,0 +1,112 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<TestCase name="ImagePlaneTest">
+  <Environment>
+    <QtVersion>6.11.3</QtVersion>
+    <QtBuild>Qt 6.11.3 (x86_64&#x002D;little_endian&#x002D;lp64 shared (dynamic) release build; by GCC 15.3.0)</QtBuild>
+    <QTestVersion>6.11.3</QTestVersion>
+  </Environment>
+  <TestFunction name="initTestCase">
+    <Incident type="pass" file="" line="0" />
+    <Duration msecs="15909"/>
+  </TestFunction>
+  <TestFunction name="calibratedReopen">
+    <Incident type="pass" file="" line="0">
+      <DataTag><![CDATA[visible]]></DataTag>
+    </Incident>
+    <Incident type="pass" file="" line="0">
+      <DataTag><![CDATA[hidden-first-show]]></DataTag>
+    </Incident>
+    <Incident type="pass" file="" line="0">
+      <DataTag><![CDATA[svg-visible]]></DataTag>
+    </Incident>
+    <Incident type="pass" file="" line="0">
+      <DataTag><![CDATA[svg-hidden-first-show]]></DataTag>
+    </Incident>
+    <Duration msecs="3122.2"/>
+  </TestFunction>
+  <TestFunction name="pendingVisibleFinishAfterFlagsClear">
+    <Incident type="pass" file="" line="0" />
+    <Duration msecs="62.0417"/>
+  </TestFunction>
+  <TestFunction name="hiddenImport">
+    <Incident type="pass" file="" line="0">
+      <DataTag><![CDATA[copy-paste]]></DataTag>
+    </Incident>
+    <Incident type="pass" file="" line="0">
+      <DataTag><![CDATA[merge-archive]]></DataTag>
+    </Incident>
+    <Duration msecs="801.256"/>
+  </TestFunction>
+  <TestFunction name="freshImageAndExplicitResize">
+    <Incident type="pass" file="" line="0" />
+    <Duration msecs="71.644"/>
+  </TestFunction>
+  <TestFunction name="svgExplicitResize">
+    <Incident type="pass" file="" line="0" />
+    <Duration msecs="110.071"/>
+  </TestFunction>
+  <TestFunction name="earlyShowDefersUntilCompletion">
+    <Incident type="pass" file="" line="0">
+      <DataTag><![CDATA[gui-restore-ready]]></DataTag>
+    </Incident>
+    <Incident type="pass" file="" line="0">
+      <DataTag><![CDATA[gui-restore-late]]></DataTag>
+    </Incident>
+    <Incident type="pass" file="" line="0">
+      <DataTag><![CDATA[app-import-ready]]></DataTag>
+    </Incident>
+    <Incident type="pass" file="" line="0">
+      <DataTag><![CDATA[app-import-late]]></DataTag>
+    </Incident>
+    <Incident type="pass" file="" line="0">
+      <DataTag><![CDATA[app-restore-ready]]></DataTag>
+    </Incident>
+    <Incident type="pass" file="" line="0">
+      <DataTag><![CDATA[app-restore-late]]></DataTag>
+    </Incident>
+    <Duration msecs="368.299"/>
+  </TestFunction>
+  <TestFunction name="failedPendingPayloadClearsOldTexture">
+    <Incident type="pass" file="" line="0">
+      <DataTag><![CDATA[removed-included-payload]]></DataTag>
+    </Incident>
+    <Incident type="pass" file="" line="0">
+      <DataTag><![CDATA[corrupt-included-payload]]></DataTag>
+    </Incident>
+    <Duration msecs="229.641"/>
+  </TestFunction>
+  <TestFunction name="invalidExternalAssignmentPreservesValidSource">
+    <Incident type="pass" file="" line="0" />
+    <Duration msecs="61.2863"/>
+  </TestFunction>
+  <TestFunction name="clearImageAndReopenPreserveCalibration">
+    <Incident type="pass" file="" line="0" />
+    <Duration msecs="224.111"/>
+  </TestFunction>
+  <TestFunction name="unsupportedImageAssignmentPreservesCalibration">
+    <Incident type="pass" file="" line="0" />
+    <Duration msecs="100.619"/>
+  </TestFunction>
+  <TestFunction name="removedExternalSourceUsesEmbeddedPayload">
+    <Incident type="pass" file="" line="0">
+      <DataTag><![CDATA[visible]]></DataTag>
+    </Incident>
+    <Incident type="pass" file="" line="0">
+      <DataTag><![CDATA[hidden]]></DataTag>
+    </Incident>
+    <Duration msecs="446.002"/>
+  </TestFunction>
+  <TestFunction name="hiddenResizeAndSaveBeforeFirstShow">
+    <Incident type="pass" file="" line="0" />
+    <Duration msecs="346.965"/>
+  </TestFunction>
+  <TestFunction name="materializedRepeatedShowDoesNotReloadMissingBackingFile">
+    <Incident type="pass" file="" line="0" />
+    <Duration msecs="63.9768"/>
+  </TestFunction>
+  <TestFunction name="cleanupTestCase">
+    <Incident type="pass" file="" line="0" />
+    <Duration msecs="24.6695"/>
+  </TestFunction>
+  <Duration msecs="22017.5"/>
+</TestCase>

@@ -22,8 +22,8 @@ numeric breaches review triggers while retaining correctness, fidelity,
 calibration, safe arithmetic/lifetimes, error behavior and provenance hard gates.
 The [T004.4 review](../specs/003-freecad-performance-optimization/t0044-cost-benefit-review.md)
 and its [machine-readable bindings](../specs/003-freecad-performance-optimization/t0044-cost-benefit-review.json)
-are the detailed decision record. T010 must confirm final source/build/platform
-applicability; the whole spec remains draft.
+are the detailed decision record. T010 confirms final source/build/platform
+applicability for the declared Linux scope; the whole spec remains draft pending T011.
 
 ## Assumptions
 
@@ -86,3 +86,26 @@ broadening this scope. Owner: local-developer.
 - [Performance review runbook](../runbooks/freecad-performance-optimization.md)
 - [Benchmark storage runbook](../runbooks/freecad-benchmark-storage.md)
 - [Spec003 tasks](../specs/003-freecad-performance-optimization/tasks.md)
+
+## Final Linux Qualification And Historical Numbers
+
+[T010 final evidence](../specs/003-freecad-performance-optimization/t010-results.md)
+identifies the integrated base plus corrective patch and declared Linux scope.
+Its source guard includes App-only restore before GUI restore; preview hiding
+is idempotent. Two new ready/late regressions and final native load/close traces
+cover these states. The original benchmark classifier omitted App-only restore;
+old zero counts are not complete lifecycle proof.
+
+Numbers in the earlier table are historical campaign observations. P01/P07
+external embedded-Python DSO closure was not fully bound; their old latency,
+tail, whole-open and RSS magnitudes are not exact-final/current guarantees.
+P02/P03 used isolated workers and full runtime maps. Current acceptance retains
+scoped local implementation directions and hidden/subset first-use/logical-RAM
+tradeoffs without a numeric response SLA. Current absolute/tail production
+claims require new predeclared measurements under the selected runtime.
+
+The final native viewer/memory profile is Linux X11 softwareGL with compose and
+Qt generic/Fusion. Process-level user-site isolation and actual module hashes
+are part of the evidence. Windows/macOS/Wayland/other drivers and GNOME/IBus memory
+qualification are excluded. This is local integrated qualification, not upstream
+or release approval. T011 owns final spec closure.

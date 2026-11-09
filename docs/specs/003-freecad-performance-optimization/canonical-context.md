@@ -35,7 +35,7 @@ historical notes override code, tests, policy or live evidence.
 
 | Source | Role | Scope | Notes |
 | --- | --- | --- | --- |
-| acceptance-policy-v2.md/json; cost-benefit-review.md/json; d007-validation.json | Current owner-selected policy and retrospective product directions | D007; effective 2026-11-08 | Numeric v1 breaches are review triggers; hard gates remain; no new statistical pass or production approval |
+| acceptance-policy-v2.md/json; cost-benefit-review.md/json; d007-validation.json | Current owner-selected policy with frozen execution-checkpoint context | D007; effective 2026-11-08 | Numeric v1 breaches are review triggers; hard gates remain. Frozen policy embedded next-task prose is historical; tasks.md/index own current routing |
 | t0044-cost-benefit-review.md/json; t0044-validation.json | Current completed workflow/operating-scope dispositions | P01–P08 under D007 | Explicit selected scopes and unknowns; historical v1 outcomes preserved; final production applicability T010 |
 | t0044-prior-authority/manifest.json | Exact T004.3 completion-time authority archive | Eight files verified against t0043-validation.json | Live documents may advance without changing old receipts |
 | d007-prior-authority/manifest.json | Immutable pre-D007 authority snapshots | Seven exact files bound by completed T004.2 validation | .txt snapshots are historical evidence; root documents remain current |
@@ -44,7 +44,7 @@ historical notes override code, tests, policy or live evidence.
 | open-decisions.md | Authoritative decision status/ownership | D001–D007 | D007 selects current cost-benefit policy; original D001 v1 results remain unchanged; D005/D006 are historical execution selections; no production acceptance |
 | validation-manifest.md and validation-manifest.json | Candidate identity and evidence applicability | T019 initial local Linux candidate | Historical binaries ineligible; actual new-build/runtime receipt required |
 | benchmark-protocol.md; benchmark-plan.json; benchmark-runner.py | Predeclared measurement contract and bounded collector | T001/D001 | Immutable D001 v1 measurement/statistical contract; current product review uses D007 |
-| tasks.md | Four-phase delivery queue and explicit next action | This package | T012/T013/T003/T006/T014/T017/T007/T015/T016/T005/T018/T002 complete; T020 measurement/disposition complete; T022/D005 planning complete; T004.1 measurement complete; original P01 v1 failure preserved; T004.2/T004.3 measurement/disposition complete; T004.4 scoped review complete; T004 local evidence/review complete; T010.1 next; phase order/dependencies govern execution |
+| tasks.md | Four-phase delivery queue and explicit next action | This package | T012/T013/T003/T006/T014/T017/T007/T015/T016/T005/T018/T002 complete; T020 measurement/disposition complete; T022/D005 planning complete; T004.1 measurement complete; original P01 v1 failure preserved; T004.2/T004.3 measurement/disposition complete; T004.4 scoped review complete; T004 local evidence/review complete; T010 and all four children complete for the declared Linux scope; next T011; phase order/dependencies govern execution |
 | performance-results.md; performance-results.json | Current acceptance checkpoint and narrative | T020; T004.1; D001–D007 | JSON remains the immutable P01/v1 checkpoint; mutable narrative routes current D007 directions and separate review |
 | t004-conversion-results.md/json; t004-conversion-evidence/; t004-conversion-validation.json | Completed T004.2 conversion measurements/dispositions | All13cells/624observations,485native+56Python checks; both campaign audits pass | D001 v1: P04 INCONCLUSIVE, P05 FAIL; current product directions are in D007 review; T004.3/T004.4 complete; see scoped review; no production acceptance |
 | t0043-results.md/json; t0043-evidence/; t0043-validation.json | Completed T004.3 parser/save measurements and reviewed tree exclusion | Accepted P03/P02 campaigns: 384 fresh observations, full geometry/payload/property/runtime checks; prior incomplete-identity attempt retained ineligible | Primary P03 hook gains only; Draft overall legacy failure retained; P08 has no independent timing claim; T004.4 records completed D007 workflow decisions |
@@ -138,3 +138,22 @@ stays dated or is retained with an explicit audit-only role.
 - [Open decisions](open-decisions.md)
 - [Candidate validation manifest](validation-manifest.md)
 - [Baseline implementation inventory](baseline-status.md)
+
+## T010 Current Final Evidence
+
+T010 and all four children are complete for the declared Linux scope; next T011 promotion/closure.
+
+[t010-results.md/json](t010-results.md), [t010-validation.json](t010-validation.json),
+[t010-final-source-manifest.json](t010-final-source-manifest.json),
+[t010-build-receipt.json](t010-build-receipt.json) and
+[t010-applicability.md/json](t010-applicability.md) supersede earlier next-task
+routing for current final-source/runtime acceptance. They do not rewrite original
+measurement outcomes. [t010-prior-authority/](t010-prior-authority/manifest.json)
+preserves11 exact T004.4 mutable-document inputs.
+
+Current source is base plus an exact five-file patch, not a claimed committed PR.
+Linux-only acceptance is the owner's explicit selection; native viewer/memory
+profile and user-site isolation are bounded in the manifest. P01/P07 exact-final
+numeric performance is not certified; P06's old zero-premature classifier was
+incomplete for App restore. New corrected-source qualification supplies that gate.
+Any later composition/runtime change needs affected review or requalification.

@@ -4,7 +4,7 @@ doc_type: spec
 artifact_type: open-decisions
 status: draft
 owner: local-developer
-last_reviewed: 2026-11-08
+last_reviewed: 2026-11-09
 ---
 
 # Open Decisions
@@ -13,11 +13,10 @@ last_reviewed: 2026-11-08
 
 This ledger is authoritative for decision IDs/status/ownership. D001–D007 are
 resolved selections. D007 is the current owner-selected cost-benefit acceptance
-layer; D001 remains the unchanged v1 measurement/statistical record. T004.1 and
-T004.2 measurements are complete. P04/P05/P07 are retained under D007 direction,
-with original v1 outcomes preserved. Parent T004 owns workflow trade-off/operating
-scope review; T004.3 is next, then T004.4. T010 confirms final production
-composition/applicability. No production approval is implied.
+layer; D001 remains the unchanged v1 measurement/statistical record. T004 measurements and T004.4 scoped cost-benefit review are complete. T010
+confirms the final Linux base-plus-patch/runtime composition and newly corrected
+App-only restore coverage. Original v1 outcomes remain unchanged; no exact-final
+P01/P07 numeric performance or general release approval is implied.
 
 ## Decision Log
 
@@ -29,9 +28,9 @@ No open decision IDs. See resolved D007 for current policy and D005 for the hist
 ## Blocking Impact
 
 No unresolved policy decision IDs remain. Hard correctness/provenance/coverage
-gates and incomplete workflow/operating-scope review still block production
-acceptance. D001 numeric breaches alone no longer automatically block a useful
-change under D007. Current residuals are owned by T004/T004.4/T010; future
+gates still govern final local acceptance. The scoped T004.4 workflow review
+is complete; T010 owns the current final validation packet. D001 numeric breaches alone no longer automatically block a useful
+change under D007. Current final qualification is owned by T010, with closure in T011; future
 sampling must bind D007 before execution. Historical source/profile changes still
 require applicable requalification or exact reviewed equivalence.
 
@@ -189,6 +188,12 @@ No P01 acceptance sample has been collected at this clarification checkpoint.
 
 ### D003 — Initial local candidate and applicability policy
 
+**Checkpoint note:** The initial-selection bullets below preserve the 2026-11-06
+intake and its then-future task language. Current final Linux source/patch/runtime
+confirmation is recorded in the D003 final-scope section and T010 results below;
+these old next-task phrases are historical, not the active queue.
+
+
 - **Status:** resolved for initial selection; exact final production revisions
   still require T010.1 confirmation and affected-evidence reconciliation.
 - **Owner:** local-developer.
@@ -262,7 +267,10 @@ conflicting discovery is a handoff blocker; inspect this file and design directl
 rather than interpreting an empty result as approval. Advisory context readiness
 means usable context, not resolved decisions or satisfied task dependencies.
 
-## Current Execution Checkpoint
+## Historical T004.2 Execution Checkpoint
+
+This paragraph records the T004.2 checkpoint. Current routing is maintained in
+[tasks.md](tasks.md) and the final T010 disposition below.
 
 T004.1 and T004.2 completed their original v1 measurement/disposition contracts.
 P01's overall failure, P04's timing inconclusive result, P05's large resource
@@ -280,3 +288,21 @@ bytes remain historical evidence, not current policy writers.
 - [Tasks](tasks.md)
 - [Traceability](traceability.md#open-decision-impact)
 - [Verification](verification.md#moe-review-findings)
+
+## D003 Final Linux Scope Confirmation
+
+The owner selected Linux-only acceptance on2026-11-09. The final source is base
+`b5f1581921` plus the five-file patch and hashes in
+[t010-final-source-manifest.json](t010-final-source-manifest.json). The runtime
+selection is explicit: normal locked Debug, offscreen/unit and X11 softwareGL;
+compose and generic/Fusion for native viewer/memory, with user-site packages
+hidden and actual mapped libraries hashed. Windows/macOS/Wayland/other drivers
+and GNOME/IBus memory scope remain unqualified.
+
+T010 and all four children are complete for the declared Linux scope; next T011 promotion/closure.
+
+This is delegated local technical acceptance, not upstream/release or cross-platform
+approval. Current P01/P07 local-direction retention does not certify their old
+numeric magnitudes/tails under the final runtime. A future source/patch/runtime
+change or numeric production claim needs affected qualification or a newly frozen
+campaign. No new open decision ID or retroactive benchmark waiver is introduced.

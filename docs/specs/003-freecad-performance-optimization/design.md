@@ -564,3 +564,24 @@ property and checked geometric reference, including additional/null shapes, plus
 persistent-object schemas/values and included payloads. Proxy internal state and
 document metadata remain explicitly outside this oracle. Current tree behavior is
 preserved under the source-reviewed P08 attribution exclusion, owned by T004.4.
+
+## Final Restore And Delivery Qualification
+
+The final T010 corrective patch covers the App object restore interval that
+precedes GUI restore. Image property/size/show deferral now tests both states,
+while finishRestoring remains the post-payload completion route. Ready/late
+App-only regressions distinguish successful premature materialization from
+failed pre-payload reads; original GUI/import completion behavior is retained.
+
+Preview hide removes a child only if present. Separate finite-edge loft and
+Measure fixture initialization repairs address pre-existing full-suite blockers;
+they are not new performance algorithms. The exact patch and validation scope
+are in [the final report](t010-results.md). The old load classifier did not cover
+App-only restore; its old counts are not strengthened retrospectively.
+
+Final runtime/provenance constraints are explicit: the user selected Linux only;
+the accepted native viewer and memory profile is compose/generic/Fusion on
+X11 software GL, with user-site Python hidden and mapped modules pinned. D007
+local direction-only retention is distinct from exact-final numeric timing.
+Original campaign/policy artifacts remain immutable. T011 owns final promotion
+and closure; a later PR cherry-pick or runtime change needs affected applicability.

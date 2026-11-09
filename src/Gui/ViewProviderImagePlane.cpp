@@ -216,7 +216,8 @@ void ViewProviderImagePlane::loadImage(ImageSizePolicy sizePolicy)
 
 #ifdef FC_IMAGE_PERFORMANCE_TRACE
     ImagePerformanceTrace::Load traceLoad;
-    const bool traceMissing = (isRestoring() || pcObject->testStatus(App::ObjectStatus::ObjImporting))
+    const bool traceMissing = (isRestoring() || pcObject->isRestoring()
+                               || pcObject->testStatus(App::ObjectStatus::ObjImporting))
         && !fileName.empty() && !QFileInfo::exists(QString::fromUtf8(fileName));
 #endif
     pendingFullResTexture = false;
@@ -251,7 +252,7 @@ void ViewProviderImagePlane::loadImage(ImageSizePolicy sizePolicy)
 
 void ViewProviderImagePlane::loadImageIfPending()
 {
-    if (pendingFullResTexture && !isRestoring()
+    if (pendingFullResTexture && !isRestoring() && !pcObject->isRestoring()
         && !pcObject->testStatus(App::ObjectStatus::ObjImporting)) {
         // Deferred materialization must not initialize saved/imported calibration,
         // even when the transient restoring/importing flags have already cleared.
@@ -432,7 +433,8 @@ void ViewProviderImagePlane::updateData(const App::Property* prop)
 
         resizePlane(xsize, ysize);
         const std::string fileName = pcPlaneObj->ImageFile.getValue();
-        if ((isRestoring() || pcObject->testStatus(App::ObjectStatus::ObjImporting))
+        if ((isRestoring() || pcObject->isRestoring()
+             || pcObject->testStatus(App::ObjectStatus::ObjImporting))
             && !fileName.empty()) {
             pendingFullResTexture = true;
             FC_IMAGE_TRACE(provider(this, true));
@@ -442,7 +444,8 @@ void ViewProviderImagePlane::updateData(const App::Property* prop)
     }
     else if (prop == &pcPlaneObj->ImageFile) {
         const std::string fileName = pcPlaneObj->ImageFile.getValue();
-        if ((isRestoring() || pcObject->testStatus(App::ObjectStatus::ObjImporting))
+        if ((isRestoring() || pcObject->isRestoring()
+             || pcObject->testStatus(App::ObjectStatus::ObjImporting))
             && !fileName.empty()) {
             pendingFullResTexture = true;
             FC_IMAGE_TRACE(provider(this, true));

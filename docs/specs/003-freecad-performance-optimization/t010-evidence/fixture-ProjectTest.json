@@ -1,0 +1,58 @@
+{
+  "fixture_id": "ProjectTest",
+  "fixture_sha256": "2b6c02304378da2e75796d5af85dc6a8686d9bc6a5c50b3694a15f639573f7fd",
+  "result": "passed",
+  "model_objects": 1,
+  "geometry_entries": 0,
+  "persistent_inventory": {
+    "properties": 7,
+    "members": 7,
+    "decompressed_bytes": 35298
+  },
+  "included_files": 0,
+  "included_bytes": 0,
+  "completion_recompute_count": 1,
+  "reopened_recompute_count": 0,
+  "campaign_identity_comparisons": [
+    {
+      "campaign": "p02",
+      "identity_matches": {
+        "normative_state_sha256": true,
+        "geometry_manifest_sha256": true,
+        "persistent_state_sha256": true,
+        "payload_identity_sha256": true
+      },
+      "completion_recompute_count": 1,
+      "prior_completion_recompute_count": 1,
+      "reopened_identity_matches": {
+        "reopened_normative_state_sha256": true,
+        "reopened_geometry_manifest_sha256": true,
+        "reopened_persistent_state_sha256": true
+      }
+    }
+  ],
+  "Sketcher_reachability": {
+    "sketches": 0,
+    "sketches_with_external_refs": 0,
+    "external_reference_entries": 0,
+    "invalid_sketches": 0,
+    "touched_sketches_after_completion": 0,
+    "runtime_external_reattach_calls": 0,
+    "reattach_call_basis": "Harness and document restore never call the new explicit reattachExternal API; source admission rejects isRestoring.",
+    "solver_failure_branch_observability": "No dedicated runtime GCS failure counter in normal build. Valid final states/identities and final solver tests support reviewed applicability; do not assert all intermediate fallback branches were unexecuted."
+  },
+  "checks": {
+    "model_references_calibration_proxy_class": true,
+    "all_PartShape_geometry_and_referenced_subshapes": true,
+    "persistent_properties": true,
+    "payloads": true,
+    "save_reopen": true
+  },
+  "identities": {
+    "model": "cbbf27d113dd5a46ff1150750bb417a98ec0fc5ad8df1de9ebde2b1254d1e9d9",
+    "geometry_manifest": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+    "persistent": "659f8bf7da48caf17f3ed38ac30bccf75232a91dd36632e28efcc4f68c695fe4",
+    "payload": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+  },
+  "scope": "Normal-debug final composition qualification, not benchmark samples; same declared geometry oracle and private-data publication limits. Proxy internals/document metadata outside oracle."
+}

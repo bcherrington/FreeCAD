@@ -84,7 +84,7 @@ none -> T008
 
 Exit satisfied: T021/T019 evidence retained, T009 scope disposition recorded, and T001
 resolved D001 with the original benchmark protocol. That was the earlier planning
-checkpoint. Current next action is T010.1 after the completed D007 scoped review;
+checkpoint. Current next action is T011 after completed T010 Linux qualification;
 completed T022/T004.1/T004.2/T004.3 measurements are not reopened.
 
 - [x] T021 Expose lifecycle decisions and verify execution guardrails.
@@ -797,77 +797,88 @@ workflow cost-benefit/operating-scope reviews. Earlier source-fix tests do not p
 Exit: exact final-production evidence applicability, required broad/platform checks, durable
 promotion and owned residual dispositions are complete.
 
-- [ ] T010 Verify final production revisions and prepare review evidence.
+- [x] T010 Verify final production revisions and prepare review evidence.
   - Depends on: T004
   - Requirements: Requirement 1, Requirement 2, Requirement 3, Requirement 4, Requirement 5,
     Requirement 6 (all acceptance criteria)
   - Design: design.md#high-level-design; design.md#low-level-design
-  - Files: `verification.md`, `docs/reference/document-open-performance.md`
+  - Files: `verification.md`, `../../reference/document-open-performance.md`,
+    `t010-final-source-manifest.json`, `t010-build-receipt.json`, `t010-applicability.md/json`,
+    `t010-results.md/json`, `t010-validation.json`, `t010-evidence/`, `t010-prior-authority/`
   - Acceptance: D003 confirms exact final source/dependency revisions and platform scope; all
     affected automated, archive, calibration/lifecycle, visual/manual and benchmark evidence is
     rerun or has reviewed equivalence. Build/focused/full-suite results and per-optimization timings
     satisfy mandatory hard gates and the owner-reviewed D007 workflow dispositions; no unresolved MoE acceptance blocker remains.
   - Validation: See verification.md#quality-gates and the linked criteria.
-  - Evidence mode: command
-  - Evidence: Pending.
-  - Resolved decisions: D003 (initial candidate/policy); T010.1 must reconfirm final composition
+  - Evidence mode: artifact
+  - Evidence: t010-results.md/json; t010-validation.json; t010-final-source-manifest.json; t010-build-receipt.json; t010-evidence/manifest.json. All four children complete on exact v3 base-plus-five-file patch. Locked build, focused/regression/CAD/native/memory and unfiltered full CTest pass (2426 passed, zero failures, two existing skips, eight disabled). Independent CAD, performance/provenance and operations/document reviews complete; final hash-bound receipt retains original policies/results and archived prior authority. Linux-only scope selected by owner; final local acceptance does not certify historical numeric timing, general production/release or other platforms. T011 remains open.
+  - Resolved decisions: D003 (initial candidate/policy); T010.1 confirms final v3 base-plus-patch Linux composition
   - Candidate manifest: spec003-linux-x86_64-debug-candidate-20261106-v1; see validation-manifest.md
     and record actual execution provenance.
-  - Context evidence: Focused reachable commits and dated results exist; exact PR revisions, full
-    build/test and final review evidence remain unverified. T006 lifecycle Memcheck attempts
-    stopped before tests in Qt aeshash128/QDBus/QIBus startup (exit 99), including a compose
-    input-method retry that still loaded IBus. Diagnose/revalidate the final runtime input-method
-    profile here; owner local-developer. No lifecycle memory-clean claim or broad suppression.
+  - Completion-time context: Final source/build, full-suite and independent review receipts bind the exact uncommitted patch. Earlier GNOME/IBus Memcheck startup failures remain ineligible; final generic/Fusion+compose profile passes 26 Qt cases with zero access errors and only the existing libunwind probe suppression. Other profiles, leaks and undefined-value analysis remain unqualified.
 
-  - [ ] T010.1 Confirm final production revisions and invalidate affected evidence.
+  - Status: Complete bounded Linux final qualification; all T010 children complete. Next T011 promotion and whole-spec closure audit.
+  - [x] T010.1 Confirm final production revisions and invalidate affected evidence.
     - Depends on: T004
     - Requirements: Requirement 1, Requirement 2, Requirement 3, Requirement 4, Requirement 5,
       Requirement 6 (all acceptance criteria)
-    - Files: `verification.md`, `docs/reference/document-open-performance.md`
+    - Files: `verification.md`, `../../reference/document-open-performance.md`,
+    `t010-final-source-manifest.json`, `t010-build-receipt.json`, `t010-applicability.md/json`,
+    `t010-results.md/json`, `t010-validation.json`, `t010-evidence/`, `t010-prior-authority/`
     - Acceptance: Reconfirm the T019 manifest against final production patches; enumerate changed
       source/dependency/build/fixture/environment inputs and invalidate/reconcile affected
       correctness, manual/visual, archive, lifecycle and benchmark results before sign-off.
     - Evidence mode: artifact
-    - Evidence: Pending.
+    - Evidence: 2026-11-09 v3 final source manifest selects root b5f1581921 plus exact five-file t010-evidence/final-corrections.patch and30 source/test/config hashes, same7clean dependencies/510packages/nine pinned fixtures. Adds independently reviewed App ObjectStatus::Restore guards/classifier and two red ready/late regressions; preview hide idempotence repairs traced close warnings; retains finite loft/Measure fixture fixes. Old image trace omitted App-only restore and is not complete zero-premature evidence. Prior source/failed and green full attempts retained. Exact Linux/compose/X11 softwareGL, generic/Fusion viewer/memory scope and process-level user-site masking selected; earlier contaminated native runs ineligible. Final fresh build,focused/full and source/runtime/manual/memory gates required; old timings remain historical measured data, not exact-final claims.
     - Candidate manifest: spec003-linux-x86_64-debug-candidate-20261106-v1; see
       validation-manifest.md and record actual execution provenance.
 
-  - [ ] T010.2 Run pixi run build -j 2 and the affected focused suites on those revisions.
+  - Status: Complete final v3 base-plus-five-file-patch reconciliation; CAD source review cleared. Rebuild/focused/full on this composition before T010.4 final review.
+  - [x] T010.2 Run pixi run build -j 2 and the affected focused suites on those revisions.
     - Depends on: T010.1
     - Requirements: Requirement 1, Requirement 2, Requirement 3, Requirement 4, Requirement 5,
       Requirement 6 (all acceptance criteria)
-    - Files: `verification.md`, `docs/reference/document-open-performance.md`
+    - Files: `verification.md`, `../../reference/document-open-performance.md`,
+    `t010-final-source-manifest.json`, `t010-build-receipt.json`, `t010-applicability.md/json`,
+    `t010-results.md/json`, `t010-validation.json`, `t010-evidence/`, `t010-prior-authority/`
     - Acceptance: Run pixi run build -j 2 and the affected focused suites on those revisions.
     - Evidence mode: artifact
-    - Evidence: Pending.
+    - Evidence: 2026-11-09 final v3 five-file patch build-qualified-final pixi locked build succeeds; t010-build-receipt.json pins30 source hashes,18 binaries/buildIDs/ldd closure, normal probesOFF/macros/exportsabsent. Fresh process-user-site-masked focus passes310App,26Reader,82bitmap,eight Qt image/render/tree/lifetime/selection/DocumentUpdates targets and dependent CAD. Both original full-gate failures pass; new App-only ready/late restore rows RED on oldguard and GREEN on corrected source. Full26Qt lifecycle Memcheck0errors/1existingnarrowlibunwind suppression in compose/generic/Fusion profile. Private isolated native stage run nowpasses correctfullimage/calibration0->1leaves2/repeat/post-close and zeroimage/Coinwarnings; actualmoduleclosure has0user-site libraries. Fullgate rerun on this exact composition remainsT010.3.
     - Candidate manifest: spec003-linux-x86_64-debug-candidate-20261106-v1; see
       validation-manifest.md and record actual execution provenance.
 
-  - [ ] T010.3 Run pixi run test and record any failure/skip with its acceptance impact.
+  - Status: Complete final v3 build and focused/regression/memory qualification. T010.3 final masked full CTest next; final per-change/runtime/document evidence assembled in T010.4.
+  - [x] T010.3 Run pixi run test and record any failure/skip with its acceptance impact.
     - Depends on: T010.2
     - Requirements: Requirement 1, Requirement 2, Requirement 3, Requirement 4, Requirement 5,
       Requirement 6 (all acceptance criteria)
-    - Files: `verification.md`, `docs/reference/document-open-performance.md`
+    - Files: `verification.md`, `../../reference/document-open-performance.md`,
+    `t010-final-source-manifest.json`, `t010-build-receipt.json`, `t010-applicability.md/json`,
+    `t010-results.md/json`, `t010-validation.json`, `t010-evidence/`, `t010-prior-authority/`
     - Acceptance: Run pixi run test and record any failure/skip with its acceptance impact.
     - Evidence mode: artifact
-    - Evidence: Pending.
+    - Evidence: 2026-11-09 final v3 exact five-file patch full CTest passes:2426passed,0failed,2existing unconditional backup skips,8pre-existing disabled tests of2436registered; JUnit+complete log bound in t010-evidence/final-full-ctest.*. Same repository test-task body executed after verified locked Pixi activation under user-site mask; nested pixi run --locked test innamespace stopped before tests dueenvironmentprobe failures, so documented lower-level diagnostic route runs exactctest --test-dir build/debug with output/JUnit flags only. No filters/exclusions/locksolve/fabricatedplatform used in accepted run. Earlier initial2failure and two-file green full runs remain historical; final30sourcehashes/510package identity/lock unchanged. Relevant newAppRestore/Coinclose/coreimage/tree/map/archive/Sketcher gates allpass. Two skips/eight disabled remain coverage limits,not passes.
     - Candidate manifest: spec003-linux-x86_64-debug-candidate-20261106-v1; see
       validation-manifest.md and record actual execution provenance.
 
-  - [ ] T010.4 Revalidate and assemble final performance, manual and platform evidence.
+  - Status: Complete final v3 full graph on exact corrected source and closed validation runtime. Zero failures; T010.4 final independent review/evidence completion next.
+  - [x] T010.4 Revalidate and assemble final performance, manual and platform evidence.
     - Depends on: T010.3
     - Requirements: Requirement 1, Requirement 2, Requirement 3, Requirement 4, Requirement 5,
       Requirement 6 (all acceptance criteria)
-    - Files: `verification.md`, `docs/reference/document-open-performance.md`
+    - Files: `verification.md`, `../../reference/document-open-performance.md`,
+    `t010-final-source-manifest.json`, `t010-build-receipt.json`, `t010-applicability.md/json`,
+    `t010-results.md/json`, `t010-validation.json`, `t010-evidence/`, `t010-prior-authority/`
     - Acceptance: Rerun affected measurements/manual checks or record reviewed equivalence tied to
       D003 final revisions; assemble per-optimization D001 statistical outcomes and separate D007 cost-benefit decisions,
       first-frame/show latency, memory effects, platform limits and focused commit boundaries. Old
       timing assembly alone is insufficient.
     - Evidence mode: artifact
-    - Evidence: Pending.
+    - Evidence: t010-results.md/json; t010-validation.json; t010-evidence/manifest.json; t010-final-source-manifest.json; t010-build-receipt.json. Final v3 five-file patch built and qualified: full CTest 2436 registered/2426 passed/0 failed/2 existing skips/8 disabled; focused and 26-case scoped Memcheck pass; native user-site-masked module closure, pixel/calibration/first-show and post-close checks pass. Three independent expert reviews cleared substantive content; final mechanical audit verified 169 hash bindings, 65 evidence files, 42 stable task IDs and unchanged 26 historical inputs. D007 local direction/first-use/logical-RAM acceptance only; historical P01/P07 numeric/runtime and old classifier limits explicit. User selected Linux-only; other platforms/profiles unqualified. T011 owns promotion/closure and routed-task tool reconciliation.
     - Candidate manifest: spec003-linux-x86_64-debug-candidate-20261106-v1; see
       validation-manifest.md and record actual execution provenance.
 
+  - Status: Complete final source/runtime/document review for bounded Linux acceptance. No new timing campaign or release/cross-platform approval. Next T011.
 - [ ] T011 Promote performance contracts and route residual work.
   - Depends on: T010, T019, T021, T009
   - Requirements: Requirement 1, Requirement 2, Requirement 3, Requirement 4, Requirement 5,

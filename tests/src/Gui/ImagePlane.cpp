@@ -293,23 +293,28 @@ private Q_SLOTS:
     {
         QTest::addColumn<bool>("importing");
         QTest::addColumn<bool>("latePayload");
-        QTest::newRow("gui-restore-ready") << false << false;
-        QTest::newRow("gui-restore-late") << false << true;
-        QTest::newRow("app-import-ready") << true << false;
-        QTest::newRow("app-import-late") << true << true;
+        QTest::addColumn<bool>("appRestoring");
+        QTest::newRow("gui-restore-ready") << false << false << false;
+        QTest::newRow("gui-restore-late") << false << true << false;
+        QTest::newRow("app-import-ready") << true << false << false;
+        QTest::newRow("app-import-late") << true << true << false;
+        QTest::newRow("app-restore-ready") << false << false << true;
+        QTest::newRow("app-restore-late") << false << true << true;
     }
 
     void earlyShowDefersUntilCompletion()
     {
         QFETCH(bool, importing);
         QFETCH(bool, latePayload);
+        QFETCH(bool, appRestoring);
         auto* plane = dynamic_cast<Image::ImagePlane*>(
             createDocument()->addObject("Image::ImagePlane", "Plane")
         );
         QVERIFY(plane);
         auto* vp = provider(plane);
         QVERIFY(vp);
-        vp->setStatus(Gui::isRestoring, !importing);
+        vp->setStatus(Gui::isRestoring, !importing && !appRestoring);
+        plane->setStatus(App::ObjectStatus::Restore, appRestoring);
         plane->setStatus(App::ObjectStatus::ObjImporting, importing);
         plane->ImageFile.setValue(rasterPath.c_str());
         calibrate(plane);
@@ -325,6 +330,7 @@ private Q_SLOTS:
             QVERIFY(QFile::rename(delayed, payload));
         }
         vp->setStatus(Gui::isRestoring, false);
+        plane->setStatus(App::ObjectStatus::Restore, false);
         // In real imports payload extraction finishes before ObjImporting clears.
         vp->finishRestoring();
         assertTexture(vp, 40, 20);

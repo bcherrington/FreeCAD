@@ -16,6 +16,7 @@
 #include <App/Document.h>
 #include <App/Link.h>
 #include <App/MeasureManager.h>
+#include <Base/Interpreter.h>
 #include <Mod/Measure/App/MeasureAngle.h>
 #include <Mod/Measure/App/MeasureArea.h>
 #include <Mod/Measure/App/MeasureDistance.h>
@@ -29,6 +30,7 @@ protected:
     static void SetUpTestSuite()
     {
         tests::initApplication();
+        Base::Interpreter().runString("import Measure");
     }
 
     void SetUp() override

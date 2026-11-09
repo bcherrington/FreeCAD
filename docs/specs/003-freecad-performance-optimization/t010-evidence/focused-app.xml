@@ -1,0 +1,580 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites tests="310" failures="0" disabled="0" errors="0" time="0.45" timestamp="2026-11-09T14:24:29.181" name="AllTests">
+  <testsuite name="ComplexGeoDataTest" tests="26" failures="0" disabled="0" skipped="0" errors="0" time="0.025" timestamp="2026-11-09T14:24:29.308">
+    <testcase name="getIndexedNameNoName" file="${REPO_ROOT}/tests/src/App/ComplexGeoData.cpp" line="98" status="run" result="completed" time="0.002" timestamp="2026-11-09T14:24:29.308" classname="ComplexGeoDataTest" />
+    <testcase name="getIndexedNameNoElementMap" file="${REPO_ROOT}/tests/src/App/ComplexGeoData.cpp" line="107" status="run" result="completed" time="0.001" timestamp="2026-11-09T14:24:29.311" classname="ComplexGeoDataTest" />
+    <testcase name="getMappedNameNoElement" file="${REPO_ROOT}/tests/src/App/ComplexGeoData.cpp" line="116" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.312" classname="ComplexGeoDataTest" />
+    <testcase name="getMappedNameDisallowUnmappedNoMap" file="${REPO_ROOT}/tests/src/App/ComplexGeoData.cpp" line="125" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.313" classname="ComplexGeoDataTest" />
+    <testcase name="getMappedNameDisallowUnmappedWithMap" file="${REPO_ROOT}/tests/src/App/ComplexGeoData.cpp" line="134" status="run" result="completed" time="0.001" timestamp="2026-11-09T14:24:29.314" classname="ComplexGeoDataTest" />
+    <testcase name="getMappedNameDisallowUnmappedMissingFromMap" file="${REPO_ROOT}/tests/src/App/ComplexGeoData.cpp" line="151" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.315" classname="ComplexGeoDataTest" />
+    <testcase name="getMappedNameAllowUnmapped" file="${REPO_ROOT}/tests/src/App/ComplexGeoData.cpp" line="164" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.316" classname="ComplexGeoDataTest" />
+    <testcase name="getElementNameGivenIndexedName" file="${REPO_ROOT}/tests/src/App/ComplexGeoData.cpp" line="173" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.317" classname="ComplexGeoDataTest" />
+    <testcase name="getElementNameGivenMappedName" file="${REPO_ROOT}/tests/src/App/ComplexGeoData.cpp" line="186" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.318" classname="ComplexGeoDataTest" />
+    <testcase name="getElementMappedNamesNoMapNoUnmapped" file="${REPO_ROOT}/tests/src/App/ComplexGeoData.cpp" line="199" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.318" classname="ComplexGeoDataTest" />
+    <testcase name="getElementMappedNamesWithMapNoUnmapped" file="${REPO_ROOT}/tests/src/App/ComplexGeoData.cpp" line="212" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.319" classname="ComplexGeoDataTest" />
+    <testcase name="getElementMappedNamesNoMapWithUnmapped" file="${REPO_ROOT}/tests/src/App/ComplexGeoData.cpp" line="229" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.320" classname="ComplexGeoDataTest" />
+    <testcase name="getElementMappedNamesWithMapWithUnmapped" file="${REPO_ROOT}/tests/src/App/ComplexGeoData.cpp" line="242" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.321" classname="ComplexGeoDataTest" />
+    <testcase name="elementTypeInvalidIndexedName" file="${REPO_ROOT}/tests/src/App/ComplexGeoData.cpp" line="270" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.322" classname="ComplexGeoDataTest" />
+    <testcase name="elementTypeCharIndexedName" file="${REPO_ROOT}/tests/src/App/ComplexGeoData.cpp" line="291" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.323" classname="ComplexGeoDataTest" />
+    <testcase name="elementTypeCharMappedNameNoPrefix" file="${REPO_ROOT}/tests/src/App/ComplexGeoData.cpp" line="300" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.324" classname="ComplexGeoDataTest" />
+    <testcase name="elementTypeCharMappedNameWithPrefix" file="${REPO_ROOT}/tests/src/App/ComplexGeoData.cpp" line="315" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.324" classname="ComplexGeoDataTest" />
+    <testcase name="resetElementMapNoArgument" file="${REPO_ROOT}/tests/src/App/ComplexGeoData.cpp" line="332" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.325" classname="ComplexGeoDataTest" />
+    <testcase name="resetElementMapWithArgument" file="${REPO_ROOT}/tests/src/App/ComplexGeoData.cpp" line="341" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.326" classname="ComplexGeoDataTest" />
+    <testcase name="setAndGetElementMap" file="${REPO_ROOT}/tests/src/App/ComplexGeoData.cpp" line="356" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.327" classname="ComplexGeoDataTest" />
+    <testcase name="getElementMapSize" file="${REPO_ROOT}/tests/src/App/ComplexGeoData.cpp" line="379" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.328" classname="ComplexGeoDataTest" />
+    <testcase name="flushElementMap" file="${REPO_ROOT}/tests/src/App/ComplexGeoData.cpp" line="395" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.329" classname="ComplexGeoDataTest" />
+    <testcase name="saveWithNoElementMap" file="${REPO_ROOT}/tests/src/App/ComplexGeoData.cpp" line="400" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.330" classname="ComplexGeoDataTest" />
+    <testcase name="saveWithElementMap" file="${REPO_ROOT}/tests/src/App/ComplexGeoData.cpp" line="413" status="run" result="completed" time="0.001" timestamp="2026-11-09T14:24:29.331" classname="ComplexGeoDataTest" />
+    <testcase name="saveDocFileWithNoElementMap" file="${REPO_ROOT}/tests/src/App/ComplexGeoData.cpp" line="444" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.332" classname="ComplexGeoDataTest" />
+    <testcase name="saveDocFileWithElementMap" file="${REPO_ROOT}/tests/src/App/ComplexGeoData.cpp" line="457" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.333" classname="ComplexGeoDataTest" />
+  </testsuite>
+  <testsuite name="DocumentTest" tests="4" failures="0" disabled="0" skipped="0" errors="0" time="0.008" timestamp="2026-11-09T14:24:29.334">
+    <testcase name="addStringHasherIndicatesUnwrittenWhenNew" file="${REPO_ROOT}/tests/src/App/Document.cpp" line="315" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.334" classname="DocumentTest" />
+    <testcase name="addStringHasherIndicatesAlreadyWritten" file="${REPO_ROOT}/tests/src/App/Document.cpp" line="328" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.335" classname="DocumentTest" />
+    <testcase name="getStringHasherGivesExpectedHasher" file="${REPO_ROOT}/tests/src/App/Document.cpp" line="341" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.336" classname="DocumentTest" />
+    <testcase name="importObjectsRestoresSourceStringHasher" file="${REPO_ROOT}/tests/src/App/Document.cpp" line="355" status="run" result="completed" time="0.005" timestamp="2026-11-09T14:24:29.337" classname="DocumentTest" />
+  </testsuite>
+  <testsuite name="ElementMapTest" tests="28" failures="0" disabled="0" skipped="0" errors="0" time="0.035" timestamp="2026-11-09T14:24:29.343">
+    <testcase name="defaultConstruction" file="${REPO_ROOT}/tests/src/App/ElementMap.cpp" line="81" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.343" classname="ElementMapTest" />
+    <testcase name="setElementNameDefaults" file="${REPO_ROOT}/tests/src/App/ElementMap.cpp" line="90" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.343" classname="ElementMapTest" />
+    <testcase name="setElementNameNoOverwrite" file="${REPO_ROOT}/tests/src/App/ElementMap.cpp" line="106" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.344" classname="ElementMapTest" />
+    <testcase name="setElementNameWithOverwrite" file="${REPO_ROOT}/tests/src/App/ElementMap.cpp" line="129" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.345" classname="ElementMapTest" />
+    <testcase name="setElementNameWithHashing" file="${REPO_ROOT}/tests/src/App/ElementMap.cpp" line="151" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.346" classname="ElementMapTest" />
+    <testcase name="eraseMappedName" file="${REPO_ROOT}/tests/src/App/ElementMap.cpp" line="170" status="run" result="completed" time="0.001" timestamp="2026-11-09T14:24:29.347" classname="ElementMapTest" />
+    <testcase name="eraseIndexedName" file="${REPO_ROOT}/tests/src/App/ElementMap.cpp" line="207" status="run" result="completed" time="0.001" timestamp="2026-11-09T14:24:29.348" classname="ElementMapTest" />
+    <testcase name="findMappedName" file="${REPO_ROOT}/tests/src/App/ElementMap.cpp" line="250" status="run" result="completed" time="0.001" timestamp="2026-11-09T14:24:29.350" classname="ElementMapTest" />
+    <testcase name="findIndexedName" file="${REPO_ROOT}/tests/src/App/ElementMap.cpp" line="277" status="run" result="completed" time="0.001" timestamp="2026-11-09T14:24:29.351" classname="ElementMapTest" />
+    <testcase name="findAll" file="${REPO_ROOT}/tests/src/App/ElementMap.cpp" line="305" status="run" result="completed" time="0.001" timestamp="2026-11-09T14:24:29.353" classname="ElementMapTest" />
+    <testcase name="mimicOnePart" file="${REPO_ROOT}/tests/src/App/ElementMap.cpp" line="337" status="run" result="completed" time="0.001" timestamp="2026-11-09T14:24:29.354" classname="ElementMapTest" />
+    <testcase name="mimicSimpleUnion" file="${REPO_ROOT}/tests/src/App/ElementMap.cpp" line="368" status="run" result="completed" time="0.001" timestamp="2026-11-09T14:24:29.356" classname="ElementMapTest" />
+    <testcase name="mimicOperationAgainstSelf" file="${REPO_ROOT}/tests/src/App/ElementMap.cpp" line="442" status="run" result="completed" time="0.001" timestamp="2026-11-09T14:24:29.357" classname="ElementMapTest" />
+    <testcase name="hasChildElementMapTest" file="${REPO_ROOT}/tests/src/App/ElementMap.cpp" line="495" status="run" result="completed" time="0.001" timestamp="2026-11-09T14:24:29.358" classname="ElementMapTest" />
+    <testcase name="hashChildMapsTest" file="${REPO_ROOT}/tests/src/App/ElementMap.cpp" line="515" status="run" result="completed" time="0.001" timestamp="2026-11-09T14:24:29.360" classname="ElementMapTest" />
+    <testcase name="addAndGetChildElementsTest" file="${REPO_ROOT}/tests/src/App/ElementMap.cpp" line="542" status="run" result="completed" time="0.001" timestamp="2026-11-09T14:24:29.362" classname="ElementMapTest" />
+    <testcase name="restoreParsesDotSeparatedEntriesWithoutBoostSplit" file="${REPO_ROOT}/tests/src/App/ElementMap.cpp" line="573" status="run" result="completed" time="0.001" timestamp="2026-11-09T14:24:29.363" classname="ElementMapTest" />
+    <testcase name="restoreNumericPrefixCompatibility" file="${REPO_ROOT}/tests/src/App/ElementMap.cpp" line="760" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.365" classname="ElementMapTest" />
+    <testcase name="restoreRejectsOverflowedNameIndex" file="${REPO_ROOT}/tests/src/App/ElementMap.cpp" line="781" status="run" result="completed" time="0.001" timestamp="2026-11-09T14:24:29.366" classname="ElementMapTest" />
+    <testcase name="restoreRejectsUnrepresentableMappedIndices" file="${REPO_ROOT}/tests/src/App/ElementMap.cpp" line="789" status="run" result="completed" time="0.001" timestamp="2026-11-09T14:24:29.367" classname="ElementMapTest" />
+    <testcase name="restoreAcceptsRepresentableMappedIndexLimits" file="${REPO_ROOT}/tests/src/App/ElementMap.cpp" line="810" status="run" result="completed" time="0.001" timestamp="2026-11-09T14:24:29.368" classname="ElementMapTest" />
+    <testcase name="restoreSaturatedIdsDoNotAliasValidIds" file="${REPO_ROOT}/tests/src/App/ElementMap.cpp" line="827" status="run" result="completed" time="0.001" timestamp="2026-11-09T14:24:29.369" classname="ElementMapTest" />
+    <testcase name="restoreRejectsInvalidChildRanges" file="${REPO_ROOT}/tests/src/App/ElementMap.cpp" line="848" status="run" result="completed" time="0.001" timestamp="2026-11-09T14:24:29.370" classname="ElementMapTest" />
+    <testcase name="restoreRejectsNegativeMetadataCounts" file="${REPO_ROOT}/tests/src/App/ElementMap.cpp" line="867" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.372" classname="ElementMapTest" />
+    <testcase name="writerFormsAliasesAndMultipleSidsRoundTrip" file="${REPO_ROOT}/tests/src/App/ElementMap.cpp" line="951" status="run" result="completed" time="0.001" timestamp="2026-11-09T14:24:29.373" classname="ElementMapTest" />
+    <testcase name="nestedSharedChildrenAndDecimalSidsRoundTrip" file="${REPO_ROOT}/tests/src/App/ElementMap.cpp" line="986" status="run" result="completed" time="0.001" timestamp="2026-11-09T14:24:29.374" classname="ElementMapTest" />
+    <testcase name="restoreChildSidsWithoutHasher" file="${REPO_ROOT}/tests/src/App/ElementMap.cpp" line="1023" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.376" classname="ElementMapTest" />
+    <testcase name="restoreMissingAndMalformedChildSids" file="${REPO_ROOT}/tests/src/App/ElementMap.cpp" line="1036" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.377" classname="ElementMapTest" />
+  </testsuite>
+  <testsuite name="ElementNamingUtilsTest" tests="2" failures="0" disabled="0" skipped="0" errors="0" time="0.001" timestamp="2026-11-09T14:24:29.378">
+    <testcase name="findElementName" file="${REPO_ROOT}/tests/src/App/ElementNamingUtils.cpp" line="40" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.378" classname="ElementNamingUtilsTest" />
+    <testcase name="indexOfElement" file="${REPO_ROOT}/tests/src/App/ElementNamingUtils.cpp" line="63" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.379" classname="ElementNamingUtilsTest" />
+  </testsuite>
+  <testsuite name="IndexedNameTest" tests="30" failures="0" disabled="0" skipped="0" errors="0" time="0." timestamp="2026-11-09T14:24:29.380">
+    <testcase name="defaultConstruction" file="${REPO_ROOT}/tests/src/App/IndexedName.cpp" line="46" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.380" classname="IndexedNameTest" />
+    <testcase name="nameOnlyConstruction" file="${REPO_ROOT}/tests/src/App/IndexedName.cpp" line="56" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.380" classname="IndexedNameTest" />
+    <testcase name="nameAndIndexConstruction" file="${REPO_ROOT}/tests/src/App/IndexedName.cpp" line="66" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.380" classname="IndexedNameTest" />
+    <testcase name="nameAndIndexConstructionWithOverride" file="${REPO_ROOT}/tests/src/App/IndexedName.cpp" line="79" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.380" classname="IndexedNameTest" />
+    <testcase name="constructionInvalidCharInName" file="${REPO_ROOT}/tests/src/App/IndexedName.cpp" line="93" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.380" classname="IndexedNameTest" />
+    <testcase name="constructionNumberInName" file="${REPO_ROOT}/tests/src/App/IndexedName.cpp" line="116" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.380" classname="IndexedNameTest" />
+    <testcase name="nameAndTypeListConstructionWithoutAllowOthers" file="${REPO_ROOT}/tests/src/App/IndexedName.cpp" line="130" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.380" classname="IndexedNameTest" />
+    <testcase name="nameAndTypeListConstructionWithAllowOthers" file="${REPO_ROOT}/tests/src/App/IndexedName.cpp" line="153" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.380" classname="IndexedNameTest" />
+    <testcase name="nameAndTypeListConstructionReusedMemoryCheck" file="${REPO_ROOT}/tests/src/App/IndexedName.cpp" line="164" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.380" classname="IndexedNameTest" />
+    <testcase name="byteArrayConstruction" file="${REPO_ROOT}/tests/src/App/IndexedName.cpp" line="174" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.380" classname="IndexedNameTest" />
+    <testcase name="copyConstruction" file="${REPO_ROOT}/tests/src/App/IndexedName.cpp" line="187" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.380" classname="IndexedNameTest" />
+    <testcase name="streamInsertionOperator" file="${REPO_ROOT}/tests/src/App/IndexedName.cpp" line="199" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.380" classname="IndexedNameTest" />
+    <testcase name="compoundAssignmentOperator" file="${REPO_ROOT}/tests/src/App/IndexedName.cpp" line="212" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.380" classname="IndexedNameTest" />
+    <testcase name="preincrementOperator" file="${REPO_ROOT}/tests/src/App/IndexedName.cpp" line="228" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.380" classname="IndexedNameTest" />
+    <testcase name="predecrementOperator" file="${REPO_ROOT}/tests/src/App/IndexedName.cpp" line="240" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.380" classname="IndexedNameTest" />
+    <testcase name="comparisonOperators" file="${REPO_ROOT}/tests/src/App/IndexedName.cpp" line="252" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.380" classname="IndexedNameTest" />
+    <testcase name="subscriptOperator" file="${REPO_ROOT}/tests/src/App/IndexedName.cpp" line="315" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.380" classname="IndexedNameTest" />
+    <testcase name="getType" file="${REPO_ROOT}/tests/src/App/IndexedName.cpp" line="327" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.380" classname="IndexedNameTest" />
+    <testcase name="setIndex" file="${REPO_ROOT}/tests/src/App/IndexedName.cpp" line="336" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.380" classname="IndexedNameTest" />
+    <testcase name="isNullTrue" file="${REPO_ROOT}/tests/src/App/IndexedName.cpp" line="349" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.380" classname="IndexedNameTest" />
+    <testcase name="isNullFalse" file="${REPO_ROOT}/tests/src/App/IndexedName.cpp" line="360" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.380" classname="IndexedNameTest" />
+    <testcase name="booleanConversionFalse" file="${REPO_ROOT}/tests/src/App/IndexedName.cpp" line="371" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.380" classname="IndexedNameTest" />
+    <testcase name="booleanConversionTrue" file="${REPO_ROOT}/tests/src/App/IndexedName.cpp" line="388" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.380" classname="IndexedNameTest" />
+    <testcase name="fromConst" file="${REPO_ROOT}/tests/src/App/IndexedName.cpp" line="399" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.380" classname="IndexedNameTest" />
+    <testcase name="appendToStringBufferEmptyBuffer" file="${REPO_ROOT}/tests/src/App/IndexedName.cpp" line="412" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.380" classname="IndexedNameTest" />
+    <testcase name="appendToStringBufferNonEmptyBuffer" file="${REPO_ROOT}/tests/src/App/IndexedName.cpp" line="425" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.380" classname="IndexedNameTest" />
+    <testcase name="appendToStringBufferZeroIndex" file="${REPO_ROOT}/tests/src/App/IndexedName.cpp" line="438" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.380" classname="IndexedNameTest" />
+    <testcase name="toString" file="${REPO_ROOT}/tests/src/App/IndexedName.cpp" line="451" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.380" classname="IndexedNameTest" />
+    <testcase name="toStringNoIndex" file="${REPO_ROOT}/tests/src/App/IndexedName.cpp" line="463" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.380" classname="IndexedNameTest" />
+    <testcase name="assignmentOperator" file="${REPO_ROOT}/tests/src/App/IndexedName.cpp" line="475" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.380" classname="IndexedNameTest" />
+  </testsuite>
+  <testsuite name="LinkTest" tests="2" failures="0" disabled="0" skipped="0" errors="0" time="0.001" timestamp="2026-11-09T14:24:29.380">
+    <testcase name="getArrayIndexReturnsMinusOneForMappedElement" file="${REPO_ROOT}/tests/src/App/Link.cpp" line="99" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.380" classname="LinkTest" />
+    <testcase name="getArrayIndexReturnsMinusOneForMappedElementWithDigits" file="${REPO_ROOT}/tests/src/App/Link.cpp" line="105" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.381" classname="LinkTest" />
+  </testsuite>
+  <testsuite name="MappedElementTest" tests="18" failures="0" disabled="0" skipped="0" errors="0" time="0." timestamp="2026-11-09T14:24:29.382">
+    <testcase name="constructFromNameAndIndex" file="${REPO_ROOT}/tests/src/App/MappedElement.cpp" line="29" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.382" classname="MappedElementTest" />
+    <testcase name="moveConstructor" file="${REPO_ROOT}/tests/src/App/MappedElement.cpp" line="43" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.382" classname="MappedElementTest" />
+    <testcase name="assignmentOperator" file="${REPO_ROOT}/tests/src/App/MappedElement.cpp" line="58" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.382" classname="MappedElementTest" />
+    <testcase name="moveAssignmentOperator" file="${REPO_ROOT}/tests/src/App/MappedElement.cpp" line="72" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.382" classname="MappedElementTest" />
+    <testcase name="equalityOperatorsWhenNotEqual" file="${REPO_ROOT}/tests/src/App/MappedElement.cpp" line="87" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.382" classname="MappedElementTest" />
+    <testcase name="equalityOperatorsWhenEqual" file="${REPO_ROOT}/tests/src/App/MappedElement.cpp" line="102" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.382" classname="MappedElementTest" />
+    <testcase name="lessThanOperator" file="${REPO_ROOT}/tests/src/App/MappedElement.cpp" line="117" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.382" classname="MappedElementTest" />
+    <testcase name="comparatorBothAreZeroSize" file="${REPO_ROOT}/tests/src/App/MappedElement.cpp" line="136" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.382" classname="MappedElementTest" />
+    <testcase name="comparatorOneIsZeroSize" file="${REPO_ROOT}/tests/src/App/MappedElement.cpp" line="147" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.382" classname="MappedElementTest" />
+    <testcase name="comparatorBothStartWithHexDigitsThatDiffer" file="${REPO_ROOT}/tests/src/App/MappedElement.cpp" line="158" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.382" classname="MappedElementTest" />
+    <testcase name="comparatorBothStartWithTheSameHexDigits" file="${REPO_ROOT}/tests/src/App/MappedElement.cpp" line="169" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.382" classname="MappedElementTest" />
+    <testcase name="comparatorHexWithoutTerminator" file="${REPO_ROOT}/tests/src/App/MappedElement.cpp" line="180" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.382" classname="MappedElementTest" />
+    <testcase name="comparatorHexWithoutTerminatorSameLength" file="${REPO_ROOT}/tests/src/App/MappedElement.cpp" line="191" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.382" classname="MappedElementTest" />
+    <testcase name="comparatorNoHexDigitsLexicalCompare" file="${REPO_ROOT}/tests/src/App/MappedElement.cpp" line="202" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.382" classname="MappedElementTest" />
+    <testcase name="comparatorNoHexDigitsSameStringNumericCompare" file="${REPO_ROOT}/tests/src/App/MappedElement.cpp" line="213" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.382" classname="MappedElementTest" />
+    <testcase name="comparatorIntegerWithoutTerminatorIsBroken" file="${REPO_ROOT}/tests/src/App/MappedElement.cpp" line="224" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.382" classname="MappedElementTest" />
+    <testcase name="comparatorThreeComplexHexNamesInMap" file="${REPO_ROOT}/tests/src/App/MappedElement.cpp" line="235" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.382" classname="MappedElementTest" />
+    <testcase name="comparatorLargerWorkedExampleWithMap" file="${REPO_ROOT}/tests/src/App/MappedElement.cpp" line="271" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.382" classname="MappedElementTest" />
+  </testsuite>
+  <testsuite name="MappedName" tests="51" failures="0" disabled="0" skipped="0" errors="0" time="0." timestamp="2026-11-09T14:24:29.382">
+    <testcase name="defaultConstruction" file="${REPO_ROOT}/tests/src/App/MappedName.cpp" line="12" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.382" classname="MappedName" />
+    <testcase name="namedConstruction" file="${REPO_ROOT}/tests/src/App/MappedName.cpp" line="25" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.382" classname="MappedName" />
+    <testcase name="namedConstructionWithMaxSize" file="${REPO_ROOT}/tests/src/App/MappedName.cpp" line="38" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.382" classname="MappedName" />
+    <testcase name="namedConstructionDiscardPrefix" file="${REPO_ROOT}/tests/src/App/MappedName.cpp" line="51" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.382" classname="MappedName" />
+    <testcase name="stringNamedConstruction" file="${REPO_ROOT}/tests/src/App/MappedName.cpp" line="67" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.382" classname="MappedName" />
+    <testcase name="stringNamedConstructionDiscardPrefix" file="${REPO_ROOT}/tests/src/App/MappedName.cpp" line="80" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.382" classname="MappedName" />
+    <testcase name="constructFromIndexedNameNoIndex" file="${REPO_ROOT}/tests/src/App/MappedName.cpp" line="96" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.382" classname="MappedName" />
+    <testcase name="constructFromIndexedNameWithIndex" file="${REPO_ROOT}/tests/src/App/MappedName.cpp" line="109" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.382" classname="MappedName" />
+    <testcase name="copyConstructor" file="${REPO_ROOT}/tests/src/App/MappedName.cpp" line="123" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.382" classname="MappedName" />
+    <testcase name="copyConstructorWithPostfix" file="${REPO_ROOT}/tests/src/App/MappedName.cpp" line="139" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.382" classname="MappedName" />
+    <testcase name="copyConstructorStartpos" file="${REPO_ROOT}/tests/src/App/MappedName.cpp" line="165" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.382" classname="MappedName" />
+    <testcase name="copyConstructorStartposAndSize" file="${REPO_ROOT}/tests/src/App/MappedName.cpp" line="181" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.382" classname="MappedName" />
+    <testcase name="moveConstructor" file="${REPO_ROOT}/tests/src/App/MappedName.cpp" line="197" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.382" classname="MappedName" />
+    <testcase name="fromRawData" file="${REPO_ROOT}/tests/src/App/MappedName.cpp" line="213" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.382" classname="MappedName" />
+    <testcase name="fromRawDataQByteArray" file="${REPO_ROOT}/tests/src/App/MappedName.cpp" line="226" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.382" classname="MappedName" />
+    <testcase name="fromRawDataCopy" file="${REPO_ROOT}/tests/src/App/MappedName.cpp" line="242" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.382" classname="MappedName" />
+    <testcase name="fromRawDataCopyStartposAndSize" file="${REPO_ROOT}/tests/src/App/MappedName.cpp" line="261" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.382" classname="MappedName" />
+    <testcase name="assignmentOperator" file="${REPO_ROOT}/tests/src/App/MappedName.cpp" line="280" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.382" classname="MappedName" />
+    <testcase name="assignmentOperatorString" file="${REPO_ROOT}/tests/src/App/MappedName.cpp" line="296" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.382" classname="MappedName" />
+    <testcase name="assignmentOperatorConstCharPtr" file="${REPO_ROOT}/tests/src/App/MappedName.cpp" line="312" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.382" classname="MappedName" />
+    <testcase name="assignmentOperatorMove" file="${REPO_ROOT}/tests/src/App/MappedName.cpp" line="328" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.382" classname="MappedName" />
+    <testcase name="streamInsertionOperator" file="${REPO_ROOT}/tests/src/App/MappedName.cpp" line="344" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.382" classname="MappedName" />
+    <testcase name="comparisonOperators" file="${REPO_ROOT}/tests/src/App/MappedName.cpp" line="357" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.382" classname="MappedName" />
+    <testcase name="additionOperators" file="${REPO_ROOT}/tests/src/App/MappedName.cpp" line="377" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.382" classname="MappedName" />
+    <testcase name="append" file="${REPO_ROOT}/tests/src/App/MappedName.cpp" line="414" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.382" classname="MappedName" />
+    <testcase name="appendMappedNameObj" file="${REPO_ROOT}/tests/src/App/MappedName.cpp" line="450" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.382" classname="MappedName" />
+    <testcase name="toString" file="${REPO_ROOT}/tests/src/App/MappedName.cpp" line="477" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.382" classname="MappedName" />
+    <testcase name="toConstString" file="${REPO_ROOT}/tests/src/App/MappedName.cpp" line="489" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.382" classname="MappedName" />
+    <testcase name="toRawBytes" file="${REPO_ROOT}/tests/src/App/MappedName.cpp" line="510" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.382" classname="MappedName" />
+    <testcase name="toIndexedNameASCIIOnly" file="${REPO_ROOT}/tests/src/App/MappedName.cpp" line="522" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.382" classname="MappedName" />
+    <testcase name="toIndexedNameInvalid" file="${REPO_ROOT}/tests/src/App/MappedName.cpp" line="534" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.382" classname="MappedName" />
+    <testcase name="appendToBuffer" file="${REPO_ROOT}/tests/src/App/MappedName.cpp" line="546" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.382" classname="MappedName" />
+    <testcase name="appendToBufferWithPrefix" file="${REPO_ROOT}/tests/src/App/MappedName.cpp" line="565" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.382" classname="MappedName" />
+    <testcase name="toPrefixedString" file="${REPO_ROOT}/tests/src/App/MappedName.cpp" line="593" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.382" classname="MappedName" />
+    <testcase name="toBytes" file="${REPO_ROOT}/tests/src/App/MappedName.cpp" line="621" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.382" classname="MappedName" />
+    <testcase name="compare" file="${REPO_ROOT}/tests/src/App/MappedName.cpp" line="630" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.382" classname="MappedName" />
+    <testcase name="subscriptOperator" file="${REPO_ROOT}/tests/src/App/MappedName.cpp" line="656" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.382" classname="MappedName" />
+    <testcase name="copy" file="${REPO_ROOT}/tests/src/App/MappedName.cpp" line="674" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.382" classname="MappedName" />
+    <testcase name="compact" file="${REPO_ROOT}/tests/src/App/MappedName.cpp" line="686" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.382" classname="MappedName" />
+    <testcase name="boolOperator" file="${REPO_ROOT}/tests/src/App/MappedName.cpp" line="702" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.382" classname="MappedName" />
+    <testcase name="clear" file="${REPO_ROOT}/tests/src/App/MappedName.cpp" line="717" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.382" classname="MappedName" />
+    <testcase name="find" file="${REPO_ROOT}/tests/src/App/MappedName.cpp" line="729" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.382" classname="MappedName" />
+    <testcase name="rfind" file="${REPO_ROOT}/tests/src/App/MappedName.cpp" line="763" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.382" classname="MappedName" />
+    <testcase name="endswith" file="${REPO_ROOT}/tests/src/App/MappedName.cpp" line="797" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.382" classname="MappedName" />
+    <testcase name="startsWith" file="${REPO_ROOT}/tests/src/App/MappedName.cpp" line="817" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.382" classname="MappedName" />
+    <testcase name="findTagInElementNameHexPositiveIndexNonrecursive" file="${REPO_ROOT}/tests/src/App/MappedName.cpp" line="840" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.382" classname="MappedName" />
+    <testcase name="findTagInElementNameDecPositiveIndexNonrecursive" file="${REPO_ROOT}/tests/src/App/MappedName.cpp" line="866" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.382" classname="MappedName" />
+    <testcase name="findTagInElementNameHexNegativeIndexNonrecursive" file="${REPO_ROOT}/tests/src/App/MappedName.cpp" line="888" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.382" classname="MappedName" />
+    <testcase name="findTagInElementNameHexExpectedNegativeIndexNonrecursive" file="${REPO_ROOT}/tests/src/App/MappedName.cpp" line="910" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.382" classname="MappedName" />
+    <testcase name="findTagInElementNameRecursive" file="${REPO_ROOT}/tests/src/App/MappedName.cpp" line="932" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.382" classname="MappedName" />
+    <testcase name="hash" file="${REPO_ROOT}/tests/src/App/MappedName.cpp" line="954" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.382" classname="MappedName" />
+  </testsuite>
+  <testsuite name="PropertyFileIncludedTest" tests="9" failures="0" disabled="0" skipped="0" errors="0" time="0.054" timestamp="2026-11-09T14:24:29.382">
+    <testcase name="rejectsParentTraversalInFileAttribute" file="${REPO_ROOT}/tests/src/App/PropertyFile.cpp" line="64" status="run" result="completed" time="0.002" timestamp="2026-11-09T14:24:29.382" classname="PropertyFileIncludedTest" />
+    <testcase name="rejectsBackslashTraversalInFileAttribute" file="${REPO_ROOT}/tests/src/App/PropertyFile.cpp" line="73" status="run" result="completed" time="0.001" timestamp="2026-11-09T14:24:29.384" classname="PropertyFileIncludedTest" />
+    <testcase name="rejectsAbsolutePathInFileAttribute" file="${REPO_ROOT}/tests/src/App/PropertyFile.cpp" line="82" status="run" result="completed" time="0.001" timestamp="2026-11-09T14:24:29.386" classname="PropertyFileIncludedTest" />
+    <testcase name="rejectsSubdirectoryInFileAttribute" file="${REPO_ROOT}/tests/src/App/PropertyFile.cpp" line="91" status="run" result="completed" time="0.001" timestamp="2026-11-09T14:24:29.387" classname="PropertyFileIncludedTest" />
+    <testcase name="rejectsDotDotInFileAttribute" file="${REPO_ROOT}/tests/src/App/PropertyFile.cpp" line="100" status="run" result="completed" time="0.001" timestamp="2026-11-09T14:24:29.388" classname="PropertyFileIncludedTest" />
+    <testcase name="rejectsParentTraversalInDataAttribute" file="${REPO_ROOT}/tests/src/App/PropertyFile.cpp" line="106" status="run" result="completed" time="0.001" timestamp="2026-11-09T14:24:29.389" classname="PropertyFileIncludedTest" />
+    <testcase name="acceptsPlainBasename" file="${REPO_ROOT}/tests/src/App/PropertyFile.cpp" line="115" status="run" result="completed" time="0.001" timestamp="2026-11-09T14:24:29.390" classname="PropertyFileIncludedTest" />
+    <testcase name="rejectedAssignmentRetainsBytesButUpdatesOriginalName" file="${REPO_ROOT}/tests/src/App/PropertyFile.cpp" line="489" status="run" result="completed" time="0.001" timestamp="2026-11-09T14:24:29.391" classname="PropertyFileIncludedTest" />
+    <testcase name="archiveBoundariesAndNormalApplicationOpen" file="${REPO_ROOT}/tests/src/App/PropertyFile.cpp" line="552" status="run" result="completed" time="0.044" timestamp="2026-11-09T14:24:29.393" classname="PropertyFileIncludedTest">
+      <properties>
+        <property name="boundary_archive_sha256" value="e36cf6d307201ed32e821694c44e95ceb99898ee83ccbc22d318c3c5675a083b"/>
+        <property name="boundary_payload_sizes" value="0,65536,65537,131089"/>
+      </properties>
+    </testcase>
+  </testsuite>
+  <testsuite name="StringIDTest" tests="44" failures="0" disabled="0" skipped="0" errors="0" time="0." timestamp="2026-11-09T14:24:29.437">
+    <testcase name="stringIDManualConstructionNoFlags" file="${REPO_ROOT}/tests/src/App/StringHasher.cpp" line="27" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.437" classname="StringIDTest" />
+    <testcase name="stringIDManualConstructionWithFlag" file="${REPO_ROOT}/tests/src/App/StringHasher.cpp" line="42" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.437" classname="StringIDTest" />
+    <testcase name="stringIDDefaultConstruction" file="${REPO_ROOT}/tests/src/App/StringHasher.cpp" line="58" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.437" classname="StringIDTest" />
+    <testcase name="value" file="${REPO_ROOT}/tests/src/App/StringHasher.cpp" line="67" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.437" classname="StringIDTest" />
+    <testcase name="relatedIDs" file="${REPO_ROOT}/tests/src/App/StringHasher.cpp" line="88" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.437" classname="StringIDTest" />
+    <testcase name="isBinary" file="${REPO_ROOT}/tests/src/App/StringHasher.cpp" line="93" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.437" classname="StringIDTest" />
+    <testcase name="isHashed" file="${REPO_ROOT}/tests/src/App/StringHasher.cpp" line="104" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.437" classname="StringIDTest" />
+    <testcase name="isPostfixed" file="${REPO_ROOT}/tests/src/App/StringHasher.cpp" line="115" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.437" classname="StringIDTest" />
+    <testcase name="isPostfixEncoded" file="${REPO_ROOT}/tests/src/App/StringHasher.cpp" line="126" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.437" classname="StringIDTest" />
+    <testcase name="isIndexed" file="${REPO_ROOT}/tests/src/App/StringHasher.cpp" line="137" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.437" classname="StringIDTest" />
+    <testcase name="isPrefixID" file="${REPO_ROOT}/tests/src/App/StringHasher.cpp" line="148" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.437" classname="StringIDTest" />
+    <testcase name="isPrefixIDIndex" file="${REPO_ROOT}/tests/src/App/StringHasher.cpp" line="159" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.437" classname="StringIDTest" />
+    <testcase name="isMarked" file="${REPO_ROOT}/tests/src/App/StringHasher.cpp" line="170" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.437" classname="StringIDTest" />
+    <testcase name="isPersistent" file="${REPO_ROOT}/tests/src/App/StringHasher.cpp" line="181" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.437" classname="StringIDTest" />
+    <testcase name="isFromSameHasher" file="${REPO_ROOT}/tests/src/App/StringHasher.cpp" line="192" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.437" classname="StringIDTest" />
+    <testcase name="getHasher" file="${REPO_ROOT}/tests/src/App/StringHasher.cpp" line="197" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.437" classname="StringIDTest" />
+    <testcase name="data" file="${REPO_ROOT}/tests/src/App/StringHasher.cpp" line="202" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.437" classname="StringIDTest" />
+    <testcase name="postfix" file="${REPO_ROOT}/tests/src/App/StringHasher.cpp" line="215" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.437" classname="StringIDTest" />
+    <testcase name="getPyObject" file="${REPO_ROOT}/tests/src/App/StringHasher.cpp" line="220" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.437" classname="StringIDTest" />
+    <testcase name="getPyObjectWithIndex" file="${REPO_ROOT}/tests/src/App/StringHasher.cpp" line="235" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.437" classname="StringIDTest" />
+    <testcase name="toStringWithoutIndex" file="${REPO_ROOT}/tests/src/App/StringHasher.cpp" line="250" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.437" classname="StringIDTest" />
+    <testcase name="toStringWithIndex" file="${REPO_ROOT}/tests/src/App/StringHasher.cpp" line="266" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.437" classname="StringIDTest" />
+    <testcase name="fromStringWithEOFAndLengthGood" file="${REPO_ROOT}/tests/src/App/StringHasher.cpp" line="281" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.437" classname="StringIDTest" />
+    <testcase name="fromStringExtraData" file="${REPO_ROOT}/tests/src/App/StringHasher.cpp" line="295" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.437" classname="StringIDTest" />
+    <testcase name="fromStringLengthUnspecified" file="${REPO_ROOT}/tests/src/App/StringHasher.cpp" line="311" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.438" classname="StringIDTest" />
+    <testcase name="fromStringShorterLength" file="${REPO_ROOT}/tests/src/App/StringHasher.cpp" line="325" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.438" classname="StringIDTest" />
+    <testcase name="fromStringNoHashtag" file="${REPO_ROOT}/tests/src/App/StringHasher.cpp" line="340" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.438" classname="StringIDTest" />
+    <testcase name="fromStringNotHex" file="${REPO_ROOT}/tests/src/App/StringHasher.cpp" line="352" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.438" classname="StringIDTest" />
+    <testcase name="fromStringQByteArray" file="${REPO_ROOT}/tests/src/App/StringHasher.cpp" line="367" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.438" classname="StringIDTest" />
+    <testcase name="dataToTextHashed" file="${REPO_ROOT}/tests/src/App/StringHasher.cpp" line="380" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.438" classname="StringIDTest" />
+    <testcase name="dataToTextBinary" file="${REPO_ROOT}/tests/src/App/StringHasher.cpp" line="393" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.438" classname="StringIDTest" />
+    <testcase name="dataToTextNoIndex" file="${REPO_ROOT}/tests/src/App/StringHasher.cpp" line="406" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.438" classname="StringIDTest" />
+    <testcase name="dataToTextWithIndex" file="${REPO_ROOT}/tests/src/App/StringHasher.cpp" line="419" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.438" classname="StringIDTest" />
+    <testcase name="dataToTextWithPostfix" file="${REPO_ROOT}/tests/src/App/StringHasher.cpp" line="434" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.438" classname="StringIDTest" />
+    <testcase name="dataToBytesNoIndex" file="${REPO_ROOT}/tests/src/App/StringHasher.cpp" line="449" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.438" classname="StringIDTest" />
+    <testcase name="dataToBytesWithIndex" file="${REPO_ROOT}/tests/src/App/StringHasher.cpp" line="462" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.438" classname="StringIDTest" />
+    <testcase name="dataToBytesWithPostfix" file="${REPO_ROOT}/tests/src/App/StringHasher.cpp" line="476" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.438" classname="StringIDTest" />
+    <testcase name="dataToBytesWithIndexAndPostfix" file="${REPO_ROOT}/tests/src/App/StringHasher.cpp" line="491" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.438" classname="StringIDTest" />
+    <testcase name="mark" file="${REPO_ROOT}/tests/src/App/StringHasher.cpp" line="507" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.438" classname="StringIDTest" />
+    <testcase name="setPersistent" file="${REPO_ROOT}/tests/src/App/StringHasher.cpp" line="521" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.438" classname="StringIDTest" />
+    <testcase name="operatorLessThan" file="${REPO_ROOT}/tests/src/App/StringHasher.cpp" line="535" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.438" classname="StringIDTest" />
+    <testcase name="compare" file="${REPO_ROOT}/tests/src/App/StringHasher.cpp" line="540" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.438" classname="StringIDTest" />
+    <testcase name="IndexIDBooleanConversion" file="${REPO_ROOT}/tests/src/App/StringHasher.cpp" line="545" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.438" classname="StringIDTest" />
+    <testcase name="IndexIDStreamInsertionOperator" file="${REPO_ROOT}/tests/src/App/StringHasher.cpp" line="558" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.438" classname="StringIDTest" />
+  </testsuite>
+  <testsuite name="StringIDRefTest" tests="35" failures="0" disabled="0" skipped="0" errors="0" time="0." timestamp="2026-11-09T14:24:29.438">
+    <testcase name="defaultConstructor" file="${REPO_ROOT}/tests/src/App/StringHasher.cpp" line="592" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.438" classname="StringIDRefTest" />
+    <testcase name="constructFromNewStringID" file="${REPO_ROOT}/tests/src/App/StringHasher.cpp" line="601" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.438" classname="StringIDRefTest" />
+    <testcase name="constructFromStringIDAndIndex" file="${REPO_ROOT}/tests/src/App/StringHasher.cpp" line="614" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.438" classname="StringIDRefTest" />
+    <testcase name="copyConstructor" file="${REPO_ROOT}/tests/src/App/StringHasher.cpp" line="631" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.438" classname="StringIDRefTest" />
+    <testcase name="copyConstructorWithIndex" file="${REPO_ROOT}/tests/src/App/StringHasher.cpp" line="647" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.438" classname="StringIDRefTest" />
+    <testcase name="moveConstructor" file="${REPO_ROOT}/tests/src/App/StringHasher.cpp" line="664" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.438" classname="StringIDRefTest" />
+    <testcase name="destructor" file="${REPO_ROOT}/tests/src/App/StringHasher.cpp" line="676" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.438" classname="StringIDRefTest" />
+    <testcase name="reset" file="${REPO_ROOT}/tests/src/App/StringHasher.cpp" line="693" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.438" classname="StringIDRefTest" />
+    <testcase name="resetWithStringID" file="${REPO_ROOT}/tests/src/App/StringHasher.cpp" line="705" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.438" classname="StringIDRefTest" />
+    <testcase name="resetWithStringIDAndIndex" file="${REPO_ROOT}/tests/src/App/StringHasher.cpp" line="719" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.438" classname="StringIDRefTest" />
+    <testcase name="swap" file="${REPO_ROOT}/tests/src/App/StringHasher.cpp" line="734" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.438" classname="StringIDRefTest" />
+    <testcase name="assignmentFromSelf" file="${REPO_ROOT}/tests/src/App/StringHasher.cpp" line="755" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.438" classname="StringIDRefTest" />
+    <testcase name="assignmentToEmptyFromStringID" file="${REPO_ROOT}/tests/src/App/StringHasher.cpp" line="771" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.438" classname="StringIDRefTest" />
+    <testcase name="assignmentFromStringIDRef" file="${REPO_ROOT}/tests/src/App/StringHasher.cpp" line="785" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.438" classname="StringIDRefTest" />
+    <testcase name="moveAssignmentFromStringIDRef" file="${REPO_ROOT}/tests/src/App/StringHasher.cpp" line="801" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.438" classname="StringIDRefTest" />
+    <testcase name="operatorLess" file="${REPO_ROOT}/tests/src/App/StringHasher.cpp" line="815" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.438" classname="StringIDRefTest" />
+    <testcase name="operatorEquality" file="${REPO_ROOT}/tests/src/App/StringHasher.cpp" line="834" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.438" classname="StringIDRefTest" />
+    <testcase name="operatorInequality" file="${REPO_ROOT}/tests/src/App/StringHasher.cpp" line="850" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.438" classname="StringIDRefTest" />
+    <testcase name="booleanConversion" file="${REPO_ROOT}/tests/src/App/StringHasher.cpp" line="866" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.438" classname="StringIDRefTest" />
+    <testcase name="getRefCount" file="${REPO_ROOT}/tests/src/App/StringHasher.cpp" line="877" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.438" classname="StringIDRefTest" />
+    <testcase name="toString" file="${REPO_ROOT}/tests/src/App/StringHasher.cpp" line="893" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.438" classname="StringIDRefTest" />
+    <testcase name="dataToText" file="${REPO_ROOT}/tests/src/App/StringHasher.cpp" line="909" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.438" classname="StringIDRefTest" />
+    <testcase name="constData" file="${REPO_ROOT}/tests/src/App/StringHasher.cpp" line="925" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.438" classname="StringIDRefTest" />
+    <testcase name="deref" file="${REPO_ROOT}/tests/src/App/StringHasher.cpp" line="938" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.438" classname="StringIDRefTest" />
+    <testcase name="value" file="${REPO_ROOT}/tests/src/App/StringHasher.cpp" line="948" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.438" classname="StringIDRefTest" />
+    <testcase name="relatedIDs" file="${REPO_ROOT}/tests/src/App/StringHasher.cpp" line="963" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.438" classname="StringIDRefTest" />
+    <testcase name="isBinary" file="${REPO_ROOT}/tests/src/App/StringHasher.cpp" line="968" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.438" classname="StringIDRefTest" />
+    <testcase name="isHashed" file="${REPO_ROOT}/tests/src/App/StringHasher.cpp" line="981" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.438" classname="StringIDRefTest" />
+    <testcase name="toBytes" file="${REPO_ROOT}/tests/src/App/StringHasher.cpp" line="994" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.438" classname="StringIDRefTest" />
+    <testcase name="getPyObject" file="${REPO_ROOT}/tests/src/App/StringHasher.cpp" line="1007" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.438" classname="StringIDRefTest" />
+    <testcase name="mark" file="${REPO_ROOT}/tests/src/App/StringHasher.cpp" line="1023" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.438" classname="StringIDRefTest" />
+    <testcase name="isMarked" file="${REPO_ROOT}/tests/src/App/StringHasher.cpp" line="1036" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.438" classname="StringIDRefTest" />
+    <testcase name="isFromSameHasher" file="${REPO_ROOT}/tests/src/App/StringHasher.cpp" line="1047" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.438" classname="StringIDRefTest" />
+    <testcase name="getHasher" file="${REPO_ROOT}/tests/src/App/StringHasher.cpp" line="1052" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.438" classname="StringIDRefTest" />
+    <testcase name="setPersistent" file="${REPO_ROOT}/tests/src/App/StringHasher.cpp" line="1057" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.438" classname="StringIDRefTest" />
+  </testsuite>
+  <testsuite name="StringHasherTest" tests="35" failures="0" disabled="0" skipped="0" errors="0" time="0." timestamp="2026-11-09T14:24:29.438">
+    <testcase name="defaultConstructor" file="${REPO_ROOT}/tests/src/App/StringHasher.cpp" line="1120" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.438" classname="StringHasherTest" />
+    <testcase name="getMemSize" file="${REPO_ROOT}/tests/src/App/StringHasher.cpp" line="1132" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.438" classname="StringHasherTest" />
+    <testcase name="Save" file="${REPO_ROOT}/tests/src/App/StringHasher.cpp" line="1146" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.438" classname="StringHasherTest" />
+    <testcase name="Restore" file="${REPO_ROOT}/tests/src/App/StringHasher.cpp" line="1153" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.438" classname="StringHasherTest" />
+    <testcase name="SaveDocFile" file="${REPO_ROOT}/tests/src/App/StringHasher.cpp" line="1160" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.438" classname="StringHasherTest" />
+    <testcase name="RestoreDocFile" file="${REPO_ROOT}/tests/src/App/StringHasher.cpp" line="1167" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.438" classname="StringHasherTest" />
+    <testcase name="setPersistenceFileName" file="${REPO_ROOT}/tests/src/App/StringHasher.cpp" line="1174" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.438" classname="StringHasherTest" />
+    <testcase name="getPersistenceFileName" file="${REPO_ROOT}/tests/src/App/StringHasher.cpp" line="1181" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.438" classname="StringHasherTest" />
+    <testcase name="getIDFromQByteArrayShort" file="${REPO_ROOT}/tests/src/App/StringHasher.cpp" line="1188" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.438" classname="StringHasherTest" />
+    <testcase name="getIDFromQByteArrayLongHashable" file="${REPO_ROOT}/tests/src/App/StringHasher.cpp" line="1205" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.438" classname="StringHasherTest" />
+    <testcase name="getIDFromQByteArrayLongUnhashable" file="${REPO_ROOT}/tests/src/App/StringHasher.cpp" line="1221" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.438" classname="StringHasherTest" />
+    <testcase name="getIDFromQByteArrayNoCopy" file="${REPO_ROOT}/tests/src/App/StringHasher.cpp" line="1237" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.438" classname="StringHasherTest" />
+    <testcase name="getIDFromQByteArrayTwoDifferentStrings" file="${REPO_ROOT}/tests/src/App/StringHasher.cpp" line="1252" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.438" classname="StringHasherTest" />
+    <testcase name="getIDFromQByteArrayTwoIdenticalStrings" file="${REPO_ROOT}/tests/src/App/StringHasher.cpp" line="1268" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.438" classname="StringHasherTest" />
+    <testcase name="getIDFromQByteArrayBinaryFlag" file="${REPO_ROOT}/tests/src/App/StringHasher.cpp" line="1284" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.438" classname="StringHasherTest" />
+    <testcase name="getIDFromCString" file="${REPO_ROOT}/tests/src/App/StringHasher.cpp" line="1297" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.438" classname="StringHasherTest" />
+    <testcase name="getIDFromMappedNameWithoutPostfixWithoutIndex" file="${REPO_ROOT}/tests/src/App/StringHasher.cpp" line="1316" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.438" classname="StringHasherTest" />
+    <testcase name="getIDFromMappedNameWithoutPostfixWithIndex" file="${REPO_ROOT}/tests/src/App/StringHasher.cpp" line="1331" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.438" classname="StringHasherTest" />
+    <testcase name="getIDFromMappedNameWithoutIndexWithPostfix" file="${REPO_ROOT}/tests/src/App/StringHasher.cpp" line="1348" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.438" classname="StringHasherTest" />
+    <testcase name="getIDFromMappedNameWithIndexWithPostfix" file="${REPO_ROOT}/tests/src/App/StringHasher.cpp" line="1367" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.438" classname="StringHasherTest" />
+    <testcase name="getIDFromMappedNameExistingNameNoIndex" file="${REPO_ROOT}/tests/src/App/StringHasher.cpp" line="1385" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.438" classname="StringHasherTest" />
+    <testcase name="getIDFromMappedNameExistingNameWithIndex" file="${REPO_ROOT}/tests/src/App/StringHasher.cpp" line="1400" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.438" classname="StringHasherTest" />
+    <testcase name="getIDFromMappedNameExistingNameWithIndexAndPostfix" file="${REPO_ROOT}/tests/src/App/StringHasher.cpp" line="1416" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.438" classname="StringHasherTest" />
+    <testcase name="getIDFromMappedNameDuplicateWithEncodedPostfix" file="${REPO_ROOT}/tests/src/App/StringHasher.cpp" line="1432" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.438" classname="StringHasherTest" />
+    <testcase name="getIDFromIntegerIDNoSuchID" file="${REPO_ROOT}/tests/src/App/StringHasher.cpp" line="1448" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.438" classname="StringHasherTest" />
+    <testcase name="getIDFromIntegerIDBadID" file="${REPO_ROOT}/tests/src/App/StringHasher.cpp" line="1460" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.438" classname="StringHasherTest" />
+    <testcase name="getIDMap" file="${REPO_ROOT}/tests/src/App/StringHasher.cpp" line="1477" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.438" classname="StringHasherTest" />
+    <testcase name="clear" file="${REPO_ROOT}/tests/src/App/StringHasher.cpp" line="1489" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.438" classname="StringHasherTest" />
+    <testcase name="size" file="${REPO_ROOT}/tests/src/App/StringHasher.cpp" line="1501" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.438" classname="StringHasherTest" />
+    <testcase name="count" file="${REPO_ROOT}/tests/src/App/StringHasher.cpp" line="1513" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.438" classname="StringHasherTest" />
+    <testcase name="getPyObject" file="${REPO_ROOT}/tests/src/App/StringHasher.cpp" line="1525" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.438" classname="StringHasherTest" />
+    <testcase name="setGetSaveAll" file="${REPO_ROOT}/tests/src/App/StringHasher.cpp" line="1536" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.438" classname="StringHasherTest" />
+    <testcase name="setGetThreshold" file="${REPO_ROOT}/tests/src/App/StringHasher.cpp" line="1551" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.438" classname="StringHasherTest" />
+    <testcase name="clearMarks" file="${REPO_ROOT}/tests/src/App/StringHasher.cpp" line="1564" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.438" classname="StringHasherTest" />
+    <testcase name="compact" file="${REPO_ROOT}/tests/src/App/StringHasher.cpp" line="1578" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.438" classname="StringHasherTest" />
+  </testsuite>
+  <testsuite name="DecimalAndHex/ElementMapRestoreNumberTest" tests="6" failures="0" disabled="0" skipped="0" errors="0" time="0.013" timestamp="2026-11-09T14:24:29.439">
+    <testcase name="MatchesLegacyStrtolValues/0" value_param="10" file="${REPO_ROOT}/tests/src/App/ElementMap.cpp" line="708" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.439" classname="DecimalAndHex/ElementMapRestoreNumberTest" />
+    <testcase name="MatchesLegacyStrtolValues/1" value_param="16" file="${REPO_ROOT}/tests/src/App/ElementMap.cpp" line="708" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.439" classname="DecimalAndHex/ElementMapRestoreNumberTest" />
+    <testcase name="BoundedViewsNeedNoNullTerminator/0" value_param="10" file="${REPO_ROOT}/tests/src/App/ElementMap.cpp" line="721" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.439" classname="DecimalAndHex/ElementMapRestoreNumberTest" />
+    <testcase name="BoundedViewsNeedNoNullTerminator/1" value_param="16" file="${REPO_ROOT}/tests/src/App/ElementMap.cpp" line="721" status="run" result="completed" time="0." timestamp="2026-11-09T14:24:29.439" classname="DecimalAndHex/ElementMapRestoreNumberTest" />
+    <testcase name="DifferentialTokenCorpus/0" value_param="10" file="${REPO_ROOT}/tests/src/App/ElementMap.cpp" line="737" status="run" result="completed" time="0.006" timestamp="2026-11-09T14:24:29.439" classname="DecimalAndHex/ElementMapRestoreNumberTest" />
+    <testcase name="DifferentialTokenCorpus/1" value_param="16" file="${REPO_ROOT}/tests/src/App/ElementMap.cpp" line="737" status="run" result="completed" time="0.006" timestamp="2026-11-09T14:24:29.445" classname="DecimalAndHex/ElementMapRestoreNumberTest" />
+  </testsuite>
+  <testsuite name="EmptyAndNonempty/IncludedFileArchiveTest" tests="12" failures="0" disabled="0" skipped="0" errors="0" time="0.152" timestamp="2026-11-09T14:24:29.452">
+    <testcase name="PreservesDocumentFailurePolicyAndLaterEntry/0" value_param="(0, false)" file="${REPO_ROOT}/tests/src/App/PropertyFile.cpp" line="312" status="run" result="completed" time="0.022" timestamp="2026-11-09T14:24:29.452" classname="EmptyAndNonempty/IncludedFileArchiveTest">
+      <properties>
+        <property name="fault_mode" value="0"/>
+        <property name="empty_payload" value="0"/>
+        <property name="payload_bytes" value="131089"/>
+        <property name="archive_sha256" value="f3a9dd83a333512a64a06096020ef3a60cd9a6acf4f9663698ef1cab62ca953b"/>
+        <property name="io_fault_hits" value="0"/>
+        <property name="read_fault_hits" value="0"/>
+        <property name="failed_files_first" value="0"/>
+        <property name="before_notifications" value="1"/>
+        <property name="after_notifications" value="1"/>
+        <property name="later_entry_restored" value="1"/>
+        <property name="retained_destination_bytes" value="131089"/>
+        <property name="destination_writable" value="0"/>
+      </properties>
+    </testcase>
+    <testcase name="PreservesDocumentFailurePolicyAndLaterEntry/1" value_param="(0, true)" file="${REPO_ROOT}/tests/src/App/PropertyFile.cpp" line="312" status="run" result="completed" time="0.006" timestamp="2026-11-09T14:24:29.475" classname="EmptyAndNonempty/IncludedFileArchiveTest">
+      <properties>
+        <property name="fault_mode" value="0"/>
+        <property name="empty_payload" value="1"/>
+        <property name="payload_bytes" value="0"/>
+        <property name="archive_sha256" value="032edececea10c505cf3ddbe0612b064381d4b2475982cedd5084c62bda2dc51"/>
+        <property name="io_fault_hits" value="0"/>
+        <property name="read_fault_hits" value="0"/>
+        <property name="failed_files_first" value="0"/>
+        <property name="before_notifications" value="1"/>
+        <property name="after_notifications" value="1"/>
+        <property name="later_entry_restored" value="1"/>
+        <property name="retained_destination_bytes" value="0"/>
+        <property name="destination_writable" value="0"/>
+      </properties>
+    </testcase>
+    <testcase name="PreservesDocumentFailurePolicyAndLaterEntry/2" value_param="(1, false)" file="${REPO_ROOT}/tests/src/App/PropertyFile.cpp" line="312" status="run" result="completed" time="0.007" timestamp="2026-11-09T14:24:29.482" classname="EmptyAndNonempty/IncludedFileArchiveTest">
+      <properties>
+        <property name="fault_mode" value="1"/>
+        <property name="empty_payload" value="0"/>
+        <property name="payload_bytes" value="131089"/>
+        <property name="archive_sha256" value="9afd20ff099a278e8d703f1c96fb16ff1bb1ca7ff26071a7ef0fab2c3e0f6187"/>
+        <property name="io_fault_hits" value="1"/>
+        <property name="read_fault_hits" value="0"/>
+        <property name="failed_files_first" value="1"/>
+        <property name="before_notifications" value="1"/>
+        <property name="after_notifications" value="0"/>
+        <property name="later_entry_restored" value="1"/>
+        <property name="retained_destination_bytes" value="0"/>
+        <property name="destination_writable" value="1"/>
+      </properties>
+    </testcase>
+    <testcase name="PreservesDocumentFailurePolicyAndLaterEntry/3" value_param="(1, true)" file="${REPO_ROOT}/tests/src/App/PropertyFile.cpp" line="312" status="run" result="completed" time="0.006" timestamp="2026-11-09T14:24:29.490" classname="EmptyAndNonempty/IncludedFileArchiveTest">
+      <properties>
+        <property name="fault_mode" value="1"/>
+        <property name="empty_payload" value="1"/>
+        <property name="payload_bytes" value="0"/>
+        <property name="archive_sha256" value="4a90e7d2e449304c4dae63eab99f7b5c4fd7882a872732e86e200e46cd314a5b"/>
+        <property name="io_fault_hits" value="0"/>
+        <property name="read_fault_hits" value="0"/>
+        <property name="failed_files_first" value="0"/>
+        <property name="before_notifications" value="1"/>
+        <property name="after_notifications" value="1"/>
+        <property name="later_entry_restored" value="1"/>
+        <property name="retained_destination_bytes" value="0"/>
+        <property name="destination_writable" value="0"/>
+      </properties>
+    </testcase>
+    <testcase name="PreservesDocumentFailurePolicyAndLaterEntry/4" value_param="(2, false)" file="${REPO_ROOT}/tests/src/App/PropertyFile.cpp" line="312" status="run" result="completed" time="0.02" timestamp="2026-11-09T14:24:29.496" classname="EmptyAndNonempty/IncludedFileArchiveTest">
+      <properties>
+        <property name="fault_mode" value="2"/>
+        <property name="empty_payload" value="0"/>
+        <property name="payload_bytes" value="131089"/>
+        <property name="archive_sha256" value="99d31df2db8e2fc24c7f43b65a6b9f070ebfa292d3d83342ca43c51785bc1fab"/>
+        <property name="io_fault_hits" value="1"/>
+        <property name="read_fault_hits" value="0"/>
+        <property name="failed_files_first" value="1"/>
+        <property name="before_notifications" value="1"/>
+        <property name="after_notifications" value="0"/>
+        <property name="later_entry_restored" value="1"/>
+        <property name="retained_destination_bytes" value="131089"/>
+        <property name="destination_writable" value="1"/>
+      </properties>
+    </testcase>
+    <testcase name="PreservesDocumentFailurePolicyAndLaterEntry/5" value_param="(2, true)" file="${REPO_ROOT}/tests/src/App/PropertyFile.cpp" line="312" status="run" result="completed" time="0.007" timestamp="2026-11-09T14:24:29.517" classname="EmptyAndNonempty/IncludedFileArchiveTest">
+      <properties>
+        <property name="fault_mode" value="2"/>
+        <property name="empty_payload" value="1"/>
+        <property name="payload_bytes" value="0"/>
+        <property name="archive_sha256" value="cb90f5b7a5920b6db8b6f1a6846bbe4842e20d8ad9b3ab4b769d83517bea5f22"/>
+        <property name="io_fault_hits" value="1"/>
+        <property name="read_fault_hits" value="0"/>
+        <property name="failed_files_first" value="0"/>
+        <property name="before_notifications" value="1"/>
+        <property name="after_notifications" value="0"/>
+        <property name="later_entry_restored" value="1"/>
+        <property name="retained_destination_bytes" value="0"/>
+        <property name="destination_writable" value="1"/>
+      </properties>
+    </testcase>
+    <testcase name="PreservesDocumentFailurePolicyAndLaterEntry/6" value_param="(3, false)" file="${REPO_ROOT}/tests/src/App/PropertyFile.cpp" line="312" status="run" result="completed" time="0.022" timestamp="2026-11-09T14:24:29.524" classname="EmptyAndNonempty/IncludedFileArchiveTest">
+      <properties>
+        <property name="fault_mode" value="3"/>
+        <property name="empty_payload" value="0"/>
+        <property name="payload_bytes" value="131089"/>
+        <property name="archive_sha256" value="3c8d80ab38b357e9cf8e388e59703e438611d228a92ecd470107cbe445687619"/>
+        <property name="io_fault_hits" value="0"/>
+        <property name="read_fault_hits" value="1"/>
+        <property name="failed_files_first" value="1"/>
+        <property name="before_notifications" value="1"/>
+        <property name="after_notifications" value="0"/>
+        <property name="later_entry_restored" value="1"/>
+        <property name="retained_destination_bytes" value="65536"/>
+        <property name="destination_writable" value="1"/>
+      </properties>
+    </testcase>
+    <testcase name="PreservesDocumentFailurePolicyAndLaterEntry/7" value_param="(3, true)" file="${REPO_ROOT}/tests/src/App/PropertyFile.cpp" line="312" status="run" result="completed" time="0.01" timestamp="2026-11-09T14:24:29.546" classname="EmptyAndNonempty/IncludedFileArchiveTest">
+      <properties>
+        <property name="fault_mode" value="3"/>
+        <property name="empty_payload" value="1"/>
+        <property name="payload_bytes" value="0"/>
+        <property name="archive_sha256" value="b1f2489ca71c25a94c3792051356aac44be7523f049e1023ad7d71b2b5d839e4"/>
+        <property name="io_fault_hits" value="0"/>
+        <property name="read_fault_hits" value="1"/>
+        <property name="failed_files_first" value="0"/>
+        <property name="before_notifications" value="1"/>
+        <property name="after_notifications" value="0"/>
+        <property name="later_entry_restored" value="1"/>
+        <property name="retained_destination_bytes" value="0"/>
+        <property name="destination_writable" value="1"/>
+      </properties>
+    </testcase>
+    <testcase name="PreservesDocumentFailurePolicyAndLaterEntry/8" value_param="(4, false)" file="${REPO_ROOT}/tests/src/App/PropertyFile.cpp" line="312" status="run" result="completed" time="0.013" timestamp="2026-11-09T14:24:29.557" classname="EmptyAndNonempty/IncludedFileArchiveTest">
+      <properties>
+        <property name="fault_mode" value="4"/>
+        <property name="empty_payload" value="0"/>
+        <property name="payload_bytes" value="131089"/>
+        <property name="archive_sha256" value="23c8c5c622d5ba28163a86d649c518dde368be3bbe0f375f5addd2d3705caadf"/>
+        <property name="io_fault_hits" value="0"/>
+        <property name="read_fault_hits" value="0"/>
+        <property name="failed_files_first" value="1"/>
+        <property name="before_notifications" value="0"/>
+        <property name="after_notifications" value="0"/>
+        <property name="later_entry_restored" value="1"/>
+      </properties>
+    </testcase>
+    <testcase name="PreservesDocumentFailurePolicyAndLaterEntry/9" value_param="(4, true)" file="${REPO_ROOT}/tests/src/App/PropertyFile.cpp" line="312" status="run" result="completed" time="0.01" timestamp="2026-11-09T14:24:29.570" classname="EmptyAndNonempty/IncludedFileArchiveTest">
+      <properties>
+        <property name="fault_mode" value="4"/>
+        <property name="empty_payload" value="1"/>
+        <property name="payload_bytes" value="0"/>
+        <property name="archive_sha256" value="aeb65e74fb33223c6ada14b2891daea5364f90b239987bf26ec77aa1cee44bab"/>
+        <property name="io_fault_hits" value="0"/>
+        <property name="read_fault_hits" value="0"/>
+        <property name="failed_files_first" value="0"/>
+        <property name="before_notifications" value="0"/>
+        <property name="after_notifications" value="0"/>
+        <property name="later_entry_restored" value="1"/>
+      </properties>
+    </testcase>
+    <testcase name="PreservesDocumentFailurePolicyAndLaterEntry/10" value_param="(5, false)" file="${REPO_ROOT}/tests/src/App/PropertyFile.cpp" line="312" status="run" result="completed" time="0.013" timestamp="2026-11-09T14:24:29.581" classname="EmptyAndNonempty/IncludedFileArchiveTest">
+      <properties>
+        <property name="fault_mode" value="5"/>
+        <property name="empty_payload" value="0"/>
+        <property name="payload_bytes" value="131089"/>
+        <property name="archive_sha256" value="8bfccf075b462099c2e3868f102f3baf15136672517138be2c18db6e8059174f"/>
+        <property name="io_fault_hits" value="0"/>
+        <property name="read_fault_hits" value="0"/>
+        <property name="failed_files_first" value="0"/>
+        <property name="before_notifications" value="0"/>
+        <property name="after_notifications" value="0"/>
+        <property name="later_entry_restored" value="1"/>
+        <property name="retained_destination_bytes" value="11"/>
+        <property name="destination_writable" value="0"/>
+      </properties>
+    </testcase>
+    <testcase name="PreservesDocumentFailurePolicyAndLaterEntry/11" value_param="(5, true)" file="${REPO_ROOT}/tests/src/App/PropertyFile.cpp" line="312" status="run" result="completed" time="0.01" timestamp="2026-11-09T14:24:29.594" classname="EmptyAndNonempty/IncludedFileArchiveTest">
+      <properties>
+        <property name="fault_mode" value="5"/>
+        <property name="empty_payload" value="1"/>
+        <property name="payload_bytes" value="0"/>
+        <property name="archive_sha256" value="5c05f429d14dfa6d82a653b00dca472fc7ca2f58c0c2eaf965ff470d677dc5df"/>
+        <property name="io_fault_hits" value="0"/>
+        <property name="read_fault_hits" value="0"/>
+        <property name="failed_files_first" value="0"/>
+        <property name="before_notifications" value="0"/>
+        <property name="after_notifications" value="0"/>
+        <property name="later_entry_restored" value="1"/>
+        <property name="retained_destination_bytes" value="11"/>
+        <property name="destination_writable" value="0"/>
+      </properties>
+    </testcase>
+  </testsuite>
+  <testsuite name="EmptyAndNonempty/MissingIncludedPayloadTest" tests="2" failures="0" disabled="0" skipped="0" errors="0" time="0.01" timestamp="2026-11-09T14:24:29.605">
+    <testcase name="SavePreservesPreviousArchive/0" value_param="false" file="${REPO_ROOT}/tests/src/App/PropertyFile.cpp" line="527" status="run" result="completed" time="0.005" timestamp="2026-11-09T14:24:29.605" classname="EmptyAndNonempty/MissingIncludedPayloadTest" />
+    <testcase name="SavePreservesPreviousArchive/1" value_param="true" file="${REPO_ROOT}/tests/src/App/PropertyFile.cpp" line="527" status="run" result="completed" time="0.005" timestamp="2026-11-09T14:24:29.610" classname="EmptyAndNonempty/MissingIncludedPayloadTest" />
+  </testsuite>
+  <testsuite name="EmptyAndNonempty/IncludedFileHookTest" tests="6" failures="0" disabled="0" skipped="0" errors="0" time="0.016" timestamp="2026-11-09T14:24:29.615">
+    <testcase name="ReportsIoFailureBeforePayloadCompletion/0" value_param="(1, false)" file="${REPO_ROOT}/tests/src/App/PropertyFile.cpp" line="634" status="run" result="completed" time="0.003" timestamp="2026-11-09T14:24:29.615" classname="EmptyAndNonempty/IncludedFileHookTest">
+      <properties>
+        <property name="fault_mode" value="1"/>
+        <property name="empty_payload" value="0"/>
+        <property name="exception_observed" value="1"/>
+        <property name="before_notifications" value="1"/>
+        <property name="after_notifications" value="0"/>
+        <property name="io_fault_hits" value="1"/>
+      </properties>
+    </testcase>
+    <testcase name="ReportsIoFailureBeforePayloadCompletion/1" value_param="(1, true)" file="${REPO_ROOT}/tests/src/App/PropertyFile.cpp" line="634" status="run" result="completed" time="0.001" timestamp="2026-11-09T14:24:29.619" classname="EmptyAndNonempty/IncludedFileHookTest">
+      <properties>
+        <property name="fault_mode" value="1"/>
+        <property name="empty_payload" value="1"/>
+        <property name="exception_observed" value="0"/>
+        <property name="before_notifications" value="1"/>
+        <property name="after_notifications" value="1"/>
+        <property name="io_fault_hits" value="0"/>
+      </properties>
+    </testcase>
+    <testcase name="ReportsIoFailureBeforePayloadCompletion/2" value_param="(2, false)" file="${REPO_ROOT}/tests/src/App/PropertyFile.cpp" line="634" status="run" result="completed" time="0.003" timestamp="2026-11-09T14:24:29.621" classname="EmptyAndNonempty/IncludedFileHookTest">
+      <properties>
+        <property name="fault_mode" value="2"/>
+        <property name="empty_payload" value="0"/>
+        <property name="exception_observed" value="1"/>
+        <property name="before_notifications" value="1"/>
+        <property name="after_notifications" value="0"/>
+        <property name="io_fault_hits" value="1"/>
+      </properties>
+    </testcase>
+    <testcase name="ReportsIoFailureBeforePayloadCompletion/3" value_param="(2, true)" file="${REPO_ROOT}/tests/src/App/PropertyFile.cpp" line="634" status="run" result="completed" time="0.002" timestamp="2026-11-09T14:24:29.624" classname="EmptyAndNonempty/IncludedFileHookTest">
+      <properties>
+        <property name="fault_mode" value="2"/>
+        <property name="empty_payload" value="1"/>
+        <property name="exception_observed" value="1"/>
+        <property name="before_notifications" value="1"/>
+        <property name="after_notifications" value="0"/>
+        <property name="io_fault_hits" value="1"/>
+      </properties>
+    </testcase>
+    <testcase name="ReportsIoFailureBeforePayloadCompletion/4" value_param="(3, false)" file="${REPO_ROOT}/tests/src/App/PropertyFile.cpp" line="634" status="run" result="completed" time="0.003" timestamp="2026-11-09T14:24:29.626" classname="EmptyAndNonempty/IncludedFileHookTest">
+      <properties>
+        <property name="fault_mode" value="3"/>
+        <property name="empty_payload" value="0"/>
+        <property name="exception_observed" value="1"/>
+        <property name="before_notifications" value="1"/>
+        <property name="after_notifications" value="0"/>
+        <property name="io_fault_hits" value="0"/>
+      </properties>
+    </testcase>
+    <testcase name="ReportsIoFailureBeforePayloadCompletion/5" value_param="(3, true)" file="${REPO_ROOT}/tests/src/App/PropertyFile.cpp" line="634" status="run" result="completed" time="0.002" timestamp="2026-11-09T14:24:29.630" classname="EmptyAndNonempty/IncludedFileHookTest">
+      <properties>
+        <property name="fault_mode" value="3"/>
+        <property name="empty_payload" value="1"/>
+        <property name="exception_observed" value="1"/>
+        <property name="before_notifications" value="1"/>
+        <property name="after_notifications" value="0"/>
+        <property name="io_fault_hits" value="0"/>
+      </properties>
+    </testcase>
+  </testsuite>
+</testsuites>

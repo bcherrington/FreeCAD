@@ -180,8 +180,8 @@ comparable workflow and build mode.
 
 D007 AC7/AC8 local workflow review is complete in
 [t0044-cost-benefit-review.md/json](t0044-cost-benefit-review.md), with explicit
-selected scopes, accounting and ownership. Final composition/platform applicability
-remains T010 and whole-spec acceptance/closure remains T011.
+selected scopes, accounting and ownership. T010 confirms final composition/platform
+applicability for the declared Linux scope; whole-spec acceptance/closure remains T011.
 Completed measurement/correctness tasks retain their completion-time criterion
 contracts; adding these clauses does not retroactively reopen those tasks.
 
@@ -325,3 +325,17 @@ qualitative improvement targets require a recorded decision before validation.
 - [Baseline implementation inventory](baseline-status.md)
 - [Optional backlog routes](../../backlog/spec003-follow-ups.md)
 - [Historical input](legacy-spec.md)
+
+## T010 Local Final Scope
+
+T010 and all four children are complete for the declared Linux scope; next T011 promotion/closure.
+
+The owner's final platform selection is Linux-only. The source manifest and
+review explicitly bound backend/theme/input-method/module closure. Current
+correctness and local direction-only cost-benefit acceptance do not certify
+Windows/macOS/Wayland/other drivers, GNOME/IBus memory behavior or current numeric
+P01/P07 timing budgets. Requirement3 AC5 is fulfilled by fresh applicable tests
+plus independently reviewed, hash-bound equivalence, not old timing assembly.
+The old classifier's App-restore blind spot is disclosed and corrected with new
+normal-build regressions and stage proof. No original statistical outcome is
+reclassified. T011 owns whole-spec acceptance/closure and final promotion audit.

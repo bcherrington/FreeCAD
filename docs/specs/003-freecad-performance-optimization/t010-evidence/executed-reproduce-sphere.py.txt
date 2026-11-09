@@ -1,0 +1,24 @@
+import FreeCAD as App
+import Part
+from pathlib import Path
+import json,importlib.util,hashlib
+root=Path.cwd();out=root/'build/spec003-t010'
+def load(name,path):
+ s=importlib.util.spec_from_file_location(name,path);m=importlib.util.module_from_spec(s);s.loader.exec_module(m);return m
+f=load('original_fidelity',root/'tests/src/App/document_performance_fidelity.py');s=load('sphere_supplement',out/'assembly-sphere-supplement.py');doc=App.openDocument(str(root/'data/examples/AssemblyExample.FCStd'))
+try:
+ original=doc.getObject('Shape015').Shape;before=original.exportBrepToString();after_shape=Part.Shape();after_shape.importBrepFromString(before);after=after_shape.exportBrepToString();after_shape=after_shape.Solids[0]
+ assert not f.equivalent_brep(before,after),'Pure roundtrip did not reproduce original oracle mismatch'
+ assert f.equivalent_invariants(f.shape_invariants(original),f.shape_invariants(after_shape))
+ section=None;spheres=[];other_changes=0
+ for a,b in zip(before.splitlines(),after.splitlines()):
+  if a.startswith(f.SECTION_PREFIXES):section=a.split(None,1)[0]
+  if a==b:continue
+  if section=='Surfaces' and len(a.split())==14 and a.split()[0]=='4':spheres.append((a,b))
+  else:other_changes+=1
+ assert len(spheres)==1
+ header='\nCASCADE Topology V1, (c) Matra-Datavision\nSurfaces 1\n'
+ assert s.equivalent_spherical_basis(header+spheres[0][0]+'\n',header+spheres[0][1]+'\n',f)
+ report={'result':'passed','reproduction':'Pure Part.Shape BRep export/import/export reproduces the Assembly sphere-axis normalization mismatch, without document save/reopen, included-file copying, element-map parsing or Gui updates.','fixture':'AssemblyExample','object_count_with_mismatch':1,'spherical_records_reproduced':len(spheres),'other_pure_import_direction_changes':other_changes,'scope_note':'Pure import also normalizes curve directions; this reproduction validates only the exact spherical record seen in the document roundtrip. It does not extend the supplemental oracle to those other curve records.','original_oracle':'rejected; preserved unchanged','narrow_supplement':'Surfaces/type4/14tokens only; protected center/radius/structure exact Decimal; basis offsets4-12 bounded2e-15 plus unit/orthogonal/handedness and unchanged independent invariants; original oracle applies to remaining records.','kernel_version':App.ConfigGet('OCC_VERSION'),'rejection_checks':s.rejection_checks(f),'before_brep_sha256':hashlib.sha256(before.encode()).hexdigest(),'after_brep_sha256':hashlib.sha256(after.encode()).hexdigest(),'invariants_exactly_equal':f.shape_invariants(original)==f.shape_invariants(after_shape),'official_format_source':'https://raw.githubusercontent.com/Open-Cascade-SAS/OCCT/V8_0_1/src/ModelingData/TKGeomBase/GeomTools/GeomTools_SurfaceSet.cxx'}
+ (out/'sphere-reproduction.json').write_text(json.dumps(report,indent=2)+'\n');print(json.dumps(report))
+finally:App.closeDocument(doc.Name)

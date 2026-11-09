@@ -1,0 +1,25 @@
+{
+  "proof": {
+    "build/debug/lib/libFreeCADApp.so": {
+      "earlier": "2b395849fc5d1f4de52af4c2f67ce921e4068e9991d6b976f021a7e8b24c75d3",
+      "current": "2b395849fc5d1f4de52af4c2f67ce921e4068e9991d6b976f021a7e8b24c75d3",
+      "identical": true
+    },
+    "build/debug/lib/libFreeCADBase.so": {
+      "earlier": "04e1e7c5ce58be7a5de3fee0ba2c7fbfde3105a6e7b95378f6c7ba2cf8998b5c",
+      "current": "04e1e7c5ce58be7a5de3fee0ba2c7fbfde3105a6e7b95378f6c7ba2cf8998b5c",
+      "identical": true
+    },
+    "build/debug/Mod/Part/Part.so": {
+      "earlier": "ca65989579b2a5183dda6e461e79d2dd56af781716860025d16d8723d20e060e",
+      "current": "ca65989579b2a5183dda6e461e79d2dd56af781716860025d16d8723d20e060e",
+      "identical": true
+    },
+    "build/debug/Mod/Sketcher/Sketcher.so": {
+      "earlier": "7105327a33054d4efc3d6dcd3817e82fa9d9f14c61b19e5fdec31b158c8d5cb2",
+      "current": "7105327a33054d4efc3d6dcd3817e82fa9d9f14c61b19e5fdec31b158c8d5cb2",
+      "identical": true
+    }
+  },
+  "scope": "Seven campaign fixture identity checks and separate save/reopen checks ran before final GUI-only restore/preview changes. Core App/Base/Part/Sketcher binaries are exact unchanged bytes; external-Python qualification creates no GUI application/view providers. GUI behavior is separately freshly qualified on final libraries. No claim of full-GUI binary or timing identity."
+}
