@@ -30,7 +30,7 @@ Proposed/deferred items do not authorize an implementation or change a solver de
 | B008 | proposed | Add diagnostic-observer external-property edit regression before upstream preparation | PR prep | local-developer | docs/backlog/sketcher-performance.md#b008-external-observer-regression |
 | B009 | deferred | Explore reduced-resolution initial textures only through a separate measured behavior proposal | later | local-developer | docs/backlog/spec003-follow-ups.md#b009-reduced-resolution-texture-exploration |
 | B010 | deferred | Revisit GUI restore/startup profiling only after fresh results justify a focused investigation | later | local-developer | docs/backlog/spec003-follow-ups.md#b010-conditional-gui-restore-and-startup-investigation |
-| B011 | deferred | Profile larger models before proposing further tree batching or bulk deletion | later | local-developer | docs/backlog/spec003-follow-ups.md#b011-further-tree-batching-or-bulk-delete-profiling |
+| B011 | proposed | Profile larger models before proposing further tree batching or bulk deletion | later | local-developer | docs/backlog/spec003-follow-ups.md#b011-further-tree-batching-or-bulk-delete-profiling |
 | B012 | done | Repair isolated Part area-handler initialization in Measure CTest | PR prep | local-developer | docs/backlog/reattachment-delivery-follow-ups.md#b012-isolated-measurement-handler-registration |
 | B013 | done | Repair Part loft task-selector fixture eligibility | PR prep | local-developer | docs/backlog/reattachment-delivery-follow-ups.md#b013-part-loft-task-selector-test |
 | B014 | proposed | Prepare focused separate-worktree reattachment PR and platform/human review | PR prep | local-developer | docs/backlog/reattachment-delivery-follow-ups.md#b014-upstream-reattachment-delivery |
@@ -66,4 +66,13 @@ initialization and B013 through restored finite-edge loft admission. Existing
 assertions remain intact. Both isolated cases and the unfiltered qualified Linux
 full graph pass (2426 passes, zero failures, two existing skips, eight disabled).
 Earlier spec004 failed runs remain historical evidence. B014 stays proposed;
-B009/B010/B011 stay deferred and owned by local-developer after spec003 closure.
+At Spec003 closure B009/B010/B011 were deferred and owned by local-developer;
+the subsequent Spec005 selection below updates B011 to proposed.
+
+2026-11-09: the user selected six mainstream CAD investigation areas plus B001
+QR comparison and B011 large-model tree profiling. Their execution scope is now
+[Spec005](../specs/005-mainstream-cad-performance-investigation/spec.md), with
+T005 owning B001 and T009 owning B011. Both are proposed/scoped, not executed;
+B011 moves from deferred to proposed. Original numerical/tree invariants and exit
+checks remain. B009 reduced-resolution images and B010 unrelated startup/GUI
+investigation remain deferred. No implementation/default change is selected.

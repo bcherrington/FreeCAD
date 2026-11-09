@@ -18,6 +18,7 @@ and historical evidence remain within each package.
 | --- | --- | --- | --- |
 | 001 | [CAD thumbnailing](001-cad-file-thumbnailing/spec.md) | Extraction baseline only | T001 — Resolve STL rendering and resource contracts |
 | 002 | [Compact rails](002-compact-view-rails-rework/spec.md) | Proposed; no current rails | T001 — Decide rail scope, geometry and persistence contracts |
+| 005 | [Mainstream CAD performance investigation](005-mainstream-cad-performance-investigation/spec.md) | Investigation planned; no profiling results | T001 — Freeze representative workloads, semantic oracles and the collection plan |
 
 No execution dependency is established between these packages. Performance
 measurements require an exact chosen source revision and fixture; rail work must
@@ -41,3 +42,7 @@ as history after T011 local Linux closure. Current guidance is the
 [runbook](../runbooks/freecad-performance-optimization.md). Other platforms and
 current numeric timing promises remain unqualified. Actual implementation and
 recorded cleanup commit state are recorded in the closure log/archive index.
+
+Spec005 investigates mainstream CAD workloads and owns the selected B001 QR and
+B011 tree investigations. It does not reopen Spec003, change solver defaults or
+activate unrelated B009/B010 work. No execution dependency on 001/002 is established.

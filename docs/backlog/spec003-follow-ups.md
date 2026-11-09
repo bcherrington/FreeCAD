@@ -48,7 +48,8 @@ compatibility and per-retained-optimization measurements stay in the spec.
 
 ## B011 Further Tree Batching Or Bulk-Delete Profiling
 
-- Owner/status: local-developer; deferred in the backlog index.
+- Owner/status: local-developer; proposed in the backlog index, scoped for investigation in Spec005.
+- Execution scope (2026-11-09): user-selected [Spec005 T009](../specs/005-mainstream-cad-performance-investigation/tasks.md) owns new profiling; no profile has run. Original invariants/exit checks below remain mandatory.
 - Origin: spec 003 T007.2's conditional larger-document profiling before *further*
   batching/bulk deletion. The profile was not executed by this routing change.
 - Reactivation trigger: after completed receiver-lifetime/restore-completion qualification, new larger-model evidence warrants another change.
@@ -70,10 +71,18 @@ items do not reopen delivery. Current behavior and acceptance scope are in the
 
 ## Closure Audit
 
-T011 verifies B009/B010/B011 remain deferred, owned by local-developer, with
+Spec003 T011 verified B009/B010/B011 were deferred, owned by local-developer, with
 separate activation triggers, acceptance/exit checks and non-blocking scope. No
 reduced-resolution implementation, new startup investigation or larger-model
 further-optimization profile was executed by routing. Numeric current timing
 claims, other platforms and wider P05 memory/concurrency scopes require new
 affected qualification before acceptance, as specified by the reference/runbook;
 they are not promises of this local delivery.
+
+## Subsequent Scope Selection
+
+On 2026-11-09 the user selected B011 for the new mainstream CAD investigation
+Spec005. It is now proposed and scoped to T009, with actual profiling pending
+T001/T002 workload/runtime qualification. This changes future investigation
+ownership/status, not Spec003 historical acceptance or permission for bulk
+deletion. B009/B010 remain deferred.
