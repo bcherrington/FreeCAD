@@ -236,11 +236,7 @@ public:
     };
 
     explicit BRepBuilderAPI_RefineModel(const TopoDS_Shape&, BuildMode buildMode = BuildMode::Immediate);
-#if OCC_VERSION_HEX >= 0x070600
     void Build(const Message_ProgressRange& theRange = Message_ProgressRange()) override;
-#else
-    void Build() override;
-#endif
     const TopTools_ListOfShape& Modified(const TopoDS_Shape& S) override;
     Standard_Boolean IsDeleted(const TopoDS_Shape& S) override;
 

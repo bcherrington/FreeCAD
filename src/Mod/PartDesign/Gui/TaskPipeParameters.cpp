@@ -381,7 +381,7 @@ void TaskPipeParameters::onSelectionChanged(const Gui::SelectionChanges& msg)
                 stateHandler->getSelectionMode()
                 == StateHandlerTaskPipe::SelectionModes::refSpineEdgeRemove
             ) {
-                QString sub = QString::fromLatin1(msg.pSubName);
+                QString sub = QString::fromUtf8(msg.pSubName);
                 if (!sub.isEmpty()) {
                     removeFromListWidget(ui->listWidgetReferences, sub);
                 }
@@ -951,7 +951,7 @@ void TaskPipeOrientation::onSelectionChanged(const SelectionChanges& msg)
                 stateHandler->getSelectionMode()
                 == StateHandlerTaskPipe::SelectionModes::refAuxSpineEdgeRemove
             ) {
-                QString sub = QString::fromLatin1(msg.pSubName);
+                QString sub = QString::fromUtf8(msg.pSubName);
                 if (!sub.isEmpty()) {
                     removeFromListWidget(ui->listWidgetReferences, sub);
                 }

@@ -246,7 +246,7 @@ void TaskTransformedParameters::setupUI()
         if (obj) {
             auto item = new QListWidgetItem();
             item->setText(QString::fromUtf8(obj->Label.getValue()));
-            item->setData(Qt::UserRole, QString::fromLatin1(obj->getNameInDocument()));
+            item->setData(Qt::UserRole, QString::fromUtf8(obj->getNameInDocument()));
             ui->listWidgetFeatures->addItem(item);
         }
     }
@@ -328,7 +328,7 @@ void TaskTransformedParameters::updateRecomputeUi()
 void TaskTransformedParameters::addObject(App::DocumentObject* obj)
 {
     QString label = QString::fromUtf8(obj->Label.getValue());
-    QString objectName = QString::fromLatin1(obj->getNameInDocument());
+    QString objectName = QString::fromUtf8(obj->getNameInDocument());
 
     auto item = new QListWidgetItem();
     item->setText(label);
