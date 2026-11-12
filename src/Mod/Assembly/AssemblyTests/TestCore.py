@@ -28,6 +28,7 @@ import gc
 import os
 import tempfile
 import unittest
+from contextlib import ExitStack
 
 import UtilsAssembly
 import JointObject
@@ -377,6 +378,160 @@ class TestCore(AssemblyTestBase):
         finally:
             App.closeDocument(source.Name)
             directory.cleanup()
+
+    @unittest.skipUnless(App.GuiUp, "Native Motion Python proxy requires the GUI module")
+    def test_mixed_rigid_occurrences_admit_only_active_motion_targets(self):
+        from CommandCreateSimulation import Motion, Simulation
+
+        def closure(owner):
+            result = [owner]
+            for obj in result:
+                result.extend(child for child in getattr(obj, "Group", ()) if child not in result)
+            return result
+
+        def poses_and_status(objects):
+            return [
+                (
+                    obj.Name,
+                    tuple(obj.Placement.toMatrix().A) if hasattr(obj, "Placement") else None,
+                    (
+                        tuple(obj.LinkPlacement.toMatrix().A)
+                        if hasattr(obj, "LinkPlacement")
+                        else None
+                    ),
+                    (
+                        tuple(obj.getPropertyStatus("Placement"))
+                        if hasattr(obj, "Placement")
+                        else None
+                    ),
+                    (
+                        tuple(obj.getPropertyStatus("LinkPlacement"))
+                        if hasattr(obj, "LinkPlacement")
+                        else None
+                    ),
+                )
+                for obj in objects
+            ]
+
+        def snapshot(doc):
+            return (
+                poses_and_status(doc.Objects),
+                [(obj.Name, tuple(obj.State)) for obj in doc.Objects],
+                doc.isTouched(),
+                doc.UndoCount,
+            )
+
+        def pivot(owner):
+            return next(
+                obj for obj in closure(owner) if getattr(obj, "JointType", None) == "Revolute"
+            )
+
+        documents = []
+        with tempfile.TemporaryDirectory() as directory, ExitStack() as scopes:
+
+            def document():
+                doc = App.newDocument()
+                documents.append(doc)
+                scopes.enter_context(AssemblyApp.suspendAutomaticMotion(doc))
+                doc.saveAs(os.path.join(directory, doc.Name + ".FCStd"))
+                return doc
+
+            def assembly(doc):
+                obj = doc.addObject("Assembly::AssemblyObject", "Assembly")
+                obj.Type = "Assembly"
+                obj.newObject("Assembly::JointGroup", "Joints")
+                return obj
+
+            def occurrence(owner, source, rigid):
+                obj = owner.newObject("Assembly::AssemblyLink", "Occurrence")
+                obj.Rigid = rigid
+                obj.LinkedObject = source
+                for _ in range(3):
+                    owner.Document.recompute()
+                self.assertTrue(obj.Group)
+                return obj
+
+            scopes.enter_context(AssemblyApp.suspendAutomaticMotion(self.doc))
+            try:
+                definitions = document()
+                for name, radius in (("Base", 3), ("Arm", 2)):
+                    part = definitions.addObject("Part::Feature", name)
+                    part.Shape = Part.makeCylinder(radius, 4)
+                definitions.recompute()
+                definitions.save()
+                mechanism = document()
+                unit = assembly(mechanism)
+                parts = []
+                for name in ("Base", "Arm"):
+                    link = unit.newObject("App::Link", name)
+                    link.LinkedObject = definitions.getObject(name)
+                    link.LinkTransform = False
+                    parts.append(link)
+                group = next(obj for obj in unit.Group if obj.TypeId == "Assembly::JointGroup")
+                ground = group.newObject("App::FeaturePython", "Ground")
+                JointObject.GroundedJoint(ground, parts[0])
+                joint = group.newObject("App::FeaturePython", "Pivot")
+                JointObject.Joint(joint, JointObject.JointTypes.index("Revolute"))
+                JointObject.ViewProviderJoint(joint.ViewObject)
+                joint.Detach1 = joint.Detach2 = True
+                joint.Reference1 = (parts[0], [""])
+                joint.Reference2 = (parts[1], [""])
+                joint.Placement1 = joint.Placement2 = App.Placement()
+                mechanism.recompute()
+                self.assertEqual(unit.solveValidated(), 0)
+                mechanism.save()
+                middle_doc = document()
+                middle = assembly(middle_doc)
+                occurrence(middle, unit, False)
+                middle_doc.save()
+                self.doc.saveAs(os.path.join(directory, "Target.FCStd"))
+                frozen = occurrence(self.assembly, middle, True)
+                flexible = occurrence(self.assembly, middle, False)
+                self.assertTrue(
+                    any(
+                        obj.TypeId == "Assembly::AssemblyLink" and not obj.Rigid
+                        for obj in closure(frozen)
+                        if obj != frozen
+                    )
+                )
+                simulations = self.assembly.newObject("Assembly::SimulationGroup", "Simulations")
+                simulation = simulations.newObject("App::FeaturePython", "Simulation")
+                Simulation(simulation)
+                motion = self.assembly.newObject("App::FeaturePython", "Motion")
+                Motion(motion, "Angular", pivot(flexible), "30*time")
+                simulation.Group = [motion]
+                self.doc.recompute()
+                sources = [(doc, snapshot(doc)) for doc in documents]
+                frozen_arm = next(
+                    obj
+                    for obj in closure(frozen)
+                    if obj.TypeId == "App::Link" and obj.getLinkedObject(True).Name == "Arm"
+                )
+
+                for angle in (25, -40):
+                    with self.subTest(angle=angle):
+                        frozen_arm.LinkPlacement = App.Placement(
+                            App.Vector(), App.Rotation(App.Vector(0, 0, 1), angle)
+                        )
+                        frozen_before = poses_and_status(closure(frozen))
+                        self.assertEqual(self.assembly.solveValidated(), 0)
+                        self.assertEqual(poses_and_status(closure(frozen)), frozen_before)
+                        for target in (pivot(frozen), pivot(flexible)):
+                            motion.Joint = target
+                            target.Suppressed = target != pivot(frozen)
+                            before = snapshot(self.doc)
+                            self.assertEqual(self.assembly.solveValidated(True), -8)
+                            self.assertEqual(snapshot(self.doc), before)
+                            target.Suppressed = False
+                        motion.Joint = pivot(flexible)
+                        self.assertEqual(self.assembly.solve(), -7)
+                        self.assertTrue(AssemblyApp.isAutomaticMotionSuspended(self.doc))
+                        self.assertEqual(poses_and_status(closure(frozen)), frozen_before)
+                        for doc, before in sources:
+                            self.assertEqual(snapshot(doc), before)
+            finally:
+                for doc in reversed(documents):
+                    App.closeDocument(doc.Name)
 
     def test_component_count_for_link_array(self):
         source = self.doc.addObject("Part::Box", "ArraySource")

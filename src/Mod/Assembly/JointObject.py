@@ -1514,7 +1514,7 @@ class GroundedJoint:
     def setReadOnly(self, joint, value):
         if AssemblyApp.isAutomaticMotionSuspended(joint.Document):
             if not value and hasattr(joint, "ObjectToGround") and joint.ObjectToGround:
-                AssemblyApp._deferGroundedRelease(joint.Document, joint.ObjectToGround)
+                AssemblyApp._deferGroundedRelease(joint.Document, joint.ObjectToGround, joint)
             return
 
         if hasattr(joint, "ObjectToGround") and joint.ObjectToGround:

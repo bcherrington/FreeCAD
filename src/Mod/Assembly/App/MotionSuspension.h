@@ -39,9 +39,14 @@ private:
 AssemblyExport bool isAutomaticMotionSuspended(const App::Document* document);
 
 // Internal grounded-joint callback coordination. These do not release suspension.
-void deferGroundedRelease(App::Document& document, App::DocumentObject* target);
+void deferGroundedRelease(
+    App::Document& document,
+    App::DocumentObject* target,
+    App::DocumentObject* record = nullptr
+);
 void reconcileDeferredGroundedReleases(
     App::Document& document,
+    App::DocumentObject* root,
     const std::unordered_set<App::DocumentObject*>& admitted,
     const std::vector<App::DocumentObject*>& grounded
 );

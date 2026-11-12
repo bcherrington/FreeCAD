@@ -154,6 +154,16 @@ AssemblyExport JointGroup* getJointGroup(const App::Part* part);
 
 AssemblyExport std::vector<App::DocumentObject*> getAssemblyComponents(const AssemblyObject* assembly);
 
+namespace detail
+{
+// Internal collector shared by native component enumeration and admission.
+// Call only after validating containment when including dormant components.
+std::vector<App::DocumentObject*> getAssemblyComponents(
+    const std::vector<App::DocumentObject*>& objects,
+    bool includeSuppressed
+);
+}  // namespace detail
+
 // getters to get from properties
 AssemblyExport void setJointActivated(const App::DocumentObject* joint, bool val);
 AssemblyExport bool getJointActivated(const App::DocumentObject* joint);

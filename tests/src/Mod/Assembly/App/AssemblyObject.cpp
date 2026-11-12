@@ -875,7 +875,11 @@ with mixed_fixture((True,)) as (root, nodes, sources):
     # must consume the retained intent; a dropped queue would leave it locked.
     eligible = doc.addObject("Assembly::AssemblyObject", "Eligible")
     eligible.newObject("Assembly::JointGroup", "EligibleJoints")
+    old_owner = next(obj for obj in mixed_closure(nodes[0])
+                     if hasattr(obj, "Group") and first in obj.Group)
+    old_owner.removeObject(first)
     eligible.addObject(first)
+    assert first not in old_owner.Group
     assert eligible.solveValidated(False) == 0
     for prop in ("Placement", "LinkPlacement"):
         assert "ReadOnly" not in first.getPropertyStatus(prop)
@@ -1022,5 +1026,358 @@ for rigid in (False, True):
                 assert mixed_snapshot(root.Document) == before
             for doc, snapshot in sources:
                 assert mixed_snapshot(doc) == snapshot
+)PY"));
+}
+
+TEST_F(AssemblyObjectTest, sourceElementSuppressionRetainsSynchronizedLocalJointMetadata)
+{
+    ASSERT_NO_THROW(Base::Interpreter().runString(mixedAssemblyFixture));
+    ASSERT_NO_THROW(Base::Interpreter().runString(R"PY(
+doc = App.newDocument()
+try:
+    with AssemblyApp.suspendAutomaticMotion(doc):
+        source = doc.addObject("Assembly::AssemblyObject", "Source")
+        source_group = source.newObject("Assembly::JointGroup", "SourceJoints")
+        geometry = source.newObject("Part::Box", "Geometry")
+        array = source.newObject("App::Link", "SourceArray")
+        array.LinkedObject = geometry
+        array.ElementCount = 2
+        source_joint = source_group.newObject("App::FeaturePython", "SourcePivot")
+        JointObject.Joint(source_joint, JointObject.JointTypes.index("Revolute"))
+        source_joint.Detach1 = True
+        source_joint.Detach2 = True
+        source_joint.Reference1 = (array.ElementList[0], [""])
+        source_joint.Reference2 = (array.ElementList[1], [""])
+        source_joint.Placement1 = App.Placement()
+        source_joint.Placement2 = App.Placement()
+        root = doc.addObject("Assembly::AssemblyObject", "Root")
+        root.newObject("Assembly::JointGroup", "RootJoints")
+        instance = root.newObject("Assembly::AssemblyLink", "Instance")
+        instance.Rigid = False
+        instance.LinkedObject = source
+        for _ in range(3):
+            doc.recompute()
+        local_group = next(obj for obj in instance.Group if obj.TypeId == "Assembly::JointGroup")
+        local_array = next(obj for obj in instance.Group
+                           if obj.TypeId == "App::Link" and obj.ElementCount == 2)
+        assert len(local_group.Group) == 1
+        local_joint = local_group.Group[0]
+        name = local_joint.Name
+        references = (local_joint.Reference1, local_joint.Reference2)
+        assert references == ((local_array.ElementList[0], [""]),
+                              (local_array.ElementList[1], [""]))
+        assert list(root.Joints) == [local_joint]
+        for suppressed in (True, False, True):
+            array.ElementList[1].Suppressed = suppressed
+            instance.touch()
+            for _ in range(3):
+                doc.recompute()
+            # Source-joint synchronization needs structural records even when
+            # the ordinary solver excludes their temporarily suppressed endpoint.
+            assert doc.getObject(name) == local_joint
+            assert list(local_group.Group) == [local_joint]
+            assert (local_joint.Reference1, local_joint.Reference2) == references
+            assert local_array.ElementList[1].Suppressed == suppressed
+            assert list(root.Joints) == ([] if suppressed else [local_joint])
+            assert source_joint.Reference2 == (array.ElementList[1], [""])
+            assert root.solveValidated(False) == 0
+            if suppressed:
+                motion = mixed_motion(root, local_joint)
+                before = mixed_snapshot(doc)
+                assert root.solveValidated(False) == -8
+                assert mixed_snapshot(doc) == before
+                doc.removeObject(motion.Name)
+finally:
+    App.closeDocument(doc.Name)
+)PY"));
+}
+
+TEST_F(AssemblyObjectTest, ordinarySolveKeepsRootCoordinateSystemJointActive)
+{
+    ASSERT_NO_THROW(Base::Interpreter().runString(R"PY(
+import FreeCAD as App
+import AssemblyApp
+import JointObject
+import Part
+
+doc = App.newDocument()
+try:
+    with AssemblyApp.suspendAutomaticMotion(doc):
+        root = doc.addObject("Assembly::AssemblyObject", "Assembly")
+        group = root.newObject("Assembly::JointGroup", "Joints")
+        datum = root.newObject("App::LocalCoordinateSystem", "ReferenceFrame")
+        datum.addExtension("Part::AttachExtensionPython")
+        assert datum.MapMode == "Deactivated"
+        moving = root.newObject("Part::Box", "Moving")
+        moving.Placement.Base = App.Vector(13, 17, 19)
+        joint = group.newObject("App::FeaturePython", "DatumJoint")
+        JointObject.Joint(joint, JointObject.JointTypes.index("Fixed"))
+        joint.Detach1 = True
+        joint.Detach2 = True
+        joint.Reference1 = (datum, [""])
+        joint.Reference2 = (moving, [""])
+        joint.Placement1 = App.Placement()
+        joint.Placement2 = App.Placement()
+        doc.recompute()
+    assert not AssemblyApp.isAutomaticMotionSuspended(doc)
+    assert list(root.Joints) == [joint]
+    fixed_pose = App.Placement(datum.Placement)
+    initial = App.Placement(moving.Placement)
+    assert root.solve(False) == 0
+    assert datum.Placement.isSame(fixed_pose, 1e-9)
+    assert not moving.Placement.isSame(initial, 1e-9)
+    assert moving.Placement.isSame(fixed_pose, 1e-9)
+finally:
+    App.closeDocument(doc.Name)
+)PY"));
+}
+
+TEST_F(AssemblyObjectTest, ordinaryPopulatedModeConversionRemapsBothParentJointEndpoints)
+{
+    ASSERT_NO_THROW(Base::Interpreter().runString(R"PY(
+import FreeCAD as App
+import AssemblyApp
+import JointObject
+import Part
+
+doc = App.newDocument()
+try:
+    with AssemblyApp.suspendAutomaticMotion(doc):
+        source = doc.addObject("Assembly::AssemblyObject", "Source")
+        source.newObject("Assembly::JointGroup", "SourceJoints")
+        source.newObject("Part::Box", "First")
+        source.newObject("Part::Box", "Second")
+        root = doc.addObject("Assembly::AssemblyObject", "Root")
+        group = root.newObject("Assembly::JointGroup", "RootJoints")
+        anchor = root.newObject("Part::Box", "Anchor")
+        instance = root.newObject("Assembly::AssemblyLink", "Instance")
+        instance.Rigid = False
+        instance.LinkedObject = source
+        for _ in range(3):
+            doc.recompute()
+        children = [obj for obj in instance.Group if obj.TypeId == "App::Link"]
+        assert len(children) == 2
+        joints = []
+        for refs in (((children[0], [""]), (anchor, [""])),
+                     ((anchor, [""]), (children[1], [""]))):
+            joint = group.newObject("App::FeaturePython", "ParentJoint")
+            JointObject.Joint(joint, JointObject.JointTypes.index("Fixed"))
+            joint.Detach1 = True
+            joint.Detach2 = True
+            joint.Reference1, joint.Reference2 = refs
+            joint.Placement1 = App.Placement()
+            joint.Placement2 = App.Placement()
+            joints.append(joint)
+        doc.recompute()
+    assert not AssemblyApp.isAutomaticMotionSuspended(doc)
+    for _ in range(2):
+        instance.Rigid = True
+        assert joints[0].Reference1 == (instance, [children[0].Name + "."])
+        assert joints[0].Reference2 == (anchor, [""])
+        assert joints[1].Reference1 == (anchor, [""])
+        assert joints[1].Reference2 == (instance, [children[1].Name + "."])
+        instance.Rigid = False
+        assert joints[0].Reference1 == (children[0], [""])
+        assert joints[0].Reference2 == (anchor, [""])
+        assert joints[1].Reference1 == (anchor, [""])
+        assert joints[1].Reference2 == (children[1], [""])
+        assert set(root.Joints) == set(joints)
+finally:
+    App.closeDocument(doc.Name)
+)PY"));
+}
+
+TEST_F(AssemblyObjectTest, validatedRootSolveRetainsFlexibleDescendantGroundIntents)
+{
+    ASSERT_NO_THROW(Base::Interpreter().runString(mixedAssemblyFixture));
+    ASSERT_NO_THROW(Base::Interpreter().runString(R"PY(
+for deleted in (False, True):
+    with mixed_fixture((False,)) as (root, nodes, sources):
+        doc = root.Document
+        first, second = (mixed_parts(nodes[0])[name] for name in ("Base", "Arm"))
+        joint = mixed_joint(nodes[0])
+        local_group = next(obj for obj in mixed_closure(nodes[0])
+                           if obj.TypeId == "Assembly::JointGroup" and joint in obj.Group)
+        ground = local_group.newObject("App::FeaturePython", "LocalGround")
+        JointObject.GroundedJoint(ground, first)
+        for prop in ("Placement", "LinkPlacement"):
+            first.setPropertyStatus(prop, "ReadOnly")
+        if deleted:
+            doc.removeObject(ground.Name)
+        else:
+            ground.ObjectToGround = second
+        assert root.solveValidated(False) == 0
+        for prop in ("Placement", "LinkPlacement"):
+            assert "ReadOnly" in first.getPropertyStatus(prop), deleted
+            assert "ReadOnly" not in second.getPropertyStatus(prop), deleted
+        # The descendant's pending operation belongs to that owner's solve.
+        # Transfer its exact target identities and ground to an eligible root,
+        # rather than recreating an intent after the first solve.
+        eligible = doc.addObject("Assembly::AssemblyObject", "EligibleGroundOwner")
+        eligible_group = eligible.newObject("Assembly::JointGroup", "EligibleGrounds")
+        old_owner = next(obj for obj in mixed_closure(nodes[0])
+                         if hasattr(obj, "Group") and first in obj.Group)
+        old_owner.removeObject(first)
+        eligible.addObject(first)
+        assert first not in old_owner.Group
+        if not deleted:
+            old_owner.removeObject(second)
+            eligible.addObject(second)
+            assert second not in old_owner.Group
+            local_group.removeObject(ground)
+            eligible_group.addObject(ground)
+        assert eligible.solveValidated(False) == 0
+        for prop in ("Placement", "LinkPlacement"):
+            assert "ReadOnly" not in first.getPropertyStatus(prop), deleted
+            if not deleted:
+                assert "ReadOnly" in second.getPropertyStatus(prop)
+        for source_doc, before in sources:
+            assert mixed_snapshot(source_doc) == before
+)PY"));
+}
+
+TEST_F(AssemblyObjectTest, validatedMotionRejectsErroredNativeJointBeforeEffects)
+{
+    ASSERT_NO_THROW(Base::Interpreter().runString(mixedAssemblyFixture));
+    ASSERT_NO_THROW(Base::Interpreter().runString(R"PY(
+mixed_error_doc = App.newDocument()
+mixed_error_scope = AssemblyApp.suspendAutomaticMotion(mixed_error_doc)
+mixed_error_scope.__enter__()
+mixed_error_root = mixed_error_doc.addObject("Assembly::AssemblyObject", "Assembly")
+mixed_error_group = mixed_error_root.newObject("Assembly::JointGroup", "Joints")
+mixed_error_first = mixed_error_root.newObject("Part::Box", "First")
+mixed_error_second = mixed_error_root.newObject("Part::Box", "Second")
+mixed_error_joint = mixed_error_group.newObject("App::FeaturePython", "ErroredJoint")
+JointObject.Joint(mixed_error_joint, JointObject.JointTypes.index("Revolute"))
+mixed_error_joint.Detach1 = True
+mixed_error_joint.Detach2 = True
+mixed_error_joint.Reference1 = (mixed_error_first, [""])
+mixed_error_joint.Reference2 = (mixed_error_second, [""])
+mixed_error_joint.Placement1 = App.Placement()
+mixed_error_joint.Placement2 = App.Placement()
+mixed_error_doc.recompute()
+mixed_motion(mixed_error_root, mixed_error_joint)
+assert mixed_error_root.solveValidated(False) == 0
+)PY"));
+    auto* document = App::GetApplication().getActiveDocument();
+    auto* joint = document->getObject("ErroredJoint");
+    EXPECT_NE(joint, nullptr);
+    if (joint) {
+        // Error is a native object status, with no public Python setter. Keep
+        // the complete real Joint proxy/schema to isolate eligibility alone.
+        joint->setStatus(App::ObjectStatus::Error, true);
+        EXPECT_TRUE(joint->isError());
+        EXPECT_NO_THROW(Base::Interpreter().runString(R"PY(
+assert "Invalid" in mixed_error_joint.State
+assert mixed_error_joint not in mixed_error_root.Joints
+mixed_error_before = mixed_snapshot(mixed_error_doc)
+assert mixed_error_root.solveValidated(False) == -8
+assert mixed_snapshot(mixed_error_doc) == mixed_error_before
+)PY"));
+    }
+    ASSERT_NO_THROW(Base::Interpreter().runString(R"PY(
+mixed_error_scope.__exit__(None, None, None)
+App.closeDocument(mixed_error_doc.Name)
+)PY"));
+}
+
+TEST_F(AssemblyObjectTest, overlappingGenericGroupsKeepImmediateOwnerOrderIndependent)
+{
+    ASSERT_NO_THROW(Base::Interpreter().runString(R"PY(
+import FreeCAD as App
+import AssemblyApp
+import JointObject
+import Part
+
+for generic_first in (False, True):
+    doc = App.newDocument()
+    try:
+        with AssemblyApp.suspendAutomaticMotion(doc):
+            root = doc.addObject("Assembly::AssemblyObject", "Assembly")
+            group = root.newObject("Assembly::JointGroup", "Joints")
+            generic = root.newObject("App::DocumentObjectGroup", "Metadata")
+            first = root.newObject("Part::Box", "First")
+            second = root.newObject("Part::Box", "Second")
+            joint = group.newObject("App::FeaturePython", "Joint")
+            JointObject.Joint(joint, JointObject.JointTypes.index("Revolute"))
+            joint.Detach1 = True
+            joint.Detach2 = True
+            joint.Reference1 = (first, [""])
+            joint.Reference2 = (second, [""])
+            joint.Placement1 = App.Placement()
+            joint.Placement2 = App.Placement()
+            # Both paths reach the same immediate-owner group. Explicit Group
+            # membership, rather than the first traversal path, defines authority.
+            generic.Group = [group]
+            root.Group = ([generic, group] if generic_first else [group, generic]) + [first, second]
+            doc.recompute()
+            assert list(root.Joints) == [joint]
+            assert root.solveValidated(False) == 0, generic_first
+            assert list(group.Group) == [joint]
+    finally:
+        App.closeDocument(doc.Name)
+)PY"));
+}
+
+TEST_F(AssemblyObjectTest, deferredGroundReleaseDistinguishesUnknownAndExpiredOwners)
+{
+    ASSERT_NO_THROW(Base::Interpreter().runString(R"PY(
+import FreeCAD as App
+import AssemblyApp
+import JointObject
+import Part
+
+for known_owner in (False, True):
+    doc = App.newDocument()
+    try:
+        with AssemblyApp.suspendAutomaticMotion(doc):
+            if known_owner:
+                old_owner = doc.addObject("Assembly::AssemblyObject", "OldOwner")
+                old_group = old_owner.newObject("Assembly::JointGroup", "OldJoints")
+                target = old_owner.newObject("Part::Box", "Target")
+                ground = old_group.newObject("App::FeaturePython", "OldGround")
+                JointObject.GroundedJoint(ground, target)
+            else:
+                target = doc.addObject("Part::Box", "Target")
+            target.setPropertyStatus("Placement", "ReadOnly")
+            if known_owner:
+                # The real callback captures provenance before record deletion.
+                doc.removeObject(ground.Name)
+                old_owner.removeObject(target)
+                doc.removeObject(old_owner.Name)
+            else:
+                # Legacy callers can queue an unowned target. Later containment
+                # cannot retroactively grant that unknown intent authority.
+                AssemblyApp._deferGroundedRelease(doc, target)
+            eligible = doc.addObject("Assembly::AssemblyObject", "NewOwner")
+            eligible.newObject("Assembly::JointGroup", "NewJoints")
+            eligible.addObject(target)
+            for _ in range(2):
+                assert eligible.solveValidated(False) == 0
+                assert ("ReadOnly" in target.getPropertyStatus("Placement")) == (not known_owner)
+    finally:
+        App.closeDocument(doc.Name)
+)PY"));
+}
+
+TEST_F(AssemblyObjectTest, rootGroundRetargetRetainsAuthorityOverFlexibleDescendants)
+{
+    ASSERT_NO_THROW(Base::Interpreter().runString(mixedAssemblyFixture));
+    ASSERT_NO_THROW(Base::Interpreter().runString(R"PY(
+with mixed_fixture((False,)) as (root, nodes, sources):
+    first, second = (mixed_parts(nodes[0])[name] for name in ("Base", "Arm"))
+    group = next(obj for obj in root.Group if obj.TypeId == "Assembly::JointGroup")
+    ground = group.newObject("App::FeaturePython", "RootOwnedGround")
+    JointObject.GroundedJoint(ground, first)
+    for prop in ("Placement", "LinkPlacement"):
+        first.setPropertyStatus(prop, "ReadOnly")
+    ground.ObjectToGround = second
+    assert root.solveValidated(False) == 0
+    for prop in ("Placement", "LinkPlacement"):
+        assert "ReadOnly" not in first.getPropertyStatus(prop)
+        assert "ReadOnly" in second.getPropertyStatus(prop)
+    assert ground.ObjectToGround == second
+    for source_doc, before in sources:
+        assert mixed_snapshot(source_doc) == before
 )PY"));
 }

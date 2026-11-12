@@ -387,15 +387,11 @@ JointGroup* getJointGroup(const App::Part* part)
         return nullptr;
     }
 
-    const auto* doc = part->getDocument();
-
-    const auto jointGroups = doc->getObjectsOfType(JointGroup::getClassTypeId());
-    if (jointGroups.empty()) {
-        return nullptr;
-    }
-    for (auto jointGroup : jointGroups) {
-        if (part->hasObject(jointGroup)) {
-            return freecad_cast<JointGroup*>(jointGroup);
+    // Joint groups belong to their immediate occurrence, not to an arbitrary
+    // descendant selected by document creation order.
+    for (auto* object : part->Group.getValues()) {
+        if (auto* group = freecad_cast<JointGroup*>(object)) {
+            return group;
         }
     }
     return nullptr;
@@ -763,11 +759,12 @@ namespace
 // namespace as it's an implementation detail of getAssemblyComponents.
 void collectComponentsRecursively(
     const std::vector<App::DocumentObject*>& objects,
-    std::vector<App::DocumentObject*>& results
+    std::vector<App::DocumentObject*>& results,
+    bool includeSuppressed
 )
 {
     for (auto* obj : objects) {
-        if (!obj || isSuppressedLinkElement(obj)) {
+        if (!obj || (!includeSuppressed && isSuppressedLinkElement(obj))) {
             continue;
         }
 
@@ -778,14 +775,14 @@ void collectComponentsRecursively(
                 results.push_back(asmLink);
             }
             else {
-                collectComponentsRecursively(asmLink->Group.getValues(), results);
+                collectComponentsRecursively(asmLink->Group.getValues(), results, includeSuppressed);
             }
             continue;
         }
         else if (obj->isLinkGroup()) {
             auto* linkGroup = static_cast<App::Link*>(obj);
             for (auto* elt : linkGroup->ElementList.getValues()) {
-                if (!elt || isSuppressedLinkElement(elt)) {
+                if (!elt || (!includeSuppressed && isSuppressedLinkElement(elt))) {
                     continue;
                 }
                 results.push_back(elt);
@@ -797,7 +794,7 @@ void collectComponentsRecursively(
             continue;
         }
         else if (auto* group = freecad_cast<App::DocumentObjectGroup*>(obj)) {
-            collectComponentsRecursively(group->Group.getValues(), results);
+            collectComponentsRecursively(group->Group.getValues(), results, includeSuppressed);
             continue;
         }
         else if (auto* link = freecad_cast<App::Link*>(obj)) {
@@ -821,15 +818,23 @@ void collectComponentsRecursively(
 }
 }  // namespace
 
+std::vector<App::DocumentObject*> detail::getAssemblyComponents(
+    const std::vector<App::DocumentObject*>& objects,
+    bool includeSuppressed
+)
+{
+    std::vector<App::DocumentObject*> components;
+    collectComponentsRecursively(objects, components, includeSuppressed);
+    return components;
+}
+
 std::vector<App::DocumentObject*> getAssemblyComponents(const AssemblyObject* assembly)
 {
     if (!assembly) {
         return {};
     }
 
-    std::vector<App::DocumentObject*> components;
-    collectComponentsRecursively(assembly->Group.getValues(), components);
-    return components;
+    return detail::getAssemblyComponents(assembly->Group.getValues(), false);
 }
 
 double getJointCurrentValue(App::DocumentObject* joint, bool isAngle)

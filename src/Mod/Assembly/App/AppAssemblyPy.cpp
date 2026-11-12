@@ -176,13 +176,16 @@ private:
     {
         PyObject* documentValue = nullptr;
         PyObject* targetValue = nullptr;
+        PyObject* recordValue = nullptr;
         if (!PyArg_ParseTuple(
                 args.ptr(),
-                "O!O!",
+                "O!O!|O!",
                 &App::DocumentPy::Type,
                 &documentValue,
                 &App::DocumentObjectPy::Type,
-                &targetValue
+                &targetValue,
+                &App::DocumentObjectPy::Type,
+                &recordValue
             )) {
             throw Py::Exception();
         }
@@ -191,7 +194,15 @@ private:
         if (!document->isValid() || !target->Base::PyObjectBase::isValid()) {
             throw Py::RuntimeError("The document or grounded object has been deleted");
         }
-        Assembly::deferGroundedRelease(*document->getDocumentPtr(), target->getDocumentObjectPtr());
+        auto* record = recordValue ? static_cast<App::DocumentObjectPy*>(recordValue) : nullptr;
+        if (record && !record->Base::PyObjectBase::isValid()) {
+            throw Py::RuntimeError("The grounded joint has been deleted");
+        }
+        Assembly::deferGroundedRelease(
+            *document->getDocumentPtr(),
+            target->getDocumentObjectPtr(),
+            record ? record->getDocumentObjectPtr() : nullptr
+        );
         return Py::None();
     }
 };
