@@ -66,6 +66,20 @@ PyObject* AssemblyObjectPy::solve(PyObject* args) const
     return Py_BuildValue("i", ret);
 }
 
+PyObject* AssemblyObjectPy::solveValidated(PyObject* args) const
+{
+    PyObject* enableUndo = Py_False;
+    if (!PyArg_ParseTuple(args, "|O!", &PyBool_Type, &enableUndo)) {
+        return nullptr;
+    }
+    PY_TRY
+    {
+        return PyLong_FromLong(getAssemblyObjectPtr()->solveValidated(Base::asBoolean(enableUndo)));
+    }
+    PY_CATCH;
+    return nullptr;
+}
+
 PyObject* AssemblyObjectPy::generateSimulation(PyObject* args) const
 {
     PyObject* pyobj;

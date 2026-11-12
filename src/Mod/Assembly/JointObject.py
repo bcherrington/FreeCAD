@@ -25,6 +25,7 @@ import math
 
 import FreeCAD as App
 import Part
+import AssemblyApp
 
 from PySide import QtCore
 from PySide.QtCore import QT_TRANSLATE_NOOP
@@ -144,6 +145,8 @@ JointParallelForbidden = [
 
 
 def solveIfAllowed(assembly, storePrev=False):
+    if assembly is None or AssemblyApp.isAutomaticMotionSuspended(assembly.Document):
+        return
     if assembly.Type == "Assembly" and Preferences.preferences().GetBool(
         "SolveInJointCreation", True
     ):
@@ -918,6 +921,9 @@ class Joint:
         self.matchJCS(joint, savePlc)
 
     def matchJCS(self, joint, savePlc=True, reverse=False):
+        if AssemblyApp.isAutomaticMotionSuspended(joint.Document):
+            return False
+
         assembly = self.getAssembly(joint)
         sameDir = self.areJcsSameDir(joint)
         if reverse:
@@ -982,6 +988,9 @@ class Joint:
         return True
 
     def undoPreSolve(self, joint):
+        if AssemblyApp.isAutomaticMotionSuspended(joint.Document):
+            return
+
         if hasattr(self, "partsMovedByPresolved") and self.partsMovedByPresolved:
             for part, plc in self.partsMovedByPresolved.items():
                 if part and hasattr(part, "Placement"):
@@ -992,6 +1001,9 @@ class Joint:
                 joint.ViewObject.Proxy.redrawJointPlacements(joint)
 
     def preventParallel(self, joint):
+        if AssemblyApp.isAutomaticMotionSuspended(joint.Document):
+            return
+
         # Angle and perpendicular joints in the solver cannot handle the situation where both JCS are Parallel
         parallel = self.areJcsZParallel(joint)
         if not parallel:
@@ -1384,6 +1396,9 @@ class RigidGroupJoint:
             self._busy = False
 
     def restoreFromPlacements(self, fp):
+        if AssemblyApp.isAutomaticMotionSuspended(fp.Document):
+            return
+
         members = self._validMembers(fp)
         placements = getattr(fp, "RigidPlacements", None) or []
         if len(members) < 2 or len(members) != len(placements):
@@ -1492,7 +1507,16 @@ class GroundedJoint:
         self.setReadOnly(joint, False)
         return True
 
+    def unsetupObject(self, joint):
+        if AssemblyApp.isAutomaticMotionSuspended(joint.Document):
+            self.setReadOnly(joint, False)
+
     def setReadOnly(self, joint, value):
+        if AssemblyApp.isAutomaticMotionSuspended(joint.Document):
+            if not value and hasattr(joint, "ObjectToGround") and joint.ObjectToGround:
+                AssemblyApp._deferGroundedRelease(joint.Document, joint.ObjectToGround)
+            return
+
         if hasattr(joint, "ObjectToGround") and joint.ObjectToGround:
             obj = joint.ObjectToGround
             tag = "-ReadOnly"

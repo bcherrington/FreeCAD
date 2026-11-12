@@ -86,6 +86,7 @@
 #include "AssemblyObjectPy.h"
 #include "AssemblyUtils.h"
 #include "Groups.h"
+#include "MotionSuspension.h"
 
 FC_LOG_LEVEL_INIT("Assembly", true, true, true)
 
@@ -310,14 +311,332 @@ void AssemblyObject::onChanged(const App::Property* prop)
     App::Part::onChanged(prop);
 }
 
+namespace
+{
+// Admission reads the raw local graph, before the solver's filtering and repair helpers.
+// Source geometry reached through a local link is input, never a writable component.
+class AssemblyAdmission
+{
+public:
+    explicit AssemblyAdmission(AssemblyObject& assembly)
+        : assembly(assembly)
+        , document(assembly.getDocument())
+    {}
+
+    bool validate()
+    {
+        if (!document || !visit(&assembly)) {
+            return false;
+        }
+        for (auto* component : getAssemblyComponents(&assembly)) {
+            if (!component || component->getDocument() != document
+                || !component->getPlacementProperty()) {
+                return false;
+            }
+            components.insert(component);
+        }
+        groundable = components;
+        auto* origin = assembly.Origin.getValue();
+        if (!origin || origin->getDocument() != document) {
+            return false;
+        }
+        groundable.insert(origin);
+        for (auto* object : assembly.Group.getValues()) {
+            if (object->isDerivedFrom<App::LocalCoordinateSystem>()
+                || object->isDerivedFrom<App::DatumElement>()) {
+                groundable.insert(object);
+            }
+        }
+        for (auto* record : records) {
+            if (!validateRecord(record)) {
+                return false;
+            }
+        }
+        for (auto* motion : motionRecords) {
+            auto* reference = motion->getPropertyByName<App::PropertyXLinkSub>("Joint");
+            auto* type = motion->getPropertyByName<App::PropertyEnumeration>("MotionType");
+            if (!reference || !standardJoints.contains(reference->getValue()) || !type
+                || !motion->getPropertyByName<App::PropertyString>("Formula")) {
+                return false;
+            }
+            // Native motion evaluation uses the root joint, not a subobject path.
+            for (const auto& subname : reference->getSubValues()) {
+                if (!subname.empty()) {
+                    return false;
+                }
+            }
+            const std::string motionType = type->getValueAsString();
+            const auto jointType = getJointType(reference->getValue());
+            if (motionType == "Angular") {
+                if (jointType != JointType::Revolute && jointType != JointType::Cylindrical) {
+                    return false;
+                }
+            }
+            else if (motionType == "Linear") {
+                if (jointType != JointType::Slider && jointType != JointType::Cylindrical) {
+                    return false;
+                }
+            }
+            else {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    const std::vector<App::DocumentObject*>& groundedTargets() const
+    {
+        return grounds;
+    }
+
+    const std::unordered_set<App::DocumentObject*>& admittedComponents() const
+    {
+        return groundable;
+    }
+
+private:
+    bool visit(App::DocumentObject* object)
+    {
+        if (!object || object->getDocument() != document || active.contains(object)) {
+            return false;
+        }
+        if (!visited.insert(object).second) {
+            return true;
+        }
+        active.insert(object);
+
+        if (auto* link = freecad_cast<App::Link*>(object)) {
+            std::unordered_set<App::DocumentObject*> chain;
+            App::DocumentObject* source = link;
+            while (source) {
+                if (!chain.insert(source).second) {
+                    return false;
+                }
+                if (auto* sourceLink = freecad_cast<App::Link*>(source)) {
+                    source = sourceLink->getTrueLinkedObject(false);
+                }
+                else if (auto* sourceLink = freecad_cast<AssemblyLink*>(source)) {
+                    source = sourceLink->LinkedObject.getValue();
+                }
+                else {
+                    break;
+                }
+            }
+            if (!source) {
+                return false;
+            }
+        }
+        if (auto* link = freecad_cast<AssemblyLink*>(object)) {
+            std::unordered_set<App::DocumentObject*> chain;
+            App::DocumentObject* source = link;
+            while (auto* sourceLink = freecad_cast<AssemblyLink*>(source)) {
+                if (!chain.insert(source).second) {
+                    return false;
+                }
+                source = sourceLink->LinkedObject.getValue();
+            }
+            if (!source || !source->isDerivedFrom<AssemblyObject>()) {
+                return false;
+            }
+        }
+        if (object->getPropertyByName("Joint") || object->getPropertyByName("MotionType")
+            || object->getPropertyByName("Formula")) {
+            motionRecords.push_back(object);
+        }
+
+        auto* groupProperty = object->getPropertyByName("Group");
+        if (groupProperty) {
+            auto* group = dynamic_cast<App::PropertyLinkList*>(groupProperty);
+            if (!group) {
+                return false;
+            }
+            for (auto* child : group->getValues()) {
+                if (object->isDerivedFrom<SimulationGroup>()) {
+                    // A native SimulationGroup contains simulation containers,
+                    // whose Group lists the raw drives, including incomplete ones.
+                    auto* drives = child ? child->getPropertyByName<App::PropertyLinkList>("Group")
+                                         : nullptr;
+                    if (!drives) {
+                        return false;
+                    }
+                    motionRecords.insert(
+                        motionRecords.end(),
+                        drives->getValues().begin(),
+                        drives->getValues().end()
+                    );
+                }
+                if (!visit(child)) {
+                    return false;
+                }
+                if (object->isDerivedFrom<JointGroup>()) {
+                    records.push_back(child);
+                }
+            }
+        }
+        // Expanded link arrays are writable through their local LinkElement instances.
+        if (object->isLinkGroup()) {
+            auto* elements = object->getPropertyByName<App::PropertyLinkList>("ElementList");
+            if (!elements) {
+                return false;
+            }
+            for (auto* element : elements->getValues()) {
+                if (!visit(element)) {
+                    return false;
+                }
+            }
+        }
+        active.erase(object);
+        return true;
+    }
+
+    bool endpoint(App::DocumentObject* record, const char* propertyName) const
+    {
+        auto* reference = record->getPropertyByName<App::PropertyXLinkSub>(propertyName);
+        if (!reference || !components.contains(reference->getValue())) {
+            return false;
+        }
+        const auto& subnames = reference->getSubValues();
+        if (subnames.empty()) {
+            return false;
+        }
+        for (const auto& subname : subnames) {
+            if (subname.find('?') != std::string::npos) {
+                return false;
+            }
+            PyObject* geometry = nullptr;
+            auto* resolved = reference->getValue()->getSubObject(subname.c_str(), &geometry);
+            const bool valid = resolved && (subname.empty() || (geometry && geometry != Py_None));
+            Py_XDECREF(geometry);
+            if (!valid) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    bool validateRecord(App::DocumentObject* record)
+    {
+        const bool hasEndpoints = record->getPropertyByName("Reference1")
+            || record->getPropertyByName("Reference2");
+        const bool hasGround = record->getPropertyByName("ObjectToGround");
+        const bool hasRigid = record->getPropertyByName("ObjectsToRigidGroup");
+        if (static_cast<int>(hasEndpoints) + static_cast<int>(hasGround) + static_cast<int>(hasRigid)
+            != 1) {
+            return false;
+        }
+        if (hasGround) {
+            auto* property = record->getPropertyByName<App::PropertyLink>("ObjectToGround");
+            auto* target = property ? property->getValue() : nullptr;
+            if (!target || target->getDocument() != document) {
+                return false;
+            }
+            if (!groundable.contains(target)) {
+                return false;
+            }
+            grounds.push_back(target);
+            return true;
+        }
+        if (!record->getPropertyByName<App::PropertyBool>("Suppressed")) {
+            return false;
+        }
+        if (hasRigid) {
+            auto* property = record->getPropertyByName<App::PropertyLinkList>("ObjectsToRigidGroup");
+            if (!property || property->getValues().size() < 2) {
+                return false;
+            }
+            std::unordered_set<App::DocumentObject*> members;
+            for (auto* member : property->getValues()) {
+                if (!components.contains(member) || !members.insert(member).second) {
+                    return false;
+                }
+            }
+            return true;
+        }
+        const auto* type = record->getPropertyByName<App::PropertyEnumeration>("JointType");
+        if (!type || type->getValue() < 0 || type->getValue() > static_cast<long>(JointType::Belt)
+            || !record->getPropertyByName<App::PropertyPlacement>("Placement1")
+            || !record->getPropertyByName<App::PropertyPlacement>("Placement2")
+            || !record->getPropertyByName<App::PropertyPlacement>("Offset1")
+            || !record->getPropertyByName<App::PropertyPlacement>("Offset2")
+            || !endpoint(record, "Reference1") || !endpoint(record, "Reference2")) {
+            return false;
+        }
+        auto* first = record->getPropertyByName<App::PropertyXLinkSub>("Reference1")->getValue();
+        auto* second = record->getPropertyByName<App::PropertyXLinkSub>("Reference2")->getValue();
+        if (first == second) {
+            return false;
+        }
+        standardJoints.insert(record);
+        return true;
+    }
+
+    AssemblyObject& assembly;
+    App::Document* document;
+    std::unordered_set<App::DocumentObject*> visited;
+    std::unordered_set<App::DocumentObject*> active;
+    std::unordered_set<App::DocumentObject*> components;
+    std::unordered_set<App::DocumentObject*> groundable;
+    std::unordered_set<App::DocumentObject*> standardJoints;
+    std::vector<App::DocumentObject*> records;
+    std::vector<App::DocumentObject*> motionRecords;
+    std::vector<App::DocumentObject*> grounds;
+};
+}  // namespace
+
+int AssemblyObject::solveValidated(bool enableRedo)
+{
+    if (!getDocument() || solveInProgress) {
+        return -8;
+    }
+    // Keep automatic callbacks disabled even when explicitly called outside another scope.
+    AutomaticMotionSuspension suspension(*getDocument());
+    Base::PyGILStateLocker lock;
+    AssemblyAdmission admission(*this);
+    try {
+        if (!admission.validate()) {
+            return -8;
+        }
+    }
+    catch (const Base::Exception&) {
+        return -8;
+    }
+    catch (const Py::Exception&) {
+        PyErr_Clear();
+        return -8;
+    }
+    // Grounded-joint callbacks intentionally leave status untouched during construction.
+    // Reconcile it only once every target has passed the nonmutating admission check.
+    reconcileDeferredGroundedReleases(
+        *getDocument(),
+        admission.admittedComponents(),
+        admission.groundedTargets()
+    );
+    for (auto* target : admission.groundedTargets()) {
+        for (const char* name : {"Placement", "LinkPlacement"}) {
+            if (auto* property = target->getPropertyByName(name)) {
+                property->setReadOnly(true);
+            }
+        }
+    }
+    return runSolve(enableRedo);
+}
+
 int AssemblyObject::solve(bool enableRedo)
+{
+    if (isAutomaticMotionSuspended(getDocument())) {
+        return -7;
+    }
+    return runSolve(enableRedo);
+}
+
+int AssemblyObject::runSolve(bool enableRedo)
 {
     // updateSolveStatus() solves on demand; suppress that while a solve is running.
     Base::StateLocker lock(solveInProgress);
 
-    ensureIdentityPlacements();
+    ensureIdentityPlacementsImpl();
 
-    syncGroundedJoints();
+    syncGroundedJointsImpl();
 
     mbdAssembly = makeMbdAssembly();
     objectPartMap.clear();
@@ -348,27 +667,35 @@ int AssemblyObject::solve(bool enableRedo)
     catch (const std::exception& e) {
         FC_ERR("Solve failed: " << e.what());
         lastSolverStatus = -1;
-        updateSolveStatus();
+        updateSolveStatusImpl(false);
         return -1;
     }
     catch (...) {
         FC_ERR("Solve failed: unhandled exception");
         lastSolverStatus = -1;
-        updateSolveStatus();
+        updateSolveStatusImpl(false);
         return -1;
     }
 
-    setNewPlacements();
+    setNewPlacementsImpl();
     updateRigidPlacementCache();
 
     redrawJointPlacements(joints);
 
-    updateSolveStatus();
+    updateSolveStatusImpl(false);
 
     return 0;
 }
 
 void AssemblyObject::updateSolveStatus()
+{
+    if (isAutomaticMotionSuspended(getDocument())) {
+        return;
+    }
+    updateSolveStatusImpl(true);
+}
+
+void AssemblyObject::updateSolveStatusImpl(bool allowLazySolve)
 {
     lastRedundantJoints.clear();
     lastHasRedundancies = false;
@@ -391,7 +718,7 @@ void AssemblyObject::updateSolveStatus()
 
     // Solve on demand when queried before the system is solved, but not from within
     // a solve: solve() calls this, so a failed solve would recurse indefinitely.
-    if (!solveInProgress && (!mbdAssembly || !mbdAssembly->mbdSystem)) {
+    if (allowLazySolve && !solveInProgress && (!mbdAssembly || !mbdAssembly->mbdSystem)) {
         solve();
     }
 
@@ -462,6 +789,9 @@ void AssemblyObject::updateSolveStatus()
 
 int AssemblyObject::generateSimulation(App::DocumentObject* sim)
 {
+    if (isAutomaticMotionSuspended(getDocument())) {
+        return -7;
+    }
     mbdAssembly = makeMbdAssembly();
     objectPartMap.clear();
 
@@ -511,6 +841,9 @@ std::vector<App::DocumentObject*> AssemblyObject::getMotionsFromSimulation(App::
 
 int Assembly::AssemblyObject::updateForFrame(size_t index)
 {
+    if (isAutomaticMotionSuspended(getDocument())) {
+        return -7;
+    }
     if (!mbdAssembly) {
         return -1;
     }
@@ -543,6 +876,9 @@ bool AssemblyObject::requiresRigidSolveForMove(const std::vector<App::DocumentOb
 
 void AssemblyObject::preDrag(std::vector<App::DocumentObject*> dragParts)
 {
+    if (isAutomaticMotionSuspended(getDocument())) {
+        return;
+    }
     bundleFixed = true;
     bool hasUnconnectedDragPart = std::ranges::any_of(dragParts, [this](App::DocumentObject* part) {
         return part && !isPartConnected(part);
@@ -600,6 +936,9 @@ void AssemblyObject::preDrag(std::vector<App::DocumentObject*> dragParts)
 
 void AssemblyObject::prepareMbdForIslandDrag(std::vector<App::DocumentObject*> dragParts)
 {
+    if (isAutomaticMotionSuspended(getDocument())) {
+        return;
+    }
     ensureIdentityPlacements();
     syncGroundedJoints();
 
@@ -643,6 +982,9 @@ void AssemblyObject::prepareMbdForIslandDrag(std::vector<App::DocumentObject*> d
 
 void AssemblyObject::doDragStep()
 {
+    if (isAutomaticMotionSuspended(getDocument())) {
+        return;
+    }
     if (!mbdAssembly || draggedParts.empty()) {
         return;
     }
@@ -761,6 +1103,9 @@ bool AssemblyObject::validateNewPlacements()
 
 void AssemblyObject::postDrag()
 {
+    if (isAutomaticMotionSuspended(getDocument())) {
+        return;
+    }
     if (!mbdAssembly) {
         return;
     }
@@ -795,6 +1140,9 @@ void AssemblyObject::savePlacementsForUndo()
 
 void AssemblyObject::undoSolve()
 {
+    if (isAutomaticMotionSuspended(getDocument())) {
+        return;
+    }
     if (previousPositions.size() == 0) {
         return;
     }
@@ -826,6 +1174,9 @@ void AssemblyObject::clearUndo()
 
 void AssemblyObject::exportAsASMT(std::string fileName)
 {
+    if (isAutomaticMotionSuspended(getDocument())) {
+        return;
+    }
     mbdAssembly = makeMbdAssembly();
     objectPartMap.clear();
     rebuildRigidClusters();
@@ -1059,6 +1410,14 @@ bool isFinitePlacement(const Base::Placement& plc)
 }  // namespace
 
 void AssemblyObject::setNewPlacements()
+{
+    if (isAutomaticMotionSuspended(getDocument())) {
+        return;
+    }
+    setNewPlacementsImpl();
+}
+
+void AssemblyObject::setNewPlacementsImpl()
 {
     for (auto& pair : objectPartMap) {
         App::DocumentObject* obj = pair.first;
@@ -2737,6 +3096,14 @@ std::vector<AssemblyLink*> AssemblyObject::getSubAssemblies()
 
 void AssemblyObject::ensureIdentityPlacements()
 {
+    if (isAutomaticMotionSuspended(getDocument())) {
+        return;
+    }
+    ensureIdentityPlacementsImpl();
+}
+
+void AssemblyObject::ensureIdentityPlacementsImpl()
+{
     std::vector<App::DocumentObject*> group = Group.getValues();
     for (auto* obj : group) {
         // When used in assembly, link groups must have identity placements.
@@ -2767,6 +3134,14 @@ void AssemblyObject::ensureIdentityPlacements()
 }
 
 void AssemblyObject::syncGroundedJoints()
+{
+    if (isAutomaticMotionSuspended(getDocument())) {
+        return;
+    }
+    syncGroundedJointsImpl();
+}
+
+void AssemblyObject::syncGroundedJointsImpl()
 {
     if (App::GetApplication().isRestoring()) {
         return;

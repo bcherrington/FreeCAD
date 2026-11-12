@@ -32,6 +32,7 @@
 #include <App/Link.h>
 #include <App/PropertyPythonObject.h>
 #include <Base/Console.h>
+#include <Base/Exception.h>
 #include <Base/Placement.h>
 #include <Base/Rotation.h>
 #include <Base/Tools.h>
@@ -46,6 +47,7 @@
 #include "AssemblyObject.h"
 #include "AssemblyUtils.h"
 #include "Groups.h"
+#include "MotionSuspension.h"
 
 #include "AssemblyLink.h"
 #include "AssemblyLinkPy.h"
@@ -109,6 +111,20 @@ App::DocumentObjectExecReturn* AssemblyLink::execute()
     return App::Part::execute();
 }
 
+void AssemblyLink::onBeforeChange(const App::Property* prop)
+{
+    // Reject before changing Rigid, deleting grounding joints, or normalizing placements.
+    // The notification does not carry the proposed value, so same-value writes also reject.
+    if (prop == &Rigid && isAutomaticMotionSuspended(getDocument())
+        && !getDocument()->testStatus(App::Document::Restoring) && !Group.getValues().empty()) {
+        throw Base::RuntimeError(
+            "Cannot change a populated assembly link's mode while automatic "
+            "motion is suspended"
+        );
+    }
+    App::Part::onBeforeChange(prop);
+}
+
 void AssemblyLink::onChanged(const App::Property* prop)
 {
     if (App::GetApplication().isRestoring()) {
@@ -125,6 +141,12 @@ void AssemblyLink::onChanged(const App::Property* prop)
     }
 
     if (prop == &Rigid) {
+        if (isAutomaticMotionSuspended(getDocument())) {
+            // Empty-link initialization is structural. Recompute can populate it after
+            // containment exists, without running interactive mode conversion.
+            App::Part::onChanged(prop);
+            return;
+        }
         Base::Placement movePlc;
 
         // A flexible sub-assembly cannot be grounded.
@@ -351,6 +373,8 @@ void AssemblyLink::synchronizeComponents()
 
     objLinkMap.clear();
     objSubPrefixMap.clear();
+    const bool motionSuspended = isAutomaticMotionSuspended(doc);
+    std::set<App::DocumentObject*> newComponents;
 
     std::vector<App::DocumentObject*> assemblyGroup = assembly->Group.getValues();
     std::vector<App::DocumentObject*> assemblyLinkGroup = Group.getValues();
@@ -518,6 +542,9 @@ void AssemblyLink::synchronizeComponents()
             }
         }
 
+        if (!found) {
+            newComponents.insert(link);
+        }
         objLinkMap[obj] = link;
 
         if (auto* srcLinkArray = freecad_cast<PartApp::LinkArray*>(obj)) {
@@ -536,7 +563,11 @@ void AssemblyLink::synchronizeComponents()
     // If the assemblyLink is rigid, then we keep all placements synchronized.
     if (isRigid()) {
         for (const auto& [sourceObj, linkObj] : objLinkMap) {
-            syncPlacements(sourceObj, linkObj);
+            // New instances receive their initial pose. Existing instances keep their
+            // independently chosen pose throughout noninteractive construction/remapping.
+            if (!motionSuspended || newComponents.contains(linkObj)) {
+                syncPlacements(sourceObj, linkObj);
+            }
         }
     }
 
