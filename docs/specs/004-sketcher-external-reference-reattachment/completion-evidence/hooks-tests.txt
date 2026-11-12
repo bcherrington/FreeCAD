@@ -1,0 +1,9 @@
+trim trailing whitespace.................................................Passed
+fix end of files.........................................................Passed
+check yaml...........................................(no files to check)Skipped
+check for added large files..............................................Passed
+mixed line ending........................................................Passed
+black....................................................................Passed
+clang-format.............................................................Passed
+Push version changes to other necessary files........(no files to check)Skipped
+Verify version consistency...........................(no files to check)Skipped

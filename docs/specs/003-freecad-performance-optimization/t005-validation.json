@@ -1,0 +1,338 @@
+{
+  "schema": "freecad-spec003-aggregate-validation/v1",
+  "task": "T005",
+  "captured_at_utc": "2026-11-07T09:28:25.571455+00:00",
+  "actual_root_revision": "95d1df147fd898bcd194801ab348352766750f45",
+  "docs_revision": "e3bf027820fc422cc829ce0310f3f4018463957a",
+  "manifest_id": "spec003-linux-x86_64-debug-candidate-20261106-v1",
+  "manifest_sha256": "2ceaf3dbe3d474f4bb8d70ae6706218ddffdd3616473a1c13a55133611a19d01",
+  "mode": "artifact and reasoned applicability audit; no new runtime test execution",
+  "input_receipts": {
+    "t015-validation.json": "a98cf450dbcfb0a5ea6acf6285b79d3b1958ca3c018385f039728c1ab0c5de90",
+    "t016-validation.json": "ceb3fbbf1f96b817a883891cace6348468737b89fa9511e0c940c4329ece9f69"
+  },
+  "criteria": [
+    {
+      "criterion": "Requirement 4 AC1",
+      "status": "passed",
+      "proof": [
+        "T015 numeric value compatibility and actual archive restore regressions",
+        "T016 real writer forms and decimal child/hex mapped SID values; nested/shared-map metadata and lookup identity"
+      ],
+      "evidence": [
+        "t015-validation.json",
+        "t016-validation.json"
+      ]
+    },
+    {
+      "criterion": "Requirement 4 AC2",
+      "status": "passed",
+      "proof": [
+        "Unchanged production converter/private header with T015 exact-header ASan/UBSan, bounded views and libc strtol oracle",
+        "T016 reran all T015 numeric/caller regressions on final composition; new source delta is only null-hasher guard",
+        "Saturating numeric parsing, range/count checks and colon-zero ownership remain intact"
+      ],
+      "evidence": [
+        "t015-validation.json",
+        "t016-validation.json"
+      ]
+    },
+    {
+      "criterion": "Requirement 4 AC3",
+      "status": "passed",
+      "proof": [
+        "T016 writerFormsAliasesAndMultipleSidsRoundTrip",
+        "T016 nestedSharedChildrenAndDecimalSidsRoundTrip",
+        "Destroyed stream/token storage before bidirectional lookups; aliases/SIDs/shared child identity checked over two restores"
+      ],
+      "evidence": [
+        "t016-validation.json"
+      ]
+    },
+    {
+      "criterion": "Requirement 4 AC4",
+      "status": "passed",
+      "proof": [
+        "T016 existing ModelFromV021.FCStd checksum retained",
+        "Four independently specified Chamfer.Base edge targets, two map-bearing save/reopen cycles, three explicitly dirtied recomputes, six snapshots, stable valid geometry/volume"
+      ],
+      "evidence": [
+        "t016-validation.json"
+      ]
+    }
+  ],
+  "property": "CP-005 locally qualified; final/platform applicability remains T010",
+  "direct_checks": [
+    "T016 committed/current/source identity src/App/ElementMap.cpp",
+    "T016 committed/current/source identity tests/src/App/ElementMap.cpp",
+    "T016 committed/current/source identity tests/src/Mod/PartDesign/App/ElementMapDocumentIdentity.py",
+    "No runtime/test source changes since T016 commit",
+    "Committed T016 implementation equals original validated exact diff",
+    "T016 final source/binary unchanged src/App/ElementMap.cpp",
+    "T016 final source/binary unchanged src/App/ElementMapRestore.h",
+    "T016 final source/binary unchanged tests/src/App/ElementMap.cpp",
+    "T016 final source/binary unchanged tests/src/Mod/PartDesign/App/ElementMapDocumentIdentity.py",
+    "T016 final source/binary unchanged build/debug/tests/App_tests_run",
+    "T016 final source/binary unchanged build/debug/lib/libFreeCADApp.so",
+    "T016 final source/binary unchanged build/debug/lib/libFreeCADBase.so",
+    "T016 final source/binary unchanged build/debug/Mod/Part/Part.so",
+    "T016 final source/binary unchanged build/debug/Mod/PartDesign/_PartDesign.so",
+    "T016 raw artifact integrity /tmp/spec003-t016-build-final.log",
+    "T016 raw artifact integrity /tmp/spec003-t016-precommit-final.log",
+    "T016 raw artifact integrity /tmp/spec003-t016-missing-hasher-red.log",
+    "T016 raw artifact integrity /tmp/spec003-t016-missing-hasher-red.json",
+    "T016 raw artifact integrity /tmp/spec003-t016-cad-harness-recompute-failure.log",
+    "T016 raw artifact integrity /tmp/spec003-t016-memcheck-final.log",
+    "T016 raw artifact integrity /home/bcherrington/Projects/CLion/FreeCAD/build/debug/artifacts/spec003-t016/commands.json",
+    "T016 raw artifact integrity /home/bcherrington/Projects/CLion/FreeCAD/build/debug/artifacts/spec003-t016/app-tests.xml",
+    "T016 raw artifact integrity /home/bcherrington/Projects/CLion/FreeCAD/build/debug/artifacts/spec003-t016/cad-final/cad-identity.json",
+    "T016 raw artifact integrity /tmp/spec003-t016-tests-final.log",
+    "T016 raw artifact integrity /tmp/spec003-t016-cad-final.log",
+    "T016 raw artifact integrity /tmp/spec003-t016-ctest-final.log",
+    "T016 raw artifact integrity /tmp/spec003-t016-memcheck-tests-final.log",
+    "T015 retained raw artifact integrity build",
+    "T015 retained raw artifact integrity tests",
+    "T015 retained raw artifact integrity ctest",
+    "T015 retained raw artifact integrity memory",
+    "T015 retained raw artifact integrity memory_tests",
+    "T015 retained raw artifact integrity sanitizer",
+    "T015 retained raw artifact integrity sanitizer_build",
+    "T015 retained raw artifact integrity precommit",
+    "T015 retained raw artifact integrity red",
+    "T015 retained raw artifact integrity red_build",
+    "T015 retained raw artifact integrity ubsan_red",
+    "T015 retained raw artifact integrity caller_abort",
+    "T015 retained raw artifact integrity caller_counts_red",
+    "T015 retained raw artifact integrity lifetime_red",
+    "T015 retained raw artifact integrity lifetime_red_tests",
+    "T015 related source unchanged src/App/ElementMap.h",
+    "T015 related source unchanged src/App/IndexedName.h",
+    "T015 related source unchanged src/App/MappedName.h",
+    "T015 related source unchanged src/App/MappedName.cpp",
+    "T015 related source unchanged src/App/StringHasher.cpp",
+    "T015 related source unchanged src/App/ComplexGeoData.cpp",
+    "T015 related source unchanged src/App/CMakeLists.txt",
+    "T015 related source unchanged tests/src/App/CMakeLists.txt",
+    "T015 related source unchanged src/Gui/Tree.cpp",
+    "T015 related source unchanged tests/src/Gui/TreeBehavior.cpp",
+    "Exact converter/header unchanged from T015 sanitizer qualification",
+    "T015 sanitizer probe unchanged",
+    "T015 implementation bound to committed baseline",
+    "All earlier numeric/restore test bodies retained before appended T016 helpers",
+    "T016 executed tests-final exit zero",
+    "T016 executed cad-final exit zero",
+    "T016 executed ctest-final exit zero",
+    "T016 executed memcheck-tests-final exit zero",
+    "Immutable selected manifest matches both receipts",
+    "CMake configuration unchanged",
+    "Dependency lock unchanged",
+    "Dependency revision and clean state src/3rdParty/GSL",
+    "Dependency revision and clean state src/3rdParty/OndselSolver",
+    "Dependency revision and clean state src/3rdParty/coin",
+    "Dependency revision and clean state src/3rdParty/coin/cpack.d",
+    "Dependency revision and clean state src/3rdParty/coin/docs/doxygen-awesome",
+    "Dependency revision and clean state src/3rdParty/pivy",
+    "Dependency revision and clean state src/Mod/AddonManager",
+    "510 installed package identities match T019/T015/T016",
+    "CAD fixture remains original checksum",
+    "Six successful CAD snapshots/two saved archives",
+    "Saved CAD archive unchanged dependent-roundtrip-1.FCStd",
+    "Saved CAD archive unchanged dependent-roundtrip-2.FCStd"
+  ],
+  "direct_checks_passed": 75,
+  "source_delta_since_T015": "diff --git a/src/App/ElementMap.cpp b/src/App/ElementMap.cpp\nindex 92e88574e7..af0a13010f 100644\n--- a/src/App/ElementMap.cpp\n+++ b/src/App/ElementMap.cpp\n@@ -430,6 +430,10 @@ ElementMapPtr ElementMap::restore(::App::StringHasherRef hasherRef,\n \n             const auto childSidCount = countDotSuffixTokens(viewOf(tmp));\n             if (childSidCount > 0) {\n+                if (!hasherRef) {\n+                    hasherWarn = \"No hasherRef\";\n+                    continue;\n+                }\n                 child.sids.reserve(static_cast<int>(childSidCount));\n                 DotTokenReader childSidTokens(viewOf(tmp));\n                 std::string_view childSidToken;\n",
+  "current_source_and_binary_identity": {
+    "src/App/ElementMap.cpp": {
+      "sha256": "831ad6b5df9c70f775c5a92835fbf2606e0652c347c562cb0eb1c581a4cd6f3a",
+      "size_bytes": 54022
+    },
+    "src/App/ElementMapRestore.h": {
+      "sha256": "93bfcb8930b77150ad0608037001c84335e93a8870f5816b371dc3e2fecce8cb",
+      "size_bytes": 2312
+    },
+    "tests/src/App/ElementMap.cpp": {
+      "sha256": "9f1bd7285de383117d670b60dc943ac0fae914b017093566e548c8c1e78a942f",
+      "size_bytes": 38044
+    },
+    "tests/src/Mod/PartDesign/App/ElementMapDocumentIdentity.py": {
+      "sha256": "e70257ad2163bfa792d2e808ef969e9b0be2c27fc05ae488f5e469ba590ba3e0",
+      "size_bytes": 5549,
+      "note": "Final harness imports and explicit feature dirtying established before successful CAD run; initial frozen snapshot preceded harness fixes."
+    },
+    "build/debug/tests/App_tests_run": {
+      "sha256": "dde7dcea431580a73b4401fe26d16ec46f0b762ebb51959c0a497ae51adb26ee",
+      "size_bytes": 15341880
+    },
+    "build/debug/lib/libFreeCADApp.so": {
+      "sha256": "704c79d14c30953110e325ba88838e46cc6c1e79dcc9f2f0f1e704dde6ab412a",
+      "size_bytes": 71816600
+    },
+    "build/debug/lib/libFreeCADBase.so": {
+      "sha256": "04e1e7c5ce58be7a5de3fee0ba2c7fbfde3105a6e7b95378f6c7ba2cf8998b5c",
+      "size_bytes": 25504048
+    },
+    "build/debug/Mod/Part/Part.so": {
+      "sha256": "ca65989579b2a5183dda6e461e79d2dd56af781716860025d16d8723d20e060e",
+      "size_bytes": 68164128
+    },
+    "build/debug/Mod/PartDesign/_PartDesign.so": {
+      "sha256": "4ae4d552973c5b59352e8e366d83a75a0d3000d948cbf452f864b1b0f00efc9a",
+      "size_bytes": 19316440
+    }
+  },
+  "package_count": 510,
+  "installed_package_identity_sha256": "27048ce62e5ad835811cb32e58d11ee775f304c81bfef5235bbdd397c3e59d28",
+  "reused_executed_checks": {
+    "T016": {
+      "app_tests": 281,
+      "ctest": 294,
+      "memcheck": 34,
+      "memcheck_errors": 0,
+      "cad_save_reopen_cycles": 2,
+      "explicit_feature_recomputes": 3,
+      "commands": [
+        {
+          "name": "tests-final",
+          "argv": [
+            "pixi",
+            "run",
+            "--locked",
+            "env",
+            "FREECAD_USER_HOME=/home/bcherrington/Projects/CLion/FreeCAD/build/debug/artifacts/spec003-t016/tests-final/user",
+            "FREECAD_USER_DATA=/home/bcherrington/Projects/CLion/FreeCAD/build/debug/artifacts/spec003-t016/tests-final/data",
+            "FREECAD_USER_TEMP=/home/bcherrington/Projects/CLion/FreeCAD/build/debug/artifacts/spec003-t016/tests-final/temp",
+            "XDG_CONFIG_HOME=/home/bcherrington/Projects/CLion/FreeCAD/build/debug/artifacts/spec003-t016/tests-final/xdg-config",
+            "XDG_DATA_HOME=/home/bcherrington/Projects/CLion/FreeCAD/build/debug/artifacts/spec003-t016/tests-final/xdg-data",
+            "XDG_CACHE_HOME=/home/bcherrington/Projects/CLion/FreeCAD/build/debug/artifacts/spec003-t016/tests-final/xdg-cache",
+            "timeout",
+            "180s",
+            "build/debug/tests/App_tests_run",
+            "--gtest_filter=*ElementMap*:*IndexedName*:*MappedName*:*MappedElement*:*ElementNaming*:*StringHash*:*StringID*",
+            "--gtest_output=xml:/home/bcherrington/Projects/CLion/FreeCAD/build/debug/artifacts/spec003-t016/app-tests.xml"
+          ],
+          "cwd": "/home/bcherrington/Projects/CLion/FreeCAD",
+          "exit_code": 0,
+          "started_unix_ms": 1794040345798,
+          "finished_unix_ms": 1794040346615,
+          "log": "/tmp/spec003-t016-tests-final.log"
+        },
+        {
+          "name": "cad-final",
+          "argv": [
+            "pixi",
+            "run",
+            "--locked",
+            "env",
+            "FREECAD_USER_HOME=/home/bcherrington/Projects/CLion/FreeCAD/build/debug/artifacts/spec003-t016/cad-final/user",
+            "FREECAD_USER_DATA=/home/bcherrington/Projects/CLion/FreeCAD/build/debug/artifacts/spec003-t016/cad-final/data",
+            "FREECAD_USER_TEMP=/home/bcherrington/Projects/CLion/FreeCAD/build/debug/artifacts/spec003-t016/cad-final/temp",
+            "XDG_CONFIG_HOME=/home/bcherrington/Projects/CLion/FreeCAD/build/debug/artifacts/spec003-t016/cad-final/xdg-config",
+            "XDG_DATA_HOME=/home/bcherrington/Projects/CLion/FreeCAD/build/debug/artifacts/spec003-t016/cad-final/xdg-data",
+            "XDG_CACHE_HOME=/home/bcherrington/Projects/CLion/FreeCAD/build/debug/artifacts/spec003-t016/cad-final/xdg-cache",
+            "PYTHONPATH=/home/bcherrington/Projects/CLion/FreeCAD/build/debug/lib",
+            "timeout",
+            "90s",
+            "python",
+            "tests/src/Mod/PartDesign/App/ElementMapDocumentIdentity.py",
+            "/home/bcherrington/Projects/CLion/FreeCAD/build/debug/artifacts/spec003-t016/cad-final"
+          ],
+          "cwd": "/home/bcherrington/Projects/CLion/FreeCAD",
+          "exit_code": 0,
+          "started_unix_ms": 1794040346616,
+          "finished_unix_ms": 1794040347985,
+          "log": "/tmp/spec003-t016-cad-final.log"
+        },
+        {
+          "name": "ctest-final",
+          "argv": [
+            "pixi",
+            "run",
+            "--locked",
+            "env",
+            "FREECAD_USER_HOME=/home/bcherrington/Projects/CLion/FreeCAD/build/debug/artifacts/spec003-t016/ctest-final/user",
+            "FREECAD_USER_DATA=/home/bcherrington/Projects/CLion/FreeCAD/build/debug/artifacts/spec003-t016/ctest-final/data",
+            "FREECAD_USER_TEMP=/home/bcherrington/Projects/CLion/FreeCAD/build/debug/artifacts/spec003-t016/ctest-final/temp",
+            "XDG_CONFIG_HOME=/home/bcherrington/Projects/CLion/FreeCAD/build/debug/artifacts/spec003-t016/ctest-final/xdg-config",
+            "XDG_DATA_HOME=/home/bcherrington/Projects/CLion/FreeCAD/build/debug/artifacts/spec003-t016/ctest-final/xdg-data",
+            "XDG_CACHE_HOME=/home/bcherrington/Projects/CLion/FreeCAD/build/debug/artifacts/spec003-t016/ctest-final/xdg-cache",
+            "ctest",
+            "--test-dir",
+            "build/debug",
+            "-R",
+            "ElementMap|IndexedName|MappedName|MappedElement|ElementNaming|StringHasher|StringID",
+            "--output-on-failure"
+          ],
+          "cwd": "/home/bcherrington/Projects/CLion/FreeCAD",
+          "exit_code": 0,
+          "started_unix_ms": 1794040347987,
+          "finished_unix_ms": 1794040374288,
+          "log": "/tmp/spec003-t016-ctest-final.log"
+        },
+        {
+          "name": "memcheck-tests-final",
+          "argv": [
+            "pixi",
+            "run",
+            "--locked",
+            "env",
+            "FREECAD_USER_HOME=/home/bcherrington/Projects/CLion/FreeCAD/build/debug/artifacts/spec003-t016/memcheck-tests-final/user",
+            "FREECAD_USER_DATA=/home/bcherrington/Projects/CLion/FreeCAD/build/debug/artifacts/spec003-t016/memcheck-tests-final/data",
+            "FREECAD_USER_TEMP=/home/bcherrington/Projects/CLion/FreeCAD/build/debug/artifacts/spec003-t016/memcheck-tests-final/temp",
+            "XDG_CONFIG_HOME=/home/bcherrington/Projects/CLion/FreeCAD/build/debug/artifacts/spec003-t016/memcheck-tests-final/xdg-config",
+            "XDG_DATA_HOME=/home/bcherrington/Projects/CLion/FreeCAD/build/debug/artifacts/spec003-t016/memcheck-tests-final/xdg-data",
+            "XDG_CACHE_HOME=/home/bcherrington/Projects/CLion/FreeCAD/build/debug/artifacts/spec003-t016/memcheck-tests-final/xdg-cache",
+            "timeout",
+            "300s",
+            "valgrind",
+            "--tool=memcheck",
+            "--leak-check=no",
+            "--undef-value-errors=no",
+            "--exit-on-first-error=yes",
+            "--error-exitcode=99",
+            "--suppressions=/tmp/spec003-t012-libunwind.supp",
+            "--log-file=/tmp/spec003-t016-memcheck-final.log",
+            "build/debug/tests/App_tests_run",
+            "--gtest_filter=*ElementMapRestoreNumberTest*:ElementMapTest.*"
+          ],
+          "cwd": "/home/bcherrington/Projects/CLion/FreeCAD",
+          "exit_code": 0,
+          "started_unix_ms": 1794040374289,
+          "finished_unix_ms": 1794040389654,
+          "log": "/tmp/spec003-t016-memcheck-tests-final.log"
+        }
+      ]
+    },
+    "T015": "Exact unchanged converter/header ASan/UBSan; legacy numeric policy/oracle/caller qualification, covered again by final T016 App/Memcheck runs."
+  },
+  "result": "passed",
+  "limits": [
+    "No build or runtime test rerun by T005: exact validated committed sources, final binaries/libraries, logs, dependency/configuration and fixture identities remain unchanged. Existing successful executions are explicitly reused, not relabelled as fresh T005 passes.",
+    "One Linux LP64 debug composition and one legacy dependent CAD model. No Windows/LLP64, whole-FreeCAD sanitizer, performance or final production approval.",
+    "T015 sanitizer evidence applies only to the unchanged private converter; T016 Memcheck has one libunwind probe suppression, leak and undefined-value checks disabled.",
+    "Loaded-image equivalence is not established by disk hashes. T010 confirms final composition/platform applicability; T011 owns durable promotion."
+  ],
+  "lifecycle_checks": {
+    "lint": {
+      "errors": 0,
+      "warnings": 0
+    },
+    "preflight": {
+      "next_task": "T018",
+      "context_gaps": [],
+      "open_decisions": [],
+      "task_counts": {
+        "complete": 20,
+        "pending": 18,
+        "follow_up": 2,
+        "partial": 0,
+        "in_progress": 0
+      }
+    },
+    "evidence_quality": {
+      "t005": "concrete",
+      "existing_advisory_warnings": 3,
+      "scope": "Historical verification rows/table separator; retained, not T005 acceptance inputs."
+    },
+    "agent_workbench": "Navigation/planning only; nested docs authority prevents repository-wide proof."
+  }
+}

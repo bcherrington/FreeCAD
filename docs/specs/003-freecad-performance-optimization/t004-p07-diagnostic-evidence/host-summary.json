@@ -1,0 +1,18 @@
+{
+  "samples": 198,
+  "baseline_seconds": 30,
+  "nominal_interval_seconds": 1,
+  "sampling_gaps": 0,
+  "load_one_minute_range": [
+    3.44,
+    7.75
+  ],
+  "available_memory_min_bytes": 17439256576,
+  "collector_cpu_median_ms": 28.614089,
+  "collector_cpu_max_ms": 112.457892,
+  "collector_wall_median_ms": 41.0430105,
+  "unavailable": [],
+  "cleanup_complete": true,
+  "private_raw_sha256": "4c28b723dfa95945a450bfde440806a6e618aad80c97f73fe3107a3127eae32f",
+  "scope": "One-second observed desktop host/process context, including fidelity work. No host-load cause established for previous BIM observations; sampled whole-worker RSS is not D001 timed-window peak."
+}

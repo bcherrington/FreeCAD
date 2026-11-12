@@ -1,0 +1,242 @@
+[
+  {
+    "diagnostic_index": 1,
+    "acceptance_eligible": false,
+    "reason": "bounded diagnostic loop, not predeclared acceptance schedule",
+    "worker_qualification_only": false,
+    "correctness_passed": true,
+    "outcome": "success",
+    "exception_class": null,
+    "worker_stream_sha256": "af0f508dc7234ff39fecc8e443cb375d29320ab448b39820fcbd17c1a62f51cb"
+  },
+  {
+    "diagnostic_index": 2,
+    "acceptance_eligible": false,
+    "reason": "bounded diagnostic loop, not predeclared acceptance schedule",
+    "worker_qualification_only": false,
+    "correctness_passed": true,
+    "outcome": "success",
+    "exception_class": null,
+    "worker_stream_sha256": "1247e3369ab2c5e67791b5ad4c08d43148cc52a1dd29795ff3a028b72acd9c1c"
+  },
+  {
+    "diagnostic_index": 3,
+    "acceptance_eligible": false,
+    "reason": "bounded diagnostic loop, not predeclared acceptance schedule",
+    "worker_qualification_only": false,
+    "correctness_passed": true,
+    "outcome": "success",
+    "exception_class": null,
+    "worker_stream_sha256": "b335a76f26d036d9233ce7a514c3c907caf5e56f5665a15d9ff38c6c6e8b708a"
+  },
+  {
+    "diagnostic_index": 4,
+    "acceptance_eligible": false,
+    "reason": "bounded diagnostic loop, not predeclared acceptance schedule",
+    "worker_qualification_only": false,
+    "correctness_passed": true,
+    "outcome": "success",
+    "exception_class": null,
+    "worker_stream_sha256": "9bb6cfe28f78746dac0246d39abea09218f3e73fdbed5a310a41fbe0d45a8c73"
+  },
+  {
+    "diagnostic_index": 5,
+    "acceptance_eligible": false,
+    "reason": "bounded diagnostic loop, not predeclared acceptance schedule",
+    "worker_qualification_only": false,
+    "correctness_passed": true,
+    "outcome": "success",
+    "exception_class": null,
+    "worker_stream_sha256": "d3166ea7abb82b6a5fcc74f6a8ca36780213fca78da1912198cfe4ae913cbbc2"
+  },
+  {
+    "diagnostic_index": 6,
+    "acceptance_eligible": false,
+    "reason": "bounded diagnostic loop, not predeclared acceptance schedule",
+    "worker_qualification_only": false,
+    "correctness_passed": true,
+    "outcome": "success",
+    "exception_class": null,
+    "worker_stream_sha256": "b84257dcde97a4ecbd5a6e04ad57c4c0eb3a37eb30e5c8b98f11a7959c17b4c1"
+  },
+  {
+    "diagnostic_index": 7,
+    "acceptance_eligible": false,
+    "reason": "bounded diagnostic loop, not predeclared acceptance schedule",
+    "worker_qualification_only": false,
+    "correctness_passed": true,
+    "outcome": "success",
+    "exception_class": null,
+    "worker_stream_sha256": "67ef2ef6f1e2c2e5435070171afd6f6588c2390e22dffb82c63afe688bfd1f38"
+  },
+  {
+    "diagnostic_index": 8,
+    "acceptance_eligible": false,
+    "reason": "bounded diagnostic loop, not predeclared acceptance schedule",
+    "worker_qualification_only": false,
+    "correctness_passed": true,
+    "outcome": "success",
+    "exception_class": null,
+    "worker_stream_sha256": "bf76580555de12939c1db900921942b5bdd507ef9e252747da4b6f8fb14b704d"
+  },
+  {
+    "diagnostic_index": 9,
+    "acceptance_eligible": false,
+    "reason": "bounded diagnostic loop, not predeclared acceptance schedule",
+    "worker_qualification_only": false,
+    "correctness_passed": true,
+    "outcome": "success",
+    "exception_class": null,
+    "worker_stream_sha256": "caa7a933675c95d4c3f4056133bcfe4be49724f67db242afbdc0d8eced5bdfdc"
+  },
+  {
+    "diagnostic_index": 10,
+    "acceptance_eligible": false,
+    "reason": "bounded diagnostic loop, not predeclared acceptance schedule",
+    "worker_qualification_only": false,
+    "correctness_passed": true,
+    "outcome": "success",
+    "exception_class": null,
+    "worker_stream_sha256": "221f582e819f8da3697aae1539f6b829633e74f0c801355b415507c05e5bfcfd"
+  },
+  {
+    "diagnostic_index": 11,
+    "acceptance_eligible": false,
+    "reason": "bounded diagnostic loop, not predeclared acceptance schedule",
+    "worker_qualification_only": false,
+    "correctness_passed": true,
+    "outcome": "success",
+    "exception_class": null,
+    "worker_stream_sha256": "6c3ea7205530cc37e810311916b6b17e867cb93bd3840f1d284fe66664dd26a1"
+  },
+  {
+    "diagnostic_index": 12,
+    "acceptance_eligible": false,
+    "reason": "bounded diagnostic loop, not predeclared acceptance schedule",
+    "worker_qualification_only": false,
+    "correctness_passed": true,
+    "outcome": "success",
+    "exception_class": null,
+    "worker_stream_sha256": "48796d3ef91a354a03384d08c449eba49bb38d36d027ddb6d7ec68fc490c2d01"
+  },
+  {
+    "diagnostic_index": 13,
+    "acceptance_eligible": false,
+    "reason": "bounded diagnostic loop, not predeclared acceptance schedule",
+    "worker_qualification_only": false,
+    "correctness_passed": true,
+    "outcome": "success",
+    "exception_class": null,
+    "worker_stream_sha256": "68aaa0998556880d629ac19697c20aa33f699c7c7d8ef51651756f745e121cff"
+  },
+  {
+    "diagnostic_index": 14,
+    "acceptance_eligible": false,
+    "reason": "bounded diagnostic loop, not predeclared acceptance schedule",
+    "worker_qualification_only": false,
+    "correctness_passed": true,
+    "outcome": "success",
+    "exception_class": null,
+    "worker_stream_sha256": "33ecc6aab1c6ffddf00255b9a8ea5466841c8d116ca94b5603dc9fc10775d537"
+  },
+  {
+    "diagnostic_index": 15,
+    "acceptance_eligible": false,
+    "reason": "bounded diagnostic loop, not predeclared acceptance schedule",
+    "worker_qualification_only": false,
+    "correctness_passed": true,
+    "outcome": "success",
+    "exception_class": null,
+    "worker_stream_sha256": "d341110d4f1b33db7b2d99223334d81434eb58218d5013769c679f785302377b"
+  },
+  {
+    "diagnostic_index": 16,
+    "acceptance_eligible": false,
+    "reason": "bounded diagnostic loop, not predeclared acceptance schedule",
+    "worker_qualification_only": false,
+    "correctness_passed": true,
+    "outcome": "success",
+    "exception_class": null,
+    "worker_stream_sha256": "b3081899a3c977df9bb0d04b63167d79f64840fa46b6db8b0df8c684f0be70ab"
+  },
+  {
+    "diagnostic_index": 17,
+    "acceptance_eligible": false,
+    "reason": "bounded diagnostic loop, not predeclared acceptance schedule",
+    "worker_qualification_only": false,
+    "correctness_passed": true,
+    "outcome": "success",
+    "exception_class": null,
+    "worker_stream_sha256": "a0144703797d81463d83da8f34481b35a61e7a90abe89800a51d6413c4080405"
+  },
+  {
+    "diagnostic_index": 18,
+    "acceptance_eligible": false,
+    "reason": "bounded diagnostic loop, not predeclared acceptance schedule",
+    "worker_qualification_only": false,
+    "correctness_passed": true,
+    "outcome": "success",
+    "exception_class": null,
+    "worker_stream_sha256": "4db4bbd29e217c50f7dbc9ebc0c37553f604a061fc67b8d86ad52dce59bcbfad"
+  },
+  {
+    "diagnostic_index": 19,
+    "acceptance_eligible": false,
+    "reason": "bounded diagnostic loop, not predeclared acceptance schedule",
+    "worker_qualification_only": false,
+    "correctness_passed": true,
+    "outcome": "success",
+    "exception_class": null,
+    "worker_stream_sha256": "19e983ba7e5245e58a4b5fbc7a06e746f89eb2b5c17dfc274db707a4a6798d5a"
+  },
+  {
+    "diagnostic_index": 20,
+    "acceptance_eligible": false,
+    "reason": "bounded diagnostic loop, not predeclared acceptance schedule",
+    "worker_qualification_only": false,
+    "correctness_passed": true,
+    "outcome": "success",
+    "exception_class": null,
+    "worker_stream_sha256": "588bdeb3b0055139c169477ffd5ff5c67d4118888db78dd77f8e0deed8f6e3bf"
+  },
+  {
+    "diagnostic_index": 21,
+    "acceptance_eligible": false,
+    "reason": "bounded diagnostic loop, not predeclared acceptance schedule",
+    "worker_qualification_only": false,
+    "correctness_passed": true,
+    "outcome": "success",
+    "exception_class": null,
+    "worker_stream_sha256": "af1ecdd7c91aca1a45d975ceaccbe28cb0f9de386b236f298bac9b6a91d9e036"
+  },
+  {
+    "diagnostic_index": 22,
+    "acceptance_eligible": false,
+    "reason": "bounded diagnostic loop, not predeclared acceptance schedule",
+    "worker_qualification_only": false,
+    "correctness_passed": true,
+    "outcome": "success",
+    "exception_class": null,
+    "worker_stream_sha256": "88e16dd02730c91c07932389b7825144e911ce6758f018f427f68d713f148e25"
+  },
+  {
+    "diagnostic_index": 23,
+    "acceptance_eligible": false,
+    "reason": "bounded diagnostic loop, not predeclared acceptance schedule",
+    "worker_qualification_only": false,
+    "correctness_passed": true,
+    "outcome": "success",
+    "exception_class": null,
+    "worker_stream_sha256": "b3961f1c6780182795b96c2194547e4588303739e228b1c1b7f85863bb4aea1a"
+  },
+  {
+    "diagnostic_index": 24,
+    "acceptance_eligible": false,
+    "reason": "bounded diagnostic loop, not predeclared acceptance schedule",
+    "worker_qualification_only": false,
+    "correctness_passed": true,
+    "outcome": "success",
+    "exception_class": null,
+    "worker_stream_sha256": "07c156d0a7b47828001f380d14dec25aad149f8a00a057933e12fba4639e168a"
+  }
+]

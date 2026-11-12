@@ -1,0 +1,805 @@
+{
+  "schema": "spec003-local-validation/v1",
+  "task": "T016",
+  "criteria": [
+    "Requirement 4 AC1",
+    "Requirement 4 AC3",
+    "Requirement 4 AC4",
+    "CP-005 identity portion"
+  ],
+  "captured_at_utc": "2026-11-07T08:37:02.516154+00:00",
+  "manifest_id": "spec003-linux-x86_64-debug-candidate-20261106-v1",
+  "immutable_manifest_sha256": "2ceaf3dbe3d474f4bb8d70ae6706218ddffdd3616473a1c13a55133611a19d01",
+  "actual_root_revision": "b086a0bb2fde06d2a22b2a2f27cca2e3984d5529",
+  "docs_revision": "7ff7e1597923131fb6b68ca697d90f03b141c98a",
+  "working_diff_scope": [
+    "src/App/ElementMap.cpp",
+    "tests/src/App/ElementMap.cpp",
+    "tests/src/Mod/PartDesign/App/ElementMapDocumentIdentity.py"
+  ],
+  "working_diff_sha256": "1286ce9834a2b989ee64465785a72c235f6db4aa8770b9c26149da87af350abb",
+  "working_diff_encoding": "tracked two-file git diff --binary HEAD concatenated with git diff --no-index /dev/null new standalone Python test",
+  "source_sha256": {
+    "src/App/ElementMap.cpp": "831ad6b5df9c70f775c5a92835fbf2606e0652c347c562cb0eb1c581a4cd6f3a",
+    "tests/src/App/ElementMap.cpp": "9f1bd7285de383117d670b60dc943ac0fae914b017093566e548c8c1e78a942f",
+    "tests/src/Mod/PartDesign/App/ElementMapDocumentIdentity.py": "e70257ad2163bfa792d2e808ef969e9b0be2c27fc05ae488f5e469ba590ba3e0"
+  },
+  "final_validation_source_and_binary_identity": {
+    "src/App/ElementMap.cpp": {
+      "sha256": "831ad6b5df9c70f775c5a92835fbf2606e0652c347c562cb0eb1c581a4cd6f3a",
+      "size_bytes": 54022
+    },
+    "src/App/ElementMapRestore.h": {
+      "sha256": "93bfcb8930b77150ad0608037001c84335e93a8870f5816b371dc3e2fecce8cb",
+      "size_bytes": 2312
+    },
+    "tests/src/App/ElementMap.cpp": {
+      "sha256": "9f1bd7285de383117d670b60dc943ac0fae914b017093566e548c8c1e78a942f",
+      "size_bytes": 38044
+    },
+    "tests/src/Mod/PartDesign/App/ElementMapDocumentIdentity.py": {
+      "sha256": "e70257ad2163bfa792d2e808ef969e9b0be2c27fc05ae488f5e469ba590ba3e0",
+      "size_bytes": 5549,
+      "note": "Final harness imports and explicit feature dirtying established before successful CAD run; initial frozen snapshot preceded harness fixes."
+    },
+    "build/debug/tests/App_tests_run": {
+      "sha256": "dde7dcea431580a73b4401fe26d16ec46f0b762ebb51959c0a497ae51adb26ee",
+      "size_bytes": 15341880
+    },
+    "build/debug/lib/libFreeCADApp.so": {
+      "sha256": "704c79d14c30953110e325ba88838e46cc6c1e79dcc9f2f0f1e704dde6ab412a",
+      "size_bytes": 71816600
+    },
+    "build/debug/lib/libFreeCADBase.so": {
+      "sha256": "04e1e7c5ce58be7a5de3fee0ba2c7fbfde3105a6e7b95378f6c7ba2cf8998b5c",
+      "size_bytes": 25504048
+    },
+    "build/debug/Mod/Part/Part.so": {
+      "sha256": "ca65989579b2a5183dda6e461e79d2dd56af781716860025d16d8723d20e060e",
+      "size_bytes": 68164128
+    },
+    "build/debug/Mod/PartDesign/_PartDesign.so": {
+      "sha256": "4ae4d552973c5b59352e8e366d83a75a0d3000d948cbf452f864b1b0f00efc9a",
+      "size_bytes": 19316440
+    }
+  },
+  "submodule_heads_and_dirty_state": {
+    "src/3rdParty/GSL": {
+      "revision": "a75212b9f3b14162edd62d540cbf9273d5a59d20",
+      "status": ""
+    },
+    "src/3rdParty/OndselSolver": {
+      "revision": "4be80eef02a3486cda0d78f3ccbb308d207a9639",
+      "status": ""
+    },
+    "src/3rdParty/coin": {
+      "revision": "50e37f04e7027661ea2318d0425b7836ac819568",
+      "status": ""
+    },
+    "src/3rdParty/coin/cpack.d": {
+      "revision": "118ac5a21bcf57f0f90e2b0e681c9dcbf07074c2",
+      "status": ""
+    },
+    "src/3rdParty/coin/docs/doxygen-awesome": {
+      "revision": "6217657eef6aec24a0e4ecea4695031c1a622cf3",
+      "status": ""
+    },
+    "src/3rdParty/pivy": {
+      "revision": "515f038d32f163a976acd8a8cd9e8d26e1d0b884",
+      "status": ""
+    },
+    "src/Mod/AddonManager": {
+      "revision": "745c1b1ebc8bc684439210c5fa237d2c6287153b",
+      "status": ""
+    }
+  },
+  "pixi_lock_sha256": "45727758e595efad731c9bc71e429719040b1509ad686d762ad52ba84e44ec5c",
+  "cmake_cache_sha256": "be2075651b61afc4329c8b321c9038c01bf2fc24d9eeda3c0788cdcda9b92ede",
+  "installed_package_identity_sha256": "27048ce62e5ad835811cb32e58d11ee775f304c81bfef5235bbdd397c3e59d28",
+  "package_count": 510,
+  "reported_ldd_origins": "\tlinux-vdso.so.1 (0x00007147eed12000)\n\tlibgmock_main.so.1.18.0 => ${REPO_ROOT}/.pixi/envs/default/bin/../lib/libgmock_main.so.1.18.0 (0x00007147eed05000)\n\tlibpython3.13.so.1.0 => ${REPO_ROOT}/.pixi/envs/default/bin/../lib/libpython3.13.so.1.0 (0x00007147ee000000)\n\tlibFreeCADApp.so => ${REPO_ROOT}/build/debug/lib/libFreeCADApp.so (0x00007147ed000000)\n\tlibgmock.so.1.18.0 => ${REPO_ROOT}/.pixi/envs/default/bin/../lib/libgmock.so.1.18.0 (0x00007147eece5000)\n\tlibgtest.so.1.18.0 => ${REPO_ROOT}/.pixi/envs/default/bin/../lib/libgtest.so.1.18.0 (0x00007147eec67000)\n\tlibFreeCADBase.so => ${REPO_ROOT}/build/debug/lib/libFreeCADBase.so (0x00007147ec800000)\n\tlibxerces-c-3.3.so => ${REPO_ROOT}/.pixi/envs/default/bin/../lib/libxerces-c-3.3.so (0x00007147ec400000)\n\tlibz.so.1 => ${REPO_ROOT}/.pixi/envs/default/bin/../lib/libz.so.1 (0x00007147eec4c000)\n\tlibicuuc.so.78 => ${REPO_ROOT}/.pixi/envs/default/bin/../lib/libicuuc.so.78 (0x00007147ec000000)\n\tlibicui18n.so.78 => ${REPO_ROOT}/.pixi/envs/default/bin/../lib/libicui18n.so.78 (0x00007147ebc00000)\n\tlibcpptrace.so.1 => ${REPO_ROOT}/.pixi/envs/default/bin/../lib/libcpptrace.so.1 (0x00007147eebc0000)\n\tlibutil.so.1 => /lib/x86_64-linux-gnu/libutil.so.1 (0x00007147eebbb000)\n\tlibdl.so.2 => /lib/x86_64-linux-gnu/libdl.so.2 (0x00007147eebb6000)\n\tlibboost_program_options.so.1.90.0 => ${REPO_ROOT}/.pixi/envs/default/bin/../lib/libboost_program_options.so.1.90.0 (0x00007147ee776000)\n\tlibboost_regex.so.1.90.0 => ${REPO_ROOT}/.pixi/envs/default/bin/../lib/libboost_regex.so.1.90.0 (0x00007147ee72b000)\n\tlibboost_thread.so.1.90.0 => ${REPO_ROOT}/.pixi/envs/default/bin/../lib/libboost_thread.so.1.90.0 (0x00007147ee70c000)\n\tlibboost_container.so.1.90.0 => ${REPO_ROOT}/.pixi/envs/default/bin/../lib/libboost_container.so.1.90.0 (0x00007147ee6f5000)\n\tlibboost_atomic.so.1.90.0 => ${REPO_ROOT}/.pixi/envs/default/bin/../lib/libboost_atomic.so.1.90.0 (0x00007147eebaa000)\n\tlibboost_chrono.so.1.90.0 => ${REPO_ROOT}/.pixi/envs/default/bin/../lib/libboost_chrono.so.1.90.0 (0x00007147ee6e9000)\n\tlibboost_date_time.so.1.90.0 => ${REPO_ROOT}/.pixi/envs/default/bin/../lib/libboost_date_time.so.1.90.0 (0x00007147ee6e2000)\n\tlibpthread.so.0 => /lib/x86_64-linux-gnu/libpthread.so.0 (0x00007147ee6dd000)\n\tlibQt6Xml.so.6 => ${REPO_ROOT}/.pixi/envs/default/bin/../lib/libQt6Xml.so.6 (0x00007147ee6b2000)\n\tlibQt6Core.so.6 => ${REPO_ROOT}/.pixi/envs/default/bin/../lib/libQt6Core.so.6 (0x00007147eb400000)\n\tlibstdc++.so.6 => ${REPO_ROOT}/.pixi/envs/default/bin/../lib/libstdc++.so.6 (0x00007147eb000000)\n\tlibm.so.6 => /lib/x86_64-linux-gnu/libm.so.6 (0x00007147edf17000)\n\tlibgcc_s.so.1 => ${REPO_ROOT}/.pixi/envs/default/bin/../lib/libgcc_s.so.1 (0x00007147ee682000)\n\tlibc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007147eac00000)\n\t/lib64/ld-linux-x86-64.so.2 (0x00007147eed14000)\n\tlibnsl.so.3 => ${REPO_ROOT}/.pixi/envs/default/bin/../lib/./libnsl.so.3 (0x00007147ee67b000)\n\tlibicudata.so.78 => ${REPO_ROOT}/.pixi/envs/default/bin/../lib/./libicudata.so.78 (0x00007147e8c00000)\n\tlibdwarf.so.2 => ${REPO_ROOT}/.pixi/envs/default/bin/../lib/./libdwarf.so.2 (0x00007147ec366000)\n\tlibunwind.so.8 => ${REPO_ROOT}/.pixi/envs/default/bin/../lib/./libunwind.so.8 (0x00007147ee65d000)\n\tlibrt.so.1 => /lib/x86_64-linux-gnu/librt.so.1 (0x00007147ee658000)\n\tlibglib-2.0.so.0 => ${REPO_ROOT}/.pixi/envs/default/bin/../lib/libglib-2.0.so.0 (0x00007147eaea4000)\n\tlibdouble-conversion.so.3 => ${REPO_ROOT}/.pixi/envs/default/bin/../lib/libdouble-conversion.so.3 (0x00007147ee643000)\n\tlibpcre2-16.so.0 => ${REPO_ROOT}/.pixi/envs/default/bin/../lib/libpcre2-16.so.0 (0x00007147ec2b6000)\n\tlibzstd.so.1 => ${REPO_ROOT}/.pixi/envs/default/bin/../lib/libzstd.so.1 (0x00007147eb2e7000)\n\tlibiconv.so.2 => ${REPO_ROOT}/.pixi/envs/default/bin/../lib/libiconv.so.2 (0x00007147ebaed000)\n\tlibpcre2-8.so.0 => ${REPO_ROOT}/.pixi/envs/default/bin/../lib/libpcre2-8.so.0 (0x00007147e8b42000)\n",
+  "platform": "Linux-7.0.0-42-generic-x86_64-with-glibc2.39",
+  "build": {
+    "argv": [
+      "pixi",
+      "run",
+      "--locked",
+      "build",
+      "-j",
+      "2"
+    ],
+    "exit_code": 0,
+    "log": "/tmp/spec003-t016-build-final.log",
+    "actual_app_compile": {
+      "directory": "/home/bcherrington/Projects/CLion/FreeCAD/build/debug",
+      "command": "/home/bcherrington/Projects/CLion/FreeCAD/.pixi/envs/default/bin/clang++ -DBOOST_ATOMIC_DYN_LINK -DBOOST_ATOMIC_NO_LIB -DBOOST_CHRONO_DYN_LINK -DBOOST_CHRONO_NO_LIB -DBOOST_CONTAINER_DYN_LINK -DBOOST_CONTAINER_NO_LIB -DBOOST_DATE_TIME_DYN_LINK -DBOOST_DATE_TIME_NO_LIB -DBOOST_PP_VARIADICS=1 -DBOOST_PROGRAM_OPTIONS_DYN_LINK -DBOOST_PROGRAM_OPTIONS_NO_LIB -DBOOST_REGEX_DYN_LINK -DBOOST_REGEX_NO_LIB -DBOOST_THREAD_DYN_LINK -DBOOST_THREAD_NO_LIB -DCMAKE_BUILD_TYPE=\\\"Debug\\\" -DDOCDIR=\\\"share/doc/FreeCAD\\\" -DFreeCADApp_EXPORTS -DHAVE_CONFIG_H -DLIBRARYDIR=\\\"lib\\\" -DMINIMUM_CPLUSPLUS_VERSION=202302L -DPYCXX_6_2_COMPATIBILITY -DQT_CORE_LIB -DQT_NO_KEYWORDS -DQT_XML_LIB -DRESOURCEDIR=\\\"share\\\" -DSALOME_USE_64BIT_IDS -D_OCC64 -I/home/bcherrington/Projects/CLion/FreeCAD/build/debug/src/App/FreeCADApp_autogen/include -I/home/bcherrington/Projects/CLion/FreeCAD/build/debug -I/home/bcherrington/Projects/CLion/FreeCAD/build/debug/src -I/home/bcherrington/Projects/CLion/FreeCAD/src -I/home/bcherrington/Projects/CLion/FreeCAD/build/debug/src/App -I/home/bcherrington/Projects/CLion/FreeCAD/src/App -I/home/bcherrington/Projects/CLion/FreeCAD/src/3rdParty/FastSignals/libfastsignals/include -isystem /home/bcherrington/Projects/CLion/FreeCAD/.pixi/envs/default/include/qt6/QtCore -isystem /home/bcherrington/Projects/CLion/FreeCAD/.pixi/envs/default/include/qt6 -isystem /home/bcherrington/Projects/CLion/FreeCAD/.pixi/envs/default/include/qt6/QtXml -isystem /home/bcherrington/Projects/CLion/FreeCAD/src/3rdParty/PyCXX -isystem /home/bcherrington/Projects/CLion/FreeCAD/.pixi/envs/default/include/python3.13 -isystem /home/bcherrington/Projects/CLion/FreeCAD/src/3rdParty -isystem /home/bcherrington/Projects/CLion/FreeCAD/.pixi/envs/default/lib/qt6/mkspecs/linux-g++ -Wall -Wextra -Wpedantic -Wno-write-strings -fdiagnostics-color  -Wno-undefined-var-template -g -O0 -DFC_DEBUG -std=c++23 -fPIC -fcolor-diagnostics -pthread -fPIC -o src/App/CMakeFiles/FreeCADApp.dir/ElementMap.cpp.o -c /home/bcherrington/Projects/CLion/FreeCAD/src/App/ElementMap.cpp",
+      "file": "/home/bcherrington/Projects/CLion/FreeCAD/src/App/ElementMap.cpp",
+      "output": "/home/bcherrington/Projects/CLion/FreeCAD/build/debug/src/App/CMakeFiles/FreeCADApp.dir/ElementMap.cpp.o"
+    }
+  },
+  "commands": [
+    {
+      "name": "tests-final",
+      "argv": [
+        "pixi",
+        "run",
+        "--locked",
+        "env",
+        "FREECAD_USER_HOME=/home/bcherrington/Projects/CLion/FreeCAD/build/debug/artifacts/spec003-t016/tests-final/user",
+        "FREECAD_USER_DATA=/home/bcherrington/Projects/CLion/FreeCAD/build/debug/artifacts/spec003-t016/tests-final/data",
+        "FREECAD_USER_TEMP=/home/bcherrington/Projects/CLion/FreeCAD/build/debug/artifacts/spec003-t016/tests-final/temp",
+        "XDG_CONFIG_HOME=/home/bcherrington/Projects/CLion/FreeCAD/build/debug/artifacts/spec003-t016/tests-final/xdg-config",
+        "XDG_DATA_HOME=/home/bcherrington/Projects/CLion/FreeCAD/build/debug/artifacts/spec003-t016/tests-final/xdg-data",
+        "XDG_CACHE_HOME=/home/bcherrington/Projects/CLion/FreeCAD/build/debug/artifacts/spec003-t016/tests-final/xdg-cache",
+        "timeout",
+        "180s",
+        "build/debug/tests/App_tests_run",
+        "--gtest_filter=*ElementMap*:*IndexedName*:*MappedName*:*MappedElement*:*ElementNaming*:*StringHash*:*StringID*",
+        "--gtest_output=xml:/home/bcherrington/Projects/CLion/FreeCAD/build/debug/artifacts/spec003-t016/app-tests.xml"
+      ],
+      "cwd": "/home/bcherrington/Projects/CLion/FreeCAD",
+      "exit_code": 0,
+      "started_unix_ms": 1794040345798,
+      "finished_unix_ms": 1794040346615,
+      "log": "/tmp/spec003-t016-tests-final.log"
+    },
+    {
+      "name": "cad-final",
+      "argv": [
+        "pixi",
+        "run",
+        "--locked",
+        "env",
+        "FREECAD_USER_HOME=/home/bcherrington/Projects/CLion/FreeCAD/build/debug/artifacts/spec003-t016/cad-final/user",
+        "FREECAD_USER_DATA=/home/bcherrington/Projects/CLion/FreeCAD/build/debug/artifacts/spec003-t016/cad-final/data",
+        "FREECAD_USER_TEMP=/home/bcherrington/Projects/CLion/FreeCAD/build/debug/artifacts/spec003-t016/cad-final/temp",
+        "XDG_CONFIG_HOME=/home/bcherrington/Projects/CLion/FreeCAD/build/debug/artifacts/spec003-t016/cad-final/xdg-config",
+        "XDG_DATA_HOME=/home/bcherrington/Projects/CLion/FreeCAD/build/debug/artifacts/spec003-t016/cad-final/xdg-data",
+        "XDG_CACHE_HOME=/home/bcherrington/Projects/CLion/FreeCAD/build/debug/artifacts/spec003-t016/cad-final/xdg-cache",
+        "PYTHONPATH=/home/bcherrington/Projects/CLion/FreeCAD/build/debug/lib",
+        "timeout",
+        "90s",
+        "python",
+        "tests/src/Mod/PartDesign/App/ElementMapDocumentIdentity.py",
+        "/home/bcherrington/Projects/CLion/FreeCAD/build/debug/artifacts/spec003-t016/cad-final"
+      ],
+      "cwd": "/home/bcherrington/Projects/CLion/FreeCAD",
+      "exit_code": 0,
+      "started_unix_ms": 1794040346616,
+      "finished_unix_ms": 1794040347985,
+      "log": "/tmp/spec003-t016-cad-final.log"
+    },
+    {
+      "name": "ctest-final",
+      "argv": [
+        "pixi",
+        "run",
+        "--locked",
+        "env",
+        "FREECAD_USER_HOME=/home/bcherrington/Projects/CLion/FreeCAD/build/debug/artifacts/spec003-t016/ctest-final/user",
+        "FREECAD_USER_DATA=/home/bcherrington/Projects/CLion/FreeCAD/build/debug/artifacts/spec003-t016/ctest-final/data",
+        "FREECAD_USER_TEMP=/home/bcherrington/Projects/CLion/FreeCAD/build/debug/artifacts/spec003-t016/ctest-final/temp",
+        "XDG_CONFIG_HOME=/home/bcherrington/Projects/CLion/FreeCAD/build/debug/artifacts/spec003-t016/ctest-final/xdg-config",
+        "XDG_DATA_HOME=/home/bcherrington/Projects/CLion/FreeCAD/build/debug/artifacts/spec003-t016/ctest-final/xdg-data",
+        "XDG_CACHE_HOME=/home/bcherrington/Projects/CLion/FreeCAD/build/debug/artifacts/spec003-t016/ctest-final/xdg-cache",
+        "ctest",
+        "--test-dir",
+        "build/debug",
+        "-R",
+        "ElementMap|IndexedName|MappedName|MappedElement|ElementNaming|StringHasher|StringID",
+        "--output-on-failure"
+      ],
+      "cwd": "/home/bcherrington/Projects/CLion/FreeCAD",
+      "exit_code": 0,
+      "started_unix_ms": 1794040347987,
+      "finished_unix_ms": 1794040374288,
+      "log": "/tmp/spec003-t016-ctest-final.log"
+    },
+    {
+      "name": "memcheck-tests-final",
+      "argv": [
+        "pixi",
+        "run",
+        "--locked",
+        "env",
+        "FREECAD_USER_HOME=/home/bcherrington/Projects/CLion/FreeCAD/build/debug/artifacts/spec003-t016/memcheck-tests-final/user",
+        "FREECAD_USER_DATA=/home/bcherrington/Projects/CLion/FreeCAD/build/debug/artifacts/spec003-t016/memcheck-tests-final/data",
+        "FREECAD_USER_TEMP=/home/bcherrington/Projects/CLion/FreeCAD/build/debug/artifacts/spec003-t016/memcheck-tests-final/temp",
+        "XDG_CONFIG_HOME=/home/bcherrington/Projects/CLion/FreeCAD/build/debug/artifacts/spec003-t016/memcheck-tests-final/xdg-config",
+        "XDG_DATA_HOME=/home/bcherrington/Projects/CLion/FreeCAD/build/debug/artifacts/spec003-t016/memcheck-tests-final/xdg-data",
+        "XDG_CACHE_HOME=/home/bcherrington/Projects/CLion/FreeCAD/build/debug/artifacts/spec003-t016/memcheck-tests-final/xdg-cache",
+        "timeout",
+        "300s",
+        "valgrind",
+        "--tool=memcheck",
+        "--leak-check=no",
+        "--undef-value-errors=no",
+        "--exit-on-first-error=yes",
+        "--error-exitcode=99",
+        "--suppressions=/tmp/spec003-t012-libunwind.supp",
+        "--log-file=/tmp/spec003-t016-memcheck-final.log",
+        "build/debug/tests/App_tests_run",
+        "--gtest_filter=*ElementMapRestoreNumberTest*:ElementMapTest.*"
+      ],
+      "cwd": "/home/bcherrington/Projects/CLion/FreeCAD",
+      "exit_code": 0,
+      "started_unix_ms": 1794040374289,
+      "finished_unix_ms": 1794040389654,
+      "log": "/tmp/spec003-t016-memcheck-tests-final.log"
+    }
+  ],
+  "tests": {
+    "app_naming_hash": 281,
+    "ctest": 294,
+    "focused_memcheck": 34,
+    "cad": {
+      "fixture": {
+        "path": "tests/src/Mod/PartDesign/App/TestModels/ModelFromV021.FCStd",
+        "sha256": "b173cdc3cf25b50375c4779a459b90484586e42caa69a69c792b313766d627a5",
+        "size_bytes": 25258
+      },
+      "user_config": "/home/bcherrington/Projects/CLion/FreeCAD/build/debug/artifacts/spec003-t016/cad-final/user/user.cfg",
+      "system_config": "/home/bcherrington/Projects/CLion/FreeCAD/build/debug/artifacts/spec003-t016/cad-final/user/system.cfg",
+      "generated": [
+        {
+          "name": "dependent-roundtrip-1.FCStd",
+          "sha256": "56b275f47e8927afb952ca2e3470ffd86597086279922d2a447e4358fcd87b51",
+          "size_bytes": 19072,
+          "maps": {
+            "Body.Shape.Map.txt": {
+              "size_bytes": 1399,
+              "sha256": "de19a52197ceb33b4c133b946090a72314e6a2c83e3a1a5f795d48e63f26aa95"
+            },
+            "Sketch.Shape.Map.txt": {
+              "size_bytes": 255,
+              "sha256": "3e7ab8ddd14ca8534158ea0e1a70eaab3bdb519d7f34586d62b3653483528ab4"
+            },
+            "Pad.AddSubShape.Map.txt": {
+              "size_bytes": 651,
+              "sha256": "1c2a847f7602a8f6f7df11ff458ae56554df35d5f430e78dfee925208d91c410"
+            },
+            "Pad.Shape.Map.txt": {
+              "size_bytes": 651,
+              "sha256": "1c2a847f7602a8f6f7df11ff458ae56554df35d5f430e78dfee925208d91c410"
+            },
+            "Sketch001.Shape.Map.txt": {
+              "size_bytes": 279,
+              "sha256": "c39814d916856eafda4ce89ece0b78c97a3c6d8c94eac63779a9525b1a3d7da6"
+            },
+            "Revolution.AddSubShape.Map.txt": {
+              "size_bytes": 728,
+              "sha256": "dc85a56323f1dfe9cc9cc1756ee18fa1a32126f36c838ecaee5d0968e88a66e8"
+            },
+            "Revolution.Shape.Map.txt": {
+              "size_bytes": 892,
+              "sha256": "d1cef913a2125e951d50acbe1e5a44fab8d752c817162667c526cf3830baec36"
+            },
+            "Chamfer.Shape.Map.txt": {
+              "size_bytes": 1200,
+              "sha256": "edc9d566c58a367a3b07cdd74f2402b05450901bbb09bc4f715989c25775f415"
+            }
+          }
+        },
+        {
+          "name": "dependent-roundtrip-2.FCStd",
+          "sha256": "85ad434047c141b6a8f70edc572725ae1d383b31a2a8c061538bcfc64e918e40",
+          "size_bytes": 19100,
+          "maps": {
+            "Body.Shape.Map.txt": {
+              "size_bytes": 1548,
+              "sha256": "b56c017e8f1afb330353669a2ca1998de26294f919d5fbfdcd421609237932da"
+            },
+            "Sketch.Shape.Map.txt": {
+              "size_bytes": 255,
+              "sha256": "3e7ab8ddd14ca8534158ea0e1a70eaab3bdb519d7f34586d62b3653483528ab4"
+            },
+            "Pad.AddSubShape.Map.txt": {
+              "size_bytes": 663,
+              "sha256": "b231892f4548c10afb73850ca597389395064383a33c0080249026ea24cb1327"
+            },
+            "Pad.Shape.Map.txt": {
+              "size_bytes": 663,
+              "sha256": "b231892f4548c10afb73850ca597389395064383a33c0080249026ea24cb1327"
+            },
+            "Sketch001.Shape.Map.txt": {
+              "size_bytes": 279,
+              "sha256": "c39814d916856eafda4ce89ece0b78c97a3c6d8c94eac63779a9525b1a3d7da6"
+            },
+            "Revolution.AddSubShape.Map.txt": {
+              "size_bytes": 733,
+              "sha256": "3bf4598628a6b4bf2d68c6a47a980cc24b31f2214f88e1b403c0492cfabb3965"
+            },
+            "Revolution.Shape.Map.txt": {
+              "size_bytes": 931,
+              "sha256": "de86c0b1b9fff0b9d6cae3ec82c3940585106eca419349de652fde6fb1a7db44"
+            },
+            "Chamfer.Shape.Map.txt": {
+              "size_bytes": 1349,
+              "sha256": "fce29bdf77d001a9fbb812c71a716e1ce7a7a348187a44d9c06d2fb58d6ce652"
+            }
+          }
+        }
+      ],
+      "snapshots": [
+        {
+          "object": "Chamfer",
+          "property": "Base",
+          "source": "Revolution",
+          "subelements": [
+            "Edge10",
+            "Edge4",
+            "Edge7",
+            "Edge13"
+          ],
+          "edge_vertices": [
+            [
+              [
+                -20.0,
+                -20.0,
+                10.0
+              ],
+              [
+                -20.0,
+                20.0,
+                10.0
+              ]
+            ],
+            [
+              [
+                -20.0,
+                -20.0,
+                10.0
+              ],
+              [
+                20.0,
+                -20.0,
+                10.0
+              ]
+            ],
+            [
+              [
+                -20.0,
+                20.0,
+                10.0
+              ],
+              [
+                20.0,
+                20.0,
+                10.0
+              ]
+            ],
+            [
+              [
+                20.0,
+                -20.0,
+                10.0
+              ],
+              [
+                20.0,
+                20.0,
+                10.0
+              ]
+            ]
+          ],
+          "chamfer_volume": 15759.214586037486,
+          "chamfer_faces": 14
+        },
+        {
+          "object": "Chamfer",
+          "property": "Base",
+          "source": "Revolution",
+          "subelements": [
+            "Edge10",
+            "Edge4",
+            "Edge7",
+            "Edge13"
+          ],
+          "edge_vertices": [
+            [
+              [
+                -20.0,
+                -20.0,
+                10.0
+              ],
+              [
+                -20.0,
+                20.0,
+                10.0
+              ]
+            ],
+            [
+              [
+                -20.0,
+                -20.0,
+                10.0
+              ],
+              [
+                20.0,
+                -20.0,
+                10.0
+              ]
+            ],
+            [
+              [
+                -20.0,
+                20.0,
+                10.0
+              ],
+              [
+                20.0,
+                20.0,
+                10.0
+              ]
+            ],
+            [
+              [
+                20.0,
+                -20.0,
+                10.0
+              ],
+              [
+                20.0,
+                20.0,
+                10.0
+              ]
+            ]
+          ],
+          "chamfer_volume": 15759.214586037486,
+          "chamfer_faces": 14
+        },
+        {
+          "object": "Chamfer",
+          "property": "Base",
+          "source": "Revolution",
+          "subelements": [
+            "Edge10",
+            "Edge4",
+            "Edge7",
+            "Edge13"
+          ],
+          "edge_vertices": [
+            [
+              [
+                -20.0,
+                -20.0,
+                10.0
+              ],
+              [
+                -20.0,
+                20.0,
+                10.0
+              ]
+            ],
+            [
+              [
+                -20.0,
+                -20.0,
+                10.0
+              ],
+              [
+                20.0,
+                -20.0,
+                10.0
+              ]
+            ],
+            [
+              [
+                -20.0,
+                20.0,
+                10.0
+              ],
+              [
+                20.0,
+                20.0,
+                10.0
+              ]
+            ],
+            [
+              [
+                20.0,
+                -20.0,
+                10.0
+              ],
+              [
+                20.0,
+                20.0,
+                10.0
+              ]
+            ]
+          ],
+          "chamfer_volume": 15759.214586037486,
+          "chamfer_faces": 14
+        },
+        {
+          "object": "Chamfer",
+          "property": "Base",
+          "source": "Revolution",
+          "subelements": [
+            "Edge10",
+            "Edge4",
+            "Edge7",
+            "Edge13"
+          ],
+          "edge_vertices": [
+            [
+              [
+                -20.0,
+                -20.0,
+                10.0
+              ],
+              [
+                -20.0,
+                20.0,
+                10.0
+              ]
+            ],
+            [
+              [
+                -20.0,
+                -20.0,
+                10.0
+              ],
+              [
+                20.0,
+                -20.0,
+                10.0
+              ]
+            ],
+            [
+              [
+                -20.0,
+                20.0,
+                10.0
+              ],
+              [
+                20.0,
+                20.0,
+                10.0
+              ]
+            ],
+            [
+              [
+                20.0,
+                -20.0,
+                10.0
+              ],
+              [
+                20.0,
+                20.0,
+                10.0
+              ]
+            ]
+          ],
+          "chamfer_volume": 15759.214586037486,
+          "chamfer_faces": 14
+        },
+        {
+          "object": "Chamfer",
+          "property": "Base",
+          "source": "Revolution",
+          "subelements": [
+            "Edge10",
+            "Edge4",
+            "Edge7",
+            "Edge13"
+          ],
+          "edge_vertices": [
+            [
+              [
+                -20.0,
+                -20.0,
+                10.0
+              ],
+              [
+                -20.0,
+                20.0,
+                10.0
+              ]
+            ],
+            [
+              [
+                -20.0,
+                -20.0,
+                10.0
+              ],
+              [
+                20.0,
+                -20.0,
+                10.0
+              ]
+            ],
+            [
+              [
+                -20.0,
+                20.0,
+                10.0
+              ],
+              [
+                20.0,
+                20.0,
+                10.0
+              ]
+            ],
+            [
+              [
+                20.0,
+                -20.0,
+                10.0
+              ],
+              [
+                20.0,
+                20.0,
+                10.0
+              ]
+            ]
+          ],
+          "chamfer_volume": 15759.214586037486,
+          "chamfer_faces": 14
+        },
+        {
+          "object": "Chamfer",
+          "property": "Base",
+          "source": "Revolution",
+          "subelements": [
+            "Edge10",
+            "Edge4",
+            "Edge7",
+            "Edge13"
+          ],
+          "edge_vertices": [
+            [
+              [
+                -20.0,
+                -20.0,
+                10.0
+              ],
+              [
+                -20.0,
+                20.0,
+                10.0
+              ]
+            ],
+            [
+              [
+                -20.0,
+                -20.0,
+                10.0
+              ],
+              [
+                20.0,
+                -20.0,
+                10.0
+              ]
+            ],
+            [
+              [
+                -20.0,
+                20.0,
+                10.0
+              ],
+              [
+                20.0,
+                20.0,
+                10.0
+              ]
+            ],
+            [
+              [
+                20.0,
+                -20.0,
+                10.0
+              ],
+              [
+                20.0,
+                20.0,
+                10.0
+              ]
+            ]
+          ],
+          "chamfer_volume": 15759.214586037486,
+          "chamfer_faces": 14
+        }
+      ],
+      "result": "passed",
+      "limits": "One legacy PartDesign model, four Chamfer.Base edges; geometric tolerance 1e-7, volume 1e-10 relative; no byte-order or broader workbench claim."
+    }
+  },
+  "red_reproduction": {
+    "argv": [
+      "pixi",
+      "run",
+      "--locked",
+      "env",
+      "FREECAD_USER_HOME=/home/bcherrington/Projects/CLion/FreeCAD/build/debug/artifacts/spec003-t016/user",
+      "FREECAD_USER_DATA=/home/bcherrington/Projects/CLion/FreeCAD/build/debug/artifacts/spec003-t016/data",
+      "FREECAD_USER_TEMP=/home/bcherrington/Projects/CLion/FreeCAD/build/debug/artifacts/spec003-t016/temp",
+      "XDG_CONFIG_HOME=/home/bcherrington/Projects/CLion/FreeCAD/build/debug/artifacts/spec003-t016/xdg-config",
+      "XDG_DATA_HOME=/home/bcherrington/Projects/CLion/FreeCAD/build/debug/artifacts/spec003-t016/xdg-data",
+      "XDG_CACHE_HOME=/home/bcherrington/Projects/CLion/FreeCAD/build/debug/artifacts/spec003-t016/xdg-cache",
+      "timeout",
+      "30s",
+      "build/debug/tests/App_tests_run",
+      "--gtest_filter=ElementMapTest.restoreChildSidsWithoutHasher"
+    ],
+    "exit_code": -11,
+    "source_sha256": "03acc6fb8071496a31e687f0b76bc9ec8bb960b413775941a8332ebe25320877",
+    "source_head": "b086a0bb2fde06d2a22b2a2f27cca2e3984d5529"
+  },
+  "correction": "Missing hasher on child-SID tokens now warns/omits SIDs, matching existing mapped-SID missing-hasher behavior; preserves child range/map/name metadata and all valid writer forms. No public API or archive change.",
+  "fixture_contracts": {
+    "writer_forms": "writerFormsAliasesAndMultipleSidsRoundTrip: 20 IDs; IDs 11 and 13; semicolon/colon/dollar-hash, two aliases, postfixes, two marked SIDs; save/restore/save/restore and both lookup directions after stream destruction/churn.",
+    "children": "nestedSharedChildrenAndDecimalSidsRoundTrip: literal three-map fixture in hashed test source; shared middle map referenced by two root ranges, nested leaf, decimal child IDs 11/13; semantic roundtrips, pointer sharing, child metadata and recursive bidirectional lookups.",
+    "malformed": "Unknown, nondigit, empty, negative child SID tokens warn/omit; valid SID retained; missing hasher no longer segfaults."
+  },
+  "logs": {
+    "/tmp/spec003-t016-build-final.log": {
+      "sha256": "cdc42a3326a32cbfbe7109a018262567a81a67e9c2fc077e3e9ae6f754d87d5b",
+      "size_bytes": 637
+    },
+    "/tmp/spec003-t016-precommit-final.log": {
+      "sha256": "6799c7a2539dfe7c48eafee03f8ac89edb697ad3ca68c93ef448029365ba223b",
+      "size_bytes": 720
+    },
+    "/tmp/spec003-t016-missing-hasher-red.log": {
+      "sha256": "598ddea6ffb205eef30a17e0a8815fda72691b98a3f2fb03f341480a3840f4da",
+      "size_bytes": 339
+    },
+    "/tmp/spec003-t016-missing-hasher-red.json": {
+      "sha256": "e36df1d0f022d18a45b3e0bf53e95e341bfb2e010164203180703b86a9c2f007",
+      "size_bytes": 1016
+    },
+    "/tmp/spec003-t016-cad-harness-recompute-failure.log": {
+      "sha256": "7f01644d271884fe0b11e97213d50091af897d824b1445330f7532b753b14183",
+      "size_bytes": 437
+    },
+    "/tmp/spec003-t016-memcheck-final.log": {
+      "sha256": "84a63473193d28b904c87dfd425c069214cdd1a50b0c8c4c4579756e5826c32e",
+      "size_bytes": 798
+    },
+    "/home/bcherrington/Projects/CLion/FreeCAD/build/debug/artifacts/spec003-t016/commands.json": {
+      "sha256": "7033b700aab7efad52c216c48c471c205f3b08f029e467f68c20bf3755f686e4",
+      "size_bytes": 5453
+    },
+    "/home/bcherrington/Projects/CLion/FreeCAD/build/debug/artifacts/spec003-t016/app-tests.xml": {
+      "sha256": "c90fa4984d9f1f77bc4936a1aa24c9a769c4e8182ddb49992d49f6da356c7a4f",
+      "size_bytes": 70604
+    },
+    "/home/bcherrington/Projects/CLion/FreeCAD/build/debug/artifacts/spec003-t016/cad-final/cad-identity.json": {
+      "sha256": "142547fc8634e21578bb31b76d03b57023e10a44ee35cb6542c3154fbb229930",
+      "size_bytes": 9742
+    },
+    "/tmp/spec003-t016-tests-final.log": {
+      "sha256": "c9dbd50a05e8a7ff78ba1a19c2a4b5db272cb183f63b851e24dfaa2a3678f406",
+      "size_bytes": 32646
+    },
+    "/tmp/spec003-t016-cad-final.log": {
+      "sha256": "a0314d66267769d6b9c7399560c655cde3a893c5dbe6ac0bb75ba6b5e2903f59",
+      "size_bytes": 104
+    },
+    "/tmp/spec003-t016-ctest-final.log": {
+      "sha256": "713374b5878afa8a7413fa94164f4a90600caf53049ffc5719a4379e2ad5ee63",
+      "size_bytes": 53802
+    },
+    "/tmp/spec003-t016-memcheck-tests-final.log": {
+      "sha256": "af315635b78472e8235a36bc66730b01f0debc11d0845a88ba0dea017b4e042a",
+      "size_bytes": 5024
+    }
+  },
+  "memcheck": {
+    "errors": 0,
+    "suppressed_contexts": 1,
+    "leak_check": false,
+    "undefined_value_check": false,
+    "suppression_path": "/tmp/spec003-t012-libunwind.supp",
+    "suppression_sha256": "52d015f82c97cef29511f2806d369739dbf556bcb4b9a7ab52b95b1aed4b6c09"
+  },
+  "limitations": [
+    "One Linux debug composition; no Windows/LLP64, final production, cross-workbench or performance acceptance. T005 remains the aggregate compatibility checkpoint, T010 final applicability.",
+    "Memcheck is not whole-FreeCAD ASan/UBSan; one existing exact libunwind startup probe suppression; leak and undefined-value checks disabled.",
+    "One checksum-pinned legacy CAD input with four dependent Chamfer.Base edges; two map-bearing save/reopen cycles and three explicitly dirtied recomputes. Semantic target identity, not byte-identical ZIP/map ordering.",
+    "Initial harness compile used std::string where getID takes const char*, corrected before running. Initial CAD harness imports were disturbed by module initialization, and recompute(force=True) alone did not dirty clean features; final harness imports dependencies after FreeCAD and explicitly enforces feature recompute. Retained raw recompute-failure log.",
+    "An initial diagnostic Python import used default settings to check module availability; it is not qualification evidence. All recorded final runs use disposable FREECAD_USER_HOME/DATA/TEMP and XDG paths.",
+    "Red null-hasher run exited SIGSEGV (-11); source revision/hash and exact argv captured; red executable/core hashes not captured. Final binary/source hashes and actual successful runs are recorded.",
+    "Disk hashes bind reported on-disk artifacts; no loaded-image equivalence claim. No operator model, installed runtime or MCP checkout changes."
+  ]
+}

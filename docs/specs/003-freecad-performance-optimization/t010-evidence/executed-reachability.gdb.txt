@@ -1,0 +1,25 @@
+set pagination off
+set confirm off
+set breakpoint pending on
+set print thread-events off
+set debuginfod enabled off
+python
+import gdb,json,pathlib
+root=pathlib.Path.cwd();out=root/'build/spec003-t010';counts={};bps=[]
+class Counter(gdb.Breakpoint):
+ def __init__(self,name,spec):
+  super().__init__(spec,internal=True);self.name=name;self.silent=True;bps.append(self)
+ def stop(self):
+  marker=out/'reachability-current.txt';fixture=marker.read_text() if marker.exists() else 'initialization'
+  row=counts.setdefault(fixture,{});row[self.name]=row.get(self.name,0)+1
+  return False
+Counter('Sketcher_existing_external_rebuild','src/Mod/Sketcher/App/SketchObjectExternal.cpp:2934')
+Counter('Sketcher_authored_extension_copy','src/Mod/Sketcher/App/SketchObjectExternal.cpp:2936')
+Counter('GCS_failed_subsystem_break','src/Mod/Sketcher/App/planegcs/GCS.cpp:1945')
+Counter('Gui_stale_queued_property_skip','src/Gui/Document.cpp:1184')
+def save(event):
+ record={'method':'Source-line breakpoints on normal-debug final libraries; instrumentation for functional reachability only, never timing samples.','counts':counts,'breakpoints':[{'name':b.name,'location':b.location,'resolved_locations':len(b.locations)} for b in bps],'exit_code':getattr(event,'exit_code',None),'console_has_no_GuiDocument_execution':'Gui stale-property breakpoint may remain pending because console workload does not load FreeCADGui; source and runtime closure checked separately.'}
+ (out/'reachability-counts.json').write_text(json.dumps(record,indent=2)+'\n')
+gdb.events.exited.connect(save)
+end
+run

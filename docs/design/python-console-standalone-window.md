@@ -1,28 +1,41 @@
 ---
 title: Python Console standalone window
 doc_type: design
-status: draft
+status: code-derived
 owner: local-developer
-last_reviewed: 2026-05-18
+last_reviewed: 2026-11-04
 ---
 
 # Python Console Standalone Window
 
+## Current Code Reconciliation — 2026-11-04
+
+Source reviewed at `13d601b9dd6b66026e2d0dbb5c16156f18bdb592` on
+`personal/integration-testing`. Python Console and Report View standalone
+hosts are implemented in `src/Gui/MainWindow.cpp`. This document records
+current source behavior; platform acceptance and upstream review remain open.
+Reachable commits include `7b7360a7179`, `dfc3a203f28`, `0ee77cd0057`,
+`880d547fa10` (console implementation/persistence/review fixes), and
+`16b710fccce` (Report View).
+
+A fresh offscreen GUI smoke attempt produced no result file;
+it provides no passing host-transition evidence. Source inspection establishes
+the implementation below, while the manual test matrix remains pending.
+No live user document or MCP session was used for this review.
+
 ## Purpose
 
-This document prepares the implementation for FreeCAD issue
+This document describes the local implementation associated with FreeCAD issue
 [#28879](https://github.com/FreeCAD/FreeCAD/issues/28879): allow the Python
 Console to open as a real top-level operating-system window, not only as a
-docked or floating `QDockWidget`. The same pattern is also relevant to the
-Report View/log panel, but the first implementation should stay focused on the
-Python Console and avoid turning this into a broad dock-system rewrite.
+docked or floating `QDockWidget`. The same host pattern is also implemented for the Report View/log panel.
+Any upstream submission still needs a focused scope and validation evidence.
 
 ## Scope
 
 This design covers the Python Console standalone-window workflow, its
 relationship to the existing docked `View > Panels > Python Console` behavior,
-and persistence of standalone state. Report View support is documented only as
-a follow-up.
+and persistence of standalone state. Report View uses an analogous implementation.
 
 ## Design Summary
 
@@ -42,15 +55,14 @@ behavior requested in the issue.
 
 ## Issue Summary
 
-The current Python Console (`Std_PythonView`) can be docked or floated as a
+The original Python Console (`Std_PythonView`) could be docked or floated as a
 Qt dock widget. On macOS, floating dock widgets do not behave like independent
 application windows: they have weaker multi-display behavior, poor integration
 with Mission Control and Spaces, and awkward maximize/fullscreen semantics.
 
 The requested behavior is an option to open the Python Console as a true
 standalone window while keeping the existing docked panel workflow unchanged.
-The GitHub issue currently has no additional comments beyond the original
-problem report.
+The issue discussion was not rechecked during this local-code reconciliation.
 
 ## Current Architecture
 
@@ -63,8 +75,8 @@ problem report.
   the toggle action data is `Std_PythonView`.
 - `View > Panels` is populated dynamically from existing `QDockWidget`
   `toggleViewAction()` objects.
-- `Std_SendToPythonConsole` currently reveals the console through
-  `DockWindowManager::activate()`.
+- `Std_SendToPythonConsole` and macro echo use the central console accessor.
+  Host-aware activation must retain its manual focus-routing checks.
 
 ## Components And Responsibilities
 
@@ -80,19 +92,18 @@ problem report.
 
 ### Standalone Transition
 
-1. Get the existing console.
-2. If it is docked, detach it with
-   `DockWindowManager::removeDockWindow("Python console")`.
-3. Put the returned widget in the standalone host.
-4. Show, raise, activate, and focus the console.
+1. Get the existing shared console through `MainWindow::pythonConsole()`.
+2. Save the dock visibility and detach its widget, keeping the original
+   `QDockWidget` alive and hidden.
+3. Set the console as the standalone `QMainWindow` central widget.
+4. Restore screen-clamped geometry, then show/activate when requested.
 5. Store standalone mode and geometry separately from dock layout state.
 
 ### Docked Transition
 
-1. Hide the standalone host and save its geometry.
-2. Remove the console from the standalone layout.
-3. Register/add it back as `Std_PythonView` through the existing dock path.
-4. Reveal and focus it through the dock toggle/action path.
+1. Take the console from the standalone central widget and hide that host.
+2. Reattach it to the original dock, preserving the existing dock object.
+3. Restore the dock's prior visibility and refresh overlay integration.
 
 ### Focus Routing
 
@@ -113,7 +124,7 @@ problem report.
 | Config Source | Key Or Parameter | Applied By | Effect | Failure Mode |
 | --- | --- | --- | --- | --- |
 | Dock preferences | `BaseApp/MainWindow/DockWindows/Std_PythonView` | Existing dock restore path | Preserves docked Python Console visibility. | Existing dock fallback remains available. |
-| Standalone preferences | `BaseApp/MainWindow/PythonConsoleWindow/Mode` | Python Console controller | Restores docked or standalone mode. | Default to docked mode when absent or invalid. |
+| Standalone preferences | `BaseApp/MainWindow/PythonConsoleWindow/Standalone` | Python Console controller | Restores docked or standalone mode. | Boolean; default to docked mode when absent. |
 | Standalone preferences | `BaseApp/MainWindow/PythonConsoleWindow/Visible` | Python Console controller | Restores standalone visibility on startup. | Hide the standalone host when absent. |
 | Standalone preferences | `BaseApp/MainWindow/PythonConsoleWindow/Geometry` | `PythonConsoleWindow` | Restores standalone window placement and size. | Clamp stale geometry to current screens. |
 
@@ -141,7 +152,7 @@ Handbook guidance:
   this is UI/window-management work, screenshots or a short screen recording
   would be useful.
 
-## Proposed User Experience
+## Implemented User Experience And Remaining Expectations
 
 - Keep `View > Panels > Python Console` as the existing docked panel toggle.
 - Add a separate command, for example `Open Python Console in Window`.
@@ -150,7 +161,9 @@ Handbook guidance:
   `Open in Window` when docked, and `Dock Console` when standalone. In overlay
   mode, the title bar appears on hover, so this action remains reachable without
   adding permanent chrome.
-- Closing the standalone window hides it; it must not destroy the console.
+- A spontaneous window-manager close docks the shared console back.
+  Application shutdown and non-spontaneous closes are accepted without docking;
+  the host has `WA_DeleteOnClose` and `WA_QuitOnClose` disabled.
 - Showing the docked panel while standalone is active should re-dock the same
   console and hide the standalone host.
 - `Send to Python Console` should reveal and focus whichever host is active.
@@ -191,22 +204,20 @@ Current implementation status:
 - `Std_SendToPythonConsole` and macro command echo use the central
   `MainWindow::pythonConsole()` accessor.
 
-Suggested methods:
+Current methods:
 
 - `PythonConsole* MainWindow::pythonConsole() const`
-- `void MainWindow::showPythonConsoleDocked()`
-- `void MainWindow::showPythonConsoleWindow()`
+- `void MainWindow::showPythonConsoleWindow(bool show = true)`
 - `void MainWindow::dockPythonConsole()`
 - `bool MainWindow::isPythonConsoleStandalone() const`
 
-Suggested host:
+Current host:
 
-- A small `PythonConsoleWindow` wrapper, either local to `MainWindow.cpp` or
-  near `PythonConsole`.
+- A small `PythonConsoleWindow` wrapper local to `MainWindow.cpp`.
 - Use `Qt::Window`.
 - Use no QWidget parent for OS-level independence.
-- Use a zero-margin layout containing the shared `PythonConsole`.
-- Override close handling to hide and save geometry instead of deleting.
+- Use the shared `PythonConsole` as the `QMainWindow` central widget.
+- Distinguish spontaneous user close from application/non-spontaneous close as described above.
 
 ## Persistence
 
@@ -220,18 +231,21 @@ Store standalone state separately, for example under:
 
 `BaseApp/MainWindow/PythonConsoleWindow`
 
-Recommended keys:
+Implemented keys:
 
-- `Mode`: `Docked` or `Standalone`
+- `Standalone`: boolean mode selection
 - `Visible`: whether the standalone window was visible on shutdown
-- `Geometry`: `saveGeometry()` data
+- `Geometry`: base64-encoded `saveGeometry()` data
+- `DockVisibleBeforeWindow`: dock visibility to restore when docking back
 
 Restore geometry with screen clamping so stale monitor layouts do not reopen
 the window off-screen.
 
 ## Validation And Error Handling
 
-- Closing the standalone window hides it; it must not destroy the console.
+- A spontaneous window-manager close docks the shared console back.
+  Application shutdown and non-spontaneous closes are accepted without docking;
+  the host has `WA_DeleteOnClose` and `WA_QuitOnClose` disabled.
 - Showing the docked panel while standalone is active should re-dock the same
   console and hide the standalone host.
 - `Send to Python Console` should reveal and focus whichever host is active.
@@ -285,13 +299,13 @@ icons for these actions, because those icons already mean camera/view direction.
   saved layouts, preference packs, bottom-panel toggling, and tabified docks.
   Start with Python Console, then extract a reusable helper once the behavior is
   proven.
-- Workbench switching can re-add registered dock widgets. Standalone mode should
-  avoid leaving `Std_PythonView` registered as a normal dock item while the
-  console is hosted by the standalone window.
+- Workbench switching can re-add registered dock widgets. The original dock
+  stays alive and hidden while standalone; workbench and overlay transitions
+  still need manual validation.
 - Overlay setup/unsetup belongs to the dock path. The standalone host should not
   participate in overlay title bars or overlay tabs.
 - `Std_SendToPythonConsole` and any code using `findChild<PythonConsole*>()`
-  may need to route through a central accessor because a top-level unparented
+  route through the central accessor because a top-level unparented
   console will not necessarily be found as a `MainWindow` child.
 - `WA_DeleteOnClose` must not delete the standalone host while it owns the
   console unless the console is removed first.
@@ -314,25 +328,16 @@ icons for these actions, because those icons already mean camera/view direction.
 
 - `docs/checklists/contribution-overview.md`
 
-## Report View Follow-Up
+## Report View Implementation
 
-The Report View/log panel has a similar multi-monitor use case. It is also a
-bottom dock registered by `MainWindow::setupReportView()` as `Std_ReportView`.
-Once the Python Console path is proven, the same standalone host/controller
-shape can be extended to Report View:
-
-- keep `View > Panels > Report View` unchanged
-- add `Open Report View in Window`
-- move the existing `ReportOutput` widget between its dock host and a true
-  top-level host
-- add an `Open in Window` / `Dock Report View` title/header action
-- persist report-window geometry separately from dock layout
-
-Report View is less risky than Python Console because it does not own Python
-stdin/stdout interpreter input, but it still participates in the same
-`DockWindowManager`, overlay, bottom-panel toggle, and saved layout systems.
-Avoid implementing it first if issue #28879 remains specifically scoped to the
-Python Console.
+`ReportViewWindow`, `showReportViewWindow()` and `dockReportView()` in
+`MainWindow.cpp` provide the analogous standalone mode for the existing
+`ReportOutput` widget. It keeps its original dock alive, exposes window/dock
+actions, and persists `Standalone`, `Visible`, `Geometry` and
+`DockVisibleBeforeWindow` under `BaseApp/MainWindow/ReportViewWindow`.
+Close handling follows the same spontaneous/application distinction as Python
+Console. Report View also needs the host-transition, restart, overlay and
+platform checks below. Implementation does not establish completed acceptance.
 
 ## Test Matrix
 

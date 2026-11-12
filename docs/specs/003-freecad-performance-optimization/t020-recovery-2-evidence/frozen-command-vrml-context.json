@@ -1,0 +1,25 @@
+{
+  "fixture_id": "TestVRMLTextures",
+  "fixture_sha256": "7b5ed0e601bda6f1415fdae837211a7308c1d4f4df3cc16d600cbe894db6bc74",
+  "gridfinity_addon_sha256": "1937ad9b62c5e66be9d6ba5d8d94420f07c0b0d635048897bf7fa5c450354ef2",
+  "initial_image_visibility": -1,
+  "scenario": "open-only",
+  "expected_image_payload_sha256s": [],
+  "command_normative_state_sha256": "2ab4ee1613a4f29736567472e658fc8be7fff48bac83fbcc8e4bcbf35c8d52a0",
+  "namespace_sha256": {
+    "baseline": "2d8d68ed8f64c758e7d839eb621b640f96f304508f3a780eb10ebaed5555d391",
+    "change": "2a77dd9d0ea9d0ae529210648cbe50685be7c9cdedca61709c5dfe60384f9f9f"
+  },
+  "runtime_module_sha256": {
+    "baseline": {
+      "bin/FreeCADCmd": "9a2cc6e9e2d332d5fabe10400ac356eb3920eae91d6aafb2241687048088f907",
+      "lib/libFreeCADApp.so": "9a29e8e3797ff0fe8ebc75cb64e89df55899b8071f4bbea1733eb9b9400ff0ac",
+      "lib/libFreeCADBase.so": "1070f3d46f6a945464a756effba510aa42984075bd6c88800766c704b84472aa"
+    },
+    "change": {
+      "bin/FreeCADCmd": "9a2cc6e9e2d332d5fabe10400ac356eb3920eae91d6aafb2241687048088f907",
+      "lib/libFreeCADApp.so": "9a29e8e3797ff0fe8ebc75cb64e89df55899b8071f4bbea1733eb9b9400ff0ac",
+      "lib/libFreeCADBase.so": "1070f3d46f6a945464a756effba510aa42984075bd6c88800766c704b84472aa"
+    }
+  }
+}

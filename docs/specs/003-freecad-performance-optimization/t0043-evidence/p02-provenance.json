@@ -1,0 +1,65 @@
+{
+  "comparison": "P02",
+  "source": {
+    "common": "1a203990d6cbcc07903cc2a39169b53d9cfedb79",
+    "variation": "successful scalar get/put vs current 64KiB buffered SaveDocFile copy; identical create/read/write checks and restore, no per-byte instrumentation",
+    "retired_campaign_sha256": "3471f7e36f0f537171e5addae3db726acbaf21b0b79df0383f3c021d22f4dcfc",
+    "change": "1a203990d6cbcc07903cc2a39169b53d9cfedb79",
+    "baseline": "18b045589b38d91469132d6a78aeeb0d73119dfc"
+  },
+  "profile": "Matched Linux x86_64 RelWithDebInfo, -O2 -g -DNDEBUG, PCH off, same canonical source/build prefix and locked Pixi environment",
+  "controller_sha256": "b81a3ef7a17866aba0c92f4398f4a8e4d17fd1fcce842df1d401e66e328bb1db",
+  "freeze_sha256": "0393f1e6d5c9f21dfef87acad5ef2b3ccb4292f3a87c972d78ff9c5e9c1b636d",
+  "frozen_binding_count": 32199,
+  "policy_sha256": {
+    "acceptance-policy-v2.md": "6d6df53ac04877b1b74973caa184cafab8251ba1ac10a6b505c7dde7f893069f",
+    "acceptance-policy-v2.json": "c60114f73521dad78e4926f5d3404a02f64c2f7aac861cc06b817240a57bda57",
+    "cost-benefit-review.md": "c6d3e040128802955c5446d4b077090b99b649459f50516c218acb30cf081eab",
+    "cost-benefit-review.json": "6e9a5754b48371d135597feeaf71ade7274f407d0904658cec9080e79caaab7a",
+    "t0043-execution-plan.md": "5beb14616baaa490ceac5931e5977e3ce4de6698c1ea18ee17cf41fa55903356"
+  },
+  "review_policy_id": "spec003-cost-benefit-20261108-v2",
+  "before_audit_sha256": "d14948b753957b4d34736c86005789cbd48e8c4b55d608b89dfc85239ea9b300",
+  "after_audit_sha256": "499dab69c9cbf95fe8f8f1e86968632d3c79e73c888623a3995d89c28bf1286f",
+  "before_and_after_audit_passed": true,
+  "build_equivalence_sha256": "7d12994f0f67a1b1d81ad5ff6777a4837b4c7cbaa72667bfc95d07d00efd2538",
+  "object_counts": {
+    "FreeCADApp.dir": 105,
+    "FreeCADGui.dir": 392
+  },
+  "object_differences": {
+    "src/App/CMakeFiles/FreeCADApp.dir": [
+      "src/App/CMakeFiles/FreeCADApp.dir/PropertyFile.cpp.o"
+    ],
+    "src/Gui/CMakeFiles/FreeCADGui.dir": []
+  },
+  "gui_loadable_sections_equal": true,
+  "gui_nonruntime_difference": "all runtime sections and headers exact; any enumerated difference is bounded to non-ALLOC DWARF .debug_addr only",
+  "gui_debug_differing_bytes": 1,
+  "binary_sha256": {
+    "baseline": {
+      "bin/FreeCADCmd": "ae78f98c66e0f4f00a5fcd30a8ec245395470696a28b4ba488a4fadd91d987a2",
+      "lib/libFreeCADApp.so": "8ec7927f2b55d6d23e2572eacc291a2a26aab4df4715a5f55c06fe256c21492b",
+      "lib/libFreeCADGui.so": "fdb37646d93cd8c9a44ed2ec63a9133bde3ae218c4ddcc1020efd60e0e0ad388",
+      "lib/FreeCADGui.so": "3f45253e8c837704b73f690d36e5007bed1c3213a17479772e93ed65dfdb5050",
+      "tests/App_tests_run": "eb6530e2976574398c776feae6f69602369c4c49a7e24e3d91a2c37fce97923d"
+    },
+    "change": {
+      "bin/FreeCADCmd": "ae78f98c66e0f4f00a5fcd30a8ec245395470696a28b4ba488a4fadd91d987a2",
+      "lib/libFreeCADApp.so": "e972dae089f2e77781a39266f5f1a9664967527cbc2848124d51ba4fb8bc132f",
+      "lib/libFreeCADGui.so": "ace597c76a858456aee4eb8b70a254f4db78af7e8e3d77b597b166ef795b535e",
+      "lib/FreeCADGui.so": "3f45253e8c837704b73f690d36e5007bed1c3213a17479772e93ed65dfdb5050",
+      "tests/App_tests_run": "61b7151e8922b27c251321c1a83dc5b031a38ecb6efc2926abc032f661eed591"
+    }
+  },
+  "public_defined_abi_unchanged": true,
+  "defined_symbol_size_changes": [
+    "_ZNK3App20PropertyFileIncluded11SaveDocFileERN4Base6WriterE"
+  ],
+  "scope": "Core console per-change comparison; no GUI/GPU/production approval. D007 rubric frozen before data; T004.4 owns workflow decision; T010 final applicability.",
+  "native_source_and_full_locators": "retained in private frozen receipts; protected source refs remain available",
+  "expected_scalar_only_undefined_imports": [
+    "_ZNSi3getERc@GLIBCXX_3.4"
+  ],
+  "import_provider_sha256": "00ea87fc32a44f4aefee1b88232b6a1c3528b8084064ee47dd6330adb215e586"
+}

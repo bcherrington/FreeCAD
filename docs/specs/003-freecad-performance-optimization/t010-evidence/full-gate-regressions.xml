@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="Linux-clang++"
+	tests="2"
+	failures="0"
+	disabled="0"
+	skipped="0"
+	hostname="bruce-5560"
+	time="2"
+	timestamp="2026-11-09T14:26:13"
+	>
+	<testcase name="MeasureElementType.testDatumAreaHandlerReturnsInvalidResult" classname="MeasureElementType.testDatumAreaHandlerReturnsInvalidResult" time="0.271943" status="run">
+		<properties/>
+		<system-out>Running main() from /home/conda/feedstock_root/build_artifacts/bld/rattler-build_gtest_1786419392/work/googletest/src/gtest_main.cc
+Note: Google Test filter = MeasureElementType.testDatumAreaHandlerReturnsInvalidResult
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from MeasureElementType
+[ RUN      ] MeasureElementType.testDatumAreaHandlerReturnsInvalidResult
+[       OK ] MeasureElementType.testDatumAreaHandlerReturnsInvalidResult (9 ms)
+[----------] 1 test from MeasureElementType (9 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (159 ms total)
+[  PASSED  ] 1 test.
+</system-out>
+	</testcase>
+	<testcase name="TaskInlineAcceptProgressTest_Tests_run" classname="TaskInlineAcceptProgressTest_Tests_run" time="1.96268" status="run">
+		<properties>
+			<property name="cmake_labels" value="Qt"/>
+		</properties>
+		<system-out>********* Start testing of testTaskInlineAcceptProgress *********
+Config: Using QtTest library 6.11.3, Qt 6.11.3 (x86_64-little_endian-lp64 shared (dynamic) release build; by GCC 15.3.0), linuxmint 22.3
+PASS   : testTaskInlineAcceptProgress::initTestCase()
+PASS   : testTaskInlineAcceptProgress::offsetAcceptUsesInlineProgressInsteadOfModalDialog()
+PASS   : testTaskInlineAcceptProgress::thicknessAcceptUsesInlineProgressInsteadOfModalDialog()
+PASS   : testTaskInlineAcceptProgress::loftAcceptUsesInlineProgressInsteadOfModalDialog()
+PASS   : testTaskInlineAcceptProgress::sweepAcceptUsesInlineProgressInsteadOfModalDialog()
+PASS   : testTaskInlineAcceptProgress::cleanupTestCase()
+Totals: 6 passed, 0 failed, 0 skipped, 0 blacklisted, 1525ms
+********* Finished testing of testTaskInlineAcceptProgress *********
+</system-out>
+	</testcase>
+</testsuite>

@@ -1,6 +1,7 @@
 ---
 title: Feature research title
 doc_type: spec
+artifact_type: research
 status: draft
 owner: team-or-person
 last_reviewed: YYYY-MM-DD

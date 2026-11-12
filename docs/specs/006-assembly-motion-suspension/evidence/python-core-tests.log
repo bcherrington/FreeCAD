@@ -1,0 +1,226 @@
+<PropertyLinks> PropertyLinks.cpp(4236): PropertyXLink export without saving the document
+<PropertyLinks> PropertyLinks.cpp(4236): PropertyXLink export without saving the document
+Assembly joint 'Joint001' has an invalid 'Reference1' or related attributes. list index out of range
+Assembly joint 'Joint001' has an invalid 'Reference2' or related attributes. list index out of range
+Traceback (most recent call last):
+  File "/home/bcherrington/Projects/CLion/FreeCAD/build/debug/Mod/Assembly/JointObject.py", line 840, in execute
+    self.updateJCSPlacements(joint)
+  File "/home/bcherrington/Projects/CLion/FreeCAD/build/debug/Mod/Assembly/JointObject.py", line 883, in updateJCSPlacements
+    self.redrawJointPlacements(joint)
+  File "/home/bcherrington/Projects/CLion/FreeCAD/build/debug/Mod/Assembly/JointObject.py", line 889, in redrawJointPlacements
+    proxy.redrawJointPlacements(joint)
+<class 'AttributeError'>: 'int' object has no attribute 'redrawJointPlacements'
+Traceback (most recent call last):
+  File "/home/bcherrington/Projects/CLion/FreeCAD/build/debug/Mod/Assembly/JointObject.py", line 840, in execute
+    self.updateJCSPlacements(joint)
+  File "/home/bcherrington/Projects/CLion/FreeCAD/build/debug/Mod/Assembly/JointObject.py", line 883, in updateJCSPlacements
+    self.redrawJointPlacements(joint)
+  File "/home/bcherrington/Projects/CLion/FreeCAD/build/debug/Mod/Assembly/JointObject.py", line 889, in redrawJointPlacements
+    proxy.redrawJointPlacements(joint)
+<class 'AttributeError'>: 'int' object has no attribute 'redrawJointPlacements'
+Traceback (most recent call last):
+  File "/home/bcherrington/Projects/CLion/FreeCAD/build/debug/Mod/Assembly/JointObject.py", line 840, in execute
+    self.updateJCSPlacements(joint)
+  File "/home/bcherrington/Projects/CLion/FreeCAD/build/debug/Mod/Assembly/JointObject.py", line 883, in updateJCSPlacements
+    self.redrawJointPlacements(joint)
+  File "/home/bcherrington/Projects/CLion/FreeCAD/build/debug/Mod/Assembly/JointObject.py", line 889, in redrawJointPlacements
+    proxy.redrawJointPlacements(joint)
+<class 'AttributeError'>: 'int' object has no attribute 'redrawJointPlacements'
+Joint001: 'int' object has no attribute 'redrawJointPlacements'
+<PropertyLinks> PropertyLinks.cpp(4236): PropertyXLink export without saving the document
+<PropertyLinks> PropertyLinks.cpp(4236): PropertyXLink export without saving the document
+Assembly joint 'Joint001' has an invalid 'Reference1' or related attributes. list index out of range
+Assembly joint 'Joint001' has an invalid 'Reference2' or related attributes. list index out of range
+Traceback (most recent call last):
+  File "/home/bcherrington/Projects/CLion/FreeCAD/build/debug/Mod/Assembly/JointObject.py", line 840, in execute
+    self.updateJCSPlacements(joint)
+  File "/home/bcherrington/Projects/CLion/FreeCAD/build/debug/Mod/Assembly/JointObject.py", line 883, in updateJCSPlacements
+    self.redrawJointPlacements(joint)
+  File "/home/bcherrington/Projects/CLion/FreeCAD/build/debug/Mod/Assembly/JointObject.py", line 889, in redrawJointPlacements
+    proxy.redrawJointPlacements(joint)
+<class 'AttributeError'>: 'int' object has no attribute 'redrawJointPlacements'
+Traceback (most recent call last):
+  File "/home/bcherrington/Projects/CLion/FreeCAD/build/debug/Mod/Assembly/JointObject.py", line 840, in execute
+    self.updateJCSPlacements(joint)
+  File "/home/bcherrington/Projects/CLion/FreeCAD/build/debug/Mod/Assembly/JointObject.py", line 883, in updateJCSPlacements
+    self.redrawJointPlacements(joint)
+  File "/home/bcherrington/Projects/CLion/FreeCAD/build/debug/Mod/Assembly/JointObject.py", line 889, in redrawJointPlacements
+    proxy.redrawJointPlacements(joint)
+<class 'AttributeError'>: 'int' object has no attribute 'redrawJointPlacements'
+Traceback (most recent call last):
+  File "/home/bcherrington/Projects/CLion/FreeCAD/build/debug/Mod/Assembly/JointObject.py", line 840, in execute
+    self.updateJCSPlacements(joint)
+  File "/home/bcherrington/Projects/CLion/FreeCAD/build/debug/Mod/Assembly/JointObject.py", line 883, in updateJCSPlacements
+    self.redrawJointPlacements(joint)
+  File "/home/bcherrington/Projects/CLion/FreeCAD/build/debug/Mod/Assembly/JointObject.py", line 889, in redrawJointPlacements
+    proxy.redrawJointPlacements(joint)
+<class 'AttributeError'>: 'int' object has no attribute 'redrawJointPlacements'
+Joint001: 'int' object has no attribute 'redrawJointPlacements'
+Coin warning in SoDB::enableRealTimeSensor(): realtime sensor already on
+FreeCAD 27.1.0, Libs: 27.1.0devRDev Build
+(C) 2001-2026 FreeCAD contributors
+FreeCAD is free and open-source software licensed under the terms of LGPL2+ license.
+
+Migrating Start Workbench to Start command... done.
+test_assembly_link_maps_generated_array_joint (AssemblyTests.TestCore.TestCore.test_assembly_link_maps_generated_array_joint) ...   Temporary document 'TestCore'
+ok
+test_assembly_link_maps_generated_array_whole_element_joint (AssemblyTests.TestCore.TestCore.test_assembly_link_maps_generated_array_whole_element_joint) ...   Temporary document 'TestCore'
+ok
+test_assembly_link_synchronizes_element_suppression (AssemblyTests.TestCore.TestCore.test_assembly_link_synchronizes_element_suppression) ...   Temporary document 'TestCore'
+ok
+test_component_count_for_link_array (AssemblyTests.TestCore.TestCore.test_component_count_for_link_array) ...   Temporary document 'TestCore'
+ok
+test_create_assembly (AssemblyTests.TestCore.TestCore.test_create_assembly)
+Create an assembly. ...   Temporary document 'TestCore'
+  Test 'Create Assembly Object'
+ok
+test_create_grounded_joint (AssemblyTests.TestCore.TestCore.test_create_grounded_joint)
+Create a grounded joint in an assembly. ...   Temporary document 'TestCore'
+  Test 'Create Grounded Joint Object'
+ok
+test_create_joint (AssemblyTests.TestCore.TestCore.test_create_joint)
+Create a joint in an assembly. ...   Temporary document 'TestCore'
+  Test 'Create Joint Object'
+ok
+test_create_jointGroup (AssemblyTests.TestCore.TestCore.test_create_jointGroup)
+Create a joint group in an assembly. ...   Temporary document 'TestCore'
+  Test 'Create JointGroup Object'
+ok
+test_find_placement (AssemblyTests.TestCore.TestCore.test_find_placement)
+Test find placement of joint. ...   Temporary document 'TestCore'
+  Test 'Find placement'
+  plc 'Placement [Pos=(0,3,7), Yaw-Pitch-Roll=(0,0,0)]'
+  targetPlc 'Placement [Pos=(0,3,7), Yaw-Pitch-Roll=(0,0,0)]'
+  plc 'Placement [Pos=(2,1.5,3.5), Yaw-Pitch-Roll=(0,-90,180)]'
+  targetPlc 'Placement [Pos=(2,1.5,3.5), Yaw-Pitch-Roll=(0,-90,180)]'
+ok
+test_generated_array_is_one_component (AssemblyTests.TestCore.TestCore.test_generated_array_is_one_component) ...   Temporary document 'TestCore'
+ok
+test_link_array_fixed_joint_ignores_source_object_placement (AssemblyTests.TestCore.TestCore.test_link_array_fixed_joint_ignores_source_object_placement) ...   Temporary document 'TestCore'
+  Test 'Link array joint ignores source object placement'
+ok
+test_link_array_fixed_joint_uses_inner_source_placement_once (AssemblyTests.TestCore.TestCore.test_link_array_fixed_joint_uses_inner_source_placement_once) ...   Temporary document 'TestCore'
+  Test 'Link array joint matches inner source placement'
+ok
+test_link_array_joint_follows_moved_cylinder_intersection (AssemblyTests.TestCore.TestCore.test_link_array_joint_follows_moved_cylinder_intersection) ...   Temporary document 'TestCore'
+  Test 'Link array joint follows a moved cylinder intersection'
+ok
+test_link_array_joint_follows_moved_inner_body (AssemblyTests.TestCore.TestCore.test_link_array_joint_follows_moved_inner_body) ...   Temporary document 'TestCore'
+  Test 'Link array joint follows a moved inner body'
+ok
+test_link_array_joint_follows_moved_inner_cylinder_bottom (AssemblyTests.TestCore.TestCore.test_link_array_joint_follows_moved_inner_cylinder_bottom) ...   Temporary document 'TestCore'
+  Test 'Link array joint follows a moved cylinder bottom circle'
+ok
+test_link_array_joint_on_circular_pattern (AssemblyTests.TestCore.TestCore.test_link_array_joint_on_circular_pattern) ...   Temporary document 'TestCore'
+  Test 'Link array joint on a circular pattern'
+ok
+test_link_array_joint_on_path_pattern (AssemblyTests.TestCore.TestCore.test_link_array_joint_on_path_pattern) ...   Temporary document 'TestCore'
+  Test 'Link array joint on a path pattern'
+ok
+test_link_array_joint_on_point_pattern (AssemblyTests.TestCore.TestCore.test_link_array_joint_on_point_pattern) ...   Temporary document 'TestCore'
+  Test 'Link array joint on a point pattern'
+ok
+test_link_array_joint_on_polar_pattern (AssemblyTests.TestCore.TestCore.test_l<PropertyLinks> PropertyLinks.cpp(4236): PropertyXLink export without saving the document
+<PropertyLinks> PropertyLinks.cpp(4236): PropertyXLink export without saving the document
+Assembly joint 'Joint001' has an invalid 'Reference1' or related attributes. list index out of range
+Assembly joint 'Joint001' has an invalid 'Reference2' or related attributes. list index out of range
+Traceback (most recent call last):
+  File "/home/bcherrington/Projects/CLion/FreeCAD/build/debug/Mod/Assembly/JointObject.py", line 840, in execute
+    self.updateJCSPlacements(joint)
+  File "/home/bcherrington/Projects/CLion/FreeCAD/build/debug/Mod/Assembly/JointObject.py", line 883, in updateJCSPlacements
+    self.redrawJointPlacements(joint)
+  File "/home/bcherrington/Projects/CLion/FreeCAD/build/debug/Mod/Assembly/JointObject.py", line 889, in redrawJointPlacements
+    proxy.redrawJointPlacements(joint)
+<class 'AttributeError'>: 'int' object has no attribute 'redrawJointPlacements'
+Traceback (most recent call last):
+  File "/home/bcherrington/Projects/CLion/FreeCAD/build/debug/Mod/Assembly/JointObject.py", line 840, in execute
+    self.updateJCSPlacements(joint)
+  File "/home/bcherrington/Projects/CLion/FreeCAD/build/debug/Mod/Assembly/JointObject.py", line 883, in updateJCSPlacements
+    self.redrawJointPlacements(joint)
+  File "/home/bcherrington/Projects/CLion/FreeCAD/build/debug/Mod/Assembly/JointObject.py", line 889, in redrawJointPlacements
+    proxy.redrawJointPlacements(joint)
+<class 'AttributeError'>: 'int' object has no attribute 'redrawJointPlacements'
+<PropertyLinks> PropertyLinks.cpp(4236): PropertyXLink export without saving the document
+<PropertyLinks> PropertyLinks.cpp(4236): PropertyXLink export without saving the document
+Assembly joint 'Joint001' has an invalid 'Reference1' or related attributes. list index out of range
+Assembly joint 'Joint001' has an invalid 'Reference2' or related attributes. list index out of range
+Traceback (most recent call last):
+  File "/home/bcherrington/Projects/CLion/FreeCAD/build/debug/Mod/Assembly/JointObject.py", line 840, in execute
+    self.updateJCSPlacements(joint)
+  File "/home/bcherrington/Projects/CLion/FreeCAD/build/debug/Mod/Assembly/JointObject.py", line 883, in updateJCSPlacements
+    self.redrawJointPlacements(joint)
+  File "/home/bcherrington/Projects/CLion/FreeCAD/build/debug/Mod/Assembly/JointObject.py", line 889, in redrawJointPlacements
+    proxy.redrawJointPlacements(joint)
+<class 'AttributeError'>: 'int' object has no attribute 'redrawJointPlacements'
+Traceback (most recent call last):
+  File "/home/bcherrington/Projects/CLion/FreeCAD/build/debug/Mod/Assembly/JointObject.py", line 840, in execute
+    self.updateJCSPlacements(joint)
+  File "/home/bcherrington/Projects/CLion/FreeCAD/build/debug/Mod/Assembly/JointObject.py", line 883, in updateJCSPlacements
+    self.redrawJointPlacements(joint)
+  File "/home/bcherrington/Projects/CLion/FreeCAD/build/debug/Mod/Assembly/JointObject.py", line 889, in redrawJointPlacements
+    proxy.redrawJointPlacements(joint)
+<class 'AttributeError'>: 'int' object has no attribute 'redrawJointPlacements'
+Traceback (most recent call last):
+  File "/home/bcherrington/Projects/CLion/FreeCAD/build/debug/Mod/Assembly/JointObject.py", line 1419, in onChanged
+    self.updateStoredPositions(fp, True)
+  File "/home/bcherrington/Projects/CLion/FreeCAD/build/debug/Mod/Assembly/JointObject.py", line 1385, in updateStoredPositions
+    self._write_rigid_placements(fp, placements)
+  File "/home/bcherrington/Projects/CLion/FreeCAD/build/debug/Mod/Assembly/JointObject.py", line 1392, in _write_rigid_placements
+    fp.setPropertyStatus("RigidPlacements", "-ReadOnly")
+<class 'AttributeError'>: Property container has no property 'RigidPlacements'
+ink_array_joint_on_polar_pattern) ...   Temporary document 'TestCore'
+  Test 'Link array joint on a polar pattern'
+ok
+test_motion_suspension_before_creation_and_document_close (AssemblyTests.TestCore.TestCore.test_motion_suspension_before_creation_and_document_close) ...   Temporary document 'TestCore'
+ok
+test_motion_suspension_callbacks_before_containment (AssemblyTests.TestCore.TestCore.test_motion_suspension_callbacks_before_containment) ...   Temporary document 'TestCore'
+ok
+test_motion_suspension_context_is_single_use (AssemblyTests.TestCore.TestCore.test_motion_suspension_context_is_single_use) ...   Temporary document 'TestCore'
+ok
+test_motion_suspension_generated_array_remapping (AssemblyTests.TestCore.TestCore.test_motion_suspension_generated_array_remapping) ...   Temporary document 'TestCore'
+ok
+test_motion_suspension_generated_whole_element_remapping (AssemblyTests.TestCore.TestCore.test_motion_suspension_generated_whole_element_remapping) ...   Temporary document 'TestCore'
+ok
+test_motion_suspension_grounded_status_and_validated_solve (AssemblyTests.TestCore.TestCore.test_motion_suspension_grounded_status_and_validated_solve) ...   Temporary document 'TestCore'
+ok
+test_motion_suspension_native_motion_admission (AssemblyTests.TestCore.TestCore.test_motion_suspension_native_motion_admission) ...   Temporary document 'TestCore'
+ok
+test_motion_suspension_nesting_exception_and_gc (AssemblyTests.TestCore.TestCore.test_motion_suspension_nesting_exception_and_gc) ...   Temporary document 'TestCore'
+ok
+test_motion_suspension_preserves_existing_rigid_instance_pose (AssemblyTests.TestCore.TestCore.test_motion_suspension_preserves_existing_rigid_instance_pose) ...   Temporary document 'TestCore'
+ok
+test_motion_suspension_preserves_presolve_undo (AssemblyTests.TestCore.TestCore.test_motion_suspension_preserves_presolve_undo) ...   Temporary document 'TestCore'
+ok
+test_motion_suspension_reconciles_ground_deletion (AssemblyTests.TestCore.TestCore.test_motion_suspension_reconciles_ground_deletion) ...   Temporary document 'TestCore'
+ok
+test_motion_suspension_reconciles_ground_retargeting (AssemblyTests.TestCore.TestCore.test_motion_suspension_reconciles_ground_retargeting) ...   Temporary document 'TestCore'
+ok
+test_motion_suspension_rejected_graph_preserves_pending_ground_release (AssemblyTests.TestCore.TestCore.test_motion_suspension_rejected_graph_preserves_pending_ground_release) ...   Temporary document 'TestCore'
+ok
+test_motion_suspension_rejects_escaped_ground_without_source_effects (AssemblyTests.TestCore.TestCore.test_motion_suspension_rejects_escaped_ground_without_source_effects) ...   Temporary document 'TestCore'
+ok
+test_motion_suspension_rigid_group_restore (AssemblyTests.TestCore.TestCore.test_motion_suspension_rigid_group_restore) ...   Temporary document 'TestCore'
+Assembly: Rigid group positions updated.
+ok
+test_motion_suspension_validated_external_link (AssemblyTests.TestCore.TestCore.test_motion_suspension_validated_external_link) ...   Temporary document 'TestCore'
+ok
+test_rack_pinion_with_slider_offset (AssemblyTests.TestCore.TestCore.test_rack_pinion_with_slider_offset)
+Rack and pinion joint whose rack slider has a yaw offset, see ...   Temporary document 'TestCore'
+  Test 'Rack and pinion with slider offset'
+ok
+test_solve_assembly (AssemblyTests.TestCore.TestCore.test_solve_assembly)
+Test solving an assembly. ...   Temporary document 'TestCore'
+  Test 'Solve assembly'
+ok
+test_suppressed_link_elements_are_not_movable (AssemblyTests.TestCore.TestCore.test_suppressed_link_elements_are_not_movable) ...   Temporary document 'TestCore'
+ok
+test_toggle_grounded_joint (AssemblyTests.TestCore.TestCore.test_toggle_grounded_joint)
+test grounding and ungrounding a part, added because of github.com/freecad/freecad/issues/28440 ...   Temporary document 'TestCore'
+  Test 'Toggle Grounded Joint'
+ok
+
+----------------------------------------------------------------------
+Ran 39 tests in 22.671s
+
+OK
+System exit

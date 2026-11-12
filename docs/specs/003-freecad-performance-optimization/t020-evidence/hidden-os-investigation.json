@@ -1,0 +1,31 @@
+{
+  "schema": "freecad-spec003-aborted-cell-os-investigation/v1",
+  "cell": "hidden",
+  "coordinate": {
+    "pair": 12,
+    "phase": "measured",
+    "measured_pair_1_based": 9,
+    "arm": "baseline"
+  },
+  "failure_classification": "unclassified worker/process failure",
+  "interval_utc": [
+    "2026-11-07 15:17:53 UTC",
+    "2026-11-07 15:18:53 UTC"
+  ],
+  "queries": [
+    {
+      "query": "kernel",
+      "exit": 0,
+      "stderr_present": false,
+      "journal_records_visible": 92,
+      "relevant_events": []
+    },
+    {
+      "query": "coredump",
+      "exit": 0,
+      "stderr_present": false,
+      "journal_records_visible": 0,
+      "relevant_events": []
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "passed": true,
+  "tests": [
+    "optimized Python rejects changed freeze digest",
+    "optimized Python preserves existing campaign status",
+    "optimized Python rejects pre-existing observations before status/worker start"
+  ],
+  "python_optimization": 2,
+  "native_workers_started": 0
+}

@@ -1,0 +1,59 @@
+Function "App::DocumentPy::restore" not defined.
+Function "Assembly::AssemblyObject::runSolve" not defined.
+Function "Assembly::AssemblyObject::ensureIdentityPlacementsImpl" not defined.
+Function "App::PropertyPlacement::setValue" not defined.
+warning: File "/home/bcherrington/Projects/CLion/FreeCAD/build/debug/Mod/Part/Part.so" auto-loading has been declined by your `auto-load safe-path' set to "$debugdir:$datadir/auto-load".
+To enable execution of this file add
+	add-auto-load-safe-path /home/bcherrington/Projects/CLion/FreeCAD/build/debug/Mod/Part/Part.so
+line to your configuration file "/home/bcherrington/.config/gdb/gdbinit".
+To completely disable this security protection add
+	set auto-load safe-path /
+line to your configuration file "/home/bcherrington/.config/gdb/gdbinit".
+For more information about this security protection see the
+"Auto-loading safe path" section in the GDB manual.  E.g., run from the shell:
+	info "(gdb)Auto-loading safe path"
+warning: File "/home/bcherrington/Projects/CLion/FreeCAD/build/debug/Mod/Spreadsheet/Spreadsheet.so" auto-loading has been declined by your `auto-load safe-path' set to "$debugdir:$datadir/auto-load".
+warning: File "/home/bcherrington/Projects/CLion/FreeCAD/build/debug/lib/libFreeCADApp.so" auto-loading has been declined by your `auto-load safe-path' set to "$debugdir:$datadir/auto-load".
+[Thread debugging using libthread_db enabled]
+Using host libthread_db library "/lib/x86_64-linux-gnu/libthread_db.so.1".
+Running main() from /home/conda/feedstock_root/build_artifacts/bld/rattler-build_gtest_1786419392/work/googletest/src/gtest_main.cc
+Note: Google Test filter = AssemblyObjectTest.automaticMotionStopsBeforeNativePlacementPreparation:AssemblyObjectTest.suspendedCopyAndRestorePreserveSerializedPlacements:AssemblyObjectTest.validatedSolveMovesLocalLinksAndPreservesExternalSource
+[==========] Running 3 tests from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 3 tests from AssemblyObjectTest
+[New Thread 0x7fffeb5926c0 (LWP 3018643)]
+[ RUN      ] AssemblyObjectTest.automaticMotionStopsBeforeNativePlacementPreparation
+MbD: Assembling system.
+MbD: Convergence = 0
+Time = 0
+PHASE guarded
+PHASE outside
+[       OK ] AssemblyObjectTest.automaticMotionStopsBeforeNativePlacementPreparation (5499 ms)
+[ RUN      ] AssemblyObjectTest.validatedSolveMovesLocalLinksAndPreservesExternalSource
+MbD: Assembling system.
+MbD: Convergence = 0
+Time = 0
+warning: File "/home/bcherrington/Projects/CLion/FreeCAD/build/debug/lib/libFreeCADGui.so" auto-loading has been declined by your `auto-load safe-path' set to "$debugdir:$datadir/auto-load".
+MbD: Assembling system.
+MbD: Convergence = 11185923.067634678
+MbD: Convergence = 1.4934385674768559e-09
+MbD: Convergence = 0
+Time = 0
+[       OK ] AssemblyObjectTest.validatedSolveMovesLocalLinksAndPreservesExternalSource (13204 ms)
+[ RUN      ] AssemblyObjectTest.suspendedCopyAndRestorePreserveSerializedPlacements
+MbD: Assembling system.
+MbD: Convergence = 0
+Time = 0
+PHASE restore
+RESTORE_RETURN
+[       OK ] AssemblyObjectTest.suspendedCopyAndRestorePreserveSerializedPlacements (307 ms)
+[----------] 3 tests from AssemblyObjectTest (19011 ms total)
+
+[----------] Global test environment tear-down
+[==========] 3 tests from 1 test suite ran. (21360 ms total)
+[  PASSED  ] 3 tests.
+[Thread 0x7ffff40c2680 (LWP 3017804) exited]
+[Thread 0x7fffeb5926c0 (LWP 3018643) exited]
+[New process 3017804]
+[Inferior 1 (process 3017804) exited normally]
+NATIVE_MOTION_RESULT {"counts": {"guarded": {"assembly_placement_writes": 0, "normalization": 0, "placement_writes": 0, "solve_preparation": 0}, "outside": {"assembly_placement_writes": 8, "normalization": 5, "placement_writes": 164, "solve_preparation": 4}, "restore": {"assembly_placement_writes": 0, "normalization": 0, "placement_writes": 17, "solve_preparation": 0}}, "passed": true, "phase_visits": {"guarded": 1, "restore": 1}}

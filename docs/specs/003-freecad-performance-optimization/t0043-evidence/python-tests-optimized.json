@@ -1,0 +1,21 @@
+{
+  "schema": "freecad-spec003-document-probe-python-tests/v1",
+  "tests": 20,
+  "failures": 0,
+  "errors": 0,
+  "skipped": 0,
+  "passed": true,
+  "optimization": 2,
+  "isolated": 1,
+  "no_site": 1,
+  "dont_write_bytecode": 1,
+  "interpreter_sha256": "528782e5074de66616b240ccc123fff370a491d03cb23dd46f6db7c7681c837d",
+  "log_sha256": "fb76ea66e51c220ebb127f98b7f67f8eb04a3c64ca973fc108ac683f8e8d5555",
+  "source_sha256": {
+    "tests/src/App/DocumentPerformanceProbe.py": "0a625e6e959e650f333450513563b0335097ae579b22f80a84b8ce0516b19ee3",
+    "tests/src/App/document_performance_fidelity.py": "c5427e8ce112c5feea014ed1d73e923fbb6d4d20ef4d7e86f0fb9c1ccc77d4fb",
+    "tests/src/App/run_document_performance_comparison.py": "b81a3ef7a17866aba0c92f4398f4a8e4d17fd1fcce842df1d401e66e328bb1db",
+    "tests/src/App/test_document_performance_fidelity.py": "a890dd3665c1320cfdf5cf4a61899fa3d272657ada9291e30dbed80c934a5f88",
+    "tests/src/App/test_document_performance_comparison.py": "de491fff2cf283b0a60cb66330a37f17a42d4c93df4a4a50287600d3e550ec3c"
+  }
+}

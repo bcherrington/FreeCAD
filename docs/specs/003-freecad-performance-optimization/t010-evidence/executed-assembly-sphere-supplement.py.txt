@@ -1,0 +1,31 @@
+"""Separate T010 Assembly-only oracle supplement; original campaign oracle unchanged."""
+from decimal import Decimal
+import math
+
+def equivalent_spherical_basis(before,after,fidelity):
+ left,right=before.splitlines(),after.splitlines()
+ if len(left)!=len(right):return False
+ section=None;replacements=0
+ for i,(a,b) in enumerate(zip(left,right)):
+  if a.startswith(fidelity.SECTION_PREFIXES):section=a.split(None,1)[0]
+  if a==b or section!='Surfaces':continue
+  x,y=a.split(),b.split()
+  if len(x)!=14 or len(y)!=14 or x[0]!='4' or y[0]!='4':continue
+  if not all(fidelity.NUMBER.fullmatch(t) and math.isfinite(float(t)) for t in x+y):return False
+  if any(Decimal(x[k])!=Decimal(y[k]) for k in [0,1,2,3,13]):return False
+  if any(abs(float(x[k])-float(y[k]))>2e-15 for k in range(4,13)):return False
+  bases=[[[float(t) for t in row[k:k+3]] for k in [4,7,10]] for row in [x,y]]
+  if not fidelity.basis_valid(*bases):return False
+  right[i]=a;replacements+=1
+ return replacements>0 and fidelity.equivalent_brep(before,'\n'.join(right)+'\n')
+
+def rejection_checks(fidelity):
+ header='\nCASCADE Topology V1, (c) Matra-Datavision\nSurfaces 1\n'
+ x=['4','0','0','0','1','0','0','0','1','0','0','0','1','1.5'];y=x.copy();y[5]='1e-16'
+ before=header+' '.join(x)+'\n';after=header+' '.join(y)+'\n';assert equivalent_spherical_basis(before,after,fidelity)
+ cases={}
+ for label,index,value in [('center',1,'1e-16'),('radius',13,'1.5000000000000001'),('excessive_drift',5,'1e-10'),('nonfinite',5,'nan'),('invalid_unit_frame',4,'2'),('handedness',12,'-1')]:
+  bad=y.copy();bad[index]=value;cases[label]=not equivalent_spherical_basis(before,header+' '.join(bad)+'\n',fidelity)
+ cases['malformed']=not equivalent_spherical_basis(before,header+' '.join(y[:-1])+'\n',fidelity)
+ cases['wrong_section']=not equivalent_spherical_basis(before.replace('Surfaces','Curves'),after.replace('Surfaces','Curves'),fidelity)
+ assert all(cases.values());return cases

@@ -1,6 +1,7 @@
 ---
 title: Feature quickstart title
 doc_type: spec
+artifact_type: quickstart
 status: draft
 owner: team-or-person
 last_reviewed: YYYY-MM-DD

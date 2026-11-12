@@ -1,0 +1,32 @@
+{
+  "comparison": "P03",
+  "snapshots": 240,
+  "intervals": 239,
+  "aggregate_cpu_busy_percent": {
+    "minimum": 7.855822550831793,
+    "median": 9.4375,
+    "maximum": 41.28252407293587
+  },
+  "aggregate_io_wait_percent": {
+    "minimum": 0.4410838059231254,
+    "median": 0.7770472205618649,
+    "maximum": 2.028567999039731
+  },
+  "load_average_1m": {
+    "minimum": 1.29,
+    "median": 1.6,
+    "maximum": 3.07
+  },
+  "available_memory_bytes": {
+    "minimum": 21023981568,
+    "median": 21602670592.0,
+    "maximum": 21839601664
+  },
+  "observer_wall_ns": {
+    "minimum": 234737,
+    "median": 334302.5,
+    "maximum": 854688
+  },
+  "private_host_trace_sha256": "50595433004014beaa7f393e0f214ce5b99be621efa53f28a27f1df199356d17",
+  "scope": "Between-worker aggregate /proc snapshots; intervals include startup/fidelity/controller work, not only the measured native operation. No causal host-load attribution, process list, command line or authentication data."
+}

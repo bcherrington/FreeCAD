@@ -1,0 +1,61 @@
+set pagination off
+set confirm off
+set breakpoint pending on
+set print thread-events off
+set debuginfod enabled off
+python
+import gdb,json,pathlib
+root=pathlib.Path.cwd();out=root/'build/spec003-t010';counts={};bps=[]
+class Counter(gdb.Breakpoint):
+ def __init__(self,name,spec):
+  super().__init__(spec,internal=True);self.name=name;self.silent=True;bps.append(self)
+ def stop(self):
+  marker=out/'reachability-current-private.txt';fixture=marker.read_text() if marker.exists() else 'initialization'
+  row=counts.setdefault(fixture,{});row[self.name]=row.get(self.name,0)+1
+  return False
+Counter('Sketcher_existing_external_rebuild','src/Mod/Sketcher/App/SketchObjectExternal.cpp:2934')
+Counter('Sketcher_authored_extension_copy','src/Mod/Sketcher/App/SketchObjectExternal.cpp:2936')
+Counter('GCS_failed_subsystem_break','src/Mod/Sketcher/App/planegcs/GCS.cpp:1945')
+Counter('Gui_stale_queued_property_skip','src/Gui/Document.cpp:1184')
+b=Counter('Gui_unnamed_property_path','src/Gui/Document.cpp:1263')
+bps[-1].condition='propName == 0 || propName[0] == 0'
+def save(event):
+ record={'method':'Source-line breakpoints on normal-debug final libraries; instrumentation for functional reachability only, never timing samples.','counts':counts,'breakpoints':[{'name':b.name,'location':b.location,'resolved_locations':len(b.locations)} for b in bps],'exit_code':getattr(event,'exit_code',None),'console_has_no_GuiDocument_execution':'Gui stale-property breakpoint may remain pending because console workload does not load FreeCADGui; source and runtime closure checked separately.'}
+ (out/'gui-reachability-counts.json').write_text(json.dumps(record,indent=2)+'\n')
+warnings=[]
+class WarningTrace(gdb.Breakpoint):
+ def __init__(self,label,spec):
+  super().__init__(spec,internal=True);self.label=label;self.silent=True
+ def stop(self):
+  stage=(out/'reachability-current-private.txt').read_text();frames=[];frame=gdb.newest_frame()
+  while frame is not None and len(frames)<14:
+   frames.append(frame.name());frame=frame.older()
+  warnings.append({'stage':stage,'kind':self.label,'stack_functions':frames})
+  return False
+WarningTrace('missing_image','src/Gui/ViewProviderImagePlane.cpp:249')
+WarningTrace('Coin_removeChild_missing','src/3rdParty/coin/src/nodes/SoGroup.cpp:811')
+def save_warnings(event):
+ (out/'gui-warning-provenance.json').write_text(json.dumps({'warnings':warnings,'exit_code':getattr(event,'exit_code',None)},indent=2)+'\n')
+load_events=[]
+class LoadStage(gdb.Breakpoint):
+ def __init__(self):
+  super().__init__('src/Gui/ViewProviderImagePlane.cpp:223',internal=True);self.silent=True
+ def stop(self):
+  marker=out/'reachability-current-private.txt';stage=marker.read_text() if marker.exists() else 'native-initialization'
+  try:
+   obj=gdb.newest_frame().read_var('this').dereference()['pcObject'].dereference();bits=obj['StatusBits']['_M_w'];index=4 # App::ObjectStatus::Restore in unchanged DocumentObject.h
+   value=int(bits[index//64]) if bits.type.code==gdb.TYPE_CODE_ARRAY else int(bits)
+   restoring=bool(value & (1<<(index%64)))
+  except Exception as error:restoring='unknown';stage_error=type(error).__name__+': '+str(error)
+  try:file_empty=int(gdb.newest_frame().read_var('fileName')['_M_string_length'])==0
+  except Exception as error:file_empty='unknown'
+  load_events.append({'stage':stage,'app_object_restoring':restoring,'file_empty':file_empty,'introspection_error':stage_error if restoring=='unknown' else None})
+  return False
+LoadStage()
+def save_loads(event):
+ (out/'gui-load-stage-provenance-final.json').write_text(json.dumps({'events':load_events,'exit_code':getattr(event,'exit_code',None)},indent=2)+'\n')
+gdb.events.exited.connect(save_loads)
+gdb.events.exited.connect(save_warnings)
+gdb.events.exited.connect(save)
+end
+run

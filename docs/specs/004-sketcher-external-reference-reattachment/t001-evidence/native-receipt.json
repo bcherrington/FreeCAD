@@ -1,0 +1,158 @@
+{
+  "task": "spec004/T001",
+  "purpose": "Observed existing native behavior, not proposed API acceptance",
+  "root_head": "99b4ac8ac144173a6fcfba3eaa89620ca073a754",
+  "docs_head": "c0e28640891a5480d04e8dcdb49d6e9275e44c3d",
+  "expected": [
+    "T001NativeProbe.legacyCircleRetargetKeepsIdsButAppendsLink",
+    "T001NativeProbe.legacyElementObserverSeesMixedState",
+    "T001NativeProbe.disableNotifyStillPublishesPropertySignal",
+    "T001NativeProbe.setterRestorationLeavesTouchedState",
+    "T001NativeProbe.setterRestorationCannotRecoverClearedRedo",
+    "T001NativeProbe.legacyDuplicateAdmissionIsNonmutating",
+    "T001NativeProbe.legacyReversedLineReencodesOrientation"
+  ],
+  "discovered": [
+    "T001NativeProbe.legacyCircleRetargetKeepsIdsButAppendsLink",
+    "T001NativeProbe.legacyElementObserverSeesMixedState",
+    "T001NativeProbe.disableNotifyStillPublishesPropertySignal",
+    "T001NativeProbe.setterRestorationLeavesTouchedState",
+    "T001NativeProbe.setterRestorationCannotRecoverClearedRedo",
+    "T001NativeProbe.legacyDuplicateAdmissionIsNonmutating",
+    "T001NativeProbe.legacyReversedLineReencodesOrientation"
+  ],
+  "executed": [
+    "T001NativeProbe.legacyCircleRetargetKeepsIdsButAppendsLink",
+    "T001NativeProbe.legacyElementObserverSeesMixedState",
+    "T001NativeProbe.disableNotifyStillPublishesPropertySignal",
+    "T001NativeProbe.setterRestorationLeavesTouchedState",
+    "T001NativeProbe.setterRestorationCannotRecoverClearedRedo",
+    "T001NativeProbe.legacyDuplicateAdmissionIsNonmutating",
+    "T001NativeProbe.legacyReversedLineReencodesOrientation"
+  ],
+  "exit_code": 0,
+  "failures": 0,
+  "inputs_unchanged": true,
+  "sha256_before": {
+    "build/debug/lib/libFreeCADApp.so": "cce5d0cde82aa4152fdae2329266bfc3a40b29fd9b97f4fd2b451cf9eda6b57a",
+    "build/debug/lib/libFreeCADBase.so": "04e1e7c5ce58be7a5de3fee0ba2c7fbfde3105a6e7b95378f6c7ba2cf8998b5c",
+    "build/debug/Mod/Sketcher/Sketcher.so": "95e4233f19c583a8dbbb9a399e2d8113e699bc604966555da83a194f0e9407be",
+    "build/debug/Mod/Part/Part.so": "ca65989579b2a5183dda6e461e79d2dd56af781716860025d16d8723d20e060e",
+    "docs/specs/004-sketcher-external-reference-reattachment/t001-native-probe.cpp": "1c09c92de517aad0c934cc1eb69dc80b526f02da81c261a0f569a4325989b63e",
+    "docs/specs/004-sketcher-external-reference-reattachment/t001-run-probes.py": "863d09358753d7e0e112b83ce659a0ad1320e0c626a48661b124fa4ce6b90352",
+    "src/Mod/Sketcher/App/SketchObjectExternal.cpp": "3fda020075e862e734482f1d2b6cd20daa9e70b1931b51a0e4a52a5ced8a9913",
+    "src/Mod/Sketcher/App/SketchObject.cpp": "900b0c0ed89263f4f3d96a540cf9bcba1822c822172b18d22490a5e6e74a066e",
+    "src/Mod/Sketcher/App/SketchObjectConstraints.cpp": "77214c8b6119b7e5c4c2e6b70e11a083753b4f05e4509906d27d53565c55d247",
+    "src/App/Property.cpp": "e7f452e46697fca0673cae6915fbf477cbccdbec31ad6dc0f66a5ab50e5883d6",
+    "src/App/PropertyLinks.cpp": "0114c47a080ead306640e3072e8650de87d2634fc0e720d8a9818d231667bde0",
+    "src/App/Document.cpp": "e8e470d58c227f81d5c132b48dcbd35f5cea4535da1f0efcea5a9ab6595c38aa"
+  },
+  "sha256_after": {
+    "build/debug/lib/libFreeCADApp.so": "cce5d0cde82aa4152fdae2329266bfc3a40b29fd9b97f4fd2b451cf9eda6b57a",
+    "build/debug/lib/libFreeCADBase.so": "04e1e7c5ce58be7a5de3fee0ba2c7fbfde3105a6e7b95378f6c7ba2cf8998b5c",
+    "build/debug/Mod/Sketcher/Sketcher.so": "95e4233f19c583a8dbbb9a399e2d8113e699bc604966555da83a194f0e9407be",
+    "build/debug/Mod/Part/Part.so": "ca65989579b2a5183dda6e461e79d2dd56af781716860025d16d8723d20e060e",
+    "docs/specs/004-sketcher-external-reference-reattachment/t001-native-probe.cpp": "1c09c92de517aad0c934cc1eb69dc80b526f02da81c261a0f569a4325989b63e",
+    "docs/specs/004-sketcher-external-reference-reattachment/t001-run-probes.py": "863d09358753d7e0e112b83ce659a0ad1320e0c626a48661b124fa4ce6b90352",
+    "src/Mod/Sketcher/App/SketchObjectExternal.cpp": "3fda020075e862e734482f1d2b6cd20daa9e70b1931b51a0e4a52a5ced8a9913",
+    "src/Mod/Sketcher/App/SketchObject.cpp": "900b0c0ed89263f4f3d96a540cf9bcba1822c822172b18d22490a5e6e74a066e",
+    "src/Mod/Sketcher/App/SketchObjectConstraints.cpp": "77214c8b6119b7e5c4c2e6b70e11a083753b4f05e4509906d27d53565c55d247",
+    "src/App/Property.cpp": "e7f452e46697fca0673cae6915fbf477cbccdbec31ad6dc0f66a5ab50e5883d6",
+    "src/App/PropertyLinks.cpp": "0114c47a080ead306640e3072e8650de87d2634fc0e720d8a9818d231667bde0",
+    "src/App/Document.cpp": "e8e470d58c227f81d5c132b48dcbd35f5cea4535da1f0efcea5a9ab6595c38aa"
+  },
+  "probe_binary_sha256": "7b315eaded346efb9b2b595242babb819fbe4774d5c3b885a8bbf2a9887e394f",
+  "native_properties": [
+    {
+      "name": "legacyCircleRetargetKeepsIdsButAppendsLink",
+      "file": "/home/bcherrington/Projects/CLion/FreeCAD/docs/specs/004-sketcher-external-reference-reattachment/t001-native-probe.cpp",
+      "line": "87",
+      "status": "run",
+      "result": "completed",
+      "time": "0.319",
+      "timestamp": "2026-11-07T14:06:00.092",
+      "classname": "T001NativeProbe",
+      "properties": {
+        "observed_link_order": "Edge2,Edge3"
+      }
+    },
+    {
+      "name": "legacyElementObserverSeesMixedState",
+      "file": "/home/bcherrington/Projects/CLion/FreeCAD/docs/specs/004-sketcher-external-reference-reattachment/t001-native-probe.cpp",
+      "line": "111",
+      "status": "run",
+      "result": "completed",
+      "time": "0.011",
+      "timestamp": "2026-11-07T14:06:00.413",
+      "classname": "T001NativeProbe",
+      "properties": {
+        "mixed_notifications": "2",
+        "element_notifications": "3"
+      }
+    },
+    {
+      "name": "disableNotifyStillPublishesPropertySignal",
+      "file": "/home/bcherrington/Projects/CLion/FreeCAD/docs/specs/004-sketcher-external-reference-reattachment/t001-native-probe.cpp",
+      "line": "131",
+      "status": "run",
+      "result": "completed",
+      "time": "0.009",
+      "timestamp": "2026-11-07T14:06:00.424",
+      "classname": "T001NativeProbe",
+      "properties": {
+        "property_notifications_with_parent_notify_disabled": "1"
+      }
+    },
+    {
+      "name": "setterRestorationLeavesTouchedState",
+      "file": "/home/bcherrington/Projects/CLion/FreeCAD/docs/specs/004-sketcher-external-reference-reattachment/t001-native-probe.cpp",
+      "line": "147",
+      "status": "run",
+      "result": "completed",
+      "time": "0.009",
+      "timestamp": "2026-11-07T14:06:00.434",
+      "classname": "T001NativeProbe",
+      "properties": {
+        "restored_values_but_touched": "true"
+      }
+    },
+    {
+      "name": "setterRestorationCannotRecoverClearedRedo",
+      "file": "/home/bcherrington/Projects/CLion/FreeCAD/docs/specs/004-sketcher-external-reference-reattachment/t001-native-probe.cpp",
+      "line": "163",
+      "status": "run",
+      "result": "completed",
+      "time": "0.011",
+      "timestamp": "2026-11-07T14:06:00.444",
+      "classname": "T001NativeProbe",
+      "properties": {
+        "redos_before": "1",
+        "redos_after_value_restore": "0"
+      }
+    },
+    {
+      "name": "legacyDuplicateAdmissionIsNonmutating",
+      "file": "/home/bcherrington/Projects/CLion/FreeCAD/docs/specs/004-sketcher-external-reference-reattachment/t001-native-probe.cpp",
+      "line": "184",
+      "status": "run",
+      "result": "completed",
+      "time": "0.011",
+      "timestamp": "2026-11-07T14:06:00.455",
+      "classname": "T001NativeProbe",
+      "properties": {}
+    },
+    {
+      "name": "legacyReversedLineReencodesOrientation",
+      "file": "/home/bcherrington/Projects/CLion/FreeCAD/docs/specs/004-sketcher-external-reference-reattachment/t001-native-probe.cpp",
+      "line": "198",
+      "status": "run",
+      "result": "completed",
+      "time": "0.015",
+      "timestamp": "2026-11-07T14:06:00.466",
+      "classname": "T001NativeProbe",
+      "properties": {
+        "orientation_changed": "true"
+      }
+    }
+  ]
+}

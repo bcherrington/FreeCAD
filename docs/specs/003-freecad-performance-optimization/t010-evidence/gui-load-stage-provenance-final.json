@@ -1,0 +1,47 @@
+{
+  "events": [
+    {
+      "stage": "P07-private-open-original",
+      "app_object_restoring": false,
+      "file_empty": true,
+      "introspection_error": null
+    },
+    {
+      "stage": "P07-private-open-original",
+      "app_object_restoring": false,
+      "file_empty": true,
+      "introspection_error": null
+    },
+    {
+      "stage": "P07-private-open-original",
+      "app_object_restoring": false,
+      "file_empty": true,
+      "introspection_error": null
+    },
+    {
+      "stage": "P07-private-open-hidden-derivative",
+      "app_object_restoring": false,
+      "file_empty": true,
+      "introspection_error": null
+    },
+    {
+      "stage": "P07-private-open-hidden-derivative",
+      "app_object_restoring": false,
+      "file_empty": true,
+      "introspection_error": null
+    },
+    {
+      "stage": "P07-private-open-hidden-derivative",
+      "app_object_restoring": false,
+      "file_empty": true,
+      "introspection_error": null
+    },
+    {
+      "stage": "P07-private-first-show",
+      "app_object_restoring": false,
+      "file_empty": false,
+      "introspection_error": null
+    }
+  ],
+  "exit_code": 0
+}

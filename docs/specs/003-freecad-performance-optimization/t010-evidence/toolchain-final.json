@@ -1,0 +1,49 @@
+{
+  "pixi": {
+    "command": [
+      "pixi",
+      "--version"
+    ],
+    "version": "pixi 0.83.0",
+    "path": "${USER_HOME}/.pixi/bin/pixi",
+    "sha256": "50571451e96f4a82cf675cd83baaf66fff9b718f0aaf153900b9faf4c29bd401"
+  },
+  "cmake": {
+    "command": [
+      ".pixi/envs/default/bin/cmake",
+      "--version"
+    ],
+    "version": "cmake version 4.4.3\n\nCMake suite maintained and supported by Kitware (kitware.com/cmake).",
+    "path": "${REPO_ROOT}/.pixi/envs/default/bin/cmake",
+    "sha256": "f09cf197406eab05c52869ae962e8e07971b08caa2c89db44ba9ecf8970c38f0"
+  },
+  "ninja": {
+    "command": [
+      ".pixi/envs/default/bin/ninja",
+      "--version"
+    ],
+    "version": "1.13.2",
+    "path": "${REPO_ROOT}/.pixi/envs/default/bin/ninja",
+    "sha256": "295d6db0235d00b2dd280f732e108568cc006a49918614db3f719d5a9d2d4ebf"
+  },
+  "clang++": {
+    "command": [
+      ".pixi/envs/default/bin/clang++",
+      "--version"
+    ],
+    "version": "clang version 21.1.8 (https://github.com/conda-forge/clangdev-feedstock 334cf9a5e6c0331e9f261eaf01fc3568724fcce9)\nTarget: x86_64-conda-linux-gnu\nThread model: posix\nInstalledDir: ${REPO_ROOT}/.pixi/envs/default/bin\nConfiguration file: ${REPO_ROOT}/.pixi/envs/default/bin/x86_64-conda-linux-gnu-clang++.cfg",
+    "path": "${REPO_ROOT}/.pixi/envs/default/bin/clang-21",
+    "sha256": "e04f258f2e64b15218023c8c5ef2806ad2ac88c1af20e91f27494c29b1e4094a"
+  },
+  "python": {
+    "command": [
+      ".pixi/envs/default/bin/python",
+      "-I",
+      "-S",
+      "--version"
+    ],
+    "version": "Python 3.13.18",
+    "path": "${REPO_ROOT}/.pixi/envs/default/bin/python3.13",
+    "sha256": "dcfae273251a6bf66d9b49991fe354bc2d77297a8d0dbe3d1db0acce8a706304"
+  }
+}

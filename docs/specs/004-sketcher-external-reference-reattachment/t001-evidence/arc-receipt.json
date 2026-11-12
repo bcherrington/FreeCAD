@@ -1,0 +1,12 @@
+{
+  "fixture": "two referenced circular arcs plus two centre-constrained internal circles",
+  "replacement_candidate": "Source.Edge3 (not attached)",
+  "native_ids_before_and_after_reopen": [
+    1,
+    2
+  ],
+  "constraint_count": 4,
+  "fully_constrained": true,
+  "saved_file": "/tmp/freecad-spec004-runners-3mcpf926/t001-arcs.FCStd",
+  "result": "passed (fixture qualification only, no reattachment API call)"
+}

@@ -71,7 +71,7 @@ preferences and rank-sensitive correctness must be recorded rather than assumed.
 Repository paths above are navigation references; verify them again on resume.
 The native backlink crash fix `c9af1a45d1`, merged as `36aa20c979`, is a separate
 correctness change already included in the baseline. The existing
-[restore/image performance package](../freecad-performance-optimization/spec.md)
+[restore/image performance package](../003-freecad-performance-optimization/spec.md)
 owns other work and is not migrated or broadened by this package.
 
 ## T001 Runtime Reconciliation - 2026-11-05

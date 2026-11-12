@@ -1,0 +1,9 @@
+[
+  "/home/bcherrington/Projects/CLion/FreeCAD/build/debug/bin/FreeCADCmd",
+  "--safe-mode",
+  "--user-cfg",
+  "/tmp/freecad-spec004-runners-3mcpf926/final-user.cfg",
+  "--system-cfg",
+  "/tmp/freecad-spec004-runners-3mcpf926/final-system.cfg",
+  "/home/bcherrington/Projects/CLion/FreeCAD/docs/specs/004-sketcher-external-reference-reattachment/t001-python-probe.py"
+]

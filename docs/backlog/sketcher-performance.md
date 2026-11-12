@@ -3,7 +3,7 @@ title: Sketcher performance follow-up investigations
 doc_type: design
 status: draft
 owner: local-developer
-last_reviewed: 2026-11-05
+last_reviewed: 2026-11-09
 ---
 
 # Sketcher Performance Follow-Ups
@@ -18,6 +18,12 @@ Private fixtures and raw geometry remain outside Git. Use immutable copies of
 operator models. Indicative repeated timings suffice; correctness remains strict.
 
 ## B001 QR method comparison
+
+**Execution scope (2026-11-09):** the user selected this investigation in
+[Spec005 T005](../specs/005-mainstream-cad-performance-investigation/tasks.md).
+Status remains proposed; no comparison has run. Spec005 owns current fixture/
+protocol qualification and evidence, preserving all exit checks below. Its T011/
+T012 will reconcile the final decision and any separate implementation proposal.
 
 **Owner:** local-developer. **Next action:** specify a disposable dense/sparse
 comparison using existing `Sketch::setSketchAutoAlgo`/`setQRAlgorithm` plumbing;

@@ -1,0 +1,6 @@
+{
+  "outside_getconf": "glibc 2.39",
+  "inside_getconf": "glibc 2.39",
+  "CONDA_OVERRIDE_GLIBC": "2.39",
+  "reason": "Pixi virtual-package auto-detection omits glibc in this owned mount namespace. Override is the independently verified identical real host/namespace version, not a fabricated platform or lock change."
+}

@@ -1,0 +1,23 @@
+import sys
+from pathlib import Path
+sys.path.insert(0,str(Path.cwd()/'docs/specs/005-mainstream-cad-performance-investigation/fixtures'))
+from generate_fixtures import App,Part,snapshot,close
+import Assembly,JointObject
+import json,math
+from pathlib import Path
+r=Path.cwd();task=r/'build/spec005-t001';rows=[x for leaf in ['fixtures-final','auxiliary-canonical-source'] for x in json.loads((task/leaf/'preparation.json').read_text())];index=json.loads((task/'canonical-index.json').read_text());by={x['id']:x for x in index['files'] if x['canonical_path'].endswith('.FCStd')}
+def same(a,b):
+ if isinstance(a,dict):assert set(a)==set(b);[same(a[k],b[k]) for k in a]
+ elif isinstance(a,list):assert len(a)==len(b);[same(x,y) for x,y in zip(a,b)]
+ elif isinstance(a,(int,float)) and not isinstance(a,bool):assert math.isclose(a,b,rel_tol=1e-9,abs_tol=1e-7),(a,b)
+ else:assert a==b,(a,b)
+verified=[]
+for row in rows:
+ f=r/by[row['id']]['canonical_path'];doc=App.openDocument(str(f));actual=snapshot(doc);same(row['baseline'],actual)
+ assert doc.License=='LGPL-2.1-or-later';assert doc.CreatedBy=='FreeCAD Spec005 fixture generator'
+ close(doc);verified.append(row['id'])
+for f in index['files']:
+ if f['canonical_path'].endswith('.step'):
+  shape=Part.read(str(r/f['canonical_path']));row=next(x for x in rows if x['id']==f['id']);assert shape.isValid() and len(shape.Solids)==1;assert math.isclose(shape.Volume,row['analytic_expected']['volume'],rel_tol=1e-9)
+result={'phase':'canonical metadata/geometry preservation check only; no Release/study qualification','native_reopened':verified,'step_files_read':2,'semantic_members_unchanged':True,'license_creator_checked':True,'joint_graph_and_runtime_closure_qualified':False}
+(task/'canonical-check.json').write_text(json.dumps(result,indent=2)+'\n');print(json.dumps(result))

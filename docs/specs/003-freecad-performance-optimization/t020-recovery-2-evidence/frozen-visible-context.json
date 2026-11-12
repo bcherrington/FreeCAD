@@ -1,0 +1,102 @@
+{
+  "fixture_id": "gridfinity-drawer-v1.3",
+  "fixture_sha256": "117095480bd92c7a53811725ecf2194503de45bc15d4e516bac9cb0e0f6f0f0b",
+  "gridfinity_addon_sha256": "1937ad9b62c5e66be9d6ba5d8d94420f07c0b0d635048897bf7fa5c450354ef2",
+  "initial_image_visibility": 1,
+  "scenario": "open-only",
+  "expected_image_payload_sha256s": [
+    "8dea3a5aafcbd33719a87142049fd2025efd72f21d0eea08cde4c9edef97a7ec",
+    "54d6565fab1d7d8949cd0c6fcdba5e2b453212990663144484a768c4f8c3304d",
+    "a500a37865628fda3b26894581f0d6c1150b64a380f66214a8acdfcd57f36784"
+  ],
+  "first_show_image_sha256": "8dea3a5aafcbd33719a87142049fd2025efd72f21d0eea08cde4c9edef97a7ec",
+  "first_show_image_index": 1,
+  "required_vrml_textures": 0,
+  "normative_state_sha256": "88fd78d555382c19ba3e1271f47ccbc527a89115877155736f15afcb9d7ae0c6",
+  "native_profile": {
+    "renderer": "Mesa Intel(R) UHD Graphics (TGL GT1)",
+    "vendor": "Intel",
+    "version": "4.6 (Compatibility Profile) Mesa 25.2.8-0ubuntu0.24.04.4",
+    "samples": 8,
+    "dpr": 1,
+    "viewport": [
+      1280,
+      720
+    ],
+    "framebuffer_update_behavior": "PartialUpdate"
+  },
+  "effective_configuration_sha256": "21febf85eb8200d322b7faf1d1dec159e6cbcae2675a7407feda26d6d28395bc",
+  "frame_sha256": {
+    "open": "cc9f657588d43f944dc51b381552742c7c57c01132674bcfb2ce486177cd278e"
+  },
+  "namespace_sha256": {
+    "baseline": "2d8d68ed8f64c758e7d839eb621b640f96f304508f3a780eb10ebaed5555d391",
+    "change": "2a77dd9d0ea9d0ae529210648cbe50685be7c9cdedca61709c5dfe60384f9f9f"
+  },
+  "runtime_module_sha256": {
+    "baseline": {
+      "Mod/Material/MatGui.so": "609609912074fec56be8d77358131aa4369125662ac861f2c9ef9847b4a8e597",
+      "Mod/Material/Materials.so": "bf69f2f844f9169da06913786104b79820523a3625c5e43f041412c76bef5976",
+      "Mod/Part/Part.so": "0237f5a8d90d6c07980de55bed1bc010fd9fd792c39e1eb06e030c5aa81e805a",
+      "Mod/Part/PartGui.so": "26a8129a7ad528e869b0ae2d834743b54a014a54f83338427b8eba1418ee5401",
+      "Mod/PartDesign/PartDesignGui.so": "85ef9997798359a69027c69576481e624c3346c4bb2e3fd9b78420183130c79c",
+      "Mod/PartDesign/_PartDesign.so": "61b24b19bd97b2d2b2fef5557d6cc4a026f94c1f629bcf3eb36b0c999a9d6908",
+      "Mod/Sketcher/Sketcher.so": "ccb4340e9c0580e94093dd8287eb1112f7c73e05df494519b33672119d062e48",
+      "Mod/Sketcher/SketcherGui.so": "357ac74a1c5f45d522bd26cd88aba521ca3ee73bdb6c2fef95c2db64f1e664e6",
+      "Mod/pivy/_coin.so": "d46e7333d3a0c97fe14418deaf6112aaa6a952c408ecffd1bfbe41949af14139",
+      "bin/FreeCAD": "58c2ffeb81e62d95f587728e3e81ec9deef8182751efa59ec84af8f382150088",
+      "lib/libCoin.so.80.0.10": "15f33b9e378a0186ca2f0b39f0c0851757de04f81e2208389d7d5b8e88ccc3e6",
+      "lib/libFreeCADApp.so": "9a29e8e3797ff0fe8ebc75cb64e89df55899b8071f4bbea1733eb9b9400ff0ac",
+      "lib/libFreeCADBase.so": "1070f3d46f6a945464a756effba510aa42984075bd6c88800766c704b84472aa",
+      "lib/libFreeCADGui.so": "1bc60b08a76f0a2248eed8e89febd0c63d8d235c628eddb3d01c6d31fd924669"
+    },
+    "change": {
+      "Mod/Material/MatGui.so": "609609912074fec56be8d77358131aa4369125662ac861f2c9ef9847b4a8e597",
+      "Mod/Material/Materials.so": "bf69f2f844f9169da06913786104b79820523a3625c5e43f041412c76bef5976",
+      "Mod/Part/Part.so": "0237f5a8d90d6c07980de55bed1bc010fd9fd792c39e1eb06e030c5aa81e805a",
+      "Mod/Part/PartGui.so": "26a8129a7ad528e869b0ae2d834743b54a014a54f83338427b8eba1418ee5401",
+      "Mod/PartDesign/PartDesignGui.so": "85ef9997798359a69027c69576481e624c3346c4bb2e3fd9b78420183130c79c",
+      "Mod/PartDesign/_PartDesign.so": "61b24b19bd97b2d2b2fef5557d6cc4a026f94c1f629bcf3eb36b0c999a9d6908",
+      "Mod/Sketcher/Sketcher.so": "ccb4340e9c0580e94093dd8287eb1112f7c73e05df494519b33672119d062e48",
+      "Mod/Sketcher/SketcherGui.so": "357ac74a1c5f45d522bd26cd88aba521ca3ee73bdb6c2fef95c2db64f1e664e6",
+      "Mod/pivy/_coin.so": "d46e7333d3a0c97fe14418deaf6112aaa6a952c408ecffd1bfbe41949af14139",
+      "bin/FreeCAD": "58c2ffeb81e62d95f587728e3e81ec9deef8182751efa59ec84af8f382150088",
+      "lib/libCoin.so.80.0.10": "15f33b9e378a0186ca2f0b39f0c0851757de04f81e2208389d7d5b8e88ccc3e6",
+      "lib/libFreeCADApp.so": "9a29e8e3797ff0fe8ebc75cb64e89df55899b8071f4bbea1733eb9b9400ff0ac",
+      "lib/libFreeCADBase.so": "1070f3d46f6a945464a756effba510aa42984075bd6c88800766c704b84472aa",
+      "lib/libFreeCADGui.so": "085c27bcfbcc39b870075d26339cb3419ff0d9ca1689efc3b178e68928596904"
+    }
+  },
+  "expected_boundary_counts": {
+    "baseline": {
+      "open": {
+        "pending_textures": 0,
+        "materialized_image_fields": 3,
+        "image_plane_providers": 3,
+        "load_attempts": 6,
+        "successful_loads": 3,
+        "failed_loads": 3,
+        "empty_load_calls": 3,
+        "failed_pre_restore_loads": 0,
+        "restore_finished_signals": 1,
+        "open_finished_signals": 1,
+        "required_tree_flushes": 1
+      }
+    },
+    "change": {
+      "open": {
+        "pending_textures": 0,
+        "materialized_image_fields": 3,
+        "image_plane_providers": 3,
+        "load_attempts": 6,
+        "successful_loads": 3,
+        "failed_loads": 3,
+        "empty_load_calls": 3,
+        "failed_pre_restore_loads": 0,
+        "restore_finished_signals": 1,
+        "open_finished_signals": 1,
+        "required_tree_flushes": 1
+      }
+    }
+  }
+}

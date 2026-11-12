@@ -1,0 +1,33 @@
+{
+  "fixture_id": "PartDesignExample",
+  "fixture_sha256": "0aa09dac21c19ba07f8abe32ebd7957b8539a430f6832c66ce2e15609d762ac7",
+  "gridfinity_addon_sha256": "1937ad9b62c5e66be9d6ba5d8d94420f07c0b0d635048897bf7fa5c450354ef2",
+  "initial_image_visibility": -1,
+  "scenario": "open-only",
+  "expected_image_payload_sha256s": [],
+  "command_normative_state_sha256": "3b49955a7f28a28fbde9e83cf1eb7813b67a7df7f7e51c033cef951b8ad4e299",
+  "namespace_sha256": {
+    "baseline": "2d8d68ed8f64c758e7d839eb621b640f96f304508f3a780eb10ebaed5555d391",
+    "change": "2a77dd9d0ea9d0ae529210648cbe50685be7c9cdedca61709c5dfe60384f9f9f"
+  },
+  "runtime_module_sha256": {
+    "baseline": {
+      "Mod/Material/Materials.so": "bf69f2f844f9169da06913786104b79820523a3625c5e43f041412c76bef5976",
+      "Mod/Part/Part.so": "0237f5a8d90d6c07980de55bed1bc010fd9fd792c39e1eb06e030c5aa81e805a",
+      "Mod/PartDesign/_PartDesign.so": "61b24b19bd97b2d2b2fef5557d6cc4a026f94c1f629bcf3eb36b0c999a9d6908",
+      "Mod/Sketcher/Sketcher.so": "ccb4340e9c0580e94093dd8287eb1112f7c73e05df494519b33672119d062e48",
+      "bin/FreeCADCmd": "9a2cc6e9e2d332d5fabe10400ac356eb3920eae91d6aafb2241687048088f907",
+      "lib/libFreeCADApp.so": "9a29e8e3797ff0fe8ebc75cb64e89df55899b8071f4bbea1733eb9b9400ff0ac",
+      "lib/libFreeCADBase.so": "1070f3d46f6a945464a756effba510aa42984075bd6c88800766c704b84472aa"
+    },
+    "change": {
+      "Mod/Material/Materials.so": "bf69f2f844f9169da06913786104b79820523a3625c5e43f041412c76bef5976",
+      "Mod/Part/Part.so": "0237f5a8d90d6c07980de55bed1bc010fd9fd792c39e1eb06e030c5aa81e805a",
+      "Mod/PartDesign/_PartDesign.so": "61b24b19bd97b2d2b2fef5557d6cc4a026f94c1f629bcf3eb36b0c999a9d6908",
+      "Mod/Sketcher/Sketcher.so": "ccb4340e9c0580e94093dd8287eb1112f7c73e05df494519b33672119d062e48",
+      "bin/FreeCADCmd": "9a2cc6e9e2d332d5fabe10400ac356eb3920eae91d6aafb2241687048088f907",
+      "lib/libFreeCADApp.so": "9a29e8e3797ff0fe8ebc75cb64e89df55899b8071f4bbea1733eb9b9400ff0ac",
+      "lib/libFreeCADBase.so": "1070f3d46f6a945464a756effba510aa42984075bd6c88800766c704b84472aa"
+    }
+  }
+}

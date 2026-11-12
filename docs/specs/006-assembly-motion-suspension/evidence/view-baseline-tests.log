@@ -1,0 +1,43 @@
+FreeCAD 27.1.0, Libs: 27.1.0devRDev Build
+(C) 2001-2026 FreeCAD contributors
+FreeCAD is free and open-source software licensed under the terms of LGPL2+ license.
+
+Migrating Start Workbench to Start command... done.
+test_move_list_row_edits_movement_distance (AssemblyTests.TestCommandCreateView.TestCommandCreateView.test_move_list_row_edits_movement_distance) ... ERROR
+test_move_list_row_edits_rotation_angle (AssemblyTests.TestCommandCreateView.TestCommandCreateView.test_move_list_row_edits_rotation_angle) ... ERROR
+
+======================================================================
+ERROR: test_move_list_row_edits_movement_distance (AssemblyTests.TestCommandCreateView.TestCommandCreateView.test_move_list_row_edits_movement_distance)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/bcherrington/Projects/CLion/FreeCAD/build/debug/Mod/Assembly/AssemblyTests/TestCommandCreateView.py", line 49, in test_move_list_row_edits_movement_distance
+    task.onMovesChanged()
+    ~~~~~~~~~~~~~~~~~~~^^
+  File "/home/bcherrington/Projects/CLion/FreeCAD/build/debug/Mod/Assembly/CommandCreateView.py", line 944, in onMovesChanged
+    self.rebuildStepList()
+    ~~~~~~~~~~~~~~~~~~~~^^
+  File "/home/bcherrington/Projects/CLion/FreeCAD/build/debug/Mod/Assembly/CommandCreateView.py", line 964, in rebuildStepList
+    label = QtWidgets.QLabel(move.Label, row)
+                             ^^^^^^^^^^
+AttributeError: '_Move' object has no attribute 'Label'
+
+======================================================================
+ERROR: test_move_list_row_edits_rotation_angle (AssemblyTests.TestCommandCreateView.TestCommandCreateView.test_move_list_row_edits_rotation_angle)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/home/bcherrington/Projects/CLion/FreeCAD/build/debug/Mod/Assembly/AssemblyTests/TestCommandCreateView.py", line 320, in test_move_list_row_edits_rotation_angle
+    task.onMovesChanged()
+    ~~~~~~~~~~~~~~~~~~~^^
+  File "/home/bcherrington/Projects/CLion/FreeCAD/build/debug/Mod/Assembly/CommandCreateView.py", line 944, in onMovesChanged
+    self.rebuildStepList()
+    ~~~~~~~~~~~~~~~~~~~~^^
+  File "/home/bcherrington/Projects/CLion/FreeCAD/build/debug/Mod/Assembly/CommandCreateView.py", line 964, in rebuildStepList
+    label = QtWidgets.QLabel(move.Label, row)
+                             ^^^^^^^^^^
+AttributeError: '_Move' object has no attribute 'Label'
+
+----------------------------------------------------------------------
+Ran 2 tests in 0.010s
+
+FAILED (errors=2)
+System exit

@@ -1,0 +1,316 @@
+{
+  "schema": "freecad-spec003-task-validation/v1",
+  "task": "T017",
+  "criteria": [
+    "Requirement 6 AC1",
+    "Requirement 6 AC4",
+    "CP-003 restore completion only"
+  ],
+  "captured_at_utc": "2026-11-06T18:43:45.608332+00:00",
+  "manifest_id": "spec003-linux-x86_64-debug-candidate-20261106-v1",
+  "immutable_manifest_sha256": "2ceaf3dbe3d474f4bb8d70ae6706218ddffdd3616473a1c13a55133611a19d01",
+  "actual_root_revision": "3587399d1b77457144c1d4f6643224060c9627ec",
+  "docs_revision": "c79bd6e3d2fa1009202ea9355ef2e88f1a99ca9b",
+  "working_diff_scope": [
+    "src/Gui/Tree.cpp",
+    "tests/src/Gui/CMakeLists.txt",
+    "tests/src/Gui/TreeRestore.cpp"
+  ],
+  "working_diff_sha256": "8add35b6468647a30ac902fa27810686d9b68faf7ff5e585b0abb27674d38d93",
+  "working_diff_encoding": "Raw git diff --binary HEAD -- first two tracked paths followed by git diff --no-index --binary -- /dev/null tests/src/Gui/TreeRestore.cpp stdout, including final newlines. New test currently untracked.",
+  "source_sha256": {
+    "src/Gui/Tree.cpp": "72558fca8657764c858f3bfc5e278042ee3d407fbb1f2c232a7357e6821bf8da",
+    "tests/src/Gui/CMakeLists.txt": "046fdf849331fd170a6bb8fba07e4a80f4a3334659f5ad11b1bd66dbb09a41f7",
+    "tests/src/Gui/TreeRestore.cpp": "cb18f03dc15eb361ea507b642e229cf30de993998a6ee33d7e19e34ed3181106"
+  },
+  "inspected_unchanged_sources": {
+    "src/Gui/Tree.h": "5034c0a592a5b939bb1a4524c214ac9c8623a366420a10eaf5725593af73c9c0",
+    "src/App/Application.cpp": "2a8867612b3600b4af176940ac8a958246cca5d38bbb38ac4d73eea827c868b4",
+    "src/App/Document.cpp": "e8e470d58c227f81d5c132b48dcbd35f5cea4535da1f0efcea5a9ab6595c38aa",
+    "src/App/DocumentPyImp.cpp": "05128b25f4677aab1a34b1c1d5c8c385c68504c1b84abc4088dcea3052d04d81",
+    "src/App/MergeDocuments.cpp": "19415f820ffe2fc956447cd5127db8219577f4417baa3f7d9503f36812f0708a",
+    "src/Gui/Document.cpp": "8acfc73170e308180f7306bfd9e223b5b9fd0824cb9604b388f336359b2dd334",
+    "tests/src/Gui/TreeWidgetLifetime.cpp": "ecb26951fc20e0a3e6e89e7d54407c773c6ff8c1f5ce4a8a954bdd13e07692ca",
+    "src/Gui/ViewProviderImagePlane.cpp": "c9004a0b0d5fc9fc5ea197ca790b11ac5447218f6ee70924fffb89289f8241f3",
+    "tests/src/Gui/ImagePlane.cpp": "a3b6adb90d6653e86707dbb9fa8d36336df87364813434bdc3c3347133c39e99",
+    "tests/src/Gui/ImagePlaneRender.cpp": "bf18acef7eb8c3a31e6ec7cfcce970fb1a2456a21a84ac6c3a21a1779fd77bad"
+  },
+  "submodule_heads_and_dirty_state": [
+    {
+      "path": "src/3rdParty/GSL",
+      "head": "a75212b9f3b14162edd62d540cbf9273d5a59d20",
+      "clean": true
+    },
+    {
+      "path": "src/3rdParty/OndselSolver",
+      "head": "4be80eef02a3486cda0d78f3ccbb308d207a9639",
+      "clean": true
+    },
+    {
+      "path": "src/3rdParty/coin",
+      "head": "50e37f04e7027661ea2318d0425b7836ac819568",
+      "clean": true
+    },
+    {
+      "path": "src/3rdParty/coin/cpack.d",
+      "head": "118ac5a21bcf57f0f90e2b0e681c9dcbf07074c2",
+      "clean": true
+    },
+    {
+      "path": "src/3rdParty/coin/docs/doxygen-awesome",
+      "head": "6217657eef6aec24a0e4ecea4695031c1a622cf3",
+      "clean": true
+    },
+    {
+      "path": "src/3rdParty/pivy",
+      "head": "515f038d32f163a976acd8a8cd9e8d26e1d0b884",
+      "clean": true
+    },
+    {
+      "path": "src/Mod/AddonManager",
+      "head": "745c1b1ebc8bc684439210c5fa237d2c6287153b",
+      "clean": true
+    }
+  ],
+  "pixi_lock_sha256": "45727758e595efad731c9bc71e429719040b1509ad686d762ad52ba84e44ec5c",
+  "installed_package_identity_sha256": "27048ce62e5ad835811cb32e58d11ee775f304c81bfef5235bbdd397c3e59d28",
+  "package_count": 510,
+  "tool_versions": {
+    "source": "validation-manifest.json#toolchain",
+    "equivalence": "Recorded executable/five config hashes rechecked unchanged; Qt/QtTest 6.11.3, Valgrind 3.22.0"
+  },
+  "build": {
+    "command": "pixi run --locked build -j 2",
+    "exit_status": 0,
+    "profile": "existing conda-linux-debug; -g -O0 -DFC_DEBUG; NDEBUG also defined; sanitizers OFF",
+    "cache_sha256": "be2075651b61afc4329c8b321c9038c01bf2fc24d9eeda3c0788cdcda9b92ede",
+    "compile_commands_sha256": "a805f4c44f4983a9e5f4cd45cadd52383f8fa16029f2e57629ee4c778e420eed",
+    "compile_commands": {
+      "src/Gui/Tree.cpp": "${REPO_ROOT}/.pixi/envs/default/bin/clang++ -DBOOST_ATOMIC_DYN_LINK -DBOOST_ATOMIC_NO_LIB -DBOOST_CHRONO_DYN_LINK -DBOOST_CHRONO_NO_LIB -DBOOST_CONTAINER_DYN_LINK -DBOOST_CONTAINER_NO_LIB -DBOOST_DATE_TIME_DYN_LINK -DBOOST_DATE_TIME_NO_LIB -DBOOST_PP_VARIADICS=1 -DBOOST_PROGRAM_OPTIONS_DYN_LINK -DBOOST_PROGRAM_OPTIONS_NO_LIB -DBOOST_REGEX_DYN_LINK -DBOOST_REGEX_NO_LIB -DBOOST_THREAD_DYN_LINK -DBOOST_THREAD_NO_LIB -DBUILD_ADDONMGR -DCMAKE_BUILD_TYPE=\\\"Debug\\\" -DFC_CONDA -DFreeCADGui_EXPORTS -DHAVE_CONFIG_H -DHAVE_PYSIDE6 -DHAVE_SHIBOKEN6 -DMINIMUM_CPLUSPLUS_VERSION=202302L -DNDEBUG -DPYCXX_6_2_COMPATIBILITY -DQT_CORE_LIB -DQT_GUI_LIB -DQT_NETWORK_LIB -DQT_NO_KEYWORDS -DQT_OPENGLWIDGETS_LIB -DQT_OPENGL_LIB -DQT_PRINTSUPPORT_LIB -DQT_SVGWIDGETS_LIB -DQT_SVG_LIB -DQT_UITOOLS_LIB -DQT_WIDGETS_LIB -DQT_XML_LIB -DSALOME_USE_64BIT_IDS -DSPNAV_FOUND -D_OCC64 -D_USE_3DCONNEXION_SDK -I${REPO_ROOT}/build/debug/src/Gui/FreeCADGui_autogen/include -I${REPO_ROOT}/build/debug -I${REPO_ROOT}/build/debug/src -I${REPO_ROOT}/src -I${REPO_ROOT}/src/3rdParty/GSL/include -I${REPO_ROOT}/src/Gui -I${REPO_ROOT}/src/Gui/Quarter -I${REPO_ROOT}/src/Gui/PreferencePages -I${REPO_ROOT}/src/Gui/Selection -I${REPO_ROOT}/src/Gui/StyleParameters -I${REPO_ROOT}/build/debug/src/Gui -I${REPO_ROOT}/src/Gui/.. -I${REPO_ROOT}/build/debug/src/Gui/.. -I${REPO_ROOT}/build/debug/src/Gui/Language -I${REPO_ROOT}/build/debug/src/Gui/propertyeditor -I${REPO_ROOT}/build/debug/src/Gui/TaskView -I${REPO_ROOT}/build/debug/src/Gui/Quarter -I${REPO_ROOT}/build/debug/src/Gui/DAGView -I${REPO_ROOT}/src/3rdParty/FastSignals/libfastsignals/include -isystem ${REPO_ROOT}/.pixi/envs/default/include/eigen3 -isystem ${REPO_ROOT}/.pixi/envs/default/include/qt6/QtCore -isystem ${REPO_ROOT}/.pixi/envs/default/include/qt6 -isystem ${REPO_ROOT}/.pixi/envs/default/include/qt6/QtWidgets -isystem ${REPO_ROOT}/.pixi/envs/default/include/qt6/QtOpenGL -isystem ${REPO_ROOT}/.pixi/envs/default/include/qt6/QtOpenGLWidgets -isystem ${REPO_ROOT}/.pixi/envs/default/include/qt6/QtPrintSupport -isystem ${REPO_ROOT}/.pixi/envs/default/include/qt6/QtSvg -isystem ${REPO_ROOT}/.pixi/envs/default/include/qt6/QtSvgWidgets -isystem ${REPO_ROOT}/.pixi/envs/default/include/qt6/QtNetwork -isystem ${REPO_ROOT}/.pixi/envs/default/include/qt6/QtUiTools -isystem ${REPO_ROOT}/.pixi/envs/default/include/qt6/QtXml -isystem ${REPO_ROOT}/.pixi/envs/default/include/shiboken6 -isystem ${REPO_ROOT}/.pixi/envs/default/include/python3.13 -isystem ${REPO_ROOT}/.pixi/envs/default/include/PySide6 -isystem ${REPO_ROOT}/.pixi/envs/default/include/PySide6/QtCore -isystem ${REPO_ROOT}/.pixi/envs/default/include/PySide6/QtGui -isystem ${REPO_ROOT}/.pixi/envs/default/include/PySide6/QtWidgets -isystem ${REPO_ROOT}/src/3rdParty/PyCXX -isystem ${REPO_ROOT}/src/3rdParty -isystem ${REPO_ROOT}/.pixi/envs/default/lib/qt6/mkspecs/linux-g++ -isystem ${REPO_ROOT}/src/3rdParty/coin/include -isystem ${REPO_ROOT}/build/debug/src/3rdParty/coin/include -isystem ${REPO_ROOT}/.pixi/envs/default/include/qt6/QtGui -Wall -Wextra -Wpedantic -Wno-write-strings -fdiagnostics-color  -Wno-undefined-var-template -g -O0 -DFC_DEBUG -std=c++23 -fPIC -fcolor-diagnostics -pthread -fPIC -o src/Gui/CMakeFiles/FreeCADGui.dir/Tree.cpp.o -c ${REPO_ROOT}/src/Gui/Tree.cpp",
+      "tests/src/Gui/TreeRestore.cpp": "${REPO_ROOT}/.pixi/envs/default/bin/clang++ -DBOOST_ATOMIC_DYN_LINK -DBOOST_ATOMIC_NO_LIB -DBOOST_CHRONO_DYN_LINK -DBOOST_CHRONO_NO_LIB -DBOOST_CONTAINER_DYN_LINK -DBOOST_CONTAINER_NO_LIB -DBOOST_DATE_TIME_DYN_LINK -DBOOST_DATE_TIME_NO_LIB -DBOOST_PP_VARIADICS=1 -DBOOST_PROGRAM_OPTIONS_DYN_LINK -DBOOST_PROGRAM_OPTIONS_NO_LIB -DBOOST_REGEX_DYN_LINK -DBOOST_REGEX_NO_LIB -DBOOST_THREAD_DYN_LINK -DBOOST_THREAD_NO_LIB -DHAVE_CONFIG_H -DMINIMUM_CPLUSPLUS_VERSION=202302L -DNDEBUG -DPYCXX_6_2_COMPATIBILITY -DQT_CORE_LIB -DQT_GUI_LIB -DQT_NETWORK_LIB -DQT_NO_KEYWORDS -DQT_OPENGLWIDGETS_LIB -DQT_OPENGL_LIB -DQT_PRINTSUPPORT_LIB -DQT_SVGWIDGETS_LIB -DQT_SVG_LIB -DQT_TESTCASE_BUILDDIR=\\\"${REPO_ROOT}/build/debug/tests/src/Gui\\\" -DQT_TESTCASE_SOURCEDIR=\\\"${REPO_ROOT}/tests/src/Gui\\\" -DQT_TESTLIB_LIB -DQT_UITOOLS_LIB -DQT_WIDGETS_LIB -DQT_XML_LIB -DSALOME_USE_64BIT_IDS -D_OCC64 -I${REPO_ROOT}/build/debug/tests/src/Gui/TreeRestore_Tests_run_autogen/include -I${REPO_ROOT}/build/debug -I${REPO_ROOT}/build/debug/src -I${REPO_ROOT}/src -I${REPO_ROOT}/tests -I${REPO_ROOT}/tests/src/Gui/SYSTEM -I${REPO_ROOT}/src/3rdParty/FastSignals/libfastsignals/include -I${REPO_ROOT}/src/Gui -I${REPO_ROOT}/src/Gui/Quarter -I${REPO_ROOT}/src/Gui/PreferencePages -I${REPO_ROOT}/src/Gui/Selection -I${REPO_ROOT}/src/Gui/StyleParameters -I${REPO_ROOT}/build/debug/src/Gui -I${REPO_ROOT}/src/Gui/.. -I${REPO_ROOT}/build/debug/src/Gui/.. -I${REPO_ROOT}/build/debug/src/Gui/Language -I${REPO_ROOT}/build/debug/src/Gui/propertyeditor -I${REPO_ROOT}/build/debug/src/Gui/TaskView -I${REPO_ROOT}/build/debug/src/Gui/Quarter -I${REPO_ROOT}/build/debug/src/Gui/DAGView -isystem ${REPO_ROOT}/.pixi/envs/default/include/qt6/QtTest -isystem ${REPO_ROOT}/.pixi/envs/default/include/qt6 -isystem ${REPO_ROOT}/.pixi/envs/default/include/qt6/QtCore -isystem ${REPO_ROOT}/.pixi/envs/default/include/qt6/QtXml -isystem ${REPO_ROOT}/src/3rdParty/PyCXX -isystem ${REPO_ROOT}/.pixi/envs/default/include/python3.13 -isystem ${REPO_ROOT}/src/3rdParty -isystem ${REPO_ROOT}/.pixi/envs/default/lib/qt6/mkspecs/linux-g++ -isystem ${REPO_ROOT}/.pixi/envs/default/include/qt6/QtWidgets -isystem ${REPO_ROOT}/.pixi/envs/default/include/qt6/QtOpenGL -isystem ${REPO_ROOT}/.pixi/envs/default/include/qt6/QtOpenGLWidgets -isystem ${REPO_ROOT}/.pixi/envs/default/include/qt6/QtPrintSupport -isystem ${REPO_ROOT}/.pixi/envs/default/include/qt6/QtSvg -isystem ${REPO_ROOT}/.pixi/envs/default/include/qt6/QtSvgWidgets -isystem ${REPO_ROOT}/.pixi/envs/default/include/qt6/QtNetwork -isystem ${REPO_ROOT}/.pixi/envs/default/include/qt6/QtUiTools -isystem ${REPO_ROOT}/.pixi/envs/default/include/shiboken6 -isystem ${REPO_ROOT}/.pixi/envs/default/include/PySide6 -isystem ${REPO_ROOT}/.pixi/envs/default/include/PySide6/QtCore -isystem ${REPO_ROOT}/.pixi/envs/default/include/PySide6/QtGui -isystem ${REPO_ROOT}/.pixi/envs/default/include/PySide6/QtWidgets -isystem ${REPO_ROOT}/src/3rdParty/coin/include -isystem ${REPO_ROOT}/build/debug/src/3rdParty/coin/include -isystem ${REPO_ROOT}/.pixi/envs/default/include/qt6/QtGui -Wall -Wextra -Wpedantic -Wno-write-strings -fdiagnostics-color  -Wno-undefined-var-template -g -O0 -DFC_DEBUG -std=c++23 -fcolor-diagnostics -pthread -fPIC -o tests/src/Gui/CMakeFiles/TreeRestore_Tests_run.dir/TreeRestore.cpp.o -c ${REPO_ROOT}/tests/src/Gui/TreeRestore.cpp"
+    },
+    "warnings": [
+      "Pivy stub-generation warnings"
+    ],
+    "red_build_command": "pixi run --locked cmake --build build/debug --target TreeRestore_Tests_run -j 2"
+  },
+  "binary_and_core_library_sha256": {
+    "build/debug/tests/TreeWidgetLifetime_Tests_run": "5c8856ddd8a95a1c6c920bd85e349700888033e1d5226eb48f2a3f918b13ba62",
+    "build/debug/tests/ImagePlane_Tests_run": "fa241304aa37031eb6a1f00ce93e511da3d5d2bf1c4cbff916029ee37e4a4a59",
+    "build/debug/tests/ImagePlaneRender_Tests_run": "0b15fe48555aca7808ff8bca04c9667a29d879a66351bba6e090cba34fbf9feb",
+    "build/debug/tests/ObjectSelection_Tests_run": "1a7fe4a06e916c81666c4328c43ba22f07ac9f44ed9959b67ee8000e997a0d5a",
+    "build/debug/tests/SelectionView_Tests_run": "3c8ecf57901290dc05bc1bd6ee7370f066a57b5e0472ad4fe25c1109a6927f4a",
+    "build/debug/lib/libFreeCADGui.so": "f21b7797f23e7d32e45d18d7edb385916b04b29d7e65fa490a71dbf714fd0238",
+    "build/debug/lib/libFreeCADApp.so": "c7fa6cc807d4552d0e1b7ceaa9cd416cf97811644dbaec9aff5187e15391ac25",
+    "build/debug/lib/libFreeCADBase.so": "04e1e7c5ce58be7a5de3fee0ba2c7fbfde3105a6e7b95378f6c7ba2cf8998b5c",
+    ".pixi/envs/default/lib/libQt6Core.so.6": "bd2f5e952774dea6ac2cef7641ffd0c2cd528d684495e89fd8050e52bc42bd1c",
+    ".pixi/envs/default/lib/libQt6Gui.so.6": "18650a11c2b5873eb99ada3cae33670f74edef84ae7679f698d5abd9aca1a8db",
+    ".pixi/envs/default/lib/libQt6Test.so.6": "5473f6ec77981fe519d6938a3ae38c8a7e7e7823a1e140575d5801e72fb4ec41",
+    "build/debug/tests/TreeRestore_Tests_run": "2509e8e1fa3e9aeec7303e11bca20756f871f7204f60a157b811445bad3f45c2"
+  },
+  "resolved_runtime_libraries": {
+    "libFreeCADGui.so": "${REPO_ROOT}/build/debug/lib/libFreeCADGui.so",
+    "libQt6Test.so.6": "${REPO_ROOT}/.pixi/envs/default/lib/libQt6Test.so.6.11.3",
+    "libFreeCADApp.so": "${REPO_ROOT}/build/debug/lib/libFreeCADApp.so",
+    "libFreeCADBase.so": "${REPO_ROOT}/build/debug/lib/libFreeCADBase.so",
+    "libxerces-c-3.3.so": "${REPO_ROOT}/.pixi/envs/default/lib/libxerces-c-3.3.so",
+    "libz.so.1": "${REPO_ROOT}/.pixi/envs/default/lib/libz.so.1.3.2",
+    "libicuuc.so.78": "${REPO_ROOT}/.pixi/envs/default/lib/libicuuc.so.78.3",
+    "libicui18n.so.78": "${REPO_ROOT}/.pixi/envs/default/lib/libicui18n.so.78.3",
+    "libcpptrace.so.1": "${REPO_ROOT}/.pixi/envs/default/lib/libcpptrace.so.1.0.4",
+    "libpython3.13.so.1.0": "${REPO_ROOT}/.pixi/envs/default/lib/libpython3.13.so.1.0",
+    "libutil.so.1": "/usr/lib/x86_64-linux-gnu/libutil.so.1",
+    "libdl.so.2": "/usr/lib/x86_64-linux-gnu/libdl.so.2",
+    "libQt6Xml.so.6": "${REPO_ROOT}/.pixi/envs/default/lib/libQt6Xml.so.6.11.3",
+    "libboost_program_options.so.1.90.0": "${REPO_ROOT}/.pixi/envs/default/lib/libboost_program_options.so.1.90.0",
+    "libboost_regex.so.1.90.0": "${REPO_ROOT}/.pixi/envs/default/lib/libboost_regex.so.1.90.0",
+    "libboost_thread.so.1.90.0": "${REPO_ROOT}/.pixi/envs/default/lib/libboost_thread.so.1.90.0",
+    "libboost_container.so.1.90.0": "${REPO_ROOT}/.pixi/envs/default/lib/libboost_container.so.1.90.0",
+    "libboost_atomic.so.1.90.0": "${REPO_ROOT}/.pixi/envs/default/lib/libboost_atomic.so.1.90.0",
+    "libboost_chrono.so.1.90.0": "${REPO_ROOT}/.pixi/envs/default/lib/libboost_chrono.so.1.90.0",
+    "libboost_date_time.so.1.90.0": "${REPO_ROOT}/.pixi/envs/default/lib/libboost_date_time.so.1.90.0",
+    "libpthread.so.0": "/usr/lib/x86_64-linux-gnu/libpthread.so.0",
+    "libGL.so.1": "${REPO_ROOT}/.pixi/envs/default/lib/libGL.so.1.7.0",
+    "libCoin.so.80": "${REPO_ROOT}/build/debug/lib/libCoin.so.80.0.10",
+    "libQt6PrintSupport.so.6": "${REPO_ROOT}/.pixi/envs/default/lib/libQt6PrintSupport.so.6.11.3",
+    "libQt6SvgWidgets.so.6": "${REPO_ROOT}/.pixi/envs/default/lib/libQt6SvgWidgets.so.6.11.3",
+    "libQt6Svg.so.6": "${REPO_ROOT}/.pixi/envs/default/lib/libQt6Svg.so.6.11.3",
+    "libQt6Network.so.6": "${REPO_ROOT}/.pixi/envs/default/lib/libQt6Network.so.6.11.3",
+    "libQt6UiTools.so.6": "${REPO_ROOT}/.pixi/envs/default/lib/libQt6UiTools.so.6.11.3",
+    "libQt6OpenGLWidgets.so.6": "${REPO_ROOT}/.pixi/envs/default/lib/libQt6OpenGLWidgets.so.6.11.3",
+    "libQt6Widgets.so.6": "${REPO_ROOT}/.pixi/envs/default/lib/libQt6Widgets.so.6.11.3",
+    "libQt6OpenGL.so.6": "${REPO_ROOT}/.pixi/envs/default/lib/libQt6OpenGL.so.6.11.3",
+    "libQt6Gui.so.6": "${REPO_ROOT}/.pixi/envs/default/lib/libQt6Gui.so.6.11.3",
+    "libGLX.so.0": "${REPO_ROOT}/.pixi/envs/default/lib/libGLX.so.0.0.0",
+    "libOpenGL.so.0": "${REPO_ROOT}/.pixi/envs/default/lib/libOpenGL.so.0.0.0",
+    "libyaml-cpp.so.0.8": "${REPO_ROOT}/.pixi/envs/default/lib/libyaml-cpp.so.0.8.0",
+    "libspnav.so.0": "${REPO_ROOT}/.pixi/envs/default/lib/libspnav.so.0.3",
+    "libpyside6.cpython-313-x86_64-linux-gnu.so.6.11": "${REPO_ROOT}/.pixi/envs/default/lib/libpyside6.cpython-313-x86_64-linux-gnu.so.6.11",
+    "libshiboken6.cpython-313-x86_64-linux-gnu.so.6.11": "${REPO_ROOT}/.pixi/envs/default/lib/libshiboken6.cpython-313-x86_64-linux-gnu.so.6.11",
+    "libQt6Core.so.6": "${REPO_ROOT}/.pixi/envs/default/lib/libQt6Core.so.6.11.3",
+    "libstdc++.so.6": "${REPO_ROOT}/.pixi/envs/default/lib/libstdc++.so.6.0.36",
+    "libm.so.6": "/usr/lib/x86_64-linux-gnu/libm.so.6",
+    "libgcc_s.so.1": "${REPO_ROOT}/.pixi/envs/default/lib/libgcc_s.so.1",
+    "libc.so.6": "/usr/lib/x86_64-linux-gnu/libc.so.6",
+    "libnsl.so.3": "${REPO_ROOT}/.pixi/envs/default/lib/libnsl.so.3.0.0",
+    "libicudata.so.78": "${REPO_ROOT}/.pixi/envs/default/lib/libicudata.so.78.3",
+    "libdwarf.so.2": "${REPO_ROOT}/.pixi/envs/default/lib/libdwarf.so.2.1.0",
+    "libunwind.so.8": "${REPO_ROOT}/.pixi/envs/default/lib/libunwind.so.8.2.0",
+    "librt.so.1": "/usr/lib/x86_64-linux-gnu/librt.so.1",
+    "libGLdispatch.so.0": "${REPO_ROOT}/.pixi/envs/default/lib/libGLdispatch.so.0.0.0",
+    "libSM.so.6": "${REPO_ROOT}/.pixi/envs/default/lib/libSM.so.6.0.1",
+    "libICE.so.6": "${REPO_ROOT}/.pixi/envs/default/lib/libICE.so.6.3.0",
+    "libX11.so.6": "${REPO_ROOT}/.pixi/envs/default/lib/libX11.so.6.4.0",
+    "libXext.so.6": "${REPO_ROOT}/.pixi/envs/default/lib/libXext.so.6.4.0",
+    "libEGL.so.1": "${REPO_ROOT}/.pixi/envs/default/lib/libEGL.so.1.1.0",
+    "libexpat.so.1": "${REPO_ROOT}/.pixi/envs/default/lib/libexpat.so.1.12.5",
+    "libfreetype.so.6": "${REPO_ROOT}/.pixi/envs/default/lib/libfreetype.so.6.20.6",
+    "libbrotlidec.so.1": "${REPO_ROOT}/.pixi/envs/default/lib/libbrotlidec.so.1.2.1",
+    "libzstd.so.1": "${REPO_ROOT}/.pixi/envs/default/lib/libzstd.so.1.5.7",
+    "libresolv.so.2": "/usr/lib/x86_64-linux-gnu/libresolv.so.2",
+    "libcrypto.so.3": "${REPO_ROOT}/.pixi/envs/default/lib/libcrypto.so.3",
+    "libfontconfig.so.1": "${REPO_ROOT}/.pixi/envs/default/lib/libfontconfig.so.1.17.0",
+    "libglib-2.0.so.0": "${REPO_ROOT}/.pixi/envs/default/lib/libglib-2.0.so.0.9000.0",
+    "libQt6DBus.so.6": "${REPO_ROOT}/.pixi/envs/default/lib/libQt6DBus.so.6.11.3",
+    "libxkbcommon.so.0": "${REPO_ROOT}/.pixi/envs/default/lib/libxkbcommon.so.0.13.2",
+    "libpng16.so.16": "${REPO_ROOT}/.pixi/envs/default/lib/libpng16.so.16.59.0",
+    "libharfbuzz.so.0": "${REPO_ROOT}/.pixi/envs/default/lib/libharfbuzz.so.0.61500.0",
+    "libdouble-conversion.so.3": "${REPO_ROOT}/.pixi/envs/default/lib/libdouble-conversion.so.3.4.0",
+    "libpcre2-16.so.0": "${REPO_ROOT}/.pixi/envs/default/lib/libpcre2-16.so.0.15.0",
+    "libuuid.so.1": "${REPO_ROOT}/.pixi/envs/default/lib/libuuid.so.1.3.0",
+    "libxcb.so.1": "${REPO_ROOT}/.pixi/envs/default/lib/libxcb.so.1.1.0",
+    "libbrotlicommon.so.1": "${REPO_ROOT}/.pixi/envs/default/lib/libbrotlicommon.so.1.2.1",
+    "libiconv.so.2": "${REPO_ROOT}/.pixi/envs/default/lib/libiconv.so.2.7.0",
+    "libpcre2-8.so.0": "${REPO_ROOT}/.pixi/envs/default/lib/libpcre2-8.so.0.15.0",
+    "libdbus-1.so.3": "${REPO_ROOT}/.pixi/envs/default/lib/libdbus-1.so.3.38.3",
+    "libgraphite2.so.3": "${REPO_ROOT}/.pixi/envs/default/lib/libgraphite2.so.3.3.1",
+    "libXau.so.6": "${REPO_ROOT}/.pixi/envs/default/lib/libXau.so.6.0.0",
+    "libXdmcp.so.6": "${REPO_ROOT}/.pixi/envs/default/lib/libXdmcp.so.6.0.0"
+  },
+  "platform": {
+    "system": "Linux",
+    "machine": "x86_64",
+    "kernel": "7.0.0-42-generic",
+    "qt_backend": "offscreen",
+    "memory_profile": {
+      "QT_QPA_PLATFORM": "offscreen",
+      "QT_IM_MODULES": "compose",
+      "QT_IM_MODULE": "compose"
+    },
+    "ctest": "Task-owned Xvfb/software GL; test-specific Qt offscreen environment"
+  },
+  "fixture_identity": {
+    "generator": "tests/src/Gui/TreeRestore.cpp",
+    "source_sha256": "cb18f03dc15eb361ea507b642e229cf30de993998a6ee33d7e19e34ed3181106",
+    "documents": "Transient real FCStd archives: empty document and one Image::ImagePlane without image payload; real Gui controllers save/restore GUI data. A seven-byte invalid file forces validation failure. No performance fixture claim.",
+    "gui": "Real TreeWidget and Gui::Application(false); scoped App new/delete subscriptions create/delete real Gui documents, with createView false; no native viewer.",
+    "rows": [
+      "zero-timeout-restore",
+      "app-open",
+      "empty-app-open",
+      "direct-restore",
+      "python-load",
+      "delayed-restore",
+      "copy-paste",
+      "merge-import",
+      "failed-direct",
+      "failedAppOpenResumesScheduler"
+    ],
+    "completion": "Each row starts with inactive status timer. App open requires synchronous population/observer attachment on return. Other paths get only event-loop progress, no later edit/open/explicit updateStatus; source remains alive during import assertions. Child count, Gui change and App touch subscriber counts, timer stopping/no further ticks verified. Label edit only after completion verifies observer delivery.",
+    "during_restore": "Direct/Python/delayed/zero-timeout restore hooks pump Qt events for 15ms under restoring guard and assert no premature tree population; configured status interval is 5ms or zero, restored after tests.",
+    "python": "Real DocumentPy.load called through Python C API under acquired GIL; owned references decremented before GIL release.",
+    "failure": "Failed direct restore starts populated to force App delete/recreate GUI controller branch, then invalid-file exception; observers must attach after guard unwinds with no edit/open. Failed App open tests guard cleanup and scheduler quiescence."
+  },
+  "implementation_contract": {
+    "restoring": "Retain one pending flag and one existing owned repeating status QTimer while App::isRestoring suppresses processing. Deferred explicit immediate updates become timed requests; zero timeout is bounded to 1ms while restoring. No new timer, callback or lifecycle subscription.",
+    "completion": "Application finish-open requests immediate flush without clearing pending early. Other restore/import exits allow the existing timer to resume naturally after the global guard clears. Pending is cleared only when status processing proceeds past restore/transaction guards. Successful processing stops the timer.",
+    "empty_document": "slotNewDocument schedules a restoring completion pass even with no queued objects, allowing post-restore change/touch observer attachment.",
+    "unchanged": "App/Gui document flags, signal order, XML/archive policies, Tree.h, public API and member layout unchanged. T014 disconnections and receiver-owned Qt work preserved.",
+    "scope": "No bulk-delete bypass, synchronous update while restoring, worker-thread GUI work, native-frame timing or larger-model/per-object acceptance introduced."
+  },
+  "red_reproduction": {
+    "root_revision": "3587399d1b77457144c1d4f6643224060c9627ec",
+    "sha256": {
+      "src/Gui/Tree.cpp": "16cbb1dbb26502e6f7928a3df8f362486f8f84612ba083f9d1fc11f2ccdd00a1",
+      "src/Gui/Tree.h": "5034c0a592a5b939bb1a4524c214ac9c8623a366420a10eaf5725593af73c9c0",
+      "tests/src/Gui/CMakeLists.txt": "046fdf849331fd170a6bb8fba07e4a80f4a3334659f5ad11b1bd66dbb09a41f7",
+      "tests/src/Gui/TreeRestore.cpp": "cb18f03dc15eb361ea507b642e229cf30de993998a6ee33d7e19e34ed3181106",
+      "build/debug/lib/libFreeCADGui.so": "8d608ec52549e84c2ab33ef13e4f02896b0e86129b79f9804c9affbe19e31f25",
+      "build/debug/tests/TreeRestore_Tests_run": "2509e8e1fa3e9aeec7303e11bca20756f871f7204f60a157b811445bad3f45c2"
+    },
+    "command": "pixi run --locked env QT_QPA_PLATFORM=offscreen timeout 120s build/debug/tests/TreeRestore_Tests_run",
+    "exit_status": 7,
+    "result": "5 Qt passes, 7 failing rows, no skips. Failing rows: zero-timeout, empty-app-open, direct-restore, python-load, delayed-restore, merge-import, failed-direct. App-open, copy-paste, failedAppOpen and setup/cleanup pass as controls.",
+    "harness_corrections": "Initial Python wrapper test called C API without acquiring GIL and crashed in Python allocator; GDB confirmed harness fault. Final old-code run acquires GIL and releases owned references. Source document closure removed before import assertions so it cannot kick target completion. Earlier partial/initial logs are not final acceptance."
+  },
+  "commands": {
+    "restore": "pixi run --locked env QT_QPA_PLATFORM=offscreen timeout 120s build/debug/tests/TreeRestore_Tests_run",
+    "memcheck": "pixi run --locked env QT_QPA_PLATFORM=offscreen QT_IM_MODULES=compose QT_IM_MODULE=compose timeout 300s valgrind --tool=memcheck --leak-check=no --undef-value-errors=no --exit-on-first-error=yes --error-exitcode=99 --suppressions=/tmp/spec003-t012-libunwind.supp --log-file=/tmp/spec003-t017-memcheck.log build/debug/tests/TreeRestore_Tests_run",
+    "ctest": "pixi run --locked env LIBGL_ALWAYS_SOFTWARE=1 QT_SCALE_FACTOR=1 timeout 180s xvfb-run -a -s '-screen 0 1024x768x24' ctest --test-dir build/debug -R '^(TreeRestore_Tests_run|TreeWidgetLifetime_Tests_run|ImagePlane_Tests_run|ImagePlaneRender_Tests_run|SelectionView_Tests_run|ObjectSelection_Tests_run)$' --output-on-failure",
+    "style": "pre-commit run --files src/Gui/Tree.cpp tests/src/Gui/TreeRestore.cpp tests/src/Gui/CMakeLists.txt"
+  },
+  "memcheck_suppression": {
+    "text": "{\n  libunwind_address_probe\n  Memcheck:Param\n  write(buf)\n  fun:syscall\n  fun:_UIx86_64_address_is_valid\n}\n",
+    "sha256": "52d015f82c97cef29511f2806d369739dbf556bcb4b9a7ab52b95b1aed4b6c09",
+    "scope": "Only existing exact libunwind startup address probe; no tree/Qt/Python lifetime access suppressed; leak/undefined-value checks disabled."
+  },
+  "logs": {
+    "build": {
+      "local_log": "/tmp/spec003-t017-build.log",
+      "sha256": "e29c797eab8ff7f88f11085a7cc9d3186e05f70aaaa7510914c11455f66de76b"
+    },
+    "restore": {
+      "local_log": "/tmp/spec003-t017-tests.log",
+      "sha256": "b8db5fe134a57c5fbf3d5136cfc6a9ea0d5fe5bca078872ca5cf5facfc74df2d"
+    },
+    "memcheck": {
+      "local_log": "/tmp/spec003-t017-memcheck.log",
+      "sha256": "3f42f3916ed10cc7c2650f2116fdbbd2e6164e66cb1d4e56e057e99ec135422b"
+    },
+    "memcheck_tests": {
+      "local_log": "/tmp/spec003-t017-memcheck-tests.log",
+      "sha256": "b22a0fa4e2a1323c37906ed43a17bb1895052529c5861691365117e625061e64"
+    },
+    "ctest": {
+      "local_log": "/tmp/spec003-t017-ctest.log",
+      "sha256": "65cfee5d8b038607dea02eb0ab0082749d316f49213d2c91e59b763f8e6885fc"
+    },
+    "precommit": {
+      "local_log": "/tmp/spec003-t017-precommit.log",
+      "sha256": "c08cb8962660457decc327fae80aea7a8edb2b1b0e4fe80551122eb1f027ce38"
+    },
+    "red": {
+      "local_log": "/tmp/spec003-t017-red-tests-final2.log",
+      "sha256": "7ff39785a5adfd34dd0eb62b7b0b30df2ab629665629e58d1171cf53518ce72b"
+    },
+    "red_build": {
+      "local_log": "/tmp/spec003-t017-red-build-final.log",
+      "sha256": "05e1429ce5b30d2b8d45b848d94fc11da442b42d91dea3210c9cd68dc313f77c"
+    },
+    "initial_harness_failure": {
+      "local_log": "/tmp/spec003-t017-red-tests.log",
+      "sha256": "a6dc084b58a00843e33d13d9f48ad0916ad0c025d7f92d6733b13247b1b6d67c"
+    },
+    "python_harness_debug": {
+      "local_log": "/tmp/spec003-t017-python-harness-debug.log",
+      "sha256": "9b78f8e956605209f1300411270ebe54cfc5294f3d48f7435e4ce4193385bd4c"
+    }
+  },
+  "results": {
+    "functional_rows": 10,
+    "qt_total_including_setup_cleanup": 12,
+    "qt_memcheck_passes": 12,
+    "memcheck_errors": 0,
+    "ctest_targets_passed": 6,
+    "failures": 0,
+    "skips": 0
+  },
+  "applicability": "Root/docs revision plus exact tracked/new-test patch/source/build/runtime identities; seven clean dependencies, 510 unchanged packages. Prior receipts unchanged and dated; actual tree lifetime, image lifecycle/render and selection CTests rerun on this Gui library. Final production/platform reconciliation remains T010.",
+  "limitations": [
+    "Local Linux Qt offscreen functional and memory-access qualification; no ASan/UBSan, leak or undefined-value checks",
+    "Internal TreeWidget test registration remains non-Windows to avoid introducing DLL export solely for tests; Windows/native and default IBus profiles remain T010",
+    "Small one-object/empty/invalid-file matrix; larger documents, selection/focus/object side effects and broader failure outcomes remain T007/T018 as applicable",
+    "No latency/resource-budget, interactive native viewer, cross-platform or final PR acceptance",
+    "Temporary archives/logs not retained; deterministic construction, source/log hashes and commands identify scoped evidence"
+  ]
+}

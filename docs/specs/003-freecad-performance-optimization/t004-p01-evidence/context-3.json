@@ -1,0 +1,49 @@
+{
+  "fixture_id": "EngineBlock",
+  "fixture_sha256": "9c2d87a893fddbbcc331d2ca29c650d6f564b36265f7ed14b67b251ec0c686b5",
+  "gridfinity_addon_sha256": "1937ad9b62c5e66be9d6ba5d8d94420f07c0b0d635048897bf7fa5c450354ef2",
+  "execution_mode": "command-only",
+  "shared_sql_parser_sha256": "244c1dbdc1afb63503b51ad7bed913b0ebb472c19a4ace7935905f515ef5dfe4",
+  "command_normative_state_sha256": "502ada21ac5c4741efb660983f58a92fa9721fa8227096314afd0248c6421cbb",
+  "included_file_coverage": {
+    "included_properties": 0,
+    "included_bytes": 0
+  },
+  "completion_recompute_count": 0,
+  "endpoint": "sum hook-entry to copy/stream-check completion; permissions/notifications excluded; console open includes one required recompute and excludes startup/fidelity/hash checks",
+  "generated_sql_parser": null,
+  "namespace_sha256": {
+    "baseline": "a3b9b19b0c819810d8b08b45136617ee0186debd862fec8fd7937fab4e8f290c",
+    "change": "585fe1f4aaf8a7b360552f3f6cece86fa55d09b26952464e66dde407dd87cfaa"
+  },
+  "runtime_module_sha256": {
+    "baseline": {
+      "Mod/BIM/Arch_rc.rcc": "5c3a89e808e859d9bea5fc14cf306bd980912733fc4e82738a5476da46ffdbe6",
+      "Mod/Draft/Draft_rc.rcc": "fd427a9cabd67571c95da984c2e8a8974f7a41380708407e9b07263ca6c9109b",
+      "Mod/Material/Materials.so": "233da8a63f9357e19ae43b65826bb0a9530f142d5a44aeeddbe721724d512b8d",
+      "Mod/Part/Part.so": "03e00047f6690eaca4adc67348be6481c49734ef784e03804eb0d9996555555b",
+      "bin/FreeCADCmd": "c6d42abe09e59ff0b8eb554698f93a121385253c8e56895fd53f5edad4a24797",
+      "lib/libCoin.so.80.0.10": "15f33b9e378a0186ca2f0b39f0c0851757de04f81e2208389d7d5b8e88ccc3e6",
+      "lib/libFreeCADApp.so": "13e01e9686f92df55aa1c775673b52c2f1c5ef3382593f43b08735ec085349a7",
+      "lib/libFreeCADBase.so": "1070f3d46f6a945464a756effba510aa42984075bd6c88800766c704b84472aa",
+      "lib/libFreeCADGui.so": "085c27bcfbcc39b870075d26339cb3419ff0d9ca1689efc3b178e68928596904"
+    },
+    "change": {
+      "Mod/BIM/Arch_rc.rcc": "5c3a89e808e859d9bea5fc14cf306bd980912733fc4e82738a5476da46ffdbe6",
+      "Mod/Draft/Draft_rc.rcc": "fd427a9cabd67571c95da984c2e8a8974f7a41380708407e9b07263ca6c9109b",
+      "Mod/Material/Materials.so": "233da8a63f9357e19ae43b65826bb0a9530f142d5a44aeeddbe721724d512b8d",
+      "Mod/Part/Part.so": "03e00047f6690eaca4adc67348be6481c49734ef784e03804eb0d9996555555b",
+      "bin/FreeCADCmd": "c6d42abe09e59ff0b8eb554698f93a121385253c8e56895fd53f5edad4a24797",
+      "lib/libCoin.so.80.0.10": "15f33b9e378a0186ca2f0b39f0c0851757de04f81e2208389d7d5b8e88ccc3e6",
+      "lib/libFreeCADApp.so": "ee958fc1c4ea77bb9457866ce043c56b4db85a24bcf71e46236a472c1b125f5d",
+      "lib/libFreeCADBase.so": "1070f3d46f6a945464a756effba510aa42984075bd6c88800766c704b84472aa",
+      "lib/libFreeCADGui.so": "085c27bcfbcc39b870075d26339cb3419ff0d9ca1689efc3b178e68928596904"
+    }
+  },
+  "restore_payload_disposition": {
+    "decision_id": "D006",
+    "metric": "restore_payload_ms",
+    "status": "not_applicable",
+    "fixture_sha256": "9c2d87a893fddbbcc331d2ca29c650d6f564b36265f7ed14b67b251ec0c686b5"
+  }
+}

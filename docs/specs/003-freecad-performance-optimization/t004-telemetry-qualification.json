@@ -1,0 +1,36 @@
+{
+  "schema": "freecad-spec003-telemetry-qualification/v1",
+  "acceptance_eligible": false,
+  "freecad_launched": false,
+  "command": "Python sleep surrogate; executable identity classification only",
+  "baseline_seconds": 30,
+  "samples": 34,
+  "launch_after_first_sample_seconds": 30.000789225,
+  "sample_interval_median_ms": 1000.005403,
+  "collector_wall_median_ms": 28.612758,
+  "collector_wall_max_ms": 48.320314,
+  "collector_cpu_median_ms": 16.639523,
+  "collector_cpu_max_ms": 35.022169,
+  "unavailable": [],
+  "sampling_gaps": 0,
+  "owned_surrogate_seen": true,
+  "raw_sha256": "79b794f9791773a98738a6542d62e9aa8f1cd61b7dfb996e05d0af4340e5a85a",
+  "raw_bytes": 91519,
+  "final_exit_code": 0,
+  "focused_tests": 15,
+  "focused_tests_result": "pass with ResourceWarning treated as error",
+  "telemetry_source_sha256": "6fdb9cdecf427f6103d19290b614b7c52be8dcf3492f8a356adec69cc7f1d024",
+  "cleanup_complete": true,
+  "review": {
+    "reviewer": "p01_instrumentation_review",
+    "result": "no remaining blockers",
+    "boundary": "source/measurement/privacy/operations review; surrogate smoke is not FreeCAD evidence"
+  },
+  "raw_local_artifact": "build/spec003-t004-p07-diagnostic/telemetry-smoke-3.jsonl",
+  "prior_attempts_retained": [
+    "telemetry-smoke.jsonl",
+    "telemetry-smoke-2.jsonl"
+  ],
+  "raw_publication": "restricted local raw trace; public summary omits transient owned-process identifiers",
+  "lifecycle_disposition": "T004.2 in progress; candidate_complete audit hint does not satisfy pending native/comparative acceptance"
+}

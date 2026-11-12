@@ -1,0 +1,1007 @@
+{
+  "schema": "freecad-spec003-image-performance-results/v2",
+  "campaign": "recovery-2-corrected-native-probe",
+  "task": "T020",
+  "measurement_disposition": "complete; P07 NOT ACCEPTED under D001",
+  "optimization_acceptance": "rejected",
+  "phase_3_exit": "unsatisfied",
+  "required_owner_gate": "D005 / T022 before T004 and T010",
+  "attempts_per_cell": 1,
+  "complete_cells": 7,
+  "fresh_process_observations": 336,
+  "measured_pairs_per_cell": 20,
+  "pooling_or_retries": false,
+  "original_campaign": {
+    "artifact": "t020-evidence/freeze-1-performance-results.json",
+    "sha256": "44b91dc10e2eaa0f2830e7c282f2f18d276130a81378db6cd8f8a73c48b42357",
+    "disposition": "incomplete; partial/inconclusive outcomes unchanged and not pooled"
+  },
+  "qualification_receipt_sha256": "a1ad40bbe6bc83c8761ef7776f08c93cdb44c406eb1d04e665e5c8579b2e49e9",
+  "campaign_freeze_sha256": "1737adc03bf23359236dab8f889b214b163b0175c02a79c4697c1cdf7a74f563",
+  "controller": {
+    "artifact": "controller-source.py.txt",
+    "sha256": "13997e12de05d85ed6520c85588cc15f23dfaab7aca5e3ad1b5956b23e482836"
+  },
+  "audits": {
+    "before-collection": {
+      "artifact": "freeze-audit-before-collection.json",
+      "sha256": "bbf0fdb3db1caedecfdcd6c90c0cd8a644b9a1480e7ba33be718dc265f3b7664"
+    },
+    "after-collection": {
+      "artifact": "freeze-audit-after-collection.json",
+      "sha256": "e92301d5f49b6a522e014cc9234b2a26fafd7c64fc26d47c2756002927c1dce4"
+    }
+  },
+  "qualification": {
+    "baseline": {
+      "commit": "c574d418c015972cbe4109983c289ce963d24b47",
+      "src_tree": "b2d179fc386cc9b9aacba49a5d39a1a7c96a02d9",
+      "tests_tree": "c828854413c2941e45e9fe42e7a59f2d0006d979",
+      "native_output_manifest_sha256": "ad963dc586766459f47da43054673dc63ae8301eed35c4cccd7c2f0566aa6621",
+      "gui_library_sha256": "1bc60b08a76f0a2248eed8e89febd0c63d8d235c628eddb3d01c6d31fd924669",
+      "provider_object_sha256": "7aa4267a92b18d1843b2f1707a0f7765eb9ff7a4f765f150e0b619f3e000012c",
+      "worker_sha256": "e15397d938ce041bc7659254329fe779b0c0a279a30272bc7ace5e2cd96062d2",
+      "reuse": {
+        "origin_commit": "c4e009ed3eb5e517da5ea01d6143ff84e3bf4738",
+        "only_changed_tracked_path": "tests/src/Gui/ImagePerformanceProbe.py",
+        "unchanged_src_tree": true,
+        "no_new_cpp_compilation_claim": true
+      },
+      "cpp_correctness": {
+        "commit": "c574d418c015972cbe4109983c289ce963d24b47",
+        "checks": [
+          {
+            "test": "App_tests_run",
+            "exit": 0,
+            "no_skips": true,
+            "log_sha256": "1b3c05aa34d16ddd6c98ed50b8e8a667dfaa627a2a3f8c4859983d1c266fa5f2"
+          },
+          {
+            "test": "Base_tests_run",
+            "exit": 0,
+            "no_skips": true,
+            "log_sha256": "72e81216ee99ddb6ca58e6b840c8d9b1a4f6fbdd3d111dfb58dedd0c8466b57b"
+          },
+          {
+            "test": "Gui_tests_run",
+            "exit": 0,
+            "no_skips": true,
+            "log_sha256": "b573e8ec128ea699d755389011f7b99642aa64d0e14ca7895a3697b47b4a839f"
+          },
+          {
+            "test": "ImagePlane_Tests_run",
+            "exit": 0,
+            "no_skips": true,
+            "log_sha256": "8731baa1221a09458e8a6d769180fc5509302e49fd86e0106e142b1783208af7"
+          },
+          {
+            "test": "ImagePerformanceTraceTest_Tests_run",
+            "exit": 0,
+            "no_skips": true,
+            "log_sha256": "e146edfdc24e43349211b46d773633df948b975bdf498721ade82f4591055ef0"
+          },
+          {
+            "test": "ImagePlaneRender_Tests_run",
+            "exit": 0,
+            "no_skips": true,
+            "log_sha256": "149149e58837d244a1c43bae42ca51a2db8c87b3adf92cdea2feade3d46850dd"
+          },
+          {
+            "test": "TreeRestore_Tests_run",
+            "exit": 0,
+            "no_skips": true,
+            "log_sha256": "0dd296acdcec6f6529ede87af3e635d4f5ab2fb6a29e99c706f1fca54a4a2428"
+          },
+          {
+            "test": "TreeWidgetLifetime_Tests_run",
+            "exit": 0,
+            "no_skips": true,
+            "log_sha256": "fdedb0092ce3b906fcc40b93221eddee2304cf36583c511775a093f3bb58abea"
+          },
+          {
+            "test": "TreeBehavior_Tests_run",
+            "exit": 0,
+            "no_skips": true,
+            "log_sha256": "ac944d3ae3f92c82f81c334dce991f4ca10c1115d6bccbe24776b7aa4dd851ce"
+          }
+        ],
+        "passed": true
+      },
+      "focused_tests": 551,
+      "frozen_runtime_qualifications": 7,
+      "absolute_formats_origin": "c4e009ed3eb5e517da5ea01d6143ff84e3bf4738"
+    },
+    "change": {
+      "commit": "613def1ab6bf615f82fe163e3b41489d0228acbf",
+      "src_tree": "199cb379eb0051f79d641891b123b5e77a2d7b41",
+      "tests_tree": "c828854413c2941e45e9fe42e7a59f2d0006d979",
+      "native_output_manifest_sha256": "1e64ad72ac60399158b8664fd6b1f7755d8b08d5d75ee3ea7583a4fca6323051",
+      "gui_library_sha256": "085c27bcfbcc39b870075d26339cb3419ff0d9ca1689efc3b178e68928596904",
+      "provider_object_sha256": "345b1f8f726f28856ca73d00b0d088375e452eef28da62d48295460aff7421ef",
+      "worker_sha256": "e15397d938ce041bc7659254329fe779b0c0a279a30272bc7ace5e2cd96062d2",
+      "reuse": {
+        "origin_commit": "c7b9d163df2bf1b0e3e05195a4d93ca4235cb2d1",
+        "only_changed_tracked_path": "tests/src/Gui/ImagePerformanceProbe.py",
+        "unchanged_src_tree": true,
+        "no_new_cpp_compilation_claim": true
+      },
+      "cpp_correctness": {
+        "commit": "613def1ab6bf615f82fe163e3b41489d0228acbf",
+        "checks": [
+          {
+            "test": "App_tests_run",
+            "exit": 0,
+            "no_skips": true,
+            "log_sha256": "5a9c5da62f2921f1582a5d7209c3e36e6b6b598a2ff110c17618312fb6477cda"
+          },
+          {
+            "test": "Base_tests_run",
+            "exit": 0,
+            "no_skips": true,
+            "log_sha256": "ab5d6efcb6025d6e43404fba5a6ed488db532782e9417414440453b5d7626807"
+          },
+          {
+            "test": "Gui_tests_run",
+            "exit": 0,
+            "no_skips": true,
+            "log_sha256": "d69e0aa949cd7781518b69cf2ebc8d04f6b934b234e578afc5a559ad86426010"
+          },
+          {
+            "test": "ImagePlane_Tests_run",
+            "exit": 0,
+            "no_skips": true,
+            "log_sha256": "357a775db0f4eb6fc3579ed4f1bba991cbfe0f0545f96bab1164beef89a06358"
+          },
+          {
+            "test": "ImagePerformanceTraceTest_Tests_run",
+            "exit": 0,
+            "no_skips": true,
+            "log_sha256": "83c6c691da5eb9a4c40dab9a3e93bc4d17a9971319f1609430789ea94d53abc1"
+          },
+          {
+            "test": "ImagePlaneRender_Tests_run",
+            "exit": 0,
+            "no_skips": true,
+            "log_sha256": "2b90ff3571049d08332adadb9bbd6ae6db3846dea4254328411245fa0415a9d9"
+          },
+          {
+            "test": "TreeRestore_Tests_run",
+            "exit": 0,
+            "no_skips": true,
+            "log_sha256": "21764116993066846cc29be80419ce40b71a3b1438dffbb83a3b867e2cc04429"
+          },
+          {
+            "test": "TreeWidgetLifetime_Tests_run",
+            "exit": 0,
+            "no_skips": true,
+            "log_sha256": "45e9a5156fc3ce816993151fa394b8750b72d84b154f5b1938714813f049c9d5"
+          },
+          {
+            "test": "TreeBehavior_Tests_run",
+            "exit": 0,
+            "no_skips": true,
+            "log_sha256": "4d2c73b955e7b0d1430fcf1033e3ee6c8a6225c6dea9ce2a9adec32dda9f17b9"
+          }
+        ],
+        "passed": true
+      },
+      "focused_tests": 551,
+      "frozen_runtime_qualifications": 7,
+      "absolute_formats_origin": "c7b9d163df2bf1b0e3e05195a4d93ca4235cb2d1"
+    }
+  },
+  "cells": {
+    "hidden": {
+      "collection_exit": 0,
+      "collection_complete": true,
+      "completed_observations": 48,
+      "measured_pairs": 20,
+      "execution_sha256": "34ef50b667ca2c04af5cf4a2ce6b319c858c0e4ecca15a6cb2fd71f6e6770a00",
+      "observations": {
+        "artifact": "hidden-observations.jsonl",
+        "sha256": "01067a27d2df8c97fd933c90d5aeeb009e6fe33fd673702f0581e1ca71d03796"
+      },
+      "context": {
+        "artifact": "frozen-hidden-context.json",
+        "sha256": "afc6fbd5b042cc09535f6e6a45b5c8396b690c542efc856b104ebdab66994f59"
+      },
+      "fixture_id": "gridfinity-drawer-v1.3",
+      "fixture_sha256": "117095480bd92c7a53811725ecf2194503de45bc15d4e516bac9cb0e0f6f0f0b",
+      "source_commits": {
+        "baseline": "c574d418c015972cbe4109983c289ce963d24b47",
+        "change": "613def1ab6bf615f82fe163e3b41489d0228acbf"
+      },
+      "worker_failures": 0,
+      "collector_log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "status": "fail",
+      "assessment": {
+        "schema": "freecad-spec003-cell-assessment/v1",
+        "comparison_id": "P07",
+        "fixture_id": "gridfinity-drawer-v1.3",
+        "context": "restored-hidden-first-show-repeat-v1",
+        "execution_sha256": "34ef50b667ca2c04af5cf4a2ce6b319c858c0e4ecca15a6cb2fd71f6e6770a00",
+        "observations_sha256": "01067a27d2df8c97fd933c90d5aeeb009e6fe33fd673702f0581e1ca71d03796",
+        "assessor_sha256": "e4d6ac60bd827f9e184736182ad9c244473feea66f64d705e15a41414590d581",
+        "measured_pairs": 20,
+        "status": "fail",
+        "metrics": {
+          "gui_open_frame_ms": {
+            "baseline": {
+              "median": 3321.1265805000003,
+              "p95": 6482.522527600003,
+              "iqr": 2130.51245875,
+              "iqr_over_median": 0.6415029379666849,
+              "maximum": 10645.958738
+            },
+            "change": {
+              "median": 1736.8373394999999,
+              "p95": 3562.1801175500004,
+              "iqr": 1325.7419452499998,
+              "iqr_over_median": 0.763308062936771,
+              "maximum": 3881.649567
+            },
+            "kind": "improve",
+            "paired_ratio": {
+              "median": 0.5016761726307686,
+              "p95": 1.0869241636970892,
+              "iqr": 0.07220205574908017,
+              "iqr_over_median": 0.14392163648206702,
+              "maximum": 1.1125022890549157
+            },
+            "bootstrap_ratio_interval": [
+              0.4787143623123721,
+              0.538502669126919
+            ],
+            "median_paired_saved_ms": 1726.519319,
+            "thresholds_passed": true,
+            "status": "inconclusive"
+          },
+          "open_plus_first_show_ms": {
+            "baseline": {
+              "median": 3390.1846635,
+              "p95": 6570.098281850003,
+              "iqr": 2152.4668535,
+              "iqr_over_median": 0.6349113889500668,
+              "maximum": 10778.647165999999
+            },
+            "change": {
+              "median": 2565.954702,
+              "p95": 5488.3182779,
+              "iqr": 1849.2589175000003,
+              "iqr_over_median": 0.7206903988050216,
+              "maximum": 5720.12143
+            },
+            "kind": "non_regression",
+            "thresholds_passed": true,
+            "status": "inconclusive"
+          },
+          "first_show_frame_ms": {
+            "baseline": {
+              "median": 71.65682899999999,
+              "p95": 103.36451010000002,
+              "iqr": 19.4897445,
+              "iqr_over_median": 0.2719872588835881,
+              "maximum": 132.688428
+            },
+            "change": {
+              "median": 857.907486,
+              "p95": 1843.08587865,
+              "iqr": 485.88421425,
+              "iqr_over_median": 0.5663596858391325,
+              "maximum": 1930.752176
+            },
+            "kind": "budget",
+            "thresholds_passed": false,
+            "status": "fail"
+          },
+          "repeat_show_frame_ms": {
+            "baseline": {
+              "median": 7.78244,
+              "p95": 13.612422950000003,
+              "iqr": 3.4488262500000015,
+              "iqr_over_median": 0.44315487816160504,
+              "maximum": 16.669978
+            },
+            "change": {
+              "median": 7.6616235,
+              "p95": 12.429050650000002,
+              "iqr": 2.5525172499999993,
+              "iqr_over_median": 0.3331561841951643,
+              "maximum": 14.798705
+            },
+            "kind": "budget",
+            "thresholds_passed": true,
+            "status": "inconclusive"
+          },
+          "peak_rss_bytes": {
+            "baseline": {
+              "median": 960583680.0,
+              "p95": 965794201.6,
+              "iqr": 4862976.0,
+              "iqr_over_median": 0.005062521986632128,
+              "maximum": 966152192
+            },
+            "change": {
+              "median": 865867776.0,
+              "p95": 870933504.0,
+              "iqr": 6942720.0,
+              "iqr_over_median": 0.008018221941545034,
+              "maximum": 872587264
+            },
+            "kind": "resource",
+            "maximum_increase_allowed": 96615219.2,
+            "thresholds_passed": true,
+            "status": "pass"
+          },
+          "coin_image_bytes": {
+            "baseline": {
+              "median": 293642496.0,
+              "p95": 293642496.0,
+              "iqr": 0.0,
+              "iqr_over_median": 0.0,
+              "maximum": 293642496
+            },
+            "change": {
+              "median": 195761664.0,
+              "p95": 195761664.0,
+              "iqr": 0.0,
+              "iqr_over_median": 0.0,
+              "maximum": 195761664
+            },
+            "kind": "resource",
+            "maximum_increase_allowed": 1048576,
+            "thresholds_passed": true,
+            "status": "pass"
+          },
+          "decoded_image_bytes": {
+            "baseline": {
+              "median": 97880832.0,
+              "p95": 97880832.0,
+              "iqr": 0.0,
+              "iqr_over_median": 0.0,
+              "maximum": 97880832
+            },
+            "change": {
+              "median": 97880832.0,
+              "p95": 97880832.0,
+              "iqr": 0.0,
+              "iqr_over_median": 0.0,
+              "maximum": 97880832
+            },
+            "kind": "resource",
+            "maximum_increase_allowed": 1048576,
+            "thresholds_passed": true,
+            "status": "pass"
+          }
+        }
+      },
+      "assessment_artifact": {
+        "artifact": "hidden-assessment.json",
+        "sha256": "45303d983013a5fcdf6349949a23918902e6681e6a919faa32ca57372e2e4de1"
+      }
+    },
+    "visible": {
+      "collection_exit": 0,
+      "collection_complete": true,
+      "completed_observations": 48,
+      "measured_pairs": 20,
+      "execution_sha256": "b0aed9b47d1c8d2155073c1ea25a52f189ca2b0d409caff9121d1ec0016ceb86",
+      "observations": {
+        "artifact": "visible-observations.jsonl",
+        "sha256": "3f4a5c2afba38820b7fe184ab16e4e84fb89c4295af563513156a2c2ffe8c654"
+      },
+      "context": {
+        "artifact": "frozen-visible-context.json",
+        "sha256": "9cdcef776dfbea9dd1783d83b1503865bb0712cc9ab45b30bc836bd9c362ec6c"
+      },
+      "fixture_id": "gridfinity-drawer-v1.3",
+      "fixture_sha256": "117095480bd92c7a53811725ecf2194503de45bc15d4e516bac9cb0e0f6f0f0b",
+      "source_commits": {
+        "baseline": "c574d418c015972cbe4109983c289ce963d24b47",
+        "change": "613def1ab6bf615f82fe163e3b41489d0228acbf"
+      },
+      "worker_failures": 0,
+      "collector_log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "status": "fail",
+      "assessment": {
+        "schema": "freecad-spec003-cell-assessment/v1",
+        "comparison_id": "P07",
+        "fixture_id": "gridfinity-drawer-v1.3",
+        "context": "all-visible-open-v1",
+        "execution_sha256": "b0aed9b47d1c8d2155073c1ea25a52f189ca2b0d409caff9121d1ec0016ceb86",
+        "observations_sha256": "3f4a5c2afba38820b7fe184ab16e4e84fb89c4295af563513156a2c2ffe8c654",
+        "assessor_sha256": "e4d6ac60bd827f9e184736182ad9c244473feea66f64d705e15a41414590d581",
+        "measured_pairs": 20,
+        "status": "fail",
+        "metrics": {
+          "gui_open_frame_ms": {
+            "baseline": {
+              "median": 4731.774837999999,
+              "p95": 11922.8359045,
+              "iqr": 2135.5990277499995,
+              "iqr_over_median": 0.4513314984050811,
+              "maximum": 11951.043884
+            },
+            "change": {
+              "median": 3430.8355460000002,
+              "p95": 14979.883143000001,
+              "iqr": 1985.0569137499997,
+              "iqr_over_median": 0.5785928492155128,
+              "maximum": 15992.959267
+            },
+            "kind": "non_regression",
+            "thresholds_passed": false,
+            "status": "fail"
+          },
+          "peak_rss_bytes": {
+            "baseline": {
+              "median": 956647424.0,
+              "p95": 961316044.8,
+              "iqr": 4212736.0,
+              "iqr_over_median": 0.004403645370606256,
+              "maximum": 962818048
+            },
+            "change": {
+              "median": 957960192.0,
+              "p95": 964112384.0,
+              "iqr": 6867968.0,
+              "iqr_over_median": 0.007169366803918299,
+              "maximum": 964734976
+            },
+            "kind": "resource",
+            "maximum_increase_allowed": 96281804.80000001,
+            "thresholds_passed": true,
+            "status": "pass"
+          },
+          "coin_image_bytes": {
+            "baseline": {
+              "median": 293642496.0,
+              "p95": 293642496.0,
+              "iqr": 0.0,
+              "iqr_over_median": 0.0,
+              "maximum": 293642496
+            },
+            "change": {
+              "median": 293642496.0,
+              "p95": 293642496.0,
+              "iqr": 0.0,
+              "iqr_over_median": 0.0,
+              "maximum": 293642496
+            },
+            "kind": "resource",
+            "maximum_increase_allowed": 1048576,
+            "thresholds_passed": true,
+            "status": "pass"
+          },
+          "decoded_image_bytes": {
+            "baseline": {
+              "median": 97880832.0,
+              "p95": 97880832.0,
+              "iqr": 0.0,
+              "iqr_over_median": 0.0,
+              "maximum": 97880832
+            },
+            "change": {
+              "median": 97880832.0,
+              "p95": 97880832.0,
+              "iqr": 0.0,
+              "iqr_over_median": 0.0,
+              "maximum": 97880832
+            },
+            "kind": "resource",
+            "maximum_increase_allowed": 1048576,
+            "thresholds_passed": true,
+            "status": "pass"
+          }
+        }
+      },
+      "assessment_artifact": {
+        "artifact": "visible-assessment.json",
+        "sha256": "fb7c8c3246cefa482757f0c33d9cb758cf25971f075160e621a136df264c4edc"
+      }
+    },
+    "part": {
+      "collection_exit": 0,
+      "collection_complete": true,
+      "completed_observations": 48,
+      "measured_pairs": 20,
+      "execution_sha256": "520ea37cfce1683dc31425723ed764f6a0fde0f1872c27c792bbe0a14e9c9eb9",
+      "observations": {
+        "artifact": "part-observations.jsonl",
+        "sha256": "3d54228d71a8fdd5d583ad43992fe4f716b94379fba7a3825e41a532145eab9f"
+      },
+      "context": {
+        "artifact": "frozen-part-context.json",
+        "sha256": "78b0e2cdae37e1f29e43378dfd5d100a5d2b87aee7e095edd84606588a29fb91"
+      },
+      "fixture_id": "PartDesignExample",
+      "fixture_sha256": "0aa09dac21c19ba07f8abe32ebd7957b8539a430f6832c66ce2e15609d762ac7",
+      "source_commits": {
+        "baseline": "c574d418c015972cbe4109983c289ce963d24b47",
+        "change": "613def1ab6bf615f82fe163e3b41489d0228acbf"
+      },
+      "worker_failures": 0,
+      "collector_log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "status": "fail",
+      "assessment": {
+        "schema": "freecad-spec003-cell-assessment/v1",
+        "comparison_id": "P07",
+        "fixture_id": "PartDesignExample",
+        "context": "open-only-v1",
+        "execution_sha256": "520ea37cfce1683dc31425723ed764f6a0fde0f1872c27c792bbe0a14e9c9eb9",
+        "observations_sha256": "3d54228d71a8fdd5d583ad43992fe4f716b94379fba7a3825e41a532145eab9f",
+        "assessor_sha256": "e4d6ac60bd827f9e184736182ad9c244473feea66f64d705e15a41414590d581",
+        "measured_pairs": 20,
+        "status": "fail",
+        "metrics": {
+          "gui_open_frame_ms": {
+            "baseline": {
+              "median": 284.789404,
+              "p95": 543.8745277000005,
+              "iqr": 112.62546700000001,
+              "iqr_over_median": 0.39546930264301555,
+              "maximum": 1231.511654
+            },
+            "change": {
+              "median": 318.751797,
+              "p95": 425.2867194,
+              "iqr": 122.2076955,
+              "iqr_over_median": 0.38339453032165965,
+              "maximum": 433.559821
+            },
+            "kind": "non_regression",
+            "thresholds_passed": false,
+            "status": "fail"
+          },
+          "peak_rss_bytes": {
+            "baseline": {
+              "median": 405590016.0,
+              "p95": 407529472.0,
+              "iqr": 834560.0,
+              "iqr_over_median": 0.0020576443380697024,
+              "maximum": 417685504
+            },
+            "change": {
+              "median": 404828160.0,
+              "p95": 405780889.6,
+              "iqr": 1000448.0,
+              "iqr_over_median": 0.0024712905347295997,
+              "maximum": 406061056
+            },
+            "kind": "resource",
+            "maximum_increase_allowed": 41768550.400000006,
+            "thresholds_passed": true,
+            "status": "pass"
+          },
+          "coin_image_bytes": {
+            "baseline": {
+              "median": 0.0,
+              "p95": 0.0,
+              "iqr": 0.0,
+              "iqr_over_median": 0,
+              "maximum": 0
+            },
+            "change": {
+              "median": 0.0,
+              "p95": 0.0,
+              "iqr": 0.0,
+              "iqr_over_median": 0,
+              "maximum": 0
+            },
+            "kind": "resource",
+            "maximum_increase_allowed": 1048576,
+            "thresholds_passed": true,
+            "status": "pass"
+          },
+          "decoded_image_bytes": {
+            "baseline": {
+              "median": 0.0,
+              "p95": 0.0,
+              "iqr": 0.0,
+              "iqr_over_median": 0,
+              "maximum": 0
+            },
+            "change": {
+              "median": 0.0,
+              "p95": 0.0,
+              "iqr": 0.0,
+              "iqr_over_median": 0,
+              "maximum": 0
+            },
+            "kind": "resource",
+            "maximum_increase_allowed": 1048576,
+            "thresholds_passed": true,
+            "status": "pass"
+          }
+        }
+      },
+      "assessment_artifact": {
+        "artifact": "part-assessment.json",
+        "sha256": "06077a08cd0fa59c8e1d5a0554eaba09a52daefa47af424610c7fc2121b2abe4"
+      }
+    },
+    "vrml": {
+      "collection_exit": 0,
+      "collection_complete": true,
+      "completed_observations": 48,
+      "measured_pairs": 20,
+      "execution_sha256": "4f8baccb884d39d4be4d363ebb7f18cfa501845d576b3d5dfadf927432ddb5e3",
+      "observations": {
+        "artifact": "vrml-observations.jsonl",
+        "sha256": "056ef0a8f8fcb4f3974460ae5d6ecc9276a2be4ba1a7c4a60a49b7f277e2aff0"
+      },
+      "context": {
+        "artifact": "frozen-vrml-context.json",
+        "sha256": "9002ecab2123a17c50dd82117a261a8da8c308de5b71e265e597183c37006f5f"
+      },
+      "fixture_id": "TestVRMLTextures",
+      "fixture_sha256": "7b5ed0e601bda6f1415fdae837211a7308c1d4f4df3cc16d600cbe894db6bc74",
+      "source_commits": {
+        "baseline": "c574d418c015972cbe4109983c289ce963d24b47",
+        "change": "613def1ab6bf615f82fe163e3b41489d0228acbf"
+      },
+      "worker_failures": 0,
+      "collector_log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "status": "inconclusive",
+      "assessment": {
+        "schema": "freecad-spec003-cell-assessment/v1",
+        "comparison_id": "P07",
+        "fixture_id": "TestVRMLTextures",
+        "context": "open-only-v1",
+        "execution_sha256": "4f8baccb884d39d4be4d363ebb7f18cfa501845d576b3d5dfadf927432ddb5e3",
+        "observations_sha256": "056ef0a8f8fcb4f3974460ae5d6ecc9276a2be4ba1a7c4a60a49b7f277e2aff0",
+        "assessor_sha256": "e4d6ac60bd827f9e184736182ad9c244473feea66f64d705e15a41414590d581",
+        "measured_pairs": 20,
+        "status": "inconclusive",
+        "metrics": {
+          "gui_open_frame_ms": {
+            "baseline": {
+              "median": 2786.6727874999997,
+              "p95": 2899.6662925500004,
+              "iqr": 1621.1319815,
+              "iqr_over_median": 0.5817446485901783,
+              "maximum": 2929.234825
+            },
+            "change": {
+              "median": 2824.1704595,
+              "p95": 2931.5033381999997,
+              "iqr": 1430.7047437499996,
+              "iqr_over_median": 0.5065929143679578,
+              "maximum": 3021.146406
+            },
+            "kind": "non_regression",
+            "thresholds_passed": true,
+            "status": "inconclusive"
+          },
+          "peak_rss_bytes": {
+            "baseline": {
+              "median": 392083456.0,
+              "p95": 392184012.8,
+              "iqr": 220160.0,
+              "iqr_over_median": 0.0005615131080664623,
+              "maximum": 392265728
+            },
+            "change": {
+              "median": 391096320.0,
+              "p95": 391354777.6,
+              "iqr": 158720.0,
+              "iqr_over_median": 0.0004058335297043961,
+              "maximum": 391401472
+            },
+            "kind": "resource",
+            "maximum_increase_allowed": 39226572.800000004,
+            "thresholds_passed": true,
+            "status": "pass"
+          },
+          "coin_image_bytes": {
+            "baseline": {
+              "median": 0.0,
+              "p95": 0.0,
+              "iqr": 0.0,
+              "iqr_over_median": 0,
+              "maximum": 0
+            },
+            "change": {
+              "median": 0.0,
+              "p95": 0.0,
+              "iqr": 0.0,
+              "iqr_over_median": 0,
+              "maximum": 0
+            },
+            "kind": "resource",
+            "maximum_increase_allowed": 1048576,
+            "thresholds_passed": true,
+            "status": "pass"
+          },
+          "decoded_image_bytes": {
+            "baseline": {
+              "median": 0.0,
+              "p95": 0.0,
+              "iqr": 0.0,
+              "iqr_over_median": 0,
+              "maximum": 0
+            },
+            "change": {
+              "median": 0.0,
+              "p95": 0.0,
+              "iqr": 0.0,
+              "iqr_over_median": 0,
+              "maximum": 0
+            },
+            "kind": "resource",
+            "maximum_increase_allowed": 1048576,
+            "thresholds_passed": true,
+            "status": "pass"
+          }
+        }
+      },
+      "assessment_artifact": {
+        "artifact": "vrml-assessment.json",
+        "sha256": "73e7c2d4276e5c49ef26d520ad56d76d58b5bd996c2090d5d7589971df5d7f80"
+      }
+    },
+    "command-private": {
+      "collection_exit": 0,
+      "collection_complete": true,
+      "completed_observations": 48,
+      "measured_pairs": 20,
+      "execution_sha256": "8d1c25ac24333e43b80d5e0c25dc3ec4ce9d42efa12774c4a69bd2ff62b3ccfb",
+      "observations": {
+        "artifact": "command-private-observations.jsonl",
+        "sha256": "0e04f69b253547ea9aa1690483922c136598da45faa327a6e352776ab35c1e6b"
+      },
+      "context": {
+        "artifact": "frozen-command-private-context.json",
+        "sha256": "6772a6fab02dd32e4a74bf68127f8d3819750f92a259718f567699b170f2b778"
+      },
+      "fixture_id": "gridfinity-drawer-v1.3",
+      "fixture_sha256": "117095480bd92c7a53811725ecf2194503de45bc15d4e516bac9cb0e0f6f0f0b",
+      "source_commits": {
+        "baseline": "c574d418c015972cbe4109983c289ce963d24b47",
+        "change": "613def1ab6bf615f82fe163e3b41489d0228acbf"
+      },
+      "worker_failures": 0,
+      "collector_log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "status": "descriptive-only",
+      "metrics": {
+        "document_open_ms": {
+          "baseline": {
+            "median": 829.1235005,
+            "p95": 1250.9337628500002,
+            "iqr": 311.65835600000014,
+            "iqr_over_median": 0.3758889427353774,
+            "maximum": 1312.910943
+          },
+          "change": {
+            "median": 842.9731750000001,
+            "p95": 1201.2119834,
+            "iqr": 316.16342625000016,
+            "iqr_over_median": 0.3750575173996493,
+            "maximum": 1211.448906
+          }
+        },
+        "peak_rss_bytes": {
+          "baseline": {
+            "median": 239050752.0,
+            "p95": 239273164.8,
+            "iqr": 257024.0,
+            "iqr_over_median": 0.001075185908639183,
+            "maximum": 239296512
+          },
+          "change": {
+            "median": 238254080.0,
+            "p95": 238485299.2,
+            "iqr": 215040.0,
+            "iqr_over_median": 0.0009025658658185412,
+            "maximum": 238559232
+          }
+        }
+      }
+    },
+    "command-part": {
+      "collection_exit": 0,
+      "collection_complete": true,
+      "completed_observations": 48,
+      "measured_pairs": 20,
+      "execution_sha256": "423e66ed19b0c46a1f2efd4ea22a217b9836d0669a83fb1725b03e465641ea80",
+      "observations": {
+        "artifact": "command-part-observations.jsonl",
+        "sha256": "818a355d59078dace29590ee5f78963a9e2c8aa2fb6c8ce06b2d0131a9d10083"
+      },
+      "context": {
+        "artifact": "frozen-command-part-context.json",
+        "sha256": "19841297020a1927a1e93ab14197c5d2b6a0d2b1e1d8871db438550d297e7f08"
+      },
+      "fixture_id": "PartDesignExample",
+      "fixture_sha256": "0aa09dac21c19ba07f8abe32ebd7957b8539a430f6832c66ce2e15609d762ac7",
+      "source_commits": {
+        "baseline": "c574d418c015972cbe4109983c289ce963d24b47",
+        "change": "613def1ab6bf615f82fe163e3b41489d0228acbf"
+      },
+      "worker_failures": 0,
+      "collector_log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "status": "descriptive-only",
+      "metrics": {
+        "document_open_ms": {
+          "baseline": {
+            "median": 248.65266150000002,
+            "p95": 288.3702829,
+            "iqr": 78.76200524999999,
+            "iqr_over_median": 0.3167551265080667,
+            "maximum": 299.162319
+          },
+          "change": {
+            "median": 257.391884,
+            "p95": 278.1897898,
+            "iqr": 82.09080775000001,
+            "iqr_over_median": 0.31893316321504533,
+            "maximum": 284.478501
+          }
+        },
+        "peak_rss_bytes": {
+          "baseline": {
+            "median": 109221888.0,
+            "p95": 109338624.0,
+            "iqr": 163840.0,
+            "iqr_over_median": 0.0015000656278712193,
+            "maximum": 109338624
+          },
+          "change": {
+            "median": 109031424.0,
+            "p95": 109171302.4,
+            "iqr": 168960.0,
+            "iqr_over_median": 0.0015496449904203763,
+            "maximum": 109182976
+          }
+        }
+      }
+    },
+    "command-vrml": {
+      "collection_exit": 0,
+      "collection_complete": true,
+      "completed_observations": 48,
+      "measured_pairs": 20,
+      "execution_sha256": "6a520f9073337c6c1352c32d3ddcce33a2ba5714cf463772708e044d9acedae2",
+      "observations": {
+        "artifact": "command-vrml-observations.jsonl",
+        "sha256": "e90aaf65f8d57cdfe7d89c005509aa7917acf62225196da173af7f19d4488c00"
+      },
+      "context": {
+        "artifact": "frozen-command-vrml-context.json",
+        "sha256": "e2a4cd0d23288b3f2b3e39efc2b036bef1c96038134519f2277a8b65acfa23af"
+      },
+      "fixture_id": "TestVRMLTextures",
+      "fixture_sha256": "7b5ed0e601bda6f1415fdae837211a7308c1d4f4df3cc16d600cbe894db6bc74",
+      "source_commits": {
+        "baseline": "c574d418c015972cbe4109983c289ce963d24b47",
+        "change": "613def1ab6bf615f82fe163e3b41489d0228acbf"
+      },
+      "worker_failures": 0,
+      "collector_log_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "status": "descriptive-only",
+      "metrics": {
+        "document_open_ms": {
+          "baseline": {
+            "median": 1.8326775,
+            "p95": 2.1634127,
+            "iqr": 0.63536675,
+            "iqr_over_median": 0.34668770146411465,
+            "maximum": 2.2365
+          },
+          "change": {
+            "median": 1.89927,
+            "p95": 2.4894933,
+            "iqr": 0.6313815000000003,
+            "iqr_over_median": 0.33243377718807765,
+            "maximum": 2.680506
+          }
+        },
+        "peak_rss_bytes": {
+          "baseline": {
+            "median": 49111040.0,
+            "p95": 49236172.8,
+            "iqr": 153600.0,
+            "iqr_over_median": 0.003127606338615513,
+            "maximum": 49278976
+          },
+          "change": {
+            "median": 49160192.0,
+            "p95": 49320960.0,
+            "iqr": 132096.0,
+            "iqr_over_median": 0.002687052157973671,
+            "maximum": 49340416
+          }
+        }
+      }
+    }
+  },
+  "absolute_format_resources": {
+    "baseline": {
+      "artifact": "t020-evidence/baseline-resource-qualification.json",
+      "sha256": "87a84e5444cf0c04625408f3f8a9dbb9bd58c79160f55e0a5df0bd3d57f64838",
+      "origin": "freeze-1 standalone converter observations; same native binary/src, explicit reviewed equivalence; not P05 comparative acceptance"
+    },
+    "change": {
+      "artifact": "t020-evidence/change-resource-qualification.json",
+      "sha256": "538cb92c4ab418f4c89ae99cb8ce852f1cf65e7ec2a7f1542f708c188ff4bac9",
+      "origin": "freeze-1 standalone converter observations; same native binary/src, explicit reviewed equivalence; not P05 comparative acceptance"
+    }
+  },
+  "storage_scope": "image-plane-owned logical decoded/Coin storage; fixed 3686400-byte CPU readback and logical RGBA8 capture each; final process RSS includes observed driver/harness effects; GPU residency unmeasured",
+  "P06_disposition": "independently non-identifiable under qualified generalized lifecycle; excluded as subsumed; no separate speedup claim",
+  "interpretation": [
+    "First-show budget failed; no acceptance or speedup claim",
+    "Failed timing thresholds remain failures even with high variability",
+    "Control outcomes do not establish a causal P07 regression because source paths are equivalent and observed variability is high",
+    "All resource limits pass; resource passes cannot offset timing failure",
+    "Two unshown image loads are avoided within the hidden scenario window; first-show work is deferred and repeat display reuses the materialized image",
+    "All original failed/inconclusive results remain in their original campaign; no retries or pooling"
+  ],
+  "residual_actions": {
+    "D005": "Material owner decision on retained P07 behavior/rework/requirements plus benchmark conditions; no automatic waiver",
+    "T022": "Mandatory decision and evidence/revalidation plan before further T004 work",
+    "T004": "Cannot accept retained optimization until D001 satisfied or a formally reviewed/revised scope excludes it",
+    "T010": "No production/platform acceptance until performance and applicability blockers resolved"
+  },
+  "hidden_boundary_counts": {
+    "baseline": {
+      "open": {
+        "pending_textures": 0,
+        "materialized_image_fields": 3,
+        "load_attempts": 6,
+        "successful_loads": 3,
+        "failed_pre_restore_loads": 0
+      },
+      "first_show": {
+        "pending_textures": 0,
+        "materialized_image_fields": 3,
+        "load_attempts": 6,
+        "successful_loads": 3,
+        "failed_pre_restore_loads": 0
+      },
+      "repeat_show": {
+        "pending_textures": 0,
+        "materialized_image_fields": 3,
+        "load_attempts": 6,
+        "successful_loads": 3,
+        "failed_pre_restore_loads": 0
+      }
+    },
+    "change": {
+      "open": {
+        "pending_textures": 3,
+        "materialized_image_fields": 0,
+        "load_attempts": 3,
+        "successful_loads": 0,
+        "failed_pre_restore_loads": 0
+      },
+      "first_show": {
+        "pending_textures": 2,
+        "materialized_image_fields": 1,
+        "load_attempts": 4,
+        "successful_loads": 1,
+        "failed_pre_restore_loads": 0
+      },
+      "repeat_show": {
+        "pending_textures": 2,
+        "materialized_image_fields": 1,
+        "load_attempts": 4,
+        "successful_loads": 1,
+        "failed_pre_restore_loads": 0
+      }
+    }
+  },
+  "evidence_directory": "t020-recovery-2-evidence",
+  "post_campaign_binding_archives": [
+    {
+      "binding_key": "decision_ledger",
+      "original_path": "docs/specs/003-freecad-performance-optimization/open-decisions.md",
+      "original_sha256": "6eb1cf2ee880dc493816285952dc5b85efa292c1a1d1e7847092104304262ca8",
+      "archived_path": "docs/specs/003-freecad-performance-optimization/t020-recovery-2-evidence/frozen-decision-ledger.md",
+      "archived_sha256": "6eb1cf2ee880dc493816285952dc5b85efa292c1a1d1e7847092104304262ca8",
+      "decision_receipt_path": "docs/specs/003-freecad-performance-optimization/t020-recovery-2-evidence/decision-receipt.json",
+      "decision_receipt_sha256": "06e6314309f037fd203d0a5ee1f97cca20c1a2c4033df3fe9a8b9f6a19c491cc",
+      "epoch": "D005 was added to the current decision ledger only after all recovery-2 samples and the successful post-collection audit. The archived bytes preserve the exact original frozen binding; no Q/freeze/audit/sample was rewritten."
+    }
+  ]
+}

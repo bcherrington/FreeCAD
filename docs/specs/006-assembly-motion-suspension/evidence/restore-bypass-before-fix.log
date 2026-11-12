@@ -1,0 +1,350 @@
+Function "App::DocumentPy::restore" not defined.
+Breakpoint 1 (App::DocumentPy::restore) pending.
+Function "Assembly::AssemblyObject::runSolve" not defined.
+Breakpoint 2 (Assembly::AssemblyObject::runSolve) pending.
+Function "Assembly::AssemblyObject::ensureIdentityPlacementsImpl" not defined.
+Breakpoint 3 (Assembly::AssemblyObject::ensureIdentityPlacementsImpl) pending.
+Function "App::PropertyPlacement::setValue" not defined.
+Breakpoint 4 (App::PropertyPlacement::setValue) pending.
+warning: File "/home/bcherrington/Projects/CLion/FreeCAD/build/debug/Mod/Part/Part.so" auto-loading has been declined by your `auto-load safe-path' set to "$debugdir:$datadir/auto-load".
+To enable execution of this file add
+	add-auto-load-safe-path /home/bcherrington/Projects/CLion/FreeCAD/build/debug/Mod/Part/Part.so
+line to your configuration file "/home/bcherrington/.config/gdb/gdbinit".
+To completely disable this security protection add
+	set auto-load safe-path /
+line to your configuration file "/home/bcherrington/.config/gdb/gdbinit".
+For more information about this security protection see the
+"Auto-loading safe path" section in the GDB manual.  E.g., run from the shell:
+	info "(gdb)Auto-loading safe path"
+warning: File "/home/bcherrington/Projects/CLion/FreeCAD/build/debug/Mod/Spreadsheet/Spreadsheet.so" auto-loading has been declined by your `auto-load safe-path' set to "$debugdir:$datadir/auto-load".
+warning: File "/home/bcherrington/Projects/CLion/FreeCAD/build/debug/lib/libFreeCADApp.so" auto-loading has been declined by your `auto-load safe-path' set to "$debugdir:$datadir/auto-load".
+[Thread debugging using libthread_db enabled]
+Using host libthread_db library "/lib/x86_64-linux-gnu/libthread_db.so.1".
+Running main() from /home/conda/feedstock_root/build_artifacts/bld/rattler-build_gtest_1786419392/work/googletest/src/gtest_main.cc
+Note: Google Test filter = AssemblyObjectTest.suspendedCopyAndRestorePreserveSerializedPlacements
+[==========] Running 1 test from 1 test suite.
+[----------] Global test environment set-up.
+[----------] 1 test from AssemblyObjectTest
+[New Thread 0x7fffeb5926c0 (LWP 2961673)]
+[ RUN      ] AssemblyObjectTest.suspendedCopyAndRestorePreserveSerializedPlacements
+MbD: Assembling system.
+MbD: Convergence = 0
+Time = 0
+RESTORE_BEGIN
+RESTORE_PLACEMENT_WRITE 1
+#0  App::PropertyPlacement::setValue (this=0x5555567d4cd0, pos=...) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/PropertyGeo.cpp:539
+#1  0x00007ffff1def6b6 in App::GeoFeature::GeoFeature (this=0x5555567d47e0) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/GeoFeature.cpp:49
+#2  0x00007ffff1e0d441 in App::DatumElement::DatumElement (this=0x5555567d47e0, hideRole=true) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/Datums.cpp:43
+#3  0x00007ffff1e0da3e in App::Line::Line (this=0x5555567d47e0) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/Datums.cpp:132
+#4  0x00007ffff1e0d181 in App::Line::create () at /home/bcherrington/Projects/CLion/FreeCAD/src/App/Datums.cpp:39
+#5  0x00007ffff0ed9773 in Base::Type::createInstance (this=0x7fffffff7470) at /home/bcherrington/Projects/CLion/FreeCAD/src/Base/Type.cpp:85
+#6  0x00007ffff1c3cc9d in App::Document::addObject (this=0x5555558a5c30, sType=..., pObjectName=0x7fffffff79d8 "X_Axis", isNew=false, viewType=0x7fffffff79b0 "", isPartial=false) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/Document.cpp:3415
+#7  0x00007ffff1c3db13 in App::Document::readObjects (this=0x5555558a5c30, reader=...) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/Document.cpp:1692
+#8  0x00007ffff1c3c9ce in App::Document::Restore (this=0x5555558a5c30, reader=...) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/Document.cpp:1260
+RESTORE_PLACEMENT_WRITE 2
+#0  App::PropertyPlacement::setValue (this=0x5555567fd190, pos=...) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/PropertyGeo.cpp:539
+#1  0x00007ffff1def6b6 in App::GeoFeature::GeoFeature (this=0x5555567fcca0) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/GeoFeature.cpp:49
+#2  0x00007ffff1e0d441 in App::DatumElement::DatumElement (this=0x5555567fcca0, hideRole=true) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/Datums.cpp:43
+#3  0x00007ffff1e0da3e in App::Line::Line (this=0x5555567fcca0) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/Datums.cpp:132
+#4  0x00007ffff1e0d181 in App::Line::create () at /home/bcherrington/Projects/CLion/FreeCAD/src/App/Datums.cpp:39
+#5  0x00007ffff0ed9773 in Base::Type::createInstance (this=0x7fffffff7470) at /home/bcherrington/Projects/CLion/FreeCAD/src/Base/Type.cpp:85
+#6  0x00007ffff1c3cc9d in App::Document::addObject (this=0x5555558a5c30, sType=..., pObjectName=0x7fffffff79d8 "Y_Axis", isNew=false, viewType=0x7fffffff79b0 "", isPartial=false) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/Document.cpp:3415
+#7  0x00007ffff1c3db13 in App::Document::readObjects (this=0x5555558a5c30, reader=...) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/Document.cpp:1692
+#8  0x00007ffff1c3c9ce in App::Document::Restore (this=0x5555558a5c30, reader=...) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/Document.cpp:1260
+RESTORE_PLACEMENT_WRITE 3
+#0  App::PropertyPlacement::setValue (this=0x5555567d7010, pos=...) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/PropertyGeo.cpp:539
+#1  0x00007ffff1def6b6 in App::GeoFeature::GeoFeature (this=0x5555567d6b20) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/GeoFeature.cpp:49
+#2  0x00007ffff1e0d441 in App::DatumElement::DatumElement (this=0x5555567d6b20, hideRole=true) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/Datums.cpp:43
+#3  0x00007ffff1e0da3e in App::Line::Line (this=0x5555567d6b20) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/Datums.cpp:132
+#4  0x00007ffff1e0d181 in App::Line::create () at /home/bcherrington/Projects/CLion/FreeCAD/src/App/Datums.cpp:39
+#5  0x00007ffff0ed9773 in Base::Type::createInstance (this=0x7fffffff7470) at /home/bcherrington/Projects/CLion/FreeCAD/src/Base/Type.cpp:85
+#6  0x00007ffff1c3cc9d in App::Document::addObject (this=0x5555558a5c30, sType=..., pObjectName=0x7fffffff79d8 "Z_Axis", isNew=false, viewType=0x7fffffff79b0 "", isPartial=false) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/Document.cpp:3415
+#7  0x00007ffff1c3db13 in App::Document::readObjects (this=0x5555558a5c30, reader=...) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/Document.cpp:1692
+#8  0x00007ffff1c3c9ce in App::Document::Restore (this=0x5555558a5c30, reader=...) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/Document.cpp:1260
+RESTORE_PLACEMENT_WRITE 4
+#0  App::PropertyPlacement::setValue (this=0x5555567f13a0, pos=...) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/PropertyGeo.cpp:539
+#1  0x00007ffff1def6b6 in App::GeoFeature::GeoFeature (this=0x5555567f0eb0) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/GeoFeature.cpp:49
+#2  0x00007ffff1e0d441 in App::DatumElement::DatumElement (this=0x5555567f0eb0, hideRole=true) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/Datums.cpp:43
+#3  0x00007ffff6cf264e in App::Plane::Plane (this=0x5555567f0eb0) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/Datums.h:71
+#4  0x00007ffff1e0d078 in App::Plane::create () at /home/bcherrington/Projects/CLion/FreeCAD/src/App/Datums.cpp:38
+#5  0x00007ffff0ed9773 in Base::Type::createInstance (this=0x7fffffff7470) at /home/bcherrington/Projects/CLion/FreeCAD/src/Base/Type.cpp:85
+#6  0x00007ffff1c3cc9d in App::Document::addObject (this=0x5555558a5c30, sType=..., pObjectName=0x7fffffff79d8 "XY_Plane", isNew=false, viewType=0x7fffffff79b0 "", isPartial=false) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/Document.cpp:3415
+#7  0x00007ffff1c3db13 in App::Document::readObjects (this=0x5555558a5c30, reader=...) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/Document.cpp:1692
+#8  0x00007ffff1c3c9ce in App::Document::Restore (this=0x5555558a5c30, reader=...) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/Document.cpp:1260
+RESTORE_PLACEMENT_WRITE 5
+#0  App::PropertyPlacement::setValue (this=0x5555567f19f0, pos=...) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/PropertyGeo.cpp:539
+#1  0x00007ffff1def6b6 in App::GeoFeature::GeoFeature (this=0x5555567f1500) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/GeoFeature.cpp:49
+#2  0x00007ffff1e0d441 in App::DatumElement::DatumElement (this=0x5555567f1500, hideRole=true) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/Datums.cpp:43
+#3  0x00007ffff6cf264e in App::Plane::Plane (this=0x5555567f1500) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/Datums.h:71
+#4  0x00007ffff1e0d078 in App::Plane::create () at /home/bcherrington/Projects/CLion/FreeCAD/src/App/Datums.cpp:38
+#5  0x00007ffff0ed9773 in Base::Type::createInstance (this=0x7fffffff7470) at /home/bcherrington/Projects/CLion/FreeCAD/src/Base/Type.cpp:85
+#6  0x00007ffff1c3cc9d in App::Document::addObject (this=0x5555558a5c30, sType=..., pObjectName=0x7fffffff79d8 "XZ_Plane", isNew=false, viewType=0x7fffffff79b0 "", isPartial=false) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/Document.cpp:3415
+#7  0x00007ffff1c3db13 in App::Document::readObjects (this=0x5555558a5c30, reader=...) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/Document.cpp:1692
+#8  0x00007ffff1c3c9ce in App::Document::Restore (this=0x5555558a5c30, reader=...) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/Document.cpp:1260
+RESTORE_PLACEMENT_WRITE 6
+#0  App::PropertyPlacement::setValue (this=0x5555567f7900, pos=...) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/PropertyGeo.cpp:539
+#1  0x00007ffff1def6b6 in App::GeoFeature::GeoFeature (this=0x5555567f7410) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/GeoFeature.cpp:49
+#2  0x00007ffff1e0d441 in App::DatumElement::DatumElement (this=0x5555567f7410, hideRole=true) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/Datums.cpp:43
+#3  0x00007ffff6cf264e in App::Plane::Plane (this=0x5555567f7410) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/Datums.h:71
+#4  0x00007ffff1e0d078 in App::Plane::create () at /home/bcherrington/Projects/CLion/FreeCAD/src/App/Datums.cpp:38
+#5  0x00007ffff0ed9773 in Base::Type::createInstance (this=0x7fffffff7470) at /home/bcherrington/Projects/CLion/FreeCAD/src/Base/Type.cpp:85
+#6  0x00007ffff1c3cc9d in App::Document::addObject (this=0x5555558a5c30, sType=..., pObjectName=0x7fffffff79d8 "YZ_Plane", isNew=false, viewType=0x7fffffff79b0 "", isPartial=false) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/Document.cpp:3415
+#7  0x00007ffff1c3db13 in App::Document::readObjects (this=0x5555558a5c30, reader=...) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/Document.cpp:1692
+#8  0x00007ffff1c3c9ce in App::Document::Restore (this=0x5555558a5c30, reader=...) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/Document.cpp:1260
+RESTORE_PLACEMENT_WRITE 7
+#0  App::PropertyPlacement::setValue (this=0x5555567f7f50, pos=...) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/PropertyGeo.cpp:539
+#1  0x00007ffff1def6b6 in App::GeoFeature::GeoFeature (this=0x5555567f7a60) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/GeoFeature.cpp:49
+#2  0x00007ffff1e0d441 in App::DatumElement::DatumElement (this=0x5555567f7a60, hideRole=true) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/Datums.cpp:43
+#3  0x00007ffff1e0dabe in App::Point::Point (this=0x5555567f7a60) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/Datums.cpp:137
+#4  0x00007ffff1e0d281 in App::Point::create () at /home/bcherrington/Projects/CLion/FreeCAD/src/App/Datums.cpp:40
+#5  0x00007ffff0ed9773 in Base::Type::createInstance (this=0x7fffffff7470) at /home/bcherrington/Projects/CLion/FreeCAD/src/Base/Type.cpp:85
+#6  0x00007ffff1c3cc9d in App::Document::addObject (this=0x5555558a5c30, sType=..., pObjectName=0x7fffffff79d8 "Origin001", isNew=false, viewType=0x7fffffff79b0 "", isPartial=false) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/Document.cpp:3415
+#7  0x00007ffff1c3db13 in App::Document::readObjects (this=0x5555558a5c30, reader=...) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/Document.cpp:1692
+#8  0x00007ffff1c3c9ce in App::Document::Restore (this=0x5555558a5c30, reader=...) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/Document.cpp:1260
+RESTORE_PLACEMENT_WRITE 8
+#0  App::PropertyPlacement::setValue (this=0x5555567f85a0, pos=...) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/PropertyGeo.cpp:539
+#1  0x00007ffff1def6b6 in App::GeoFeature::GeoFeature (this=0x5555567f80b0) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/GeoFeature.cpp:49
+#2  0x00007ffff1e0db39 in App::LocalCoordinateSystem::LocalCoordinateSystem (this=0x5555567f80b0) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/Datums.cpp:144
+#3  0x00007ffff1dfe1f9 in App::Origin::Origin (this=0x5555567f80b0) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/Origin.cpp:36
+#4  0x00007ffff1dfe141 in App::Origin::create () at /home/bcherrington/Projects/CLion/FreeCAD/src/App/Origin.cpp:34
+#5  0x00007ffff0ed9773 in Base::Type::createInstance (this=0x7fffffff7470) at /home/bcherrington/Projects/CLion/FreeCAD/src/Base/Type.cpp:85
+#6  0x00007ffff1c3cc9d in App::Document::addObject (this=0x5555558a5c30, sType=..., pObjectName=0x7fffffff79d8 "Origin", isNew=false, viewType=0x7fffffff79b0 "", isPartial=false) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/Document.cpp:3415
+#7  0x00007ffff1c3db13 in App::Document::readObjects (this=0x5555558a5c30, reader=...) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/Document.cpp:1692
+#8  0x00007ffff1c3c9ce in App::Document::Restore (this=0x5555558a5c30, reader=...) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/Document.cpp:1260
+RESTORE_PLACEMENT_WRITE 9
+#0  App::PropertyPlacement::setValue (this=0x5555567dd230, pos=...) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/PropertyGeo.cpp:539
+#1  0x00007ffff1def6b6 in App::GeoFeature::GeoFeature (this=0x5555567dcd40) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/GeoFeature.cpp:49
+#2  0x00007ffff6caea9c in Part::Feature::Feature (this=0x5555567dcd40) at /home/bcherrington/Projects/CLion/FreeCAD/src/Mod/Part/App/PartFeature.cpp:95
+#3  0x00007ffff6ce3c39 in Part::Primitive::Primitive (this=0x5555567dcd40) at /home/bcherrington/Projects/CLion/FreeCAD/src/Mod/Part/App/PrimitiveFeature.cpp:70
+#4  0x00007ffff6c37179 in Part::Box::Box (this=0x5555567dcd40) at /home/bcherrington/Projects/CLion/FreeCAD/src/Mod/Part/App/FeaturePartBox.cpp:39
+#5  0x00007ffff6c370c1 in Part::Box::create () at /home/bcherrington/Projects/CLion/FreeCAD/src/Mod/Part/App/FeaturePartBox.cpp:36
+#6  0x00007ffff0ed9773 in Base::Type::createInstance (this=0x7fffffff7470) at /home/bcherrington/Projects/CLion/FreeCAD/src/Base/Type.cpp:85
+#7  0x00007ffff1c3cc9d in App::Document::addObject (this=0x5555558a5c30, sType=..., pObjectName=0x7fffffff79d8 "Box", isNew=false, viewType=0x7fffffff79b0 "", isPartial=false) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/Document.cpp:3415
+#8  0x00007ffff1c3db13 in App::Document::readObjects (this=0x5555558a5c30, reader=...) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/Document.cpp:1692
+RESTORE_PLACEMENT_WRITE 10
+#0  App::PropertyPlacement::setValue (this=0x5555567dd930, pos=...) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/PropertyGeo.cpp:539
+#1  0x00007ffff6cf3a6c in Part::AttachExtension::AttachExtension (this=0x5555567dd660) at /home/bcherrington/Projects/CLion/FreeCAD/src/Mod/Part/App/AttachExtension.cpp:158
+#2  0x00007ffff6ce3c49 in Part::Primitive::Primitive (this=0x5555567dcd40) at /home/bcherrington/Projects/CLion/FreeCAD/src/Mod/Part/App/PrimitiveFeature.cpp:70
+#3  0x00007ffff6c37179 in Part::Box::Box (this=0x5555567dcd40) at /home/bcherrington/Projects/CLion/FreeCAD/src/Mod/Part/App/FeaturePartBox.cpp:39
+#4  0x00007ffff6c370c1 in Part::Box::create () at /home/bcherrington/Projects/CLion/FreeCAD/src/Mod/Part/App/FeaturePartBox.cpp:36
+#5  0x00007ffff0ed9773 in Base::Type::createInstance (this=0x7fffffff7470) at /home/bcherrington/Projects/CLion/FreeCAD/src/Base/Type.cpp:85
+#6  0x00007ffff1c3cc9d in App::Document::addObject (this=0x5555558a5c30, sType=..., pObjectName=0x7fffffff79d8 "Box", isNew=false, viewType=0x7fffffff79b0 "", isPartial=false) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/Document.cpp:3415
+#7  0x00007ffff1c3db13 in App::Document::readObjects (this=0x5555558a5c30, reader=...) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/Document.cpp:1692
+#8  0x00007ffff1c3c9ce in App::Document::Restore (this=0x5555558a5c30, reader=...) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/Document.cpp:1260
+RESTORE_PLACEMENT_WRITE 11
+#0  App::PropertyPlacement::setValue (this=0x555556790450, pos=...) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/PropertyGeo.cpp:539
+#1  0x00007ffff1e3ce1e in App::LinkElement::LinkElement (this=0x55555678f920) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/Link.cpp:2765
+#2  0x00007ffff1e3c8a1 in App::LinkElement::create () at /home/bcherrington/Projects/CLion/FreeCAD/src/App/Link.cpp:2761
+#3  0x00007ffff0ed9773 in Base::Type::createInstance (this=0x7fffffff7470) at /home/bcherrington/Projects/CLion/FreeCAD/src/Base/Type.cpp:85
+#4  0x00007ffff1c3cc9d in App::Document::addObject (this=0x5555558a5c30, sType=..., pObjectName=0x7fffffff79d8 "Array_i0", isNew=false, viewType=0x7fffffff79b0 "", isPartial=false) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/Document.cpp:3415
+#5  0x00007ffff1c3db13 in App::Document::readObjects (this=0x5555558a5c30, reader=...) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/Document.cpp:1692
+#6  0x00007ffff1c3c9ce in App::Document::Restore (this=0x5555558a5c30, reader=...) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/Document.cpp:1260
+#7  0x00007ffff1c457f8 in App::Document::restore (this=0x5555558a5c30, filename=0x5555567fcba0 "/tmp/tmpw5loporu/CopyTarget.FCStd", delaySignal=false, objNames=...) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/Document.cpp:2229
+#8  0x00007ffff1d731a9 in App::DocumentPy::restore (this=0x5555557cf620, args=0x7ffff7d5acc0 <_PyRuntime+88320>) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/DocumentPyImp.cpp:238
+RESTORE_PLACEMENT_WRITE 12
+#0  App::PropertyPlacement::setValue (this=0x5555567904e0, pos=...) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/PropertyGeo.cpp:539
+#1  0x00007ffff1e3cefb in App::LinkElement::LinkElement (this=0x55555678f920) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/Link.cpp:2765
+#2  0x00007ffff1e3c8a1 in App::LinkElement::create () at /home/bcherrington/Projects/CLion/FreeCAD/src/App/Link.cpp:2761
+#3  0x00007ffff0ed9773 in Base::Type::createInstance (this=0x7fffffff7470) at /home/bcherrington/Projects/CLion/FreeCAD/src/Base/Type.cpp:85
+#4  0x00007ffff1c3cc9d in App::Document::addObject (this=0x5555558a5c30, sType=..., pObjectName=0x7fffffff79d8 "Array_i0", isNew=false, viewType=0x7fffffff79b0 "", isPartial=false) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/Document.cpp:3415
+#5  0x00007ffff1c3db13 in App::Document::readObjects (this=0x5555558a5c30, reader=...) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/Document.cpp:1692
+#6  0x00007ffff1c3c9ce in App::Document::Restore (this=0x5555558a5c30, reader=...) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/Document.cpp:1260
+#7  0x00007ffff1c457f8 in App::Document::restore (this=0x5555558a5c30, filename=0x5555567fcba0 "/tmp/tmpw5loporu/CopyTarget.FCStd", delaySignal=false, objNames=...) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/Document.cpp:2229
+#8  0x00007ffff1d731a9 in App::DocumentPy::restore (this=0x5555557cf620, args=0x7ffff7d5acc0 <_PyRuntime+88320>) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/DocumentPyImp.cpp:238
+RESTORE_PLACEMENT_WRITE 13
+#0  App::PropertyPlacement::setValue (this=0x555556791ff0, pos=...) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/PropertyGeo.cpp:539
+#1  0x00007ffff1e3ce1e in App::LinkElement::LinkElement (this=0x5555567914c0) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/Link.cpp:2765
+#2  0x00007ffff1e3c8a1 in App::LinkElement::create () at /home/bcherrington/Projects/CLion/FreeCAD/src/App/Link.cpp:2761
+#3  0x00007ffff0ed9773 in Base::Type::createInstance (this=0x7fffffff7470) at /home/bcherrington/Projects/CLion/FreeCAD/src/Base/Type.cpp:85
+#4  0x00007ffff1c3cc9d in App::Document::addObject (this=0x5555558a5c30, sType=..., pObjectName=0x7fffffff79d8 "Array_i1", isNew=false, viewType=0x7fffffff79b0 "", isPartial=false) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/Document.cpp:3415
+#5  0x00007ffff1c3db13 in App::Document::readObjects (this=0x5555558a5c30, reader=...) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/Document.cpp:1692
+#6  0x00007ffff1c3c9ce in App::Document::Restore (this=0x5555558a5c30, reader=...) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/Document.cpp:1260
+#7  0x00007ffff1c457f8 in App::Document::restore (this=0x5555558a5c30, filename=0x5555567fcba0 "/tmp/tmpw5loporu/CopyTarget.FCStd", delaySignal=false, objNames=...) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/Document.cpp:2229
+#8  0x00007ffff1d731a9 in App::DocumentPy::restore (this=0x5555557cf620, args=0x7ffff7d5acc0 <_PyRuntime+88320>) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/DocumentPyImp.cpp:238
+RESTORE_PLACEMENT_WRITE 14
+#0  App::PropertyPlacement::setValue (this=0x555556792080, pos=...) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/PropertyGeo.cpp:539
+#1  0x00007ffff1e3cefb in App::LinkElement::LinkElement (this=0x5555567914c0) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/Link.cpp:2765
+#2  0x00007ffff1e3c8a1 in App::LinkElement::create () at /home/bcherrington/Projects/CLion/FreeCAD/src/App/Link.cpp:2761
+#3  0x00007ffff0ed9773 in Base::Type::createInstance (this=0x7fffffff7470) at /home/bcherrington/Projects/CLion/FreeCAD/src/Base/Type.cpp:85
+#4  0x00007ffff1c3cc9d in App::Document::addObject (this=0x5555558a5c30, sType=..., pObjectName=0x7fffffff79d8 "Array_i1", isNew=false, viewType=0x7fffffff79b0 "", isPartial=false) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/Document.cpp:3415
+#5  0x00007ffff1c3db13 in App::Document::readObjects (this=0x5555558a5c30, reader=...) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/Document.cpp:1692
+#6  0x00007ffff1c3c9ce in App::Document::Restore (this=0x5555558a5c30, reader=...) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/Document.cpp:1260
+#7  0x00007ffff1c457f8 in App::Document::restore (this=0x5555558a5c30, filename=0x5555567fcba0 "/tmp/tmpw5loporu/CopyTarget.FCStd", delaySignal=false, objNames=...) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/Document.cpp:2229
+#8  0x00007ffff1d731a9 in App::DocumentPy::restore (this=0x5555557cf620, args=0x7ffff7d5acc0 <_PyRuntime+88320>) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/DocumentPyImp.cpp:238
+RESTORE_PLACEMENT_WRITE 15
+#0  App::PropertyPlacement::setValue (this=0x5555567cebf8, pos=...) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/PropertyGeo.cpp:539
+#1  0x00007ffff1e3b314 in App::Link::Link (this=0x5555567cde00) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/Link.cpp:2654
+#2  0x00007ffff1e3ae51 in App::Link::create () at /home/bcherrington/Projects/CLion/FreeCAD/src/App/Link.cpp:2650
+#3  0x00007ffff0ed9773 in Base::Type::createInstance (this=0x7fffffff7470) at /home/bcherrington/Projects/CLion/FreeCAD/src/Base/Type.cpp:85
+#4  0x00007ffff1c3cc9d in App::Document::addObject (this=0x5555558a5c30, sType=..., pObjectName=0x7fffffff79d8 "Array", isNew=false, viewType=0x7fffffff79b0 "", isPartial=false) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/Document.cpp:3415
+#5  0x00007ffff1c3db13 in App::Document::readObjects (this=0x5555558a5c30, reader=...) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/Document.cpp:1692
+#6  0x00007ffff1c3c9ce in App::Document::Restore (this=0x5555558a5c30, reader=...) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/Document.cpp:1260
+#7  0x00007ffff1c457f8 in App::Document::restore (this=0x5555558a5c30, filename=0x5555567fcba0 "/tmp/tmpw5loporu/CopyTarget.FCStd", delaySignal=false, objNames=...) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/Document.cpp:2229
+#8  0x00007ffff1d731a9 in App::DocumentPy::restore (this=0x5555557cf620, args=0x7ffff7d5acc0 <_PyRuntime+88320>) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/DocumentPyImp.cpp:238
+RESTORE_PLACEMENT_WRITE 16
+#0  App::PropertyPlacement::setValue (this=0x5555567cec88, pos=...) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/PropertyGeo.cpp:539
+#1  0x00007ffff1e3b3f1 in App::Link::Link (this=0x5555567cde00) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/Link.cpp:2654
+#2  0x00007ffff1e3ae51 in App::Link::create () at /home/bcherrington/Projects/CLion/FreeCAD/src/App/Link.cpp:2650
+#3  0x00007ffff0ed9773 in Base::Type::createInstance (this=0x7fffffff7470) at /home/bcherrington/Projects/CLion/FreeCAD/src/Base/Type.cpp:85
+#4  0x00007ffff1c3cc9d in App::Document::addObject (this=0x5555558a5c30, sType=..., pObjectName=0x7fffffff79d8 "Array", isNew=false, viewType=0x7fffffff79b0 "", isPartial=false) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/Document.cpp:3415
+#5  0x00007ffff1c3db13 in App::Document::readObjects (this=0x5555558a5c30, reader=...) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/Document.cpp:1692
+#6  0x00007ffff1c3c9ce in App::Document::Restore (this=0x5555558a5c30, reader=...) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/Document.cpp:1260
+#7  0x00007ffff1c457f8 in App::Document::restore (this=0x5555558a5c30, filename=0x5555567fcba0 "/tmp/tmpw5loporu/CopyTarget.FCStd", delaySignal=false, objNames=...) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/Document.cpp:2229
+#8  0x00007ffff1d731a9 in App::DocumentPy::restore (this=0x5555557cf620, args=0x7ffff7d5acc0 <_PyRuntime+88320>) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/DocumentPyImp.cpp:238
+RESTORE_PLACEMENT_WRITE 17
+#0  App::PropertyPlacement::setValue (this=0x5555567d05f0, pos=...) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/PropertyGeo.cpp:539
+#1  0x00007ffff1def6b6 in App::GeoFeature::GeoFeature (this=0x5555567d0100) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/GeoFeature.cpp:49
+#2  0x00007ffff1dfd33f in App::Part::Part (this=0x5555567d0100) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/Part.cpp:44
+#3  0x00007ffff776e39c in Assembly::AssemblyObject::AssemblyObject (this=0x5555567d0100) at /home/bcherrington/Projects/CLion/FreeCAD/src/Mod/Assembly/App/AssemblyObject.cpp:261
+#4  0x00007ffff776e2e1 in Assembly::AssemblyObject::create () at /home/bcherrington/Projects/CLion/FreeCAD/src/Mod/Assembly/App/AssemblyObject.cpp:259
+#5  0x00007ffff0ed9773 in Base::Type::createInstance (this=0x7fffffff7470) at /home/bcherrington/Projects/CLion/FreeCAD/src/Base/Type.cpp:85
+#6  0x00007ffff1c3cc9d in App::Document::addObject (this=0x5555558a5c30, sType=..., pObjectName=0x7fffffff79d8 "Assembly", isNew=false, viewType=0x7fffffff79b0 "", isPartial=false) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/Document.cpp:3415
+#7  0x00007ffff1c3db13 in App::Document::readObjects (this=0x5555558a5c30, reader=...) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/Document.cpp:1692
+#8  0x00007ffff1c3c9ce in App::Document::Restore (this=0x5555558a5c30, reader=...) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/Document.cpp:1260
+ASSEMBLY_SOLVE_DURING_RESTORE
+#0  Assembly::AssemblyObject::runSolve (this=0x5555567d0100, enableRedo=false) at /home/bcherrington/Projects/CLion/FreeCAD/src/Mod/Assembly/App/AssemblyObject.cpp:549
+#1  0x00007ffff776ea39 in Assembly::AssemblyObject::solve (this=0x5555567d0100, enableRedo=false) at /home/bcherrington/Projects/CLion/FreeCAD/src/Mod/Assembly/App/AssemblyObject.cpp:543
+#2  0x00007ffff7772534 in Assembly::AssemblyObject::updateSolveStatusImpl (this=0x5555567d0100, allowLazySolve=true) at /home/bcherrington/Projects/CLion/FreeCAD/src/Mod/Assembly/App/AssemblyObject.cpp:636
+#3  0x00007ffff776eb47 in Assembly::AssemblyObject::updateSolveStatus (this=0x5555567d0100) at /home/bcherrington/Projects/CLion/FreeCAD/src/Mod/Assembly/App/AssemblyObject.cpp:609
+#4  0x00007ffff776eafb in Assembly::AssemblyObject::onChanged (this=0x5555567d0100, prop=0x5555567d0708) at /home/bcherrington/Projects/CLion/FreeCAD/src/Mod/Assembly/App/AssemblyObject.cpp:309
+#5  0x00007ffff1e82947 in App::Property::hasSetValue (this=0x5555567d0708) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/Property.cpp:300
+#6  0x00007ffff1eb48ae in App::PropertyLinkBase::hasSetValue (this=0x5555567d0708) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/PropertyLinks.cpp:98
+#7  0x00007ffff1f02270 in App::AtomicPropertyChangeInterface<App::PropertyListsT<App::DocumentObject*, std::vector<App::DocumentObject*, std::allocator<App::DocumentObject*> >, App::PropertyLinkListBase> >::AtomicPropertyChange::tryInvoke (this=0x7fffffff64d8) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/Property.h:759
+ASSEMBLY_PREP_DURING_RESTORE
+#0  Assembly::AssemblyObject::ensureIdentityPlacementsImpl (this=0x5555567d0100) at /home/bcherrington/Projects/CLion/FreeCAD/src/Mod/Assembly/App/AssemblyObject.cpp:3021
+#1  0x00007ffff776f283 in Assembly::AssemblyObject::runSolve (this=0x5555567d0100, enableRedo=false) at /home/bcherrington/Projects/CLion/FreeCAD/src/Mod/Assembly/App/AssemblyObject.cpp:551
+#2  0x00007ffff776ea39 in Assembly::AssemblyObject::solve (this=0x5555567d0100, enableRedo=false) at /home/bcherrington/Projects/CLion/FreeCAD/src/Mod/Assembly/App/AssemblyObject.cpp:543
+#3  0x00007ffff7772534 in Assembly::AssemblyObject::updateSolveStatusImpl (this=0x5555567d0100, allowLazySolve=true) at /home/bcherrington/Projects/CLion/FreeCAD/src/Mod/Assembly/App/AssemblyObject.cpp:636
+#4  0x00007ffff776eb47 in Assembly::AssemblyObject::updateSolveStatus (this=0x5555567d0100) at /home/bcherrington/Projects/CLion/FreeCAD/src/Mod/Assembly/App/AssemblyObject.cpp:609
+#5  0x00007ffff776eafb in Assembly::AssemblyObject::onChanged (this=0x5555567d0100, prop=0x5555567d0708) at /home/bcherrington/Projects/CLion/FreeCAD/src/Mod/Assembly/App/AssemblyObject.cpp:309
+#6  0x00007ffff1e82947 in App::Property::hasSetValue (this=0x5555567d0708) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/Property.cpp:300
+#7  0x00007ffff1eb48ae in App::PropertyLinkBase::hasSetValue (this=0x5555567d0708) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/PropertyLinks.cpp:98
+RESTORE_PLACEMENT_WRITE 18
+#0  App::PropertyPlacement::setValue (this=0x5555567cebf8, pos=...) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/PropertyGeo.cpp:539
+#1  0x00007ffff776fc2b in Assembly::AssemblyObject::ensureIdentityPlacementsImpl (this=0x5555567d0100) at /home/bcherrington/Projects/CLion/FreeCAD/src/Mod/Assembly/App/AssemblyObject.cpp:3036
+#2  0x00007ffff776f283 in Assembly::AssemblyObject::runSolve (this=0x5555567d0100, enableRedo=false) at /home/bcherrington/Projects/CLion/FreeCAD/src/Mod/Assembly/App/AssemblyObject.cpp:551
+#3  0x00007ffff776ea39 in Assembly::AssemblyObject::solve (this=0x5555567d0100, enableRedo=false) at /home/bcherrington/Projects/CLion/FreeCAD/src/Mod/Assembly/App/AssemblyObject.cpp:543
+#4  0x00007ffff7772534 in Assembly::AssemblyObject::updateSolveStatusImpl (this=0x5555567d0100, allowLazySolve=true) at /home/bcherrington/Projects/CLion/FreeCAD/src/Mod/Assembly/App/AssemblyObject.cpp:636
+#5  0x00007ffff776eb47 in Assembly::AssemblyObject::updateSolveStatus (this=0x5555567d0100) at /home/bcherrington/Projects/CLion/FreeCAD/src/Mod/Assembly/App/AssemblyObject.cpp:609
+#6  0x00007ffff776eafb in Assembly::AssemblyObject::onChanged (this=0x5555567d0100, prop=0x5555567d0708) at /home/bcherrington/Projects/CLion/FreeCAD/src/Mod/Assembly/App/AssemblyObject.cpp:309
+#7  0x00007ffff1e82947 in App::Property::hasSetValue (this=0x5555567d0708) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/Property.cpp:300
+#8  0x00007ffff1eb48ae in App::PropertyLinkBase::hasSetValue (this=0x5555567d0708) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/PropertyLinks.cpp:98
+RESTORE_PLACEMENT_WRITE 19
+#0  App::PropertyPlacement::setValue (this=0x5555567cec88, pos=...) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/PropertyGeo.cpp:539
+#1  0x00007ffff1e32d99 in App::LinkBaseExtension::update (this=0x5555567ce2f0, parent=0x5555567cde00, prop=0x5555567cebf8) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/Link.cpp:1886
+#2  0x00007ffff1e32c7f in App::LinkBaseExtension::extensionOnChanged (this=0x5555567ce2f0, prop=0x5555567cebf8) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/Link.cpp:1752
+#3  0x00007ffff1ce6f51 in App::ExtensionContainer::onChanged (this=0x5555567cde00, prop=0x5555567cebf8) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/ExtensionContainer.cpp:339
+#4  0x00007ffff1ccbd8a in App::DocumentObject::onChanged (this=0x5555567cde00, prop=0x5555567cebf8) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/DocumentObject.cpp:1219
+#5  0x00007ffff1e82947 in App::Property::hasSetValue (this=0x5555567cebf8) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/Property.cpp:300
+#6  0x00007ffff1ea7004 in App::PropertyPlacement::setValue (this=0x5555567cebf8, pos=...) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/PropertyGeo.cpp:541
+#7  0x00007ffff776fc2b in Assembly::AssemblyObject::ensureIdentityPlacementsImpl (this=0x5555567d0100) at /home/bcherrington/Projects/CLion/FreeCAD/src/Mod/Assembly/App/AssemblyObject.cpp:3036
+#8  0x00007ffff776f283 in Assembly::AssemblyObject::runSolve (this=0x5555567d0100, enableRedo=false) at /home/bcherrington/Projects/CLion/FreeCAD/src/Mod/Assembly/App/AssemblyObject.cpp:551
+RESTORE_PLACEMENT_WRITE 20
+#0  App::PropertyPlacement::setValue (this=0x555556790450, pos=...) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/PropertyGeo.cpp:539
+#1  0x00007ffff776fd3d in Assembly::AssemblyObject::ensureIdentityPlacementsImpl (this=0x5555567d0100) at /home/bcherrington/Projects/CLion/FreeCAD/src/Mod/Assembly/App/AssemblyObject.cpp:3043
+#2  0x00007ffff776f283 in Assembly::AssemblyObject::runSolve (this=0x5555567d0100, enableRedo=false) at /home/bcherrington/Projects/CLion/FreeCAD/src/Mod/Assembly/App/AssemblyObject.cpp:551
+#3  0x00007ffff776ea39 in Assembly::AssemblyObject::solve (this=0x5555567d0100, enableRedo=false) at /home/bcherrington/Projects/CLion/FreeCAD/src/Mod/Assembly/App/AssemblyObject.cpp:543
+#4  0x00007ffff7772534 in Assembly::AssemblyObject::updateSolveStatusImpl (this=0x5555567d0100, allowLazySolve=true) at /home/bcherrington/Projects/CLion/FreeCAD/src/Mod/Assembly/App/AssemblyObject.cpp:636
+#5  0x00007ffff776eb47 in Assembly::AssemblyObject::updateSolveStatus (this=0x5555567d0100) at /home/bcherrington/Projects/CLion/FreeCAD/src/Mod/Assembly/App/AssemblyObject.cpp:609
+#6  0x00007ffff776eafb in Assembly::AssemblyObject::onChanged (this=0x5555567d0100, prop=0x5555567d0708) at /home/bcherrington/Projects/CLion/FreeCAD/src/Mod/Assembly/App/AssemblyObject.cpp:309
+#7  0x00007ffff1e82947 in App::Property::hasSetValue (this=0x5555567d0708) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/Property.cpp:300
+#8  0x00007ffff1eb48ae in App::PropertyLinkBase::hasSetValue (this=0x5555567d0708) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/PropertyLinks.cpp:98
+RESTORE_PLACEMENT_WRITE 21
+#0  App::PropertyPlacement::setValue (this=0x5555567904e0, pos=...) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/PropertyGeo.cpp:539
+#1  0x00007ffff1e32d99 in App::LinkBaseExtension::update (this=0x55555678fe10, parent=0x55555678f920, prop=0x555556790450) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/Link.cpp:1886
+#2  0x00007ffff1e32c7f in App::LinkBaseExtension::extensionOnChanged (this=0x55555678fe10, prop=0x555556790450) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/Link.cpp:1752
+#3  0x00007ffff1ce6f51 in App::ExtensionContainer::onChanged (this=0x55555678f920, prop=0x555556790450) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/ExtensionContainer.cpp:339
+#4  0x00007ffff1ccbd8a in App::DocumentObject::onChanged (this=0x55555678f920, prop=0x555556790450) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/DocumentObject.cpp:1219
+#5  0x00007ffff1e3db84 in App::LinkElement::onChanged (this=0x55555678f920, prop=0x555556790450) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/Link.cpp:2840
+#6  0x00007ffff1e82947 in App::Property::hasSetValue (this=0x555556790450) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/Property.cpp:300
+#7  0x00007ffff1ea7004 in App::PropertyPlacement::setValue (this=0x555556790450, pos=...) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/PropertyGeo.cpp:541
+#8  0x00007ffff776fd3d in Assembly::AssemblyObject::ensureIdentityPlacementsImpl (this=0x5555567d0100) at /home/bcherrington/Projects/CLion/FreeCAD/src/Mod/Assembly/App/AssemblyObject.cpp:3043
+RESTORE_PLACEMENT_WRITE 22
+#0  App::PropertyPlacement::setValue (this=0x555556791ff0, pos=...) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/PropertyGeo.cpp:539
+#1  0x00007ffff776fd3d in Assembly::AssemblyObject::ensureIdentityPlacementsImpl (this=0x5555567d0100) at /home/bcherrington/Projects/CLion/FreeCAD/src/Mod/Assembly/App/AssemblyObject.cpp:3043
+#2  0x00007ffff776f283 in Assembly::AssemblyObject::runSolve (this=0x5555567d0100, enableRedo=false) at /home/bcherrington/Projects/CLion/FreeCAD/src/Mod/Assembly/App/AssemblyObject.cpp:551
+#3  0x00007ffff776ea39 in Assembly::AssemblyObject::solve (this=0x5555567d0100, enableRedo=false) at /home/bcherrington/Projects/CLion/FreeCAD/src/Mod/Assembly/App/AssemblyObject.cpp:543
+#4  0x00007ffff7772534 in Assembly::AssemblyObject::updateSolveStatusImpl (this=0x5555567d0100, allowLazySolve=true) at /home/bcherrington/Projects/CLion/FreeCAD/src/Mod/Assembly/App/AssemblyObject.cpp:636
+#5  0x00007ffff776eb47 in Assembly::AssemblyObject::updateSolveStatus (this=0x5555567d0100) at /home/bcherrington/Projects/CLion/FreeCAD/src/Mod/Assembly/App/AssemblyObject.cpp:609
+#6  0x00007ffff776eafb in Assembly::AssemblyObject::onChanged (this=0x5555567d0100, prop=0x5555567d0708) at /home/bcherrington/Projects/CLion/FreeCAD/src/Mod/Assembly/App/AssemblyObject.cpp:309
+#7  0x00007ffff1e82947 in App::Property::hasSetValue (this=0x5555567d0708) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/Property.cpp:300
+#8  0x00007ffff1eb48ae in App::PropertyLinkBase::hasSetValue (this=0x5555567d0708) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/PropertyLinks.cpp:98
+RESTORE_PLACEMENT_WRITE 23
+#0  App::PropertyPlacement::setValue (this=0x555556792080, pos=...) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/PropertyGeo.cpp:539
+#1  0x00007ffff1e32d99 in App::LinkBaseExtension::update (this=0x5555567919b0, parent=0x5555567914c0, prop=0x555556791ff0) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/Link.cpp:1886
+#2  0x00007ffff1e32c7f in App::LinkBaseExtension::extensionOnChanged (this=0x5555567919b0, prop=0x555556791ff0) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/Link.cpp:1752
+#3  0x00007ffff1ce6f51 in App::ExtensionContainer::onChanged (this=0x5555567914c0, prop=0x555556791ff0) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/ExtensionContainer.cpp:339
+#4  0x00007ffff1ccbd8a in App::DocumentObject::onChanged (this=0x5555567914c0, prop=0x555556791ff0) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/DocumentObject.cpp:1219
+#5  0x00007ffff1e3db84 in App::LinkElement::onChanged (this=0x5555567914c0, prop=0x555556791ff0) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/Link.cpp:2840
+#6  0x00007ffff1e82947 in App::Property::hasSetValue (this=0x555556791ff0) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/Property.cpp:300
+#7  0x00007ffff1ea7004 in App::PropertyPlacement::setValue (this=0x555556791ff0, pos=...) at /home/bcherrington/Projects/CLion/FreeCAD/src/App/PropertyGeo.cpp:541
+#8  0x00007ffff776fd3d in Assembly::AssemblyObject::ensureIdentityPlacementsImpl (this=0x5555567d0100) at /home/bcherrington/Projects/CLion/FreeCAD/src/Mod/Assembly/App/AssemblyObject.cpp:3043
+MbD: Assembling system.
+MbD: Convergence = 0
+Time = 0
+/home/bcherrington/Projects/CLion/FreeCAD/tests/src/Mod/Assembly/App/AssemblyObject.cpp:480: Failure
+Expected: Base::Interpreter().runString(R"PY(
+import os
+import tempfile
+import FreeCAD as App
+import AssemblyApp
+import Part
+
+with tempfile.TemporaryDirectory() as directory:
+    source = App.newDocument()
+    target = App.newDocument()
+    try:
+        with AssemblyApp.suspendAutomaticMotion(source):
+            assembly = source.addObject("Assembly::AssemblyObject", "Assembly")
+            assembly.newObject("Assembly::JointGroup", "Joints")
+            box = assembly.newObject("Part::Box", "Box")
+            array = assembly.newObject("App::Link", "Array")
+            array.LinkedObject = box
+            array.ElementCount = 2
+            array.Placement.Base = App.Vector(53, 61, 67)
+            source.recompute()
+            source.saveAs(os.path.join(directory, "CopySource.FCStd"))
+            source_pose = array.Placement.toMatrix().A
+            with AssemblyApp.suspendAutomaticMotion(target):
+                copied = target.copyObject(assembly, True)
+                target.recompute()
+                copied_array = next(obj for obj in copied.Group
+                                    if obj.isDerivedFrom("App::Link"))
+                assert copied_array.Placement.toMatrix().A == source_pose
+                assert array.Placement.toMatrix().A == source_pose
+                target.saveAs(os.path.join(directory, "CopyTarget.FCStd"))
+                copied_name = copied.Name
+                expected = {obj.Name: obj.Placement.toMatrix().A for obj in target.Objects
+                            if hasattr(obj, "Placement")}
+                # restore() uses the already scoped live document, rather than
+                # opening a document before suspension can be established.
+                target.restore()
+                assert AssemblyApp.isAutomaticMotionSuspended(target)
+                assert expected == {obj.Name: obj.Placement.toMatrix().A
+                                    for obj in target.Objects if hasattr(obj, "Placement")}
+                restored = target.getObject(copied_name)
+                restored.updateSolveStatus()
+                assert expected == {obj.Name: obj.Placement.toMatrix().A
+                                    for obj in target.Objects if hasattr(obj, "Placement")}
+            assert array.Placement.toMatrix().A == source_pose
+    finally:
+        App.closeDocument(target.Name)
+        App.closeDocument(source.Name)
+)PY") doesn't throw an exception.
+  Actual: it throws.
+
+[  FAILED  ] AssemblyObjectTest.suspendedCopyAndRestorePreserveSerializedPlacements (4780 ms)
+[----------] 1 test from AssemblyObjectTest (4780 ms total)
+
+[----------] Global test environment tear-down
+[==========] 1 test from 1 test suite ran. (5046 ms total)
+[  PASSED  ] 0 tests.
+[  FAILED  ] 1 test, listed below:
+[  FAILED  ] AssemblyObjectTest.suspendedCopyAndRestorePreserveSerializedPlacements
+
+ 1 FAILED TEST
+[Thread 0x7ffff3d8a680 (LWP 2961580) exited]
+[Thread 0x7fffeb5926c0 (LWP 2961673) exited]
+[New process 2961580]
+[Inferior 1 (process 2961580) exited with code 01]
+RESTORE_COUNTS solve=1 prepare=1 placements=23

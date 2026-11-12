@@ -1,0 +1,325 @@
+{
+  "schema": "freecad-spec003-task-validation/v1",
+  "task": "T015",
+  "criteria": [
+    "Requirement 4 AC1 (numeric restoration only)",
+    "Requirement 4 AC2",
+    "CP-005 numeric safety portion"
+  ],
+  "captured_at_utc": "2026-11-06T21:00:13.076037+00:00",
+  "manifest_id": "spec003-linux-x86_64-debug-candidate-20261106-v1",
+  "immutable_manifest_sha256": "2ceaf3dbe3d474f4bb8d70ae6706218ddffdd3616473a1c13a55133611a19d01",
+  "actual_root_revision": "09c9edc703c44ea6193995c6d613a421f5d18724",
+  "docs_revision": "a38de02b118118a4065c8806bd80f63c6968b0d1",
+  "working_diff_scope": [
+    "src/App/ElementMap.cpp",
+    "tests/src/App/ElementMap.cpp",
+    "src/App/ElementMapRestore.h"
+  ],
+  "working_diff_sha256": "6ef9990d4c09b9ad013e4ab3f45550e2d3bfaf45183b73096d0ab3774276a987",
+  "working_diff_encoding": "Raw git diff --binary HEAD -- first two tracked paths, followed by git diff --no-index --binary -- /dev/null src/App/ElementMapRestore.h stdout, including final newlines. Private header currently untracked.",
+  "source_sha256": {
+    "src/App/ElementMap.cpp": "03acc6fb8071496a31e687f0b76bc9ec8bb960b413775941a8332ebe25320877",
+    "tests/src/App/ElementMap.cpp": "92c5712cc96b1c814817c3b48ea9168057faca334907f00eba1a38b7f97f2592",
+    "src/App/ElementMapRestore.h": "93bfcb8930b77150ad0608037001c84335e93a8870f5816b371dc3e2fecce8cb"
+  },
+  "inspected_unchanged_sources": {
+    "src/App/ElementMap.h": "88c5351c0116aacd5597b8d98077f9ad57783c7a65d8d459737be8e9e7bc2624",
+    "src/App/IndexedName.h": "93aa739f164b965f2602dfaa8551ecd4161d465110a4e5447a8df2a05c1a3e58",
+    "src/App/MappedName.h": "176642f05ea8cde00e00caa52a531b804c8dc373f22d8c846cf578e8e9d5627a",
+    "src/App/MappedName.cpp": "99a7f476e2222277a0cb9be46d6fa39f5e8fa92ee2847085c5890ecbdef88419",
+    "src/App/StringHasher.cpp": "fd32f35c9c2a0c21a60fa634ec37ec594d6f331924c5bba7fdbbcb351c3b612c",
+    "src/App/ComplexGeoData.cpp": "92e7ba6e81b2b7aacd6b69d392c4a55410bab2ade78b279b796af3a8be4a94ef",
+    "src/App/CMakeLists.txt": "6793e4d95519559a7e873000c97608c24574e98bbc77c63d6ee5ac7a7edb52bd",
+    "tests/src/App/CMakeLists.txt": "5e49ea24f43005b3c4d036050ddb1daf614eeda9601323b0e31c02e8eea1b663",
+    "src/Gui/Tree.cpp": "72558fca8657764c858f3bfc5e278042ee3d407fbb1f2c232a7357e6821bf8da",
+    "tests/src/Gui/TreeBehavior.cpp": "163b196c83d25f478da54ed85473c82cdf852d2bd749a51fcdc67bc99249728b"
+  },
+  "legacy_oracle": {
+    "revision": "8dc855b1948^",
+    "path": "src/App/ElementMap.cpp",
+    "source_sha256": "c1512661730ebbabc6c04a0030790b5662791db81c8d12ef7963847b01e458f1",
+    "calls": "Five legacy strtol call sites: decimal child SID; hexadecimal prefix index, mapped element index, postfix index and mapped SID; end pointers unused.",
+    "reference": "Actual std::strtol value oracle in tests; runtime libc hash recorded. No errno/end-pointer API exposed by helper."
+  },
+  "submodule_heads_and_dirty_state": [
+    {
+      "path": "src/3rdParty/GSL",
+      "head": "a75212b9f3b14162edd62d540cbf9273d5a59d20",
+      "clean": true
+    },
+    {
+      "path": "src/3rdParty/OndselSolver",
+      "head": "4be80eef02a3486cda0d78f3ccbb308d207a9639",
+      "clean": true
+    },
+    {
+      "path": "src/3rdParty/coin",
+      "head": "50e37f04e7027661ea2318d0425b7836ac819568",
+      "clean": true
+    },
+    {
+      "path": "src/3rdParty/coin/cpack.d",
+      "head": "118ac5a21bcf57f0f90e2b0e681c9dcbf07074c2",
+      "clean": true
+    },
+    {
+      "path": "src/3rdParty/coin/docs/doxygen-awesome",
+      "head": "6217657eef6aec24a0e4ecea4695031c1a622cf3",
+      "clean": true
+    },
+    {
+      "path": "src/3rdParty/pivy",
+      "head": "515f038d32f163a976acd8a8cd9e8d26e1d0b884",
+      "clean": true
+    },
+    {
+      "path": "src/Mod/AddonManager",
+      "head": "745c1b1ebc8bc684439210c5fa237d2c6287153b",
+      "clean": true
+    }
+  ],
+  "pixi_lock_sha256": "45727758e595efad731c9bc71e429719040b1509ad686d762ad52ba84e44ec5c",
+  "installed_package_identity_sha256": "27048ce62e5ad835811cb32e58d11ee775f304c81bfef5235bbdd397c3e59d28",
+  "package_count": 510,
+  "build": {
+    "command": "pixi run --locked build -j 2",
+    "exit_status": 0,
+    "profile": "App Debug -g -O0 -DFC_DEBUG -std=c++23; actual App/test commands do not define NDEBUG (assert-active caller abort was reproduced); library sanitizers OFF",
+    "cache_sha256": "be2075651b61afc4329c8b321c9038c01bf2fc24d9eeda3c0788cdcda9b92ede",
+    "compile_commands_sha256": "b4c5932fec7874ce3a3c4fe089e27a2ba0153720beaeb4c5ff03ce2b794e1c02",
+    "compile_commands": {
+      "src/App/ElementMap.cpp": "${REPO_ROOT}/.pixi/envs/default/bin/clang++ -DBOOST_ATOMIC_DYN_LINK -DBOOST_ATOMIC_NO_LIB -DBOOST_CHRONO_DYN_LINK -DBOOST_CHRONO_NO_LIB -DBOOST_CONTAINER_DYN_LINK -DBOOST_CONTAINER_NO_LIB -DBOOST_DATE_TIME_DYN_LINK -DBOOST_DATE_TIME_NO_LIB -DBOOST_PP_VARIADICS=1 -DBOOST_PROGRAM_OPTIONS_DYN_LINK -DBOOST_PROGRAM_OPTIONS_NO_LIB -DBOOST_REGEX_DYN_LINK -DBOOST_REGEX_NO_LIB -DBOOST_THREAD_DYN_LINK -DBOOST_THREAD_NO_LIB -DCMAKE_BUILD_TYPE=\\\"Debug\\\" -DDOCDIR=\\\"share/doc/FreeCAD\\\" -DFreeCADApp_EXPORTS -DHAVE_CONFIG_H -DLIBRARYDIR=\\\"lib\\\" -DMINIMUM_CPLUSPLUS_VERSION=202302L -DPYCXX_6_2_COMPATIBILITY -DQT_CORE_LIB -DQT_NO_KEYWORDS -DQT_XML_LIB -DRESOURCEDIR=\\\"share\\\" -DSALOME_USE_64BIT_IDS -D_OCC64 -I${REPO_ROOT}/build/debug/src/App/FreeCADApp_autogen/include -I${REPO_ROOT}/build/debug -I${REPO_ROOT}/build/debug/src -I${REPO_ROOT}/src -I${REPO_ROOT}/build/debug/src/App -I${REPO_ROOT}/src/App -I${REPO_ROOT}/src/3rdParty/FastSignals/libfastsignals/include -isystem ${REPO_ROOT}/.pixi/envs/default/include/qt6/QtCore -isystem ${REPO_ROOT}/.pixi/envs/default/include/qt6 -isystem ${REPO_ROOT}/.pixi/envs/default/include/qt6/QtXml -isystem ${REPO_ROOT}/src/3rdParty/PyCXX -isystem ${REPO_ROOT}/.pixi/envs/default/include/python3.13 -isystem ${REPO_ROOT}/src/3rdParty -isystem ${REPO_ROOT}/.pixi/envs/default/lib/qt6/mkspecs/linux-g++ -Wall -Wextra -Wpedantic -Wno-write-strings -fdiagnostics-color  -Wno-undefined-var-template -g -O0 -DFC_DEBUG -std=c++23 -fPIC -fcolor-diagnostics -pthread -fPIC -o src/App/CMakeFiles/FreeCADApp.dir/ElementMap.cpp.o -c ${REPO_ROOT}/src/App/ElementMap.cpp",
+      "tests/src/App/ElementMap.cpp": "${REPO_ROOT}/.pixi/envs/default/bin/clang++ -DBOOST_ATOMIC_DYN_LINK -DBOOST_ATOMIC_NO_LIB -DBOOST_CHRONO_DYN_LINK -DBOOST_CHRONO_NO_LIB -DBOOST_CONTAINER_DYN_LINK -DBOOST_CONTAINER_NO_LIB -DBOOST_DATE_TIME_DYN_LINK -DBOOST_DATE_TIME_NO_LIB -DBOOST_PP_VARIADICS=1 -DBOOST_PROGRAM_OPTIONS_DYN_LINK -DBOOST_PROGRAM_OPTIONS_NO_LIB -DBOOST_REGEX_DYN_LINK -DBOOST_REGEX_NO_LIB -DBOOST_THREAD_DYN_LINK -DBOOST_THREAD_NO_LIB -DDATADIR=\\\"${REPO_ROOT}/data\\\" -DGTEST_LINKED_AS_SHARED_LIBRARY=1 -DHAVE_CONFIG_H -DMINIMUM_CPLUSPLUS_VERSION=202302L -DPYCXX_6_2_COMPATIBILITY -DQT_CORE_LIB -DQT_NO_KEYWORDS -DQT_XML_LIB -DSALOME_USE_64BIT_IDS -D_OCC64 -I${REPO_ROOT}/build/debug/tests/src/App/App_tests_run_autogen/include -I${REPO_ROOT}/build/debug -I${REPO_ROOT}/build/debug/src -I${REPO_ROOT}/src -I${REPO_ROOT}/tests -I${REPO_ROOT}/src/3rdParty/FastSignals/libfastsignals/include -isystem ${REPO_ROOT}/.pixi/envs/default/include/qt6/QtCore -isystem ${REPO_ROOT}/.pixi/envs/default/include/qt6 -isystem ${REPO_ROOT}/.pixi/envs/default/include/qt6/QtXml -isystem ${REPO_ROOT}/src/3rdParty/PyCXX -isystem ${REPO_ROOT}/.pixi/envs/default/include/python3.13 -isystem ${REPO_ROOT}/src/3rdParty -isystem ${REPO_ROOT}/.pixi/envs/default/lib/qt6/mkspecs/linux-g++ -Wall -Wextra -Wpedantic -Wno-write-strings -fdiagnostics-color  -Wno-undefined-var-template -g -O0 -DFC_DEBUG -std=c++23 -fcolor-diagnostics -pthread -fPIC -o tests/src/App/CMakeFiles/App_tests_run.dir/ElementMap.cpp.o -c ${REPO_ROOT}/tests/src/App/ElementMap.cpp"
+    },
+    "warnings": [
+      "Pivy stub-generation warnings"
+    ],
+    "focused_iteration": "pixi run --locked cmake --build build/debug --target App_tests_run -j 2; bounded regression iteration before final full build"
+  },
+  "binary_and_core_library_sha256": {
+    "build/debug/tests/App_tests_run": "47b38e4d8a2ba072517d9b237d5ebb9eeb9cea0624803ab0756d36fc5da37141",
+    "build/debug/lib/libFreeCADApp.so": "ac77e625a60ec103a94518446ed0f8d0147aeb9e7b5fe743934ef8096eb03ebe",
+    "build/debug/lib/libFreeCADGui.so": "f21b7797f23e7d32e45d18d7edb385916b04b29d7e65fa490a71dbf714fd0238",
+    "build/debug/lib/libFreeCADBase.so": "04e1e7c5ce58be7a5de3fee0ba2c7fbfde3105a6e7b95378f6c7ba2cf8998b5c",
+    ".pixi/envs/default/lib/libQt6Core.so.6": "bd2f5e952774dea6ac2cef7641ffd0c2cd528d684495e89fd8050e52bc42bd1c",
+    "/usr/lib/x86_64-linux-gnu/libc.so.6": "3a15d66867d83762c7f2f1e37359cb8f6c5743edb369c65285cb0b1c4f7498bf",
+    "/tmp/spec003-t015-sanitizer": "97adfd2a2d5765244c0af39b42012745e05802927c66ff23793b0e1f45ca7eb6"
+  },
+  "frozen_validation_identity": {
+    "src/App/ElementMap.cpp": "03acc6fb8071496a31e687f0b76bc9ec8bb960b413775941a8332ebe25320877",
+    "src/App/ElementMapRestore.h": "93bfcb8930b77150ad0608037001c84335e93a8870f5816b371dc3e2fecce8cb",
+    "tests/src/App/ElementMap.cpp": "92c5712cc96b1c814817c3b48ea9168057faca334907f00eba1a38b7f97f2592",
+    "build/debug/lib/libFreeCADApp.so": "ac77e625a60ec103a94518446ed0f8d0147aeb9e7b5fe743934ef8096eb03ebe",
+    "build/debug/tests/App_tests_run": "47b38e4d8a2ba072517d9b237d5ebb9eeb9cea0624803ab0756d36fc5da37141"
+  },
+  "resolved_runtime_libraries": {
+    "libgmock_main.so.1.18.0": "${REPO_ROOT}/.pixi/envs/default/lib/libgmock_main.so.1.18.0",
+    "libpython3.13.so.1.0": "${REPO_ROOT}/.pixi/envs/default/lib/libpython3.13.so.1.0",
+    "libFreeCADApp.so": "${REPO_ROOT}/build/debug/lib/libFreeCADApp.so",
+    "libgmock.so.1.18.0": "${REPO_ROOT}/.pixi/envs/default/lib/libgmock.so.1.18.0",
+    "libgtest.so.1.18.0": "${REPO_ROOT}/.pixi/envs/default/lib/libgtest.so.1.18.0",
+    "libFreeCADBase.so": "${REPO_ROOT}/build/debug/lib/libFreeCADBase.so",
+    "libxerces-c-3.3.so": "${REPO_ROOT}/.pixi/envs/default/lib/libxerces-c-3.3.so",
+    "libz.so.1": "${REPO_ROOT}/.pixi/envs/default/lib/libz.so.1.3.2",
+    "libicuuc.so.78": "${REPO_ROOT}/.pixi/envs/default/lib/libicuuc.so.78.3",
+    "libicui18n.so.78": "${REPO_ROOT}/.pixi/envs/default/lib/libicui18n.so.78.3",
+    "libcpptrace.so.1": "${REPO_ROOT}/.pixi/envs/default/lib/libcpptrace.so.1.0.4",
+    "libutil.so.1": "/usr/lib/x86_64-linux-gnu/libutil.so.1",
+    "libdl.so.2": "/usr/lib/x86_64-linux-gnu/libdl.so.2",
+    "libboost_program_options.so.1.90.0": "${REPO_ROOT}/.pixi/envs/default/lib/libboost_program_options.so.1.90.0",
+    "libboost_regex.so.1.90.0": "${REPO_ROOT}/.pixi/envs/default/lib/libboost_regex.so.1.90.0",
+    "libboost_thread.so.1.90.0": "${REPO_ROOT}/.pixi/envs/default/lib/libboost_thread.so.1.90.0",
+    "libboost_container.so.1.90.0": "${REPO_ROOT}/.pixi/envs/default/lib/libboost_container.so.1.90.0",
+    "libboost_atomic.so.1.90.0": "${REPO_ROOT}/.pixi/envs/default/lib/libboost_atomic.so.1.90.0",
+    "libboost_chrono.so.1.90.0": "${REPO_ROOT}/.pixi/envs/default/lib/libboost_chrono.so.1.90.0",
+    "libboost_date_time.so.1.90.0": "${REPO_ROOT}/.pixi/envs/default/lib/libboost_date_time.so.1.90.0",
+    "libpthread.so.0": "/usr/lib/x86_64-linux-gnu/libpthread.so.0",
+    "libQt6Xml.so.6": "${REPO_ROOT}/.pixi/envs/default/lib/libQt6Xml.so.6.11.3",
+    "libQt6Core.so.6": "${REPO_ROOT}/.pixi/envs/default/lib/libQt6Core.so.6.11.3",
+    "libstdc++.so.6": "${REPO_ROOT}/.pixi/envs/default/lib/libstdc++.so.6.0.36",
+    "libm.so.6": "/usr/lib/x86_64-linux-gnu/libm.so.6",
+    "libgcc_s.so.1": "${REPO_ROOT}/.pixi/envs/default/lib/libgcc_s.so.1",
+    "libc.so.6": "/usr/lib/x86_64-linux-gnu/libc.so.6",
+    "libnsl.so.3": "${REPO_ROOT}/.pixi/envs/default/lib/libnsl.so.3.0.0",
+    "libicudata.so.78": "${REPO_ROOT}/.pixi/envs/default/lib/libicudata.so.78.3",
+    "libdwarf.so.2": "${REPO_ROOT}/.pixi/envs/default/lib/libdwarf.so.2.1.0",
+    "libunwind.so.8": "${REPO_ROOT}/.pixi/envs/default/lib/libunwind.so.8.2.0",
+    "librt.so.1": "/usr/lib/x86_64-linux-gnu/librt.so.1",
+    "libglib-2.0.so.0": "${REPO_ROOT}/.pixi/envs/default/lib/libglib-2.0.so.0.9000.0",
+    "libdouble-conversion.so.3": "${REPO_ROOT}/.pixi/envs/default/lib/libdouble-conversion.so.3.4.0",
+    "libpcre2-16.so.0": "${REPO_ROOT}/.pixi/envs/default/lib/libpcre2-16.so.0.15.0",
+    "libzstd.so.1": "${REPO_ROOT}/.pixi/envs/default/lib/libzstd.so.1.5.7",
+    "libiconv.so.2": "${REPO_ROOT}/.pixi/envs/default/lib/libiconv.so.2.7.0",
+    "libpcre2-8.so.0": "${REPO_ROOT}/.pixi/envs/default/lib/libpcre2-8.so.0.15.0"
+  },
+  "platform": {
+    "system": "Linux",
+    "machine": "x86_64",
+    "kernel": "7.0.0-42-generic",
+    "long_bits": 64,
+    "int_bits": 32,
+    "gui": "not used by new parser tests; extra CTest matches include native TopoShape element-map tests"
+  },
+  "numeric_policy": {
+    "radices": "Archive fields use explicit decimal child SIDs and hexadecimal mapped-prefix/index/postfix/SID fields; no format change.",
+    "legacy_values": "Leading C whitespace, one optional sign, optional 0x/0X for base16 with following hex digit, longest numeric prefix, no-digits=0, and LONG_MIN/LONG_MAX saturation match legacy strtol. Signed accumulation replaced with checked unsigned magnitude; safe LONG_MIN construction.",
+    "bounds": "Only view bytes inspected, including non-NUL-terminated spans; digit conversion is ASCII, whitespace classified through unsigned char. No allocation in conversion. Standard archive extraction still separates whitespace before dot-tokenization.",
+    "invalid_metadata": "Negative counts, nonpositive MapCount, unrepresentable child interval/cumulative size, and mapped element indices outside 0..INT_MAX raise Base::RuntimeError before arithmetic/narrowing/allocation. Zero mapped index remains accepted and serializes without a numeric suffix. This enforces existing representable-domain preconditions rather than changing valid writer output.",
+    "context": "Saturated missing SIDs remain ignored with existing warning policy; invalid postfix index remains warned/omitted; invalid name table index remains rejected. No silently wrapped alias to a valid ID/index.",
+    "ownership": "Colon names are compacted before the temporary prefix table dies; zero mapped index otherwise leaves raw QByteArray borrowed from that table. Positive index already owns storage; compact is a no-op there.",
+    "limits": "No general archive memory budget or bad_alloc recovery policy; no full locale-specific non-ASCII numeric syntax, Windows/LLP64 or full CAD-reference qualification claimed."
+  },
+  "tests": {
+    "focused_current": "30 ElementMap/number tests, including pre-existing 17 tests plus 13 new cases",
+    "broader": "277 App naming/hash/mapping tests; 290 matching CTest cases including TopoShape element-map coverage",
+    "oracle_cases": "Two radices with explicit boundaries/sign/space/prefix/suffix/NUL/high-byte and 4096-byte tokens, plus 2048 deterministic corpus inputs per radix (4096 comparisons).",
+    "bounded_storage": "Stack subviews and exact-size heap spans without terminators, including empty one-past-end view in sanitizer probe.",
+    "integration": "Actual ElementMap restore checks prefix tolerance, index 0/INT_MAX, rejected out-of-domain indices, saturated IDs/postfix without aliasing, invalid child ranges and negative metadata counts; names read after prefix-vector lifetime.",
+    "probe": {
+      "local_source": "/tmp/spec003-t015-sanitizer-probe.cpp",
+      "sha256": "d6629ed306bf9668e0aae8558f7b7b94ad226bc7d8498839bc951c9a8822f6e4",
+      "source_text": "#include \"App/ElementMapRestore.h\"\n#include <climits>\n#include <cstdlib>\n#include <memory>\n#include <string>\n#include <vector>\n\nint main()\n{\n    for (int base : {10, 16}) {\n        std::vector<std::string> tokens {\n            std::to_string(LONG_MIN), std::to_string(LONG_MAX),\n            \"9223372036854775808\", \"-9223372036854775809\",\n            \"2147483648\", \"-2147483649\", \"0x7fffffffffffffff\", \"-0x8000000000000000\",\n            \"+0X12junk\", \" \\t-12tail\", \"\", \"+\", \"0x\", \"0xg\",\n            std::string(65536, '9'), \"-\" + std::string(65536, 'f'),\n            std::string(65536, '0') + \"1\"\n        };\n        for (const auto& token : tokens) {\n            const auto actual = Data::detail::parseRestoreLong(token, base);\n            if (actual != std::strtol(token.c_str(), nullptr, base)) return 2;\n        }\n        auto bytes = std::make_unique<char[]>(3);\n        bytes[0] = ' '; bytes[1] = '-'; bytes[2] = '1';\n        if (Data::detail::parseRestoreLong({bytes.get(), 3}, base) != -1) return 3;\n        if (Data::detail::parseRestoreLong({bytes.get()+3, 0}, base) != 0) return 4;\n    }\n}\n",
+      "compiler_command": "pixi run --locked clang++ -std=c++17 -O1 -g -fsanitize=address,undefined -fno-sanitize-recover=all -I src /tmp/spec003-t015-sanitizer-probe.cpp -o /tmp/spec003-t015-sanitizer",
+      "run_command": "pixi run --locked env UBSAN_OPTIONS=print_stacktrace=1 timeout 30s /tmp/spec003-t015-sanitizer",
+      "scope": "Exact production private header only; 65536-byte tokens, boundaries and bounded views; not sanitized whole FreeCAD/Qt libraries. Exit zero, no diagnostic."
+    }
+  },
+  "red_reproduction": {
+    "initial": {
+      "root_revision": "09c9edc703c44ea6193995c6d613a421f5d18724",
+      "sha256": {
+        "src/App/ElementMap.cpp": "a252de44953512af9d213bf0cb3c365cd7fa99eacb394694c38a0e507eecabcb",
+        "src/App/ElementMapRestore.h": "c81b77edee634a8fc32899313259b2f9b21592383a0b0ff928a9ccf6f11752e2",
+        "tests/src/App/ElementMap.cpp": "6e64407b806f7e8b963f8cd3fecb26405c8e59d293053b3ebb94be027ee0b81f",
+        "build/debug/lib/libFreeCADApp.so": "c802667adbdffa2bdc487a4247d352fc9ca9084afb8eba10fc343374fc4e411c",
+        "build/debug/tests/App_tests_run": "2bff726a98065fd1e0a269ef70245da59338411274aba3763c468c33fe2303d0"
+      },
+      "red_test_log_sha256": "8f6c2e6e9f06344c303c0bb7c9eb5684e9943c1e35d4edfaf55b3d0b86791ca8",
+      "red_sanitizer_log_sha256": "a22b51378d1497a93f3bef3b24d4fef90776f4dd9c57daf1398d418b08dc4c80"
+    },
+    "initial_result": "Eight new cases: one passes, seven fail against unchanged extracted numeric algorithm; UBSan exits 1 at LONG_MIN signed addition overflow.",
+    "caller": {
+      "sha256": {
+        "src/App/ElementMap.cpp": "a252de44953512af9d213bf0cb3c365cd7fa99eacb394694c38a0e507eecabcb",
+        "src/App/ElementMapRestore.h": "93bfcb8930b77150ad0608037001c84335e93a8870f5816b371dc3e2fecce8cb",
+        "tests/src/App/ElementMap.cpp": "92c5712cc96b1c814817c3b48ea9168057faca334907f00eba1a38b7f97f2592",
+        "build/debug/lib/libFreeCADApp.so": "5f0eff6e11a2da90e2a0b8dda9086277cf8553c69f581a19e5989fc8167528d2",
+        "build/debug/tests/App_tests_run": "47b38e4d8a2ba072517d9b237d5ebb9eeb9cea0624803ab0756d36fc5da37141"
+      }
+    },
+    "caller_assertion": {
+      "sha256": {
+        "src/App/ElementMap.cpp": "a252de44953512af9d213bf0cb3c365cd7fa99eacb394694c38a0e507eecabcb",
+        "src/App/ElementMapRestore.h": "93bfcb8930b77150ad0608037001c84335e93a8870f5816b371dc3e2fecce8cb",
+        "tests/src/App/ElementMap.cpp": "8f050f29354ce8856853a69234e72a2088e29585e11628ea954229f5bd05e661",
+        "build/debug/lib/libFreeCADApp.so": "5f0eff6e11a2da90e2a0b8dda9086277cf8553c69f581a19e5989fc8167528d2",
+        "build/debug/tests/App_tests_run": "57154fda27fb3eb3db354476f343cfedfc0303949ddc4b0f1abfc683c997d791"
+      }
+    },
+    "caller_result": "Unrepresentable mapped index aborts at existing IndexedName nonnegative assertion (exit134); separate corrected caller controls yield two passes/two failures for child range/negative metadata, exit1.",
+    "harness_correction": "Zero mapped index emits Face, not Face0; expected output corrected before final caller-count reproduction.",
+    "lifetime": {
+      "sha256": {
+        "src/App/ElementMap.cpp": "ebee4ee104b131579107390d057fe232b1774276e9938422eba8d5e8397ca53f",
+        "src/App/ElementMapRestore.h": "93bfcb8930b77150ad0608037001c84335e93a8870f5816b371dc3e2fecce8cb",
+        "tests/src/App/ElementMap.cpp": "92c5712cc96b1c814817c3b48ea9168057faca334907f00eba1a38b7f97f2592",
+        "build/debug/lib/libFreeCADApp.so": "6e988ed4e8e8a10b09a88d24c04676e286316f2c1225e94aee024bc1ac0410bf",
+        "build/debug/tests/App_tests_run": "47b38e4d8a2ba072517d9b237d5ebb9eeb9cea0624803ab0756d36fc5da37141"
+      },
+      "memcheck_log_sha256": "7a4bb8e48b1b7255c989a4a262adef9b9be0fd8297ca86c811f03cb202908fc0"
+    },
+    "lifetime_result": "Normal naming regressions passed, but Memcheck exited99 on invalid read in MappedName::toString from freed local postfix vector for index0; compact fixes ownership."
+  },
+  "commands": {
+    "tests": "pixi run --locked timeout 180s build/debug/tests/App_tests_run '--gtest_filter=*ElementMap*:*IndexedName*:*MappedName*:*MappedElement*:*ElementNaming*:*StringHash*:*StringID*'",
+    "ctest": "pixi run --locked ctest --test-dir build/debug -R 'ElementMap|IndexedName|MappedName|MappedElement|ElementNaming|StringHasher|StringID' --output-on-failure",
+    "memory": "pixi run --locked timeout 300s valgrind --tool=memcheck --leak-check=no --undef-value-errors=no --exit-on-first-error=yes --error-exitcode=99 --suppressions=/tmp/spec003-t012-libunwind.supp --log-file=/tmp/spec003-t015-memcheck-final.log build/debug/tests/App_tests_run '--gtest_filter=*ElementMapRestoreNumberTest*:ElementMapTest.*'",
+    "style": "pre-commit run --files src/App/ElementMap.cpp src/App/ElementMapRestore.h tests/src/App/ElementMap.cpp"
+  },
+  "memcheck_suppression": {
+    "text": "{\n  libunwind_address_probe\n  Memcheck:Param\n  write(buf)\n  fun:syscall\n  fun:_UIx86_64_address_is_valid\n}\n",
+    "sha256": "52d015f82c97cef29511f2806d369739dbf556bcb4b9a7ab52b95b1aed4b6c09",
+    "scope": "Exact pre-existing libunwind startup address probe only; no parser/name access errors suppressed; leak/undefined-value checks disabled."
+  },
+  "logs": {
+    "build": {
+      "local_log": "/tmp/spec003-t015-build-final.log",
+      "sha256": "2fafc0cd6a6906ab044df8b54e55fb6a30c65412c0b48316c2735d8bc4611642"
+    },
+    "tests": {
+      "local_log": "/tmp/spec003-t015-tests-final.log",
+      "sha256": "bd6b4fa15da1b8e3fecfbdbaad9398d4ff2de499cf47cf3dffbad86c0917947e"
+    },
+    "ctest": {
+      "local_log": "/tmp/spec003-t015-ctest-final.log",
+      "sha256": "fb8a90603306ad0675ad977a544199353d71132168ff557a5f168f4ae7840351"
+    },
+    "memory": {
+      "local_log": "/tmp/spec003-t015-memcheck-final.log",
+      "sha256": "bbcc01acb6813ff5d4e1a6c2c622e2fa045d3365921267cf32c6c347f99db665"
+    },
+    "memory_tests": {
+      "local_log": "/tmp/spec003-t015-memcheck-tests-final.log",
+      "sha256": "9428ae5737e48851f0c5a8ebf567462d1b7a4808d342fbc8ab37103fb9bf5f43"
+    },
+    "sanitizer": {
+      "local_log": "/tmp/spec003-t015-sanitizer-final.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "sanitizer_build": {
+      "local_log": "/tmp/spec003-t015-sanitizer-build.log",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    "precommit": {
+      "local_log": "/tmp/spec003-t015-precommit-final.log",
+      "sha256": "c08cb8962660457decc327fae80aea7a8edb2b1b0e4fe80551122eb1f027ce38"
+    },
+    "red": {
+      "local_log": "/tmp/spec003-t015-red-tests.log",
+      "sha256": "8f6c2e6e9f06344c303c0bb7c9eb5684e9943c1e35d4edfaf55b3d0b86791ca8"
+    },
+    "red_build": {
+      "local_log": "/tmp/spec003-t015-red-build.log",
+      "sha256": "19ad8071a5e73eb7b84ae97f4bad06c9512e136345560e88f41368f667d49a15"
+    },
+    "ubsan_red": {
+      "local_log": "/tmp/spec003-t015-sanitizer-red.log",
+      "sha256": "a22b51378d1497a93f3bef3b24d4fef90776f4dd9c57daf1398d418b08dc4c80"
+    },
+    "caller_abort": {
+      "local_log": "/tmp/spec003-t015-caller-red-tests.log",
+      "sha256": "f5f6c2b0182dc8fef63843559eb3f5ea75b32637f1b2d811f93e463e54a576bb"
+    },
+    "caller_counts_red": {
+      "local_log": "/tmp/spec003-t015-caller-red-counts-final.log",
+      "sha256": "7c3349d28cd1992c38c11552119266c6473937ffe9e7d4746864748a400c52fd"
+    },
+    "lifetime_red": {
+      "local_log": "/tmp/spec003-t015-memcheck.log",
+      "sha256": "7a4bb8e48b1b7255c989a4a262adef9b9be0fd8297ca86c811f03cb202908fc0"
+    },
+    "lifetime_red_tests": {
+      "local_log": "/tmp/spec003-t015-memcheck-tests.log",
+      "sha256": "a5e24c48eadb92acf5234078d6a16066a975ca1b6fad797fe31f506b8b455f6c"
+    }
+  },
+  "results": {
+    "focused_element_map_cases": 30,
+    "broader_app_tests": 277,
+    "ctest_cases": 290,
+    "memcheck_cases": 30,
+    "memcheck_errors": 0,
+    "isolated_asan_ubsan_exit_status": 0,
+    "failures": 0,
+    "skips": 0
+  },
+  "applicability": "Actual revisions plus exact tracked/private-header diff and source/build/binary identities, frozen across final validation. Prior receipts remain unchanged and dated; core App changes require T010 final composition reconfirmation.",
+  "coordination": "External shared crash coordination file supplied by user; dated acknowledgement appended, with scope distinct from native geometry-read profiling. No MCP source/workflow or operator CAD/runtime mutation performed.",
+  "limitations": [
+    "Local LP64 numeric/metadata and one prefix-lifetime correction only; T016/T005 still own broad writer/alias/child-map and dependent CAD reference identity.",
+    "Library Debug build is not ASan/UBSan instrumented; exact private converter is tested separately under both, while actual restore runs under Memcheck.",
+    "No performance comparison, geometry-read profiling, native crash resolution, installed snapshot replacement, Windows/LLP64 or final PR acceptance.",
+    "Temporary logs/probe identified by hash; probe text/commands embedded for reproduction; private implementation header is not a public SDK API."
+  ]
+}

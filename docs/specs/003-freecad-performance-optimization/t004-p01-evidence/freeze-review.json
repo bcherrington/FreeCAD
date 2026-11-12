@@ -1,0 +1,11 @@
+{
+  "schema": "freecad-spec003-p01-freeze-review/v1",
+  "reviewer": "p01_instrumentation_review",
+  "reviewed_sha256": "638a67eabe24d72a948fda0abfc2e9a073b4147ea2627bc191e840f0e3e484bc",
+  "verdict": "ready to freeze and collect; no acceptance conclusion",
+  "reviewed_inputs": 48,
+  "audit_hashes": 39805,
+  "installed_packages": 510,
+  "unix_seconds": 1794132101.1236718,
+  "residual": "Exact candidate copied; fresh pre-collection and post-collection audits required. One attempt per fixed cell; no retry or pooling."
+}

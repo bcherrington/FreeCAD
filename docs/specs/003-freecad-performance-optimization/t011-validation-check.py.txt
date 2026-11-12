@@ -1,0 +1,67 @@
+from pathlib import Path
+import hashlib,json,re,subprocess,sys,urllib.parse
+r=Path.cwd();p=r/'docs/specs/003-freecad-performance-optimization';out=r/'build/spec003-t011';base='21903ca31f';complete='--complete' in sys.argv
+sha=lambda b:hashlib.sha256(b).hexdigest()
+def gitbytes(path,commit=base):return subprocess.check_output(['git','show',commit+':'+path])
+def dump(path,obj):path.write_text(json.dumps(obj,indent=2)+'\n')
+# Frozen receipt resolves completion-time authority through its real committed snapshot.
+v=json.loads((p/'t010-validation.json').read_text());source=json.loads((p/'t010-final-source-manifest.json').read_text());prior={};checks=0
+for field in ['artifacts_sha256','current_authority_snapshot','unchanged_historical_source_bindings']:
+ for name,h in v[field].items():
+  path=str((p/name).relative_to(r));old=gitbytes(path);assert sha(old)==h,(field,path)
+  if field=='current_authority_snapshot':prior[path]={'commit':subprocess.check_output(['git','rev-parse',base],text=True).strip(),'git_blob':subprocess.check_output(['git','rev-parse',base+':'+path],text=True).strip(),'sha256':h}
+  else:assert sha((r/path).read_bytes())==h,path
+  checks+=1
+for name,h in v['durable_authority_sha256'].items():
+ assert sha(gitbytes(name))==h,name;prior[name]={'commit':subprocess.check_output(['git','rev-parse',base],text=True).strip(),'git_blob':subprocess.check_output(['git','rev-parse',base+':'+name],text=True).strip(),'sha256':h};checks+=1
+for name,h in json.loads((p/'t010-evidence/manifest.json').read_text())['files'].items():assert sha((p/name).read_bytes())==h;checks+=1
+for name,h in source['source_sha256'].items():assert sha((r/name).read_bytes())==h,name;checks+=1
+assert subprocess.check_output(['git','diff','--name-only','HEAD','--','src','tests','pixi.lock','pixi.toml'])==b''
+patch=subprocess.check_output(['git','diff','--binary','--abbrev=11',source['root_commit'],base,'--',*source['source_patch']['files']]);assert sha(patch)==source['source_patch']['sha256']
+binary_matches=[];binary_drift=[]
+for path,row in json.loads((p/'t010-build-receipt.json').read_text())['binaries'].items():
+ actual=sha((r/path).read_bytes());(binary_matches if actual==row['sha256'] else binary_drift).append({'path':path,'qualified_sha256':row['sha256'],'observed_sha256':actual})
+initial=json.loads((r/'build/spec003-t010/starting-environment.json').read_text());assert sha((r/'docs/design/python-console-standalone-window.md').read_bytes())==initial['console_doc_sha256']
+# Every other tracked package artifact is immutable across documentation closure.
+mutable={'spec.md','requirements.md','design.md','tasks.md','traceability.md','verification.md','canonical-context.md','open-decisions.md'}
+frozen={}
+for path in subprocess.check_output(['git','ls-tree','-r','--name-only',base,'--',str(p.relative_to(r))],text=True).splitlines():
+ if str(Path(path).relative_to(p.relative_to(r))) in mutable:continue
+ blob=gitbytes(path);working=(r/path).read_bytes();assert working==blob or working.replace(b'\r\n',b'\n')==blob,(path,'unexpected change beyond existing Git EOL conversion');frozen[path]={'git_blob_sha256':sha(blob),'working_sha256':sha(working),'existing_EOL_conversion':working!=blob}
+# Stable tasks, unchanged original acceptance, owned routed outcomes.
+pat=r'^\s*- \[([^\]]+)\] (T\d+(?:\.\d+)?)\b';taskmap=lambda text:{m.group(2):m.group(1) for m in re.finditer(pat,text,re.M)}
+oldtask=taskmap(gitbytes(str((p/'tasks.md').relative_to(r))).decode());tasks=taskmap((p/'tasks.md').read_text());assert list(tasks)==list(oldtask) and len(tasks)==42
+assert tasks['T008']==tasks['T007.2']=='>'
+for key in oldtask:
+ if key not in ['T011','T011.1','T011.2','T011.3']:assert tasks[key]==oldtask[key],key
+if complete:assert sum(x=='x' for x in tasks.values())==40 and all(tasks[k]=='x' for k in ['T011','T011.1','T011.2','T011.3'])
+# Enumerate all independently numbered ACs; declaration text stays unchanged.
+text=(p/'requirements.md').read_text();before=gitbytes(str((p/'requirements.md').relative_to(r))).decode();coverage={};proof={1:['t002-validation.json','t018-validation.json'],2:['t003-validation.json'],3:['benchmark-protocol.md','acceptance-policy-v2.json','t0044-validation.json','t010-validation.json'],4:['t005-validation.json','t015-validation.json','t016-validation.json'],5:['t006-validation.json','t013-validation.json','t010-validation.json'],6:['t007-validation.json','t014-validation.json','t017-validation.json']}
+for i in range(1,7):
+ extract=lambda s:re.search(r'### Requirement '+str(i)+r':.*?(?=\n### Requirement |\n## Correctness Properties)',s,re.S).group()
+ ac=lambda s:re.findall(r'(?m)^(\d+)\. (.*(?:\n(?!\d+\. |\n|#).*)*)',extract(s))
+ a,b=ac(before),ac(text);assert a==b,(i,a,b)
+ for num,desc in b:
+  key=f'Requirement {i} AC{num}';coverage[key]={'status':'satisfied within declared Linux scope','evidence':[n for n in proof[i] if (p/n).exists()]+['t010-results.md'],'promotion':'docs/reference/document-open-performance.md','criterion':re.sub(r'\s+',' ',desc).strip()}
+assert len(coverage)==26,len(coverage)
+# Changed documentation links; immutable old links remain historical.
+files=subprocess.check_output(['git','diff','--name-only',base,'--','docs'],text=True).splitlines();files=[f for f in files if f not in ['docs/design/python-console-standalone-window.md','docs/specs/003-freecad-performance-optimization/t011-validation.json','docs/specs/003-freecad-performance-optimization/t011-tool-checks.json']];files+=['docs/reviews/spec003-performance-closure.md','docs/specs/003-freecad-performance-optimization/t011-validation-check.py.txt'];files=list(dict.fromkeys(files));links=0
+for name in files:
+ f=r/name;assert f.exists();s=f.read_text();old=subprocess.run(['git','show',base+':'+name],stdout=subprocess.PIPE,stderr=subprocess.DEVNULL).stdout.decode(errors='replace');oldlinks=set(re.findall(r'\[[^\]]*\]\(([^)]+)\)',old))
+ for link in re.findall(r'\[[^\]]*\]\(([^)]+)\)',s):
+  if link in oldlinks or '://' in link:continue
+  target,_,anchor=link.partition('#');dest=f.parent/urllib.parse.unquote(target) if target else f
+  if dest.name=='t011-validation.json' and not dest.exists():continue
+  assert dest.exists(),(name,link);links+=1
+  if anchor and dest.suffix=='.md':assert anchor in [re.sub(r'[^\w\- ]','',h.lower()).replace(' ','-') for h in re.findall(r'(?m)^#+ (.*)$',dest.read_text())],(name,link)
+ if f.suffix=='.md':assert not re.search(r'/home/[^\s\"<>]+',s),name
+ if f.suffix=='.md':assert all(re.search(r'(?m)^'+k+': .+',s) for k in ['title','doc_type','status','owner','last_reviewed']),name
+for name in (['spec','requirements','design','tasks','traceability','verification','canonical-context','open-decisions'] if complete else []):assert re.search(r'(?m)^status: archived$',(p/(name+'.md')).read_text())
+if complete:assert '| 003 |' not in (r/'docs/specs/README.md').read_text()
+subprocess.run(['git','-c','core.whitespace=cr-at-eol','diff','--check'],check=True)
+subprocess.run(['git','-C','docs','-c','core.whitespace=cr-at-eol','diff','--check'],check=True)
+implementation=Path.home()/'.codex/plugins/cache/auriora-local/spec-lifecycle-manager/0.6.1/skills/spec-lifecycle-manager/scripts/lifecycle/core.py'
+review=json.loads((out/'reviews.json').read_text()) if (out/'reviews.json').exists() else {'status':'final review pending'}
+receipt={'schema':'freecad-spec003-t011-closure/v1','date':'2026-11-09','task':'T011','task_complete':complete,'children':['T011.1','T011.2','T011.3'],'local_delivery_closed':complete,'package_disposition':'retained-as-history','package_path':str(p.relative_to(r)),'implementation_commit':subprocess.check_output(['git','rev-parse',base],text=True).strip(),'T010_docs_evidence_commit':'756c03a','final_spec_commit':'c198fe2c08833febcb5464ab980309daaaabbe60','promotion_cleanup_commit':'c198fe2c08833febcb5464ab980309daaaabbe60','docs_final_archive_commit':'6ca2224bd8d732cb8e046c7ef79cfd6459e34f80','cleanup_commit_state':'actual final package/archive commits recorded; later metadata reconciliation does not change implementation','ready_to_archive_final_git_metadata':True,'source_unchanged_from_qualified_T010':True,'qualified_patch_sha256':sha(patch),'local_build_inventory':{'unchanged':binary_matches,'changed_since_T010_commit':binary_drift,'disposition':'Shared build outputs may change independently. T011 qualifies documentation/source equivalence, not these changed binaries. Original T010 tests prove the recorded binaries only; rerun affected qualification before runtime claims on rebuilt outputs.'},'new_native_runs':0,'new_timing_campaigns':0,'release_or_cross_platform_approval':False,'platform_scope':v['accepted_platform_scope'],'unchanged_package_artifacts_sha256':frozen,'prior_T010_receipt_sha256':sha((p/'t010-validation.json').read_bytes()),'prior_authority_resolution':prior,'prior_hash_bindings_verified':checks,'current_artifacts_sha256':{f:sha((r/f).read_bytes()) for f in files},'acceptance_coverage':coverage,'coverage_summary':{'requirements':6,'acceptance_criteria':26,'correctness_properties':5,'success_criteria':5,'MoE_findings':9,'stable_task_ids':42,'required_complete':40 if complete else 38,'routed_optional':2},'tool_exception':{'tool':'closure_check','plugin_version':'0.6.1','implementation_sha256':sha(Path(implementation).read_bytes()),'expected_ready':False,'only_dispositioned_findings':[{'code':'TASK_NOT_VERIFIED','task_id':'T008','destination':'docs/backlog/spec003-follow-ups.md#b010-conditional-gui-restore-and-startup-investigation'},{'code':'TASK_NOT_VERIFIED','task_id':'T007.2','destination':'docs/backlog/spec003-follow-ups.md#b011-further-tree-batching-or-bulk-delete-profiling'}],'rationale':'Runtime task_verified accepts complete markers only; repository authoring contract permits owned routed outcomes. Investigations remain unexecuted, with owned non-blocking durable destinations. No other blocker is excepted.'},'independent_reviews':review,'checks':{'introduced_links':links,'unchanged_unrelated_console':True,'whitespace':'passed root and nested docs','source_hashes':30,'build_binary_hashes_observed':18,'build_binary_hashes_matching_T010':len(binary_matches),'changed_build_outputs_not_qualified':len(binary_drift),'historical_inputs_preserved':26,'prior_mutable_authorities_resolved_in_Git':len(prior),'Agent_Workbench':'navigation only; nested docs blocked/skipped, not passed validation'},'limits':[x if not x.startswith('Working patch is exact qualified composition') else 'Qualified source is committed at 21903ca31f; promotion/cleanup documentation commit state is separately recorded. Later source/runtime changes need affected qualification.' for x in v['limits']]}
+if (p/'t011-tool-checks.json').exists():receipt['tool_checks_sha256']=sha((p/'t011-tool-checks.json').read_bytes())
+dump(p/'t011-validation.json',receipt);print(json.dumps({'complete':complete,'prior_bindings':checks,'source_hashes':30,'binaries_unchanged':len(binary_matches),'binary_drift_disclosed':len(binary_drift),'criteria':len(coverage),'stable_tasks':len(tasks),'introduced_links':links,'frozen_receipts':'unchanged; old mutable authority resolves via actual Git snapshots','new_tests':0,'new_benchmarks':0}))

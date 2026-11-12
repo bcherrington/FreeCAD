@@ -1,0 +1,7 @@
+{
+  libunwind_address_probe
+  Memcheck:Param
+  write(buf)
+  fun:syscall
+  fun:_UIx86_64_address_is_valid
+}

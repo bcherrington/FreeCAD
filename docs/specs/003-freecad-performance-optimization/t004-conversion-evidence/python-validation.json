@@ -1,0 +1,23 @@
+{
+  "schema": "freecad-spec003-focused-python-test-receipt/v1",
+  "modules": [
+    "test_benchmark_host_telemetry",
+    "test_image_performance_diagnostics",
+    "test_run_image_diagnostic",
+    "test_launch_image_diagnostic",
+    "test_image_runtime_receipt",
+    "test_image_runtime_failure_result",
+    "test_image_conversion_comparison"
+  ],
+  "tests": 56,
+  "failures": 0,
+  "errors": 0,
+  "skipped": 0,
+  "passed": true,
+  "interpreter_sha256": "528782e5074de66616b240ccc123fff370a491d03cb23dd46f6db7c7681c837d",
+  "optimization": 2,
+  "isolated": 1,
+  "no_site": 1,
+  "dont_write_bytecode": 1,
+  "log_sha256": "4a0e3db81b8dc46a0a7f9eb24315d8419fc8b58870fbae8eaf8e2d30bd3c6eb2"
+}

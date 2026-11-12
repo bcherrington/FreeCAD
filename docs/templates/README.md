@@ -3,7 +3,7 @@ title: Documentation templates
 doc_type: reference
 status: active
 owner: platform
-last_reviewed: 2026-05-01
+last_reviewed: 2026-11-06
 ---
 
 # Documentation Templates
@@ -124,7 +124,12 @@ Use [document-lifecycle.md](document-lifecycle.md) for rules on when to keep a d
 
 ### Feature Spec Package
 
-Use the [spec-package](spec-package) templates for structured feature work that needs specification, design, planning, and tasks tracked together.
+Use the [spec-package authoring contract](spec-package/README.md) for structured
+feature work under `docs/specs/NNN-slug/`. Current packages use requirements,
+design and tasks, with traceability and verification as needed. `spec.md` is an
+optional brief; `plan.md` preserves historical migration input. Include
+`artifact_type` on spec artifacts. Existing archived packages are grandfathered;
+durable document templates keep their existing metadata contract.
 
 ## When To Split A Document
 

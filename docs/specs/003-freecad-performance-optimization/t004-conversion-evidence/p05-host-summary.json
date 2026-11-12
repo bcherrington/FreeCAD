@@ -1,0 +1,16 @@
+{
+  "samples": 480,
+  "when": "Between workers, outside native conversion; irregular interval",
+  "one_minute_load_minimum": 3.28,
+  "one_minute_load_maximum": 11.73,
+  "minimum_available_memory_bytes": 19605389312,
+  "observer_wall_median_ms": 0.48403799999999997,
+  "observer_wall_maximum_ms": 2.401794,
+  "raw_proc_includes": [
+    "aggregate CPU counters",
+    "load",
+    "memory",
+    "CPU/memory/IO PSI"
+  ],
+  "sources_unavailable": 0
+}
