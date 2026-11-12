@@ -27,6 +27,7 @@
 #include <functional>
 #include <TopoDS_Shape.hxx>
 #include <Standard_TypeDef.hxx>
+#include <Standard_Version.hxx>
 
 // This include file is only needed for using OCCT versions before 7.8, and it provides a
 // template specialization of std::hash<TopoDS_Shape> to allow use of std container classes.
