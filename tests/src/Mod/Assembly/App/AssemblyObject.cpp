@@ -592,3 +592,435 @@ with tempfile.TemporaryDirectory() as directory:
         App.closeDocument(source.Name)
 )PY"));
 }
+
+namespace
+{
+// Native-owned fixtures: saved XLinks, real joint proxies, and the persisted
+// Motion schema. CommandCreateSimulation itself requires a GUI process.
+constexpr const char* mixedAssemblyFixture = R"PY(
+import os
+import tempfile
+from contextlib import contextmanager, ExitStack
+import FreeCAD as App
+import AssemblyApp
+import JointObject
+import Part
+
+def mixed_closure(owner):
+    result = []
+    def visit(obj):
+        if obj in result:
+            return
+        result.append(obj)
+        for child in getattr(obj, "Group", []):
+            visit(child)
+    visit(owner)
+    return result
+
+def mixed_joint(owner):
+    return next(obj for obj in mixed_closure(owner)
+                if getattr(obj, "JointType", None) == "Revolute")
+
+def mixed_parts(owner):
+    result = {}
+    for obj in mixed_closure(owner):
+        if obj.TypeId == "App::Link":
+            source = obj.getLinkedObject(True)
+            if source and source.Name in ("Base", "Arm"):
+                result[source.Name] = obj
+    assert set(result) == {"Base", "Arm"}, result
+    return result
+
+def mixed_snapshot(doc):
+    return ([(obj.Name, tuple(obj.State),
+              tuple(obj.Placement.toMatrix().A) if hasattr(obj, "Placement") else None,
+              tuple(obj.LinkPlacement.toMatrix().A) if hasattr(obj, "LinkPlacement") else None,
+              tuple(obj.getPropertyStatus("Placement")) if hasattr(obj, "Placement") else None,
+              tuple(obj.getPropertyStatus("LinkPlacement")) if hasattr(obj, "LinkPlacement") else None)
+             for obj in doc.Objects], doc.isTouched(), doc.UndoCount)
+
+def mixed_motion(owner, joint, kind="Angular"):
+    simulations = next((obj for obj in owner.Group
+                        if obj.TypeId == "Assembly::SimulationGroup"), None)
+    if simulations is None:
+        simulations = owner.newObject("Assembly::SimulationGroup", "Simulations")
+    simulation = simulations.newObject("App::DocumentObjectGroup", "Simulation")
+    motion = simulation.newObject("App::FeaturePython", "Motion")
+    motion.addProperty("App::PropertyXLinkSubHidden", "Joint")
+    motion.Joint = (joint, [""])
+    motion.addProperty("App::PropertyEnumeration", "MotionType")
+    motion.MotionType = ["Angular", "Linear"]
+    motion.MotionType = kind
+    motion.addProperty("App::PropertyString", "Formula")
+    motion.Formula = "time"
+    return motion
+
+@contextmanager
+def mixed_fixture(modes=(True,), inner_rigid=False, angle=25):
+    documents = []
+    with tempfile.TemporaryDirectory() as directory, ExitStack() as guards:
+        def document():
+            doc = App.newDocument()
+            documents.append(doc)
+            guards.enter_context(AssemblyApp.suspendAutomaticMotion(doc))
+            doc.saveAs(os.path.join(directory, doc.Name + ".FCStd"))
+            return doc
+        def assembly(doc):
+            obj = doc.addObject("Assembly::AssemblyObject", "Assembly")
+            obj.Type = "Assembly"
+            obj.newObject("Assembly::JointGroup", "Joints")
+            return obj
+        def occurrence(owner, source, rigid):
+            node = owner.newObject("Assembly::AssemblyLink", "Occurrence")
+            node.Rigid = rigid  # Supported only before population.
+            node.LinkedObject = source
+            for _ in range(3):
+                owner.Document.recompute()
+            assert node.Group
+            return node
+        try:
+            definitions = document()
+            for name, radius in (("Base", 3), ("Arm", 2)):
+                part = definitions.addObject("Part::Feature", name)
+                part.Shape = Part.makeCylinder(radius, 4)
+            definitions.recompute()
+            definitions.save()
+            mechanism = document()
+            unit = assembly(mechanism)
+            parts = []
+            for name in ("Base", "Arm"):
+                part = unit.newObject("App::Link", name)
+                part.LinkedObject = definitions.getObject(name)
+                part.LinkTransform = False
+                parts.append(part)
+            group = next(obj for obj in unit.Group if obj.TypeId == "Assembly::JointGroup")
+            ground = group.newObject("App::FeaturePython", "Ground")
+            JointObject.GroundedJoint(ground, parts[0])
+            pivot = group.newObject("App::FeaturePython", "Pivot")
+            JointObject.Joint(pivot, JointObject.JointTypes.index("Revolute"))
+            pivot.Detach1 = True
+            pivot.Detach2 = True
+            pivot.Reference1 = (parts[0], [""])
+            pivot.Reference2 = (parts[1], [""])
+            pivot.Placement1 = App.Placement()
+            pivot.Placement2 = App.Placement()
+            mechanism.recompute()
+            assert unit.solveValidated(False) == 0
+            mechanism.save()
+            middle_doc = document()
+            middle = assembly(middle_doc)
+            occurrence(middle, unit, inner_rigid)
+            middle_doc.save()
+            target = document()
+            root = assembly(target)
+            nodes = [occurrence(root, middle, mode) for mode in modes]
+            for index, node in enumerate(nodes):
+                moving = mixed_parts(node)["Arm"]
+                moving.LinkPlacement = App.Placement(
+                    App.Vector(), App.Rotation(App.Vector(0, 0, 1), angle if index == 0 else -angle))
+            target.recompute()
+            target.save()
+            sources = [(doc, mixed_snapshot(doc)) for doc in documents[:-1]]
+            yield root, nodes, sources
+        finally:
+            for doc in reversed(documents):
+                App.closeDocument(doc.Name)
+)PY";
+}  // namespace
+
+TEST_F(AssemblyObjectTest, jointGroupBelongsToImmediateAssemblyOwner)
+{
+    auto* document = getObject()->getDocument();
+    auto* other = document->addObject<Assembly::AssemblyObject>("OtherAssembly");
+    auto* nested = other->addObject<App::Part>("NestedOwner");
+    auto* nestedJoints = nested->addObject<Assembly::JointGroup>("NestedJoints");
+    EXPECT_NE(nestedJoints, nullptr);
+    // A descendant's group was created first. Recursive membership must not
+    // let the parent borrow it, even when the parent has no group of its own.
+    EXPECT_EQ(other->getJointGroup(), nullptr);
+    auto* owned = other->addObject<Assembly::JointGroup>("OwnedJoints");
+    EXPECT_EQ(other->getJointGroup(), owned);
+    EXPECT_NE(other->getJointGroup(), getObject()->getJointGroup());
+}
+
+TEST_F(AssemblyObjectTest, validatedMixedRigidAdmissionPreservesFrozenArticulation)
+{
+    ASSERT_NO_THROW(Base::Interpreter().runString(mixedAssemblyFixture));
+    ASSERT_NO_THROW(Base::Interpreter().runString(R"PY(
+for angle in (25, -40):
+    for modes, inner_rigid in (((True,), False), ((False,), True),
+                               ((True, False), False), ((False, True), False)):
+        with mixed_fixture(modes, inner_rigid, angle) as (root, nodes, sources):
+            frozen = [(obj, App.Placement(obj.Placement))
+                      for node in nodes if node.Rigid or inner_rigid
+                      for obj in mixed_closure(node) if hasattr(obj, "Placement")]
+            expected = [mixed_joint(node) for node in nodes if not node.Rigid and not inner_rigid]
+            actual = list(root.Joints)
+            assert len(actual) == len(set(actual)), actual
+            assert set(actual) == set(expected), (modes, inner_rigid, actual, expected)
+            assert root.solveValidated(False) == 0, (modes, inner_rigid, angle)
+            assert AssemblyApp.isAutomaticMotionSuspended(root.Document)
+            for obj, pose in frozen:
+                assert obj.Placement.isSame(pose, 1e-9), (obj.Name, modes, inner_rigid, angle)
+            for doc, before in sources:
+                assert mixed_snapshot(doc) == before, doc.Name
+)PY"));
+}
+
+TEST_F(AssemblyObjectTest, validatedDormantRecordsRejectWrongOccurrenceBeforeEffects)
+{
+    ASSERT_NO_THROW(Base::Interpreter().runString(mixedAssemblyFixture));
+    ASSERT_NO_THROW(Base::Interpreter().runString(R"PY(
+for kind in ("joint", "suppressed_joint", "ground", "rigid", "source", "outside"):
+    with mixed_fixture((True, True)) as (root, nodes, sources):
+        joint = mixed_joint(nodes[0])
+        owner_group = next(obj for obj in mixed_closure(nodes[0])
+                           if obj.TypeId == "Assembly::JointGroup" and joint in obj.Group)
+        first = mixed_parts(nodes[0])["Base"]
+        escaped = mixed_parts(nodes[1])["Arm"]
+        if kind == "source":
+            escaped = sources[1][0].getObject("Arm")
+        elif kind == "outside":
+            escaped = root.Document.addObject("Part::Box", "Outside")
+        if kind in ("joint", "suppressed_joint", "source", "outside"):
+            joint.Reference2 = (escaped, [""])
+            if kind == "suppressed_joint":
+                joint.Suppressed = True
+        elif kind == "ground":
+            ground = owner_group.newObject("App::FeaturePython", "LocalGround")
+            JointObject.GroundedJoint(ground, escaped)
+        elif kind == "rigid":
+            rigid = owner_group.newObject("App::FeaturePython", "BadRigidGroup")
+            rigid.addProperty("App::PropertyBool", "Suppressed")
+            rigid.addProperty("App::PropertyLinkList", "ObjectsToRigidGroup")
+            rigid.ObjectsToRigidGroup = [first, escaped]
+        before = mixed_snapshot(root.Document)
+        # Do not recompute/repair the malformed graph before native admission.
+        assert root.solveValidated(True) == -8, kind
+        assert mixed_snapshot(root.Document) == before, kind
+        for doc, snapshot in sources:
+            assert mixed_snapshot(doc) == snapshot, (kind, doc.Name)
+)PY"));
+}
+
+TEST_F(AssemblyObjectTest, validatedRootJointMayConnectRigidSiblingOccurrences)
+{
+    ASSERT_NO_THROW(Base::Interpreter().runString(mixedAssemblyFixture));
+    ASSERT_NO_THROW(Base::Interpreter().runString(R"PY(
+with mixed_fixture((True, True)) as (root, nodes, sources):
+    group = next(obj for obj in root.Group if obj.TypeId == "Assembly::JointGroup")
+    joint = group.newObject("App::FeaturePython", "RootJoint")
+    JointObject.Joint(joint, JointObject.JointTypes.index("Revolute"))
+    joint.Detach1 = True
+    joint.Detach2 = True
+    joint.Reference1 = (nodes[0], [""])
+    joint.Reference2 = (nodes[1], [""])
+    joint.Placement1 = App.Placement()
+    joint.Placement2 = App.Placement()
+    assert list(root.Joints) == [joint]
+    assert root.solveValidated(False) == 0
+    assert list(root.Joints) == [joint]
+    for doc, before in sources:
+        assert mixed_snapshot(doc) == before
+)PY"));
+}
+
+TEST_F(AssemblyObjectTest, validatedMotionUsesInheritedJointActivity)
+{
+    ASSERT_NO_THROW(Base::Interpreter().runString(mixedAssemblyFixture));
+    ASSERT_NO_THROW(Base::Interpreter().runString(R"PY(
+for kind in ("rigid", "suppressed", "flexible", "dormant", "bad_dormant"):
+    with mixed_fixture((True, False)) as (root, nodes, sources):
+        if kind in ("dormant", "bad_dormant"):
+            owner = next(obj for obj in mixed_closure(nodes[0])
+                         if obj.TypeId == "Assembly::AssemblyLink" and obj != nodes[0])
+            target = mixed_joint(nodes[0] if kind == "dormant" else nodes[1])
+        else:
+            owner = root
+            target = mixed_joint(nodes[0] if kind == "rigid" else nodes[1])
+            if kind == "suppressed":
+                target.Suppressed = True
+        mixed_motion(owner, target)
+        before = mixed_snapshot(root.Document)
+        expected = 0 if kind in ("flexible", "dormant") else -8
+        assert root.solveValidated(False) == expected, kind
+        if expected == -8:
+            assert mixed_snapshot(root.Document) == before, kind
+        for doc, snapshot in sources:
+            assert mixed_snapshot(doc) == snapshot, (kind, doc.Name)
+)PY"));
+}
+
+TEST_F(AssemblyObjectTest, validatedMixedSolveRetainsDormantGroundReleaseIntent)
+{
+    ASSERT_NO_THROW(Base::Interpreter().runString(mixedAssemblyFixture));
+    ASSERT_NO_THROW(Base::Interpreter().runString(R"PY(
+with mixed_fixture((True,)) as (root, nodes, sources):
+    doc = root.Document
+    parts = mixed_parts(nodes[0])
+    first, second = parts["Base"], parts["Arm"]
+    joint = mixed_joint(nodes[0])
+    group = next(obj for obj in mixed_closure(nodes[0])
+                 if obj.TypeId == "Assembly::JointGroup" and joint in obj.Group)
+    ground = group.newObject("App::FeaturePython", "LocalGround")
+    JointObject.GroundedJoint(ground, first)
+    for prop in ("Placement", "LinkPlacement"):
+        first.setPropertyStatus(prop, "ReadOnly")
+    ground.ObjectToGround = second  # Native callback queues first's deferred release.
+    assert root.solveValidated(False) == 0
+    for prop in ("Placement", "LinkPlacement"):
+        assert "ReadOnly" in first.getPropertyStatus(prop)
+        assert "ReadOnly" not in second.getPropertyStatus(prop)
+    # Give the exact same old target an eligible owner. A later validated solve
+    # must consume the retained intent; a dropped queue would leave it locked.
+    eligible = doc.addObject("Assembly::AssemblyObject", "Eligible")
+    eligible.newObject("Assembly::JointGroup", "EligibleJoints")
+    eligible.addObject(first)
+    assert eligible.solveValidated(False) == 0
+    for prop in ("Placement", "LinkPlacement"):
+        assert "ReadOnly" not in first.getPropertyStatus(prop)
+)PY"));
+}
+
+TEST_F(AssemblyObjectTest, suspendedMixedModesAndRestorePreserveArticulation)
+{
+    ASSERT_NO_THROW(Base::Interpreter().runString(mixedAssemblyFixture));
+    ASSERT_NO_THROW(Base::Interpreter().runString(R"PY(
+for angle in (25, -40):
+    with mixed_fixture((True, False), angle=angle) as (root, nodes, sources):
+        doc = root.Document
+        links = [obj for obj in mixed_closure(root) if obj.TypeId == "Assembly::AssemblyLink"]
+        for link in links:
+            for requested in (link.Rigid, not link.Rigid):
+                before = mixed_snapshot(doc)
+                mode = link.Rigid
+                try:
+                    link.Rigid = requested
+                except (RuntimeError, ValueError):
+                    pass
+                else:
+                    raise AssertionError(("populated mode accepted", link.Name, requested))
+                assert link.Rigid == mode
+                assert mixed_snapshot(doc) == before
+        # These files remain together, so every restored external XLink is valid.
+        expected = {obj.Name: App.Placement(obj.Placement) for obj in mixed_closure(root)
+                    if hasattr(obj, "Placement")}
+        name = root.Name
+        doc.save()
+        doc.restore()
+        root = doc.getObject(name)
+        assert AssemblyApp.isAutomaticMotionSuspended(doc)
+        for obj in mixed_closure(root):
+            if obj.TypeId == "Assembly::AssemblyLink":
+                assert obj.LinkedObject is not None
+            if obj.Name in expected:
+                assert obj.Placement.isSame(expected[obj.Name], 1e-9), obj.Name
+        assert root.solveValidated(False) == 0
+        for doc, before in sources:
+            assert mixed_snapshot(doc) == before
+)PY"));
+}
+
+TEST_F(AssemblyObjectTest, validatedDormantMalformedGraphsStillRejectBeforeEffects)
+{
+    ASSERT_NO_THROW(Base::Interpreter().runString(mixedAssemblyFixture));
+    ASSERT_NO_THROW(Base::Interpreter().runString(R"PY(
+for rigid in (False, True):
+    for kind in ("missing_link", "incomplete_joint", "containment_cycle", "incomplete_motion"):
+        with mixed_fixture((rigid,)) as (root, nodes, sources):
+            cycle = None
+            try:
+                joint = mixed_joint(nodes[0])
+                owner = next(obj for obj in mixed_closure(nodes[0])
+                             if obj.TypeId == "Assembly::AssemblyLink" and obj != nodes[0])
+                if kind == "missing_link":
+                    nodes[0].LinkedObject = None
+                elif kind == "incomplete_joint":
+                    joint.Reference2 = None
+                elif kind == "containment_cycle":
+                    cycle = owner.newObject("App::FeaturePython", "RawCycle")
+                    cycle.addProperty("App::PropertyLinkList", "Group")
+                    cycle.Group = [owner]
+                else:
+                    motion = mixed_motion(owner, joint)
+                    motion.Joint = None
+                before = mixed_snapshot(root.Document)
+                assert root.solveValidated(True) == -8, (rigid, kind)
+                assert mixed_snapshot(root.Document) == before, (rigid, kind)
+                for doc, snapshot in sources:
+                    assert mixed_snapshot(doc) == snapshot, (rigid, kind, doc.Name)
+            finally:
+                # Never recompute or close a deliberately cyclic dependency graph.
+                if cycle is not None:
+                    cycle.Group = []
+)PY"));
+}
+
+TEST_F(AssemblyObjectTest, mixedNativeJointEnumerationHonorsAncestorsAndDeduplicates)
+{
+    ASSERT_NO_THROW(Base::Interpreter().runString(mixedAssemblyFixture));
+    ASSERT_NO_THROW(Base::Interpreter().runString(R"PY(
+mixed_native_context = mixed_fixture((True, False))
+mixed_native_root, mixed_native_nodes, _ = mixed_native_context.__enter__()
+mixed_joint(mixed_native_nodes[1]).Label = "ExpectedActiveJoint"
+)PY"));
+    auto* document = App::GetApplication().getActiveDocument();
+    auto* root = dynamic_cast<Assembly::AssemblyObject*>(document->getObject("Assembly"));
+    EXPECT_NE(root, nullptr);
+    if (root) {
+        EXPECT_TRUE(root->getJoints(false, false).empty());
+        const auto joints = root->getJoints(false, true);
+        EXPECT_EQ(joints.size(), 1);
+        if (joints.size() == 1) {
+            EXPECT_EQ(std::string(joints.front()->Label.getValue()), "ExpectedActiveJoint");
+        }
+        // An assembly without an own group still has eligible descendant joints.
+        auto* owned = root->getJointGroup();
+        if (owned) {
+            const std::string name = owned->getNameInDocument();
+            document->removeObject(name.c_str());
+        }
+        EXPECT_EQ(root->getJointGroup(), nullptr);
+        const auto withoutRootGroup = root->getJoints(false, true);
+        EXPECT_EQ(withoutRootGroup.size(), 1);
+        if (withoutRootGroup.size() == 1) {
+            EXPECT_EQ(std::string(withoutRootGroup.front()->Label.getValue()), "ExpectedActiveJoint");
+        }
+    }
+    ASSERT_NO_THROW(Base::Interpreter().runString("mixed_native_context.__exit__(None, None, None)"));
+}
+
+TEST_F(AssemblyObjectTest, suppressedLinkElementMakesJointInactiveWithoutDroppingMetadata)
+{
+    ASSERT_NO_THROW(Base::Interpreter().runString(mixedAssemblyFixture));
+    ASSERT_NO_THROW(Base::Interpreter().runString(R"PY(
+for rigid in (False, True):
+    for driven in (False, True):
+        with mixed_fixture((rigid,)) as (root, nodes, sources):
+            joint = mixed_joint(nodes[0])
+            group = next(obj for obj in mixed_closure(nodes[0])
+                         if obj.TypeId == "Assembly::JointGroup" and joint in obj.Group)
+            owner = next(obj for obj in mixed_closure(nodes[0])
+                         if obj.TypeId == "Assembly::AssemblyLink" and group in obj.Group)
+            array = owner.newObject("App::Link", "LocalArray")
+            array.LinkedObject = sources[0][0].getObject("Arm")
+            array.ElementCount = 2
+            # ElementCount creates real LinkElement objects; suppression belongs
+            # to the element's native extension, never to the Motion object.
+            assert len(array.ElementList) == 2
+            element = array.ElementList[1]
+            joint.Reference2 = (element, [""])
+            element.Suppressed = True
+            assert joint not in root.Joints
+            if driven:
+                mixed_motion(root, joint)
+            before = mixed_snapshot(root.Document)
+            assert root.solveValidated(False) == (-8 if driven else 0), (rigid, driven)
+            assert joint.Reference2[0] == element
+            assert element.Suppressed
+            if driven:
+                assert mixed_snapshot(root.Document) == before
+            for doc, snapshot in sources:
+                assert mixed_snapshot(doc) == snapshot
+)PY"));
+}
