@@ -1,8 +1,0 @@
-FreeCAD 27.1.0, Libs: 27.1.0devRDev Build
-(C) 2001-2026 FreeCAD contributors
-FreeCAD is free and open-source software licensed under the terms of LGPL2+ license.
-
-FreeCAD is running in _SAFE_MODE_.
-Safe mode temporarily disables your configurations and addons. Restart the application to exit safe mode.
-
-Exception while processing file: /home/bcherrington/Projects/CLion/FreeCAD/docs/specs/004-sketcher-external-reference-reattachment/t001-arc-probe.py []

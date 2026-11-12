@@ -1,8 +1,0 @@
-{
-  "schema": "freecad-spec003-p01-audit/v1",
-  "phase": "before-collection",
-  "passed": true,
-  "checked_hashes": 39805,
-  "installed_packages_checked": 510,
-  "unix_seconds": 1794132104.6211336
-}

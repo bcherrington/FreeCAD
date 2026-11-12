@@ -1,1 +1,0 @@
-exec(compile(open('build/spec003-t010/native-viewer.py').read(), 'build/spec003-t010/native-viewer.py', 'exec'))
