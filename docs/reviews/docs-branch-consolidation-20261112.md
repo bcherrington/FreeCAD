@@ -120,3 +120,24 @@ nested main using the exact nested tracked-file list (no .git metadata or caches
 ownership conversion or untracking policy is introduced by this task. Until dual ownership is
 changed deliberately, use separate source worktrees or synchronize the parent docs snapshot
 before source-branch switches in the canonical checkout.
+
+## Parent snapshot completion and remaining divergence
+
+Parent snapshot `cc7b6227943` has a docs subtree exactly equal to nested main at capture time;
+individual tracked paths were staged explicitly, excluding repository metadata and caches.
+History merge `09dc8f55e8d` incorporates docs/spec-lifecycle-reconciliation with no content change
+(tree IDs before/after match). The older lifecycle and remove-legacy-performance-spec branch
+names were then removed with safe `git branch -d`; their commits remain reachable.
+Assembly feature branch feature/assembly-motion-suspension is retained separately. Parent
+source content outside docs is byte-identical to that feature branch.
+
+Root docs/reconcile-spec-formats at68556525ac is deliberately retained: its34 unique commits
+include70 non-docs paths and need source integration review. This audit does not establish
+whether every native change should be merged or whether platform/build regression gates pass.
+Only the nested documentation branch set is completely consolidated to main; the remaining
+parent code-bearing history is an explicit follow-up, not deleted or silently declared merged.
+
+The parent snapshot preserves31 whitespace diagnostics in historical patch/text evidence;
+normalizing those archived bytes was outside this reconciliation. Scoped newly authored docs
+pass whitespace validation, and the synchronized subtree matches the nested authoritative Git
+content. No CAD source validation is implied by this docs-only snapshot.
