@@ -23,6 +23,8 @@
 
 import FreeCAD as App
 import Part
+import AssemblyApp
+import gc
 import os
 import tempfile
 import unittest
@@ -89,6 +91,293 @@ class AssemblyTestBase(unittest.TestCase):
 
 
 class TestCore(AssemblyTestBase):
+    def _suspended_joint_fixture(self, joint_type="Fixed", contained=True):
+        first = self.assembly.newObject("Part::Box", "First")
+        second = self.assembly.newObject("Part::Box", "Second")
+        second.Placement = App.Placement(App.Vector(50, 20, 10), App.Rotation())
+        self.doc.recompute()
+        owner = self.jointgroup if contained else self.doc
+        create = owner.newObject if contained else owner.addObject
+        joint = create("App::FeaturePython", "Joint")
+        JointObject.Joint(joint, JointObject.JointTypes.index(joint_type))
+        if App.GuiUp:
+            JointObject.ViewProviderJoint(joint.ViewObject)
+        joint.Proxy.setJointConnectors(joint, [(first, ["Face1"]), (second, ["Face1"])])
+        return first, second, joint
+
+    def test_motion_suspension_nesting_exception_and_gc(self):
+        self.assertFalse(AssemblyApp.isAutomaticMotionSuspended(self.doc))
+        with AssemblyApp.suspendAutomaticMotion(self.doc):
+            self.assertTrue(AssemblyApp.isAutomaticMotionSuspended(self.doc))
+            with self.assertRaisesRegex(RuntimeError, "injected"):
+                with AssemblyApp.suspendAutomaticMotion(self.doc):
+                    raise RuntimeError("injected")
+            self.assertTrue(AssemblyApp.isAutomaticMotionSuspended(self.doc))
+            self.assertEqual(self.assembly.solve(), -7)
+        self.assertFalse(AssemblyApp.isAutomaticMotionSuspended(self.doc))
+
+        scope = AssemblyApp.suspendAutomaticMotion(self.doc)
+        scope.__enter__()
+        self.assertTrue(AssemblyApp.isAutomaticMotionSuspended(self.doc))
+        del scope
+        gc.collect()
+        self.assertFalse(AssemblyApp.isAutomaticMotionSuspended(self.doc))
+
+    def test_motion_suspension_context_is_single_use(self):
+        context = AssemblyApp.suspendAutomaticMotion(self.doc)
+        with context:
+            with self.assertRaises(RuntimeError):
+                context.__enter__()
+            self.assertTrue(AssemblyApp.isAutomaticMotionSuspended(self.doc))
+        with self.assertRaises(RuntimeError):
+            context.__enter__()
+        self.assertFalse(AssemblyApp.isAutomaticMotionSuspended(self.doc))
+
+    def test_motion_suspension_generated_array_remapping(self):
+        with AssemblyApp.suspendAutomaticMotion(self.doc):
+            self._check_generated_array_joint("Face1")
+
+    def test_motion_suspension_generated_whole_element_remapping(self):
+        with AssemblyApp.suspendAutomaticMotion(self.doc):
+            self._check_generated_array_joint("")
+
+    def test_motion_suspension_preserves_existing_rigid_instance_pose(self):
+        with AssemblyApp.suspendAutomaticMotion(self.doc):
+            source = self.assembly.newObject("Part::Box", "SourceBox")
+            parent = self.doc.addObject("Assembly::AssemblyObject", "ParentAssembly")
+            instance = parent.newObject("Assembly::AssemblyLink", "Instance")
+            instance.LinkedObject = self.assembly
+            self.doc.recompute()
+            local = next(obj for obj in instance.Group if obj.TypeId == "App::Link")
+            local.Placement = App.Placement(App.Vector(51, 23, 7), App.Rotation())
+            pose = local.Placement
+            source.Placement = App.Placement(App.Vector(12, 34, 56), App.Rotation())
+            instance.touch()
+            self.doc.recompute()
+            self.assertTrue(local.Placement.isSame(pose, 1e-9))
+        instance.touch()
+        self.doc.recompute()
+        self.assertTrue(local.Placement.isSame(source.Placement, 1e-9))
+
+    def test_motion_suspension_before_creation_and_document_close(self):
+        other = App.newDocument("MotionSuspensionLifetime")
+        name = other.Name
+        try:
+            with AssemblyApp.suspendAutomaticMotion(other):
+                assembly = other.addObject("Assembly::AssemblyObject", "Assembly")
+                assembly.newObject("Assembly::JointGroup", "Joints")
+                self.assertEqual(assembly.solve(), -7)
+                self.assertFalse(AssemblyApp.isAutomaticMotionSuspended(self.doc))
+                App.closeDocument(name)
+                other = App.newDocument(name)
+                self.assertFalse(AssemblyApp.isAutomaticMotionSuspended(other))
+            self.assertFalse(AssemblyApp.isAutomaticMotionSuspended(other))
+        finally:
+            App.closeDocument(name)
+
+    def test_motion_suspension_callbacks_before_containment(self):
+        with AssemblyApp.suspendAutomaticMotion(self.doc):
+            first, second, joint = self._suspended_joint_fixture(contained=False)
+            poses = [part.Placement for part in (first, second)]
+            suppressed = joint.Suppressed
+            joint.Offset1 = App.Placement(App.Vector(4, 3, 2), App.Rotation())
+            self.assertFalse(joint.Proxy.matchJCS(joint))
+            self.assertEqual(joint.Suppressed, suppressed)
+            joint.JointType = "Angle"
+            joint.Angle = 25
+            joint.Proxy.preventParallel(joint)
+            joint.Proxy.setJointConnectors(joint, [])
+            self.doc.recompute()
+            for part, pose in zip((first, second), poses):
+                self.assertTrue(part.Placement.isSame(pose, 1e-9))
+            self.assertIsNone(joint.Reference1)
+            self.assertIsNone(joint.Reference2)
+        for part, pose in zip((first, second), poses):
+            self.assertTrue(part.Placement.isSame(pose, 1e-9))
+
+    def test_motion_suspension_preserves_presolve_undo(self):
+        with AssemblyApp.suspendAutomaticMotion(self.doc):
+            first, second, joint = self._suspended_joint_fixture(contained=False)
+            original = second.Placement
+        self.assertTrue(joint.Proxy.matchJCS(joint))
+        self.assertFalse(second.Placement.isSame(original, 1e-9))
+        backups = dict(joint.Proxy.partsMovedByPresolved)
+        with AssemblyApp.suspendAutomaticMotion(self.doc):
+            current = second.Placement
+            joint.Proxy.undoPreSolve(joint)
+            self.assertTrue(second.Placement.isSame(current, 1e-9))
+            self.assertEqual(joint.Proxy.partsMovedByPresolved, backups)
+        joint.Proxy.undoPreSolve(joint)
+        self.assertTrue(second.Placement.isSame(original, 1e-9))
+
+    def test_motion_suspension_rigid_group_restore(self):
+        with AssemblyApp.suspendAutomaticMotion(self.doc):
+            first = self.assembly.newObject("Part::Box", "First")
+            second = self.assembly.newObject("Part::Box", "Second")
+            second.Placement = App.Placement(App.Vector(20, 0, 0), App.Rotation())
+            rigid = self.doc.addObject("App::FeaturePython", "Rigid")
+            JointObject.RigidGroupJoint(rigid, [first, second])
+            first.Placement = App.Placement(App.Vector(100, 0, 0), App.Rotation())
+            pose = second.Placement
+            rigid.Suppressed = True
+            rigid.Suppressed = False
+            rigid.Proxy.restoreFromPlacements(rigid)
+            self.assertTrue(second.Placement.isSame(pose, 1e-9))
+        rigid.Proxy.restoreFromPlacements(rigid)
+        self.assertTrue(second.Placement.Base.isEqual(App.Vector(120, 0, 0), 1e-9))
+
+    def test_motion_suspension_grounded_status_and_validated_solve(self):
+        with AssemblyApp.suspendAutomaticMotion(self.doc):
+            first, second, joint = self._suspended_joint_fixture()
+            ground = self.jointgroup.newObject("App::FeaturePython", "Grounded")
+            status = first.getPropertyStatus("Placement")
+            JointObject.GroundedJoint(ground, first)
+            self.assertEqual(first.getPropertyStatus("Placement"), status)
+            self.assertEqual(self.assembly.solve(), -7)
+            self.assertEqual(self.assembly.solveValidated(), 0)
+            self.assertIn("ReadOnly", first.getPropertyStatus("Placement"))
+            self.assertTrue(AssemblyApp.isAutomaticMotionSuspended(self.doc))
+        self.assertEqual(self.assembly.solve(), 0)
+
+    def test_motion_suspension_reconciles_ground_retargeting(self):
+        first = self.assembly.newObject("Part::Box", "First")
+        second = self.assembly.newObject("Part::Box", "Second")
+        ground = self.jointgroup.newObject("App::FeaturePython", "Grounded")
+        JointObject.GroundedJoint(ground, first)
+        self.assertIn("ReadOnly", first.getPropertyStatus("Placement"))
+        with AssemblyApp.suspendAutomaticMotion(self.doc):
+            ground.ObjectToGround = second
+            self.assertIn("ReadOnly", first.getPropertyStatus("Placement"))
+            self.assertNotIn("ReadOnly", second.getPropertyStatus("Placement"))
+            self.assertEqual(self.assembly.solveValidated(), 0)
+            self.assertNotIn("ReadOnly", first.getPropertyStatus("Placement"))
+            self.assertIn("ReadOnly", second.getPropertyStatus("Placement"))
+            targets = [
+                j.ObjectToGround for j in self.jointgroup.Group if hasattr(j, "ObjectToGround")
+            ]
+            self.assertEqual(targets, [second])
+
+    def test_motion_suspension_reconciles_ground_deletion(self):
+        first = self.assembly.newObject("Part::Box", "First")
+        second = self.assembly.newObject("Part::Box", "Second")
+        manually_locked = self.assembly.newObject("Part::Box", "ManualLock")
+        ground = self.jointgroup.newObject("App::FeaturePython", "FirstGround")
+        JointObject.GroundedJoint(ground, first)
+        retained_ground = self.jointgroup.newObject("App::FeaturePython", "SecondGround")
+        JointObject.GroundedJoint(retained_ground, second)
+        manually_locked.setPropertyStatus("Placement", "ReadOnly")
+        with AssemblyApp.suspendAutomaticMotion(self.doc):
+            self.doc.removeObject(ground.Name)
+            self.assertIn("ReadOnly", first.getPropertyStatus("Placement"))
+            self.assertEqual(self.assembly.solveValidated(), 0)
+            self.assertNotIn("ReadOnly", first.getPropertyStatus("Placement"))
+            self.assertIn("ReadOnly", second.getPropertyStatus("Placement"))
+            self.assertIn("ReadOnly", manually_locked.getPropertyStatus("Placement"))
+            targets = [
+                j.ObjectToGround for j in self.jointgroup.Group if hasattr(j, "ObjectToGround")
+            ]
+            self.assertNotIn(first, targets)
+
+    def test_motion_suspension_rejected_graph_preserves_pending_ground_release(self):
+        first = self.assembly.newObject("Part::Box", "First")
+        second = self.assembly.newObject("Part::Box", "Second")
+        ground = self.jointgroup.newObject("App::FeaturePython", "Grounded")
+        JointObject.GroundedJoint(ground, first)
+        with AssemblyApp.suspendAutomaticMotion(self.doc):
+            ground.ObjectToGround = second
+            incomplete = self.jointgroup.newObject("App::FeaturePython", "Incomplete")
+            JointObject.Joint(incomplete, JointObject.JointTypes.index("Fixed"))
+            self.assertEqual(self.assembly.solveValidated(), -8)
+            self.assertIn("ReadOnly", first.getPropertyStatus("Placement"))
+            self.assertNotIn("ReadOnly", second.getPropertyStatus("Placement"))
+            self.doc.removeObject(incomplete.Name)
+            self.assertEqual(self.assembly.solveValidated(), 0)
+            self.assertNotIn("ReadOnly", first.getPropertyStatus("Placement"))
+            self.assertIn("ReadOnly", second.getPropertyStatus("Placement"))
+
+    def test_motion_suspension_rejects_escaped_ground_without_source_effects(self):
+        outside = self.doc.addObject("Part::Box", "OutsideAssembly")
+        outside.Placement = App.Placement(App.Vector(80, 10, 0), App.Rotation())
+        self.doc.recompute()
+        pose = outside.Placement
+        status = outside.getPropertyStatus("Placement")
+        with AssemblyApp.suspendAutomaticMotion(self.doc):
+            local = self.assembly.newObject("Part::Box", "Local")
+            target_pose = local.Placement
+            ground = self.jointgroup.newObject("App::FeaturePython", "Grounded")
+            JointObject.GroundedJoint(ground, outside)
+            self.assertEqual(outside.getPropertyStatus("Placement"), status)
+            self.assertEqual(self.assembly.solveValidated(), -8)
+            self.assertTrue(outside.Placement.isSame(pose, 1e-9))
+            self.assertTrue(local.Placement.isSame(target_pose, 1e-9))
+            self.assertEqual(outside.getPropertyStatus("Placement"), status)
+            self.doc.removeObject(ground.Name)
+
+    def test_motion_suspension_validated_external_link(self):
+        source = App.newDocument("MotionSuspensionLinkSource")
+        directory = tempfile.TemporaryDirectory()
+        try:
+            external = source.addObject("Part::Box", "External")
+            external.Placement = App.Placement(App.Vector(80, 10, 0), App.Rotation())
+            source.recompute()
+            source.saveAs(os.path.join(directory.name, "Source.FCStd"))
+            self.doc.saveAs(os.path.join(directory.name, "Assembly.FCStd"))
+            pose = external.Placement
+            with AssemblyApp.suspendAutomaticMotion(self.doc):
+                first = self.assembly.newObject("Part::Box", "Local")
+                link = self.assembly.newObject("App::Link", "ExternalInstance")
+                link.LinkedObject = external
+                link.Placement = App.Placement(App.Vector(100, 20, 0), App.Rotation())
+                self.doc.recompute()
+                ground = self.jointgroup.newObject("App::FeaturePython", "Grounded")
+                JointObject.GroundedJoint(ground, first)
+                joint = self.jointgroup.newObject("App::FeaturePython", "Joint")
+                JointObject.Joint(joint, JointObject.JointTypes.index("Fixed"))
+                if App.GuiUp:
+                    JointObject.ViewProviderJoint(joint.ViewObject)
+                joint.Proxy.setJointConnectors(joint, [(first, ["Face1"]), (link, ["Face1"])])
+                self.assertEqual(self.assembly.solveValidated(), 0)
+                self.assertTrue(external.Placement.isSame(pose, 1e-9))
+                self.assertTrue(AssemblyApp.isAutomaticMotionSuspended(self.doc))
+        finally:
+            App.closeDocument(source.Name)
+            directory.cleanup()
+
+    @unittest.skipUnless(App.GuiUp, "Native Motion Python proxy requires the GUI module")
+    def test_motion_suspension_native_motion_admission(self):
+        from CommandCreateSimulation import Motion, Simulation
+
+        source = App.newDocument("MotionSuspensionDriveSource")
+        directory = tempfile.TemporaryDirectory()
+        try:
+            escaped_joint = source.addObject("App::FeaturePython", "EscapedJoint")
+            JointObject.Joint(escaped_joint, JointObject.JointTypes.index("Revolute"))
+            JointObject.ViewProviderJoint(escaped_joint.ViewObject)
+            source.saveAs(os.path.join(directory.name, "Source.FCStd"))
+            self.doc.saveAs(os.path.join(directory.name, "Assembly.FCStd"))
+            with AssemblyApp.suspendAutomaticMotion(self.doc):
+                first, second, joint = self._suspended_joint_fixture("Revolute")
+                ground = self.jointgroup.newObject("App::FeaturePython", "Grounded")
+                JointObject.GroundedJoint(ground, first)
+                group = self.assembly.newObject("Assembly::SimulationGroup", "Simulations")
+                simulation = group.newObject("App::FeaturePython", "Simulation")
+                Simulation(simulation)
+                motion = self.assembly.newObject("App::FeaturePython", "Motion")
+                Motion(motion, "Angular", joint, "30*time")
+                simulation.Group = [motion]
+                self.assertEqual(self.assembly.solveValidated(), 0)
+                self.assertEqual(self.assembly.generateSimulation(simulation), -7)
+
+                motion.Joint = escaped_joint
+                poses = [part.Placement for part in (first, second)]
+                self.assertEqual(self.assembly.solveValidated(), -8)
+                for part, pose in zip((first, second), poses):
+                    self.assertTrue(part.Placement.isSame(pose, 1e-9))
+                motion.Joint = joint
+        finally:
+            App.closeDocument(source.Name)
+            directory.cleanup()
+
     def test_component_count_for_link_array(self):
         source = self.doc.addObject("Part::Box", "ArraySource")
         array = self.assembly.newObject("App::Link", "Array")
@@ -167,6 +456,7 @@ class TestCore(AssemblyTestBase):
         JointObject.Joint(joint, 0)
         joint.Reference1 = (array.ElementList[1], [sub])
         joint.Reference2 = (array.ElementList[2], ["Face1"])
+        source_poses = {obj.Name: obj.Placement for obj in [array] + list(array.ElementList)}
         parent = self.doc.addObject("Assembly::AssemblyObject", "ParentAssembly")
         instance = parent.newObject("Assembly::AssemblyLink", "Instance")
         instance.LinkedObject = self.assembly
@@ -177,6 +467,9 @@ class TestCore(AssemblyTestBase):
         local_joint = local_group.Group[0]
         self.assertEqual(local_joint.Reference1, (local_array, ["1." + sub]))
         self.assertIsNotNone(local_array.getSubObject("1." + sub))
+        if AssemblyApp.isAutomaticMotionSuspended(self.doc):
+            for name, pose in source_poses.items():
+                self.assertTrue(self.doc.getObject(name).Placement.isSame(pose, 1e-9))
 
     def test_create_assembly(self):
         """Create an assembly."""
