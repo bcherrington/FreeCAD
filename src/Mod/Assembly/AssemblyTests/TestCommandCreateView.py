@@ -15,6 +15,8 @@ if App.GuiUp:
 
 class _Move:
     def __init__(self, move_type, placement):
+        self.Name = "Move"
+        self.Label = "Move"
         self.MoveType = move_type
         self.MovementTransform = placement
 
