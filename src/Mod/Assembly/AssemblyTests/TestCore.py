@@ -537,6 +537,13 @@ class TestCore(AssemblyTestBase):
 
     @unittest.skipUnless(App.GuiUp, "Native Motion Python proxy requires the GUI module")
     def test_posed_flexible_wrappers_keep_motion_holds_and_fixed_tool(self):
+        self._check_posed_flexible_motion_holds(body_sources=False)
+
+    @unittest.skipUnless(App.GuiUp, "Native Motion Python proxy requires the GUI module")
+    def test_linked_bodies_keep_posed_motion_holds_and_fixed_tool(self):
+        self._check_posed_flexible_motion_holds(body_sources=True)
+
+    def _check_posed_flexible_motion_holds(self, body_sources):
         from CommandCreateSimulation import Motion, Simulation
 
         def closure(owner):
@@ -609,8 +616,13 @@ class TestCore(AssemblyTestBase):
                     unit = assembly(source)
                     parts = {}
                     for name, offset in (("Base", 0), ("Head", 0), ("Cam", 15), ("Tool", 5)):
-                        part = unit.newObject("Part::Feature", name)
-                        part.Shape = Part.makeCylinder(2, 4)
+                        if body_sources:
+                            part = unit.newObject("PartDesign::Body", name)
+                            box = part.newObject("PartDesign::AdditiveBox", name + "Box")
+                            box.Length, box.Width, box.Height = 2, 3, 4
+                        else:
+                            part = unit.newObject("Part::Feature", name)
+                            part.Shape = Part.makeCylinder(2, 4)
                         part.Placement.Base = App.Vector(offset, 0, 0)
                         parts[name] = part
                     group = next(obj for obj in unit.Group if obj.TypeId == "Assembly::JointGroup")

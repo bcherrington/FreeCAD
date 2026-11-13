@@ -14,6 +14,8 @@
 #include <App/Link.h>
 #include <App/ObjectIdentifier.h>
 #include <App/Part.h>
+#include <App/SuppressibleExtension.h>
+#include <Mod/Assembly/App/AssemblyLink.h>
 #include <Base/Console.h>
 #include <Base/Interpreter.h>
 #include <Mod/Assembly/App/AssemblyObject.h>
@@ -62,6 +64,31 @@ TEST_F(AssemblyObjectTest, createAssemblyObject)  // NOLINT
     // Act
 
     // Assert
+}
+
+TEST_F(AssemblyObjectTest, admissionPropertyOwnershipIncludesNativeAndExtensionProperties)
+{
+    auto* assembly = getObject();
+    auto* document = assembly->getDocument();
+    Assembly::AutomaticMotionSuspension scope(*document);
+    auto* source = document->addObject<App::Part>("Source");
+    auto* link = assembly->addObject<App::Link>("Link");
+    link->LinkedObject.setValue(source);
+    EXPECT_EQ(assembly->getPropertyByName("Group")->getContainer(), assembly);
+    EXPECT_EQ(source->getPropertyByName("Group")->getContainer(), source);
+    ASSERT_EQ(link->getPropertyByName("Group"), source->getPropertyByName("Group"));
+    EXPECT_NE(link->getPropertyByName("Group")->getContainer(), link);
+    EXPECT_EQ(link->getPropertyByName("ElementList")->getContainer(), link);
+    auto* occurrence = assembly->addObject<Assembly::AssemblyLink>("Occurrence");
+    EXPECT_EQ(occurrence->getPropertyByName("Group")->getContainer(), occurrence);
+    auto* element = document->addObject<App::LinkElement>("Element");
+    auto* suppression = element->getExtension<App::SuppressibleExtension>();
+    ASSERT_NE(suppression, nullptr);
+    EXPECT_EQ(suppression->Suppressed.getContainer(), element);
+    auto* dynamic = source->addDynamicProperty("App::PropertyString", "Formula");
+    ASSERT_NE(dynamic, nullptr);
+    EXPECT_EQ(dynamic->getContainer(), source);
+    EXPECT_EQ(link->getPropertyByName("Formula"), dynamic);
 }
 
 TEST_F(AssemblyObjectTest, automaticMotionScopeNestsAndIsolatesDocuments)
@@ -658,7 +685,8 @@ def mixed_motion(owner, joint, kind="Angular"):
     return motion
 
 @contextmanager
-def mixed_fixture(modes=(True,), inner_rigid=False, angle=25, release_motion=False):
+def mixed_fixture(modes=(True,), inner_rigid=False, angle=25, release_motion=False,
+                  body_sources=False):
     documents = []
     with tempfile.TemporaryDirectory() as directory, ExitStack() as guards:
         def document():
@@ -683,8 +711,18 @@ def mixed_fixture(modes=(True,), inner_rigid=False, angle=25, release_motion=Fal
         try:
             definitions = document()
             for name, radius in (("Base", 3), ("Arm", 2)):
-                part = definitions.addObject("Part::Feature", name)
-                part.Shape = Part.makeCylinder(radius, 4)
+                if body_sources:
+                    parent = definitions.addObject("App::Part", name + "Parent")
+                    parent.Placement = App.Placement(App.Vector(11, -7, 3), App.Rotation(7, 11, 13))
+                    part = parent.newObject("PartDesign::Body", name)
+                    box = part.newObject("PartDesign::AdditiveBox", name + "Box")
+                    box.Length = radius
+                    box.Width = 3
+                    box.Height = 4
+                    part.Placement = App.Placement(App.Vector(5, 2, -1), App.Rotation(3, 5, 7))
+                else:
+                    part = definitions.addObject("Part::Feature", name)
+                    part.Shape = Part.makeCylinder(radius, 4)
             definitions.recompute()
             definitions.save()
             mechanism = document()
@@ -1821,5 +1859,332 @@ assert mixed_snapshot(coordinate_ambiguous_doc) == before
     ASSERT_NO_THROW(Base::Interpreter().runString(R"PY(
 coordinate_ambiguous_scope.__exit__(None, None, None)
 App.closeDocument(coordinate_ambiguous_doc.Name)
+)PY"));
+}
+
+TEST_F(AssemblyObjectTest, validatedLinkedBodyAndFeatureOwnershipMatrix)
+{
+    ASSERT_NO_THROW(Base::Interpreter().runString(mixedAssemblyFixture));
+    ASSERT_NO_THROW(Base::Interpreter().runString(posedWrapperFixture));
+    ASSERT_NO_THROW(Base::Interpreter().runString(R"PY(
+from contextlib import ExitStack
+
+for body_source, same_document, collision in ((False, False, False),
+                                             (True, False, False),
+                                             (True, True, False),
+                                             (True, False, True),
+                                             (True, True, True)):
+    with tempfile.TemporaryDirectory() as directory, ExitStack() as guards:
+        source = App.newDocument()
+        target = source if same_document else App.newDocument()
+        try:
+            guards.enter_context(AssemblyApp.suspendAutomaticMotion(source))
+            if target != source:
+                guards.enter_context(AssemblyApp.suspendAutomaticMotion(target))
+            parent = source.addObject("App::Part", "Parent")
+            parent.Placement = App.Placement(App.Vector(11, 13, 17), App.Rotation(7, 11, 13))
+            if body_source:
+                geometry = parent.newObject("PartDesign::Body", "Geometry")
+                box = geometry.newObject("PartDesign::AdditiveBox", "Box")
+                box.Length, box.Width, box.Height = 2, 3, 4
+                second = geometry.newObject("PartDesign::AdditiveBox", "SecondBox")
+                second.Length, second.Width, second.Height = 2, 3, 5
+            else:
+                geometry = parent.newObject("Part::Feature", "Geometry")
+                geometry.Shape = Part.makeBox(2, 3, 4)
+            geometry.Placement = App.Placement(App.Vector(101, 103, 107), App.Rotation(3, 5, 7))
+            if collision:
+                for name in ("Joint", "MotionType", "Formula"):
+                    geometry.addProperty("App::PropertyString", name)
+                    setattr(geometry, name, "source metadata, never local motion")
+            source.recompute()
+            source.saveAs(os.path.join(directory, "Source.FCStd"))
+            if target != source:
+                target.saveAs(os.path.join(directory, "Target.FCStd"))
+            assembly = target.addObject("Assembly::AssemblyObject", "Assembly")
+            joints = assembly.newObject("Assembly::JointGroup", "Joints")
+            fixed = assembly.newObject("App::Link", "Fixed")
+            moving = assembly.newObject("App::Link", "Moving")
+            for part in (fixed, moving):
+                part.LinkedObject = geometry
+                part.LinkTransform = False
+            moving.Placement.Base = App.Vector(23, 29, 31)
+            ground = joints.newObject("App::FeaturePython", "Ground")
+            JointObject.GroundedJoint(ground, fixed)
+            joint = joints.newObject("App::FeaturePython", "FixedJoint")
+            JointObject.Joint(joint, JointObject.JointTypes.index("Fixed"))
+            joint.Detach1 = joint.Detach2 = True
+            joint.Reference1, joint.Reference2 = (fixed, [""]), (moving, [""])
+            joint.Placement1 = joint.Placement2 = App.Placement()
+            target.recompute()
+            # Freeze source objects separately: same-document target state may change.
+            source_objects = [parent, geometry] + (list(geometry.Group) if body_source else [])
+            proof = [(obj, tuple(obj.State), tuple(obj.Placement.toMatrix().A))
+                     for obj in source_objects]
+            digest = hashlib.sha256(Path(source.FileName).read_bytes()).hexdigest()
+            before = App.Placement(moving.Placement)
+            assert assembly.solveValidated(False) == 0, (body_source, same_document, collision)
+            assert not moving.Placement.isSame(before, 1e-7)
+            delta = (fixed.Placement * joint.Placement1).inverse() * (moving.Placement * joint.Placement2)
+            assert delta.Base.Length < 1e-6, delta
+            assert abs(delta.Rotation.Angle) < 1.7453292519943295e-8, delta
+            for obj, state, placement in proof:
+                assert tuple(obj.State) == state, obj.Name
+                assert tuple(obj.Placement.toMatrix().A) == placement, obj.Name
+            assert hashlib.sha256(Path(source.FileName).read_bytes()).hexdigest() == digest
+        finally:
+            guards.close()
+            if target != source:
+                App.closeDocument(target.Name)
+            App.closeDocument(source.Name)
+)PY"));
+}
+
+TEST_F(AssemblyObjectTest, linkedSourceGroupCannotCollectSourceJoints)
+{
+    ASSERT_NO_THROW(Base::Interpreter().runString(mixedAssemblyFixture));
+    ASSERT_NO_THROW(Base::Interpreter().runString(R"PY(
+with mixed_fixture((False,), angle=0) as (root, nodes, sources):
+    source_doc = nodes[0].LinkedObject.Document
+    source_joint = mixed_joint(nodes[0].LinkedObject)
+    target_parts = mixed_parts(nodes[0])
+    source_joint.Reference1 = (target_parts["Base"], [""])
+    source_joint.Reference2 = (target_parts["Arm"], [""])
+    parent = source_doc.addObject("App::Part", "SourceContainer")
+    parent.Group = [nodes[0].LinkedObject]
+    leaf = root.newObject("App::Link", "DefinitionLeaf")
+    leaf.LinkedObject = parent
+    source_state = mixed_snapshot(source_doc)
+    target_state = mixed_snapshot(root.Document)
+    # Endpoints deliberately overlap real local components: the final endpoint
+    # filter cannot hide incorrect traversal into this source definition.
+    assert source_joint not in list(root.Joints)
+    assert mixed_snapshot(source_doc) == source_state
+    assert mixed_snapshot(root.Document) == target_state
+)PY"));
+}
+
+TEST_F(AssemblyObjectTest, linkedBodiesRetainRepeatedPosedAndDormantOccurrenceContracts)
+{
+    ASSERT_NO_THROW(Base::Interpreter().runString(mixedAssemblyFixture));
+    ASSERT_NO_THROW(Base::Interpreter().runString(posedWrapperFixture));
+    ASSERT_NO_THROW(Base::Interpreter().runString(R"PY(
+for inner_rigid in (False, True):
+    with mixed_fixture((False, False), inner_rigid=inner_rigid, angle=0,
+                       body_sources=True) as (root, nodes, sources):
+        coordinate_set_frames(root, nodes, 3)
+        if inner_rigid:
+            # The rigid occurrence is the movable component. Its hidden Body
+            # descendants cannot become root joint endpoints.
+            first, second = [coordinate_inner(node) for node in nodes]
+            worlds = [root.Placement * node.Placement * inner.Placement
+                      for node, inner in zip(nodes, (first, second))]
+            group = next(obj for obj in root.Group if obj.TypeId == "Assembly::JointGroup")
+            ground = group.newObject("App::FeaturePython", "RigidOccurrenceGround")
+            JointObject.GroundedJoint(ground, first)
+            joint = group.newObject("App::FeaturePython", "RigidOccurrenceFixed")
+            JointObject.Joint(joint, JointObject.JointTypes.index("Fixed"))
+            joint.Detach1 = joint.Detach2 = True
+            joint.Reference1, joint.Reference2 = (first, [""]), (second, [""])
+            joint.Placement1 = worlds[0].inverse() * worlds[1]
+            joint.Placement2 = App.Placement()
+        else:
+            joint, first, second = coordinate_joint(root, nodes)
+        proof = coordinate_sources(sources)
+        frames = coordinate_frames(root)
+        assert first != second
+        assert root.solveValidated(False) == 0
+        if inner_rigid:
+            left = root.Placement * nodes[0].Placement * first.Placement * joint.Placement1
+            right = root.Placement * nodes[1].Placement * second.Placement * joint.Placement2
+            delta = left.inverse() * right
+            assert delta.Base.Length < 1e-6, delta
+            assert abs(delta.Rotation.Angle) < 1.7453292519943295e-8, delta
+        else:
+            coordinate_assert_fixed(root, nodes, joint, first, second)
+        coordinate_check_frames(frames)
+        coordinate_check_sources(proof)
+
+with mixed_fixture((True,), inner_rigid=False, angle=25,
+                   body_sources=True) as (root, nodes, sources):
+    # A flexible occurrence below a rigid ancestor remains structurally present,
+    # while its joints and articulated Body components stay dormant.
+    inner = coordinate_inner(nodes[0])
+    assert not inner.Rigid and nodes[0].Rigid
+    pivot = mixed_joint(inner)
+    parts = mixed_parts(inner)
+    articulation = parts["Base"].Placement.inverse() * parts["Arm"].Placement
+    assert abs(articulation.Rotation.Angle) > 0.1
+    descendants = [(obj, App.Placement(obj.Placement)) for obj in mixed_closure(nodes[0])
+                   if hasattr(obj, "Placement")]
+    proof = coordinate_sources(sources)
+    assert pivot not in list(root.Joints)
+    assert root.solveValidated(False) == 0
+    assert pivot not in list(root.Joints)
+    for obj, placement in descendants:
+        assert obj.Placement.isSame(placement, 1e-9), obj.Name
+    coordinate_check_sources(proof)
+)PY"));
+}
+
+TEST_F(AssemblyObjectTest, linkedOwnedMalformedPropertiesRejectBeforeArrayPreparation)
+{
+    ASSERT_NO_THROW(Base::Interpreter().runString(mixedAssemblyFixture));
+    ASSERT_NO_THROW(Base::Interpreter().runString(R"PY(
+for kind in ("wrong_group_type", "group_cycle", "mixed_motion", "mixed_record"):
+    with mixed_fixture((False,), angle=0, body_sources=True) as (root, nodes, sources):
+        geometry = sources[0][0].getObject("Base")
+        leaf = root.newObject("App::Link", "MalformedLeaf")
+        # Install the local property before linking, so source forwarding does
+        # not affect supported dynamic property creation.
+        if kind == "wrong_group_type":
+            leaf.addProperty("App::PropertyString", "Group")
+        elif kind == "group_cycle":
+            leaf.addProperty("App::PropertyLinkList", "Group")
+            leaf.Group = [root]
+        elif kind == "mixed_motion":
+            leaf.addProperty("App::PropertyString", "Formula")
+            geometry.addProperty("App::PropertyXLinkSubHidden", "Joint")
+            geometry.Joint = (mixed_joint(nodes[0]), [""])
+            geometry.addProperty("App::PropertyEnumeration", "MotionType")
+            geometry.MotionType = ["Angular", "Linear"]
+        else:
+            geometry.addProperty("App::PropertyLinkGlobal", "ObjectToGround")
+            # PropertyLinkGlobal has global spatial scope, but still stores a
+            # same-document target. This forwarded source schema is not local.
+            geometry.ObjectToGround = geometry
+            group = next(obj for obj in root.Group if obj.TypeId == "Assembly::JointGroup")
+            # A record in a real local JointGroup cannot borrow its schema.
+            group.addObject(leaf)
+        leaf.LinkedObject = geometry
+        array = root.newObject("App::Link", "PreparationOracle")
+        array.LinkedObject = geometry
+        array.ElementCount = 2
+        array.Placement.Base = App.Vector(13, 17, 19)
+        assert len(array.ElementList) == 2
+        before = mixed_snapshot(root.Document)
+        source_before = [(doc, mixed_snapshot(doc)) for doc, _ in sources]
+        assert root.solveValidated(False) == -8, kind
+        assert mixed_snapshot(root.Document) == before, kind
+        assert array.Placement.Base.isEqual(App.Vector(13, 17, 19), 1e-9)
+        for doc, snapshot in source_before:
+            assert mixed_snapshot(doc) == snapshot, (kind, doc.Name)
+        root.Document.removeObject(leaf.Name)
+        if kind == "mixed_motion":
+            mixed_motion(root, mixed_joint(nodes[0]))
+        elif kind == "mixed_record":
+            local_ground = group.newObject("App::FeaturePython", "ValidLocalGround")
+            JointObject.GroundedJoint(local_ground, mixed_parts(nodes[0])["Base"])
+        # Same Body array and native solve, now with a fully local valid schema.
+        assert root.solveValidated(False) == 0, kind
+)PY"));
+}
+
+TEST_F(AssemblyObjectTest, expandedLinkedBodyArraySolvesUsingLocalElements)
+{
+    ASSERT_NO_THROW(Base::Interpreter().runString(mixedAssemblyFixture));
+    ASSERT_NO_THROW(Base::Interpreter().runString(R"PY(
+with mixed_fixture((False,), angle=0, body_sources=True) as (root, nodes, sources):
+    geometry = sources[0][0].getObject("Base")
+    array = root.newObject("App::Link", "BodyArray")
+    array.LinkedObject = geometry
+    array.ElementCount = 2
+    first, second = array.ElementList
+    assert first.Document == root.Document and second.Document == root.Document
+    second.Placement.Base = App.Vector(23, 29, 31)
+    group = next(obj for obj in root.Group if obj.TypeId == "Assembly::JointGroup")
+    ground = group.newObject("App::FeaturePython", "ArrayGround")
+    JointObject.GroundedJoint(ground, first)
+    joint = group.newObject("App::FeaturePython", "ArrayFixed")
+    JointObject.Joint(joint, JointObject.JointTypes.index("Fixed"))
+    joint.Detach1 = joint.Detach2 = True
+    joint.Reference1, joint.Reference2 = (first, [""]), (second, [""])
+    joint.Placement1 = joint.Placement2 = App.Placement()
+    before = App.Placement(second.Placement)
+    proof = [(doc, mixed_snapshot(doc)) for doc, _ in sources]
+    assert root.solveValidated(False) == 0
+    assert not second.Placement.isSame(before, 1e-7)
+    delta = (first.Placement * joint.Placement1).inverse() * (second.Placement * joint.Placement2)
+    assert delta.Base.Length < 1e-6, delta
+    assert abs(delta.Rotation.Angle) < 1.7453292519943295e-8, delta
+    second.Suppressed = True
+    assert root.solveValidated(False) == 0
+    assert joint not in list(root.Joints)
+    for doc, snapshot in proof:
+        assert mixed_snapshot(doc) == snapshot, doc.Name
+)PY"));
+}
+
+TEST_F(AssemblyObjectTest, ownedForeignGroupRejectsBeforeLocalArrayPreparation)
+{
+    auto* assembly = getObject();
+    auto* document = assembly->getDocument();
+    const auto foreignName = App::GetApplication().getUniqueDocumentName("foreignGroup");
+    auto* foreignDocument = App::GetApplication().newDocument(foreignName.c_str());
+    auto* foreign = foreignDocument->addObject<App::Part>("ForeignChild");
+    auto* source = document->addObject<App::Part>("SourcePart");
+    auto* link = assembly->addObject<App::Link>("OwnedGroupLink");
+    auto* group = dynamic_cast<App::PropertyLinkList*>(
+        link->addDynamicProperty("App::PropertyLinkList", "Group")
+    );
+    ASSERT_NE(group, nullptr);
+    group->setScope(App::LinkScope::Global);
+    // Supported temporary external-link admission; clear it before closing the
+    // foreign document because plain PropertyLinkList does not track that close.
+    group->setAllowExternal(true);
+    group->setValues({foreign});
+    link->LinkedObject.setValue(source);
+    auto* array = assembly->addObject<App::Link>("PreparationOracle");
+    array->LinkedObject.setValue(source);
+    array->ElementCount.setValue(2);
+    const Base::Placement before(Base::Vector3d(13, 17, 19), Base::Rotation());
+    {
+        Assembly::AutomaticMotionSuspension scope(*document);
+        array->Placement.setValue(before);
+        EXPECT_EQ(assembly->solveValidated(false), -8);
+        EXPECT_TRUE(array->Placement.getValue().isSame(before, 1e-9));
+    }
+    // Pair the refusal oracle with the actual preparation helper's write.
+    assembly->ensureIdentityPlacements();
+    EXPECT_TRUE(array->Placement.getValue().isIdentity());
+    group->setValues({});
+    App::GetApplication().closeDocument(foreignName.c_str());
+}
+
+TEST_F(AssemblyObjectTest, linkedBodyMotionSchemasKeepLocalAuthorityAndHeldOccurrences)
+{
+    ASSERT_NO_THROW(Base::Interpreter().runString(mixedAssemblyFixture));
+    ASSERT_NO_THROW(Base::Interpreter().runString(posedWrapperFixture));
+    ASSERT_NO_THROW(Base::Interpreter().runString(R"PY(
+with mixed_fixture((False, False), angle=25, body_sources=True) as (root, nodes, sources):
+    pivots = [mixed_joint(node) for node in nodes]
+    assert pivots[0] != pivots[1]
+    parts = [mixed_parts(node) for node in nodes]
+    held = [pair["Base"].Placement.inverse() * pair["Arm"].Placement for pair in parts]
+    assert not held[0].isSame(held[1], 1e-9)
+    geometry = sources[0][0].getObject("Base")
+    geometry.addProperty("App::PropertyXLinkSubHidden", "Joint")
+    geometry.Joint = (pivots[0], [""])
+    geometry.addProperty("App::PropertyEnumeration", "MotionType")
+    geometry.MotionType = ["Angular", "Linear"]
+    leaf = root.newObject("App::Link", "IncompleteLocalMotion")
+    leaf.addProperty("App::PropertyString", "Formula")
+    leaf.Formula = "time"
+    leaf.LinkedObject = geometry
+    before = mixed_snapshot(root.Document)
+    assert root.solveValidated(False) == -8
+    assert mixed_snapshot(root.Document) == before
+    root.Document.removeObject(leaf.Name)
+    # An entirely local equivalent is valid; the failure is the ownership
+    # boundary, rather than an incompatible angular/revolute schema.
+    motions = [mixed_motion(root, pivot) for pivot in pivots]
+    assert motions[0].Joint[0] == pivots[0] and motions[1].Joint[0] == pivots[1]
+    proof = coordinate_sources(sources)
+    assert root.solveValidated(False) == 0
+    assert set(pivots).issubset(set(list(root.Joints)))
+    for pair, pose, motion, pivot in zip(parts, held, motions, pivots):
+        assert motion.Joint[0] == pivot
+        assert (pair["Base"].Placement.inverse() * pair["Arm"].Placement).isSame(pose, 1e-9)
+    coordinate_check_sources(proof)
 )PY"));
 }

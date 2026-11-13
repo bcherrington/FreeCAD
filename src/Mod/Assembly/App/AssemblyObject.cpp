@@ -331,6 +331,21 @@ void AssemblyObject::onChanged(const App::Property* prop)
 
 namespace
 {
+// Link property lookup may return a source definition's property. Extensions set
+// their properties' container to the host object, so this also retains real
+// local Group and ElementList properties without granting source authority.
+App::Property* ownedProperty(App::DocumentObject* object, const char* name)
+{
+    auto* property = object->getPropertyByName(name);
+    return property && property->getContainer() == object ? property : nullptr;
+}
+
+template<typename Property>
+Property* ownedProperty(App::DocumentObject* object, const char* name)
+{
+    return dynamic_cast<Property*>(ownedProperty(object, name));
+}
+
 // Admission reads the raw local graph, before the solver's filtering and repair helpers.
 // Source geometry reached through a local link is input, never a writable component.
 class AssemblyAdmission
@@ -397,10 +412,10 @@ public:
         }
         for (auto* motion : motionRecords) {
             const auto context = contexts.at(motion);
-            auto* reference = motion->getPropertyByName<App::PropertyXLinkSub>("Joint");
-            auto* type = motion->getPropertyByName<App::PropertyEnumeration>("MotionType");
+            auto* reference = ownedProperty<App::PropertyXLinkSub>(motion, "Joint");
+            auto* type = ownedProperty<App::PropertyEnumeration>(motion, "MotionType");
             if (!reference || !standardJoints.contains(reference->getValue()) || !type
-                || !motion->getPropertyByName<App::PropertyString>("Formula")) {
+                || !ownedProperty<App::PropertyString>(motion, "Formula")) {
                 return false;
             }
             // An internal drive cannot acquire authority over a different occurrence.
@@ -522,19 +537,19 @@ private:
             }
             owner.jointGroup = jointGroup;
         }
-        if (object->getPropertyByName("Joint") || object->getPropertyByName("MotionType")
-            || object->getPropertyByName("Formula")) {
+        if (ownedProperty(object, "Joint") || ownedProperty(object, "MotionType")
+            || ownedProperty(object, "Formula")) {
             motionRecords.insert(object);
         }
 
-        if (auto* groupProperty = object->getPropertyByName("Group")) {
+        if (auto* groupProperty = ownedProperty(object, "Group")) {
             auto* group = dynamic_cast<App::PropertyLinkList*>(groupProperty);
             if (!group) {
                 return false;
             }
             for (auto* child : group->getValues()) {
                 if (object->isDerivedFrom<SimulationGroup>()) {
-                    auto* drives = child ? child->getPropertyByName<App::PropertyLinkList>("Group")
+                    auto* drives = child ? ownedProperty<App::PropertyLinkList>(child, "Group")
                                          : nullptr;
                     if (!drives) {
                         return false;
@@ -551,7 +566,7 @@ private:
         }
         // Expanded link arrays are writable through their local LinkElement instances.
         if (object->isLinkGroup()) {
-            auto* elements = object->getPropertyByName<App::PropertyLinkList>("ElementList");
+            auto* elements = ownedProperty<App::PropertyLinkList>(object, "ElementList");
             if (!elements) {
                 return false;
             }
@@ -567,7 +582,7 @@ private:
 
     bool endpoint(App::DocumentObject* record, const char* propertyName) const
     {
-        auto* reference = record->getPropertyByName<App::PropertyXLinkSub>(propertyName);
+        auto* reference = ownedProperty<App::PropertyXLinkSub>(record, propertyName);
         const auto& local = owners.at(contexts.at(record).owner).components;
         if (!reference || !local.contains(reference->getValue())) {
             return false;
@@ -595,16 +610,16 @@ private:
     {
         const auto context = contexts.at(record);
         const auto& owner = owners.at(context.owner);
-        const bool hasEndpoints = record->getPropertyByName("Reference1")
-            || record->getPropertyByName("Reference2");
-        const bool hasGround = record->getPropertyByName("ObjectToGround");
-        const bool hasRigid = record->getPropertyByName("ObjectsToRigidGroup");
+        const bool hasEndpoints = ownedProperty(record, "Reference1")
+            || ownedProperty(record, "Reference2");
+        const bool hasGround = ownedProperty(record, "ObjectToGround");
+        const bool hasRigid = ownedProperty(record, "ObjectsToRigidGroup");
         if (static_cast<int>(hasEndpoints) + static_cast<int>(hasGround) + static_cast<int>(hasRigid)
             != 1) {
             return false;
         }
         if (hasGround) {
-            auto* property = record->getPropertyByName<App::PropertyLink>("ObjectToGround");
+            auto* property = ownedProperty<App::PropertyLink>(record, "ObjectToGround");
             auto* target = property ? property->getValue() : nullptr;
             if (!target || target->getDocument() != document || !owner.groundable.contains(target)) {
                 return false;
@@ -616,12 +631,12 @@ private:
             }
             return true;
         }
-        auto* suppressed = record->getPropertyByName<App::PropertyBool>("Suppressed");
+        auto* suppressed = ownedProperty<App::PropertyBool>(record, "Suppressed");
         if (!suppressed) {
             return false;
         }
         if (hasRigid) {
-            auto* property = record->getPropertyByName<App::PropertyLinkList>("ObjectsToRigidGroup");
+            auto* property = ownedProperty<App::PropertyLinkList>(record, "ObjectsToRigidGroup");
             if (!property || property->getValues().size() < 2) {
                 return false;
             }
@@ -633,17 +648,17 @@ private:
             }
             return true;
         }
-        const auto* type = record->getPropertyByName<App::PropertyEnumeration>("JointType");
+        const auto* type = ownedProperty<App::PropertyEnumeration>(record, "JointType");
         if (!type || type->getValue() < 0 || type->getValue() > static_cast<long>(JointType::Belt)
-            || !record->getPropertyByName<App::PropertyPlacement>("Placement1")
-            || !record->getPropertyByName<App::PropertyPlacement>("Placement2")
-            || !record->getPropertyByName<App::PropertyPlacement>("Offset1")
-            || !record->getPropertyByName<App::PropertyPlacement>("Offset2")
+            || !ownedProperty<App::PropertyPlacement>(record, "Placement1")
+            || !ownedProperty<App::PropertyPlacement>(record, "Placement2")
+            || !ownedProperty<App::PropertyPlacement>(record, "Offset1")
+            || !ownedProperty<App::PropertyPlacement>(record, "Offset2")
             || !endpoint(record, "Reference1") || !endpoint(record, "Reference2")) {
             return false;
         }
-        auto* first = record->getPropertyByName<App::PropertyXLinkSub>("Reference1")->getValue();
-        auto* second = record->getPropertyByName<App::PropertyXLinkSub>("Reference2")->getValue();
+        auto* first = ownedProperty<App::PropertyXLinkSub>(record, "Reference1")->getValue();
+        auto* second = ownedProperty<App::PropertyXLinkSub>(record, "Reference2")->getValue();
         if (first == second) {
             return false;
         }
@@ -687,11 +702,11 @@ void collectActiveSubAssemblies(
             }
             result.push_back(link);
         }
-        if (auto* group = object->getPropertyByName<App::PropertyLinkList>("Group")) {
+        if (auto* group = ownedProperty<App::PropertyLinkList>(object, "Group")) {
             collectActiveSubAssemblies(group->getValues(), result, visited);
         }
         if (object->isLinkGroup()) {
-            if (auto* elements = object->getPropertyByName<App::PropertyLinkList>("ElementList")) {
+            if (auto* elements = ownedProperty<App::PropertyLinkList>(object, "ElementList")) {
                 collectActiveSubAssemblies(elements->getValues(), result, visited);
             }
         }
