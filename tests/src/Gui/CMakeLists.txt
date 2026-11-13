@@ -40,6 +40,19 @@ setup_qt_test(TranslatorLocale)
 setup_qt_test(InputField)
 setup_qt_test(QuantitySpinBox)
 setup_qt_test(SelectionView)
+setup_qt_test(TreeWidgetLifecycle)
+set_tests_properties(TreeWidgetLifecycle_Tests_run PROPERTIES TIMEOUT 120)
+foreach(_case IN ITEMS liveRestoreCompletion finishOnUnwind survivingTreeAndPendingDeletion)
+    add_test(NAME TreeWidgetLifecycle_${_case} COMMAND TreeWidgetLifecycle_Tests_run ${_case})
+    set_tests_properties(TreeWidgetLifecycle_${_case} PROPERTIES
+        TIMEOUT 120
+        LABELS "Qt"
+        ENVIRONMENT "${_qt_test_environment}")
+    if(WIN32)
+        set_tests_properties(TreeWidgetLifecycle_${_case} PROPERTIES
+            ENVIRONMENT_MODIFICATION "${_test_env_mod}")
+    endif()
+endforeach()
 setup_qt_test(ThreadAffinity)
 # Bound the test itself so direct CTest invocations cannot hang indefinitely.
 set_tests_properties(ThreadAffinity_Tests_run PROPERTIES TIMEOUT 120)

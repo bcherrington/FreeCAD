@@ -761,6 +761,8 @@ TreeWidget::TreeWidget(const char* name, QWidget* parent)
 
 TreeWidget::~TreeWidget()
 {
+    connectStartOpenDocument.disconnect();
+    connectFinishOpenDocument.disconnect();
     connectNewDocument.disconnect();
     connectDelDocument.disconnect();
     connectRenDocument.disconnect();
