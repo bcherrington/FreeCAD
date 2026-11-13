@@ -156,6 +156,14 @@ AssemblyExport std::vector<App::DocumentObject*> getAssemblyComponents(const Ass
 
 namespace detail
 {
+// Compose only actual local spatial owners. A root excludes its own placement;
+// omitting it produces the document containing frame. Ambiguous/cyclic ownership
+// and paths outside a requested root are rejected rather than guessed.
+Base::Placement getContainingPlacement(
+    const App::DocumentObject* object,
+    const App::DocumentObject* root = nullptr
+);
+
 // Internal collector shared by native component enumeration and admission.
 // Call only after validating containment when including dormant components.
 std::vector<App::DocumentObject*> getAssemblyComponents(

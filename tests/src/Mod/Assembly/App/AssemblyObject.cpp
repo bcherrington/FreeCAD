@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: LGPL-2.1-or-later
 
 #include <gtest/gtest.h>
+#include <cmath>
 #include <memory>
 #include <stdexcept>
 #include <string>
@@ -16,6 +17,7 @@
 #include <Base/Console.h>
 #include <Base/Interpreter.h>
 #include <Mod/Assembly/App/AssemblyObject.h>
+#include <Mod/Assembly/App/AssemblyUtils.h>
 #include <Mod/Assembly/App/Groups.h>
 #include <Mod/Assembly/App/MotionSuspension.h>
 #include <src/App/InitApplication.h>
@@ -656,7 +658,7 @@ def mixed_motion(owner, joint, kind="Angular"):
     return motion
 
 @contextmanager
-def mixed_fixture(modes=(True,), inner_rigid=False, angle=25):
+def mixed_fixture(modes=(True,), inner_rigid=False, angle=25, release_motion=False):
     documents = []
     with tempfile.TemporaryDirectory() as directory, ExitStack() as guards:
         def document():
@@ -721,6 +723,8 @@ def mixed_fixture(modes=(True,), inner_rigid=False, angle=25):
             target.recompute()
             target.save()
             sources = [(doc, mixed_snapshot(doc)) for doc in documents[:-1]]
+            if release_motion:
+                guards.close()
             yield root, nodes, sources
         finally:
             for doc in reversed(documents):
@@ -1379,5 +1383,443 @@ with mixed_fixture((False,)) as (root, nodes, sources):
     assert ground.ObjectToGround == second
     for source_doc, before in sources:
         assert mixed_snapshot(source_doc) == before
+)PY"));
+}
+
+namespace
+{
+constexpr const char* posedWrapperFixture = R"PY(
+import hashlib
+from pathlib import Path
+
+def coordinate_inner(node):
+    return next(obj for obj in node.Group if obj.TypeId == "Assembly::AssemblyLink")
+
+def coordinate_world(root, node, part):
+    # Independent oracle: explicit known spatial ancestry, with no reference or
+    # solver placement helpers. Source definitions are not spatial parents.
+    return root.Placement * node.Placement * coordinate_inner(node).Placement * part.Placement
+
+def coordinate_sources(sources):
+    return [(doc, mixed_snapshot(doc), hashlib.sha256(Path(doc.FileName).read_bytes()).hexdigest())
+            for doc, _ in sources]
+
+def coordinate_check_sources(proof):
+    for doc, state, digest in proof:
+        assert mixed_snapshot(doc) == state, doc.Name
+        assert hashlib.sha256(Path(doc.FileName).read_bytes()).hexdigest() == digest, doc.Name
+
+def coordinate_set_frames(root, nodes, variant):
+    nodes[1].Placement = App.Placement(App.Vector(40, 0, 0), App.Rotation())
+    if variant >= 1:
+        nodes[1].Placement = App.Placement(App.Vector(40, -13, 9), App.Rotation(31, -17, 23))
+    if variant >= 2:
+        coordinate_inner(nodes[0]).Placement = App.Placement(
+            App.Vector(3, 11, -7), App.Rotation(-19, 13, 7))
+        coordinate_inner(nodes[1]).Placement = App.Placement(
+            App.Vector(-5, 2, 17), App.Rotation(11, 29, -13))
+    if variant >= 3:
+        root.Placement = App.Placement(App.Vector(101, -53, 27), App.Rotation(17, 31, -23))
+
+def coordinate_joint(root, nodes):
+    first, second = [mixed_parts(node)["Base"] for node in nodes]
+    group = next(obj for obj in root.Group if obj.TypeId == "Assembly::JointGroup")
+    ground = group.newObject("App::FeaturePython", "CoordinateGround")
+    JointObject.GroundedJoint(ground, first)
+    joint = group.newObject("App::FeaturePython", "CoordinateFixed")
+    JointObject.Joint(joint, JointObject.JointTypes.index("Fixed"))
+    joint.Detach1 = True
+    joint.Detach2 = True
+    joint.Reference1 = (first, [""])
+    joint.Reference2 = (second, [""])
+    joint.Placement1 = coordinate_world(root, nodes[0], first).inverse() * coordinate_world(root, nodes[1], second)
+    joint.Placement2 = App.Placement()
+    return joint, first, second
+
+def coordinate_assert_fixed(root, nodes, joint, first, second):
+    left = coordinate_world(root, nodes[0], first) * joint.Placement1
+    right = coordinate_world(root, nodes[1], second) * joint.Placement2
+    delta = left.inverse() * right
+    assert delta.Base.Length < 1e-6, (left, right, delta)
+    assert abs(delta.Rotation.Angle) < 1.7453292519943295e-8, delta
+
+def coordinate_frames(root):
+    return [(obj, App.Placement(obj.Placement)) for obj in mixed_closure(root)
+            if obj == root or obj.TypeId == "Assembly::AssemblyLink"]
+
+def coordinate_check_frames(frames):
+    for obj, pose in frames:
+        assert obj.Placement.isSame(pose, 1e-12), obj.Name
+)PY";
+}  // namespace
+
+TEST_F(AssemblyObjectTest, posedFlexibleWrappersSolveInOneCoordinateFrame)
+{
+    ASSERT_NO_THROW(Base::Interpreter().runString(mixedAssemblyFixture));
+    ASSERT_NO_THROW(Base::Interpreter().runString(posedWrapperFixture));
+    ASSERT_NO_THROW(Base::Interpreter().runString(R"PY(
+for variant in range(4):
+    for perturbed in (False, True):
+        with mixed_fixture((False, False), angle=0) as (root, nodes, sources):
+            coordinate_set_frames(root, nodes, variant)
+            joint, first, second = coordinate_joint(root, nodes)
+            coordinate_assert_fixed(root, nodes, joint, first, second)
+            frames = coordinate_frames(root)
+            proof = coordinate_sources(sources)
+            anchored = App.Placement(coordinate_world(root, nodes[0], first))
+            if perturbed:
+                second.Placement = second.Placement * App.Placement(
+                    App.Vector(7, -3, 5), App.Rotation(9, -7, 11))
+            assert root.solveValidated(False) == 0, (variant, perturbed)
+            coordinate_assert_fixed(root, nodes, joint, first, second)
+            assert coordinate_world(root, nodes[0], first).isSame(anchored, 1e-7)
+            coordinate_check_frames(frames)
+            coordinate_check_sources(proof)
+            assert AssemblyApp.isAutomaticMotionSuspended(root.Document)
+)PY"));
+}
+
+TEST_F(AssemblyObjectTest, posedWrapperRefusalPreservesLocalAndDocumentPoses)
+{
+    ASSERT_NO_THROW(Base::Interpreter().runString(mixedAssemblyFixture));
+    ASSERT_NO_THROW(Base::Interpreter().runString(posedWrapperFixture));
+    ASSERT_NO_THROW(Base::Interpreter().runString(R"PY(
+with mixed_fixture((False, False), angle=0) as (root, nodes, sources):
+    coordinate_set_frames(root, nodes, 3)
+    joint, first, second = coordinate_joint(root, nodes)
+    joint.Reference2 = (sources[1][0].getObject("Base"), [""])
+    before = mixed_snapshot(root.Document)
+    worlds = [coordinate_world(root, node, mixed_parts(node)["Base"]) for node in nodes]
+    proof = coordinate_sources(sources)
+    assert root.solveValidated(True) == -8
+    assert mixed_snapshot(root.Document) == before
+    for node, pose in zip(nodes, worlds):
+        assert coordinate_world(root, node, mixed_parts(node)["Base"]).isSame(pose, 1e-12)
+    coordinate_check_sources(proof)
+)PY"));
+}
+
+TEST_F(AssemblyObjectTest, posedWrapperCurrentJointValueIncludesBothContainingFrames)
+{
+    ASSERT_NO_THROW(Base::Interpreter().runString(mixedAssemblyFixture));
+    ASSERT_NO_THROW(Base::Interpreter().runString(posedWrapperFixture));
+    ASSERT_NO_THROW(Base::Interpreter().runString(R"PY(
+coordinate_context = mixed_fixture((False, False), angle=0)
+root, nodes, sources = coordinate_context.__enter__()
+root.Placement = App.Placement(App.Vector(101, -53, 27), App.Rotation(17, 31, -23))
+nodes[0].Placement = App.Placement(App.Vector(3, 4, 5), App.Rotation(App.Vector(0, 0, 1), 10))
+nodes[1].Placement = App.Placement(App.Vector(3, 4, 5), App.Rotation(App.Vector(0, 0, 1), 55))
+joint, first, second = coordinate_joint(root, nodes)
+joint.Placement1 = App.Placement()
+joint.Placement2 = App.Placement()
+)PY"));
+    auto* document = App::GetApplication().getActiveDocument();
+    auto* joint = document->getObject("CoordinateFixed");
+    ASSERT_NE(joint, nullptr);
+    EXPECT_NEAR(Assembly::getJointCurrentValue(joint, true), std::acos(-1.0) / 4.0, 1e-9);
+    ASSERT_NO_THROW(Base::Interpreter().runString("coordinate_context.__exit__(None, None, None)"));
+}
+
+TEST_F(AssemblyObjectTest, posedWrapperFixedBundlesDragAndRefreshContainingFrames)
+{
+    ASSERT_NO_THROW(Base::Interpreter().runString(mixedAssemblyFixture));
+    ASSERT_NO_THROW(Base::Interpreter().runString(posedWrapperFixture));
+    ASSERT_NO_THROW(Base::Interpreter().runString(R"PY(
+coordinate_context = mixed_fixture((False, False), angle=0, release_motion=True)
+root, nodes, sources = coordinate_context.__enter__()
+with AssemblyApp.suspendAutomaticMotion(root.Document):
+    coordinate_set_frames(root, nodes, 3)
+    joint, first, second = coordinate_joint(root, nodes)
+    arm = mixed_parts(nodes[0])["Arm"]
+    pivot = mixed_joint(nodes[0])
+    pivot.AngleMin = -60
+    pivot.AngleMax = 60
+    pivot.EnableAngleMin = True
+    pivot.EnableAngleMax = True
+    arm.Label = "CoordinateDragArm"
+    tool = root.newObject("Part::Box", "CoordinateTool")
+    tool.Placement = root.Placement.inverse() * coordinate_world(root, nodes[0], arm) * App.Placement(App.Vector(5, 0, 0), App.Rotation())
+    group = next(obj for obj in root.Group if obj.TypeId == "Assembly::JointGroup")
+    attachment = group.newObject("App::FeaturePython", "ToolAttachment")
+    JointObject.Joint(attachment, JointObject.JointTypes.index("Fixed"))
+    attachment.Detach1 = True
+    attachment.Detach2 = True
+    attachment.Reference1 = (arm, [""])
+    attachment.Reference2 = (tool, [""])
+    attachment.Placement1 = App.Placement(App.Vector(5, 0, 0), App.Rotation())
+    attachment.Placement2 = App.Placement()
+    assert root.solveValidated(False) == 0
+frames = coordinate_frames(root)
+proof = coordinate_sources(sources)
+tool_before = root.Placement * tool.Placement
+)PY"));
+    auto* document = App::GetApplication().getActiveDocument();
+    auto* root = dynamic_cast<Assembly::AssemblyObject*>(document->getObject("Assembly"));
+    auto* tool = document->getObject("CoordinateTool");
+    App::DocumentObject* arm = nullptr;
+    for (auto* object : document->getObjects()) {
+        if (std::string(object->Label.getValue()) == "CoordinateDragArm") {
+            arm = object;
+        }
+    }
+    ASSERT_NE(root, nullptr);
+    ASSERT_NE(arm, nullptr);
+    ASSERT_NE(tool, nullptr);
+    root->preDrag({arm});
+    EXPECT_EQ(root->getMbDData(arm).part, root->getMbDData(tool).part);
+    ASSERT_NO_THROW(Base::Interpreter().runString(R"PY(
+arm.Placement = arm.Placement * App.Placement(App.Vector(), App.Rotation(App.Vector(0, 0, 1), 25))
+)PY"));
+    root->doDragStep();
+    for (const int requested : {75, -75}) {
+        const std::string command = "arm.Placement = mixed_parts(nodes[0])['Base'].Placement * "
+                                    "App.Placement(App.Vector(), App.Rotation(App.Vector(0, 0, 1), "
+            + std::to_string(requested) + "))";
+        ASSERT_NO_THROW(Base::Interpreter().runString(command.c_str()));
+        root->doDragStep();
+        ASSERT_NO_THROW(Base::Interpreter().runString(R"PY(
+import math
+relative_arm = coordinate_world(root, nodes[0], first).inverse() * coordinate_world(root, nodes[0], arm)
+x_axis = relative_arm.Rotation.multVec(App.Vector(1, 0, 0))
+angle = math.degrees(math.atan2(x_axis.y, x_axis.x))
+print("SPEC008_DRAG_LIMIT", angle, flush=True)
+assert -60.000001 <= angle <= 60.000001, angle
+)PY"));
+    }
+    root->postDrag();
+    ASSERT_NO_THROW(Base::Interpreter().runString(R"PY(
+coordinate_assert_fixed(root, nodes, joint, first, second)
+left = coordinate_world(root, nodes[0], arm) * attachment.Placement1
+right = root.Placement * tool.Placement
+assert left.isSame(right, 1e-7), (left, right)
+assert not right.isSame(tool_before, 1e-7), "drag did not move the fixed attachment"
+coordinate_check_frames(frames)
+coordinate_check_sources(proof)
+# The solver graph is prepared. Moving a wrapper changes the conversion frame;
+# writeback must use its current frame rather than a stale cached transform.
+prepared = [(part, coordinate_world(root, node, part)) for node in nodes
+            for part in mixed_parts(node).values()]
+nodes[0].Placement = nodes[0].Placement * App.Placement(App.Vector(2, -3, 7), App.Rotation(11, 5, -9))
+changed_wrapper = App.Placement(nodes[0].Placement)
+)PY"));
+    root->setNewPlacements();
+    ASSERT_NO_THROW(Base::Interpreter().runString(R"PY(
+for part, pose in prepared:
+    node = next(node for node in nodes if part in mixed_closure(node))
+    assert coordinate_world(root, node, part).isSame(pose, 1e-7), part.Name
+assert nodes[0].Placement.isSame(changed_wrapper, 1e-12)
+coordinate_check_sources(proof)
+coordinate_context.__exit__(None, None, None)
+)PY"));
+}
+
+TEST_F(AssemblyObjectTest, posedRigidClusterCacheUsesCommonFrameAcrossParents)
+{
+    ASSERT_NO_THROW(Base::Interpreter().runString(mixedAssemblyFixture));
+    ASSERT_NO_THROW(Base::Interpreter().runString(posedWrapperFixture));
+    ASSERT_NO_THROW(Base::Interpreter().runString(R"PY(
+with mixed_fixture((False, False), angle=0) as (root, nodes, sources):
+    coordinate_set_frames(root, nodes, 3)
+    first, second = [mixed_parts(node)["Base"] for node in nodes]
+    group = next(obj for obj in root.Group if obj.TypeId == "Assembly::JointGroup")
+    ground = group.newObject("App::FeaturePython", "Ground")
+    JointObject.GroundedJoint(ground, first)
+    rigid = group.newObject("App::FeaturePython", "Rigid")
+    rigid.addProperty("App::PropertyBool", "Suppressed")
+    rigid.addProperty("App::PropertyLinkList", "ObjectsToRigidGroup")
+    rigid.ObjectsToRigidGroup = [first, second]
+    proof = coordinate_sources(sources)
+    frames = coordinate_frames(root)
+    relative = coordinate_world(root, nodes[0], first).inverse() * coordinate_world(root, nodes[1], second)
+    assert root.solveValidated(False) == 0
+    first.Placement = first.Placement * App.Placement(App.Vector(7, -3, 5), App.Rotation(9, -7, 11))
+    assert root.solveValidated(False) == 0
+    actual = coordinate_world(root, nodes[0], first).inverse() * coordinate_world(root, nodes[1], second)
+    assert actual.isSame(relative, 1e-7), (relative, actual)
+    coordinate_check_frames(frames)
+    coordinate_check_sources(proof)
+)PY"));
+}
+
+TEST_F(AssemblyObjectTest, posedWrapperRestoreOrderKeepsDocumentConnectorResiduals)
+{
+    ASSERT_NO_THROW(Base::Interpreter().runString(mixedAssemblyFixture));
+    ASSERT_NO_THROW(Base::Interpreter().runString(posedWrapperFixture));
+    ASSERT_NO_THROW(Base::Interpreter().runString(R"PY(
+for target_first in (False, True):
+    with mixed_fixture((False, False), angle=0) as (root, nodes, sources):
+        coordinate_set_frames(root, nodes, 3)
+        joint, first, second = coordinate_joint(root, nodes)
+        target = root.Document
+        names = (root.Name, [node.Name for node in nodes], joint.Name, first.Name, second.Name)
+        target.save()
+        documents = [doc for doc, _ in sources]
+        if target_first:
+            target.restore()
+        for doc in documents:
+            doc.restore()
+        if not target_first:
+            target.restore()
+        root = target.getObject(names[0])
+        nodes = [target.getObject(name) for name in names[1]]
+        joint, first, second = [target.getObject(name) for name in names[2:]]
+        assert all(obj.LinkedObject is not None for obj in mixed_closure(root)
+                   if obj.TypeId == "Assembly::AssemblyLink")
+        coordinate_assert_fixed(root, nodes, joint, first, second)
+        frames = coordinate_frames(root)
+        proof = coordinate_sources(sources)
+        assert root.solveValidated(False) == 0, target_first
+        coordinate_assert_fixed(root, nodes, joint, first, second)
+        coordinate_check_frames(frames)
+        coordinate_check_sources(proof)
+        assert AssemblyApp.isAutomaticMotionSuspended(target)
+)PY"));
+}
+
+TEST_F(AssemblyObjectTest, posedRootDatumsKeepPlainAndArrayComponentCoordinates)
+{
+    ASSERT_NO_THROW(Base::Interpreter().runString(R"PY(
+import FreeCAD as App
+import AssemblyApp
+import JointObject
+import Part
+
+for use_array in (False, True):
+    doc = App.newDocument()
+    try:
+        with AssemblyApp.suspendAutomaticMotion(doc):
+            root = doc.addObject("Assembly::AssemblyObject", "Assembly")
+            root.Placement = App.Placement(App.Vector(101, -53, 27), App.Rotation(17, 31, -23))
+            root_pose = App.Placement(root.Placement)
+            group = root.newObject("Assembly::JointGroup", "Joints")
+            datum = root.newObject("App::LocalCoordinateSystem", "Frame")
+            datum.addExtension("Part::AttachExtensionPython")
+            datum.Placement = App.Placement(App.Vector(2, 5, -7), App.Rotation(11, 7, -19))
+            if use_array:
+                geometry = doc.addObject("Part::Box", "ArraySource")
+                array = root.newObject("App::Link", "Array")
+                array.LinkedObject = geometry
+                array.ElementCount = 2
+                array.Placement = App.Placement(App.Vector(23, 29, 31), App.Rotation(7, 13, -17))
+                moving = array.ElementList[1]
+                expected_local = array.Placement * moving.Placement
+            else:
+                moving = root.newObject("Part::Box", "Moving")
+                moving.Placement = App.Placement(App.Vector(23, 29, 31), App.Rotation(7, 13, -17))
+                expected_local = App.Placement(moving.Placement)
+            joint = group.newObject("App::FeaturePython", "Fixed")
+            JointObject.Joint(joint, JointObject.JointTypes.index("Fixed"))
+            joint.Detach1 = True
+            joint.Detach2 = True
+            joint.Reference1 = (datum, [""])
+            joint.Reference2 = (moving, [""])
+            joint.Placement1 = datum.Placement.inverse() * expected_local
+            joint.Placement2 = App.Placement()
+        # Root datum endpoints retain their established ordinary-solver policy;
+        # explicit validated admission intentionally does not admit this schema.
+        assert not AssemblyApp.isAutomaticMotionSuspended(doc)
+        assert root.solve(False) == 0
+        actual_local = array.Placement * moving.Placement if use_array else moving.Placement
+        assert (root.Placement * actual_local).isSame(root_pose * expected_local, 1e-7)
+        assert root.Placement.isSame(root_pose, 1e-12)
+    finally:
+        App.closeDocument(doc.Name)
+)PY"));
+}
+
+TEST_F(AssemblyObjectTest, posedRigidSiblingAndFlexibleSiblingKeepSeparateFrames)
+{
+    ASSERT_NO_THROW(Base::Interpreter().runString(mixedAssemblyFixture));
+    ASSERT_NO_THROW(Base::Interpreter().runString(posedWrapperFixture));
+    ASSERT_NO_THROW(Base::Interpreter().runString(R"PY(
+with mixed_fixture((True, False), angle=0) as (root, nodes, sources):
+    coordinate_set_frames(root, nodes, 3)
+    group = next(obj for obj in root.Group if obj.TypeId == "Assembly::JointGroup")
+    second = mixed_parts(nodes[1])["Base"]
+    ground = group.newObject("App::FeaturePython", "RigidGround")
+    JointObject.GroundedJoint(ground, nodes[0])
+    joint = group.newObject("App::FeaturePython", "SiblingJoint")
+    JointObject.Joint(joint, JointObject.JointTypes.index("Fixed"))
+    joint.Detach1 = True
+    joint.Detach2 = True
+    joint.Reference1 = (nodes[0], [""])
+    joint.Reference2 = (second, [""])
+    joint.Placement1 = (root.Placement * nodes[0].Placement).inverse() * coordinate_world(root, nodes[1], second)
+    joint.Placement2 = App.Placement()
+    frozen = [(obj, App.Placement(obj.Placement)) for obj in mixed_closure(nodes[0]) if hasattr(obj, "Placement")]
+    proof = coordinate_sources(sources)
+    second.Placement = second.Placement * App.Placement(App.Vector(7, -3, 5), App.Rotation(9, -7, 11))
+    assert root.solveValidated(False) == 0
+    assert (root.Placement * nodes[0].Placement * joint.Placement1).isSame(
+        coordinate_world(root, nodes[1], second), 1e-7)
+    for obj, pose in frozen:
+        assert obj.Placement.isSame(pose, 1e-12)
+    coordinate_check_sources(proof)
+)PY"));
+}
+
+TEST_F(AssemblyObjectTest, posedWrapperMetadataAliasOrderDoesNotCreateSpatialFrames)
+{
+    ASSERT_NO_THROW(Base::Interpreter().runString(mixedAssemblyFixture));
+    ASSERT_NO_THROW(Base::Interpreter().runString(posedWrapperFixture));
+    ASSERT_NO_THROW(Base::Interpreter().runString(R"PY(
+for alias_first in (False, True):
+    with mixed_fixture((False, False), angle=0) as (root, nodes, sources):
+        coordinate_set_frames(root, nodes, 3)
+        joint, first, second = coordinate_joint(root, nodes)
+        alias = root.newObject("App::DocumentObjectGroup", "MetadataAlias")
+        alias.addProperty("App::PropertyPlacement", "Placement")
+        alias.Placement.Base = App.Vector(1000, 2000, 3000)
+        alias.Group = [nodes[1]]
+        members = [obj for obj in root.Group if obj != alias]
+        root.Group = ([alias] + members) if alias_first else (members + [alias])
+        proof = coordinate_sources(sources)
+        frames = coordinate_frames(root)
+        assert root.solveValidated(False) == 0, alias_first
+        coordinate_assert_fixed(root, nodes, joint, first, second)
+        coordinate_check_frames(frames)
+        coordinate_check_sources(proof)
+)PY"));
+}
+
+TEST_F(AssemblyObjectTest, ambiguousLinkElementOwnerOutsideRootRejectsBeforeEffects)
+{
+    ASSERT_NO_THROW(Base::Interpreter().runString(mixedAssemblyFixture));
+    ASSERT_NO_THROW(Base::Interpreter().runString(R"PY(
+coordinate_ambiguous_doc = App.newDocument()
+coordinate_ambiguous_scope = AssemblyApp.suspendAutomaticMotion(coordinate_ambiguous_doc)
+coordinate_ambiguous_scope.__enter__()
+root = coordinate_ambiguous_doc.addObject("Assembly::AssemblyObject", "Assembly")
+root.newObject("Assembly::JointGroup", "Joints")
+geometry = coordinate_ambiguous_doc.addObject("Part::Box", "Geometry")
+array = root.newObject("App::Link", "Array")
+array.LinkedObject = geometry
+array.ElementCount = 2
+outside = coordinate_ambiguous_doc.addObject("App::Link", "OutsideArray")
+outside.LinkedObject = geometry
+outside.ElementCount = 2
+assert root.solveValidated(False) == 0
+)PY"));
+    auto* document = App::GetApplication().getActiveDocument();
+    auto* array = document->getObject("Array");
+    auto* outside = document->getObject("OutsideArray");
+    ASSERT_NE(array, nullptr);
+    ASSERT_NE(outside, nullptr);
+    auto* elements = array->getPropertyByName<App::PropertyLinkList>("ElementList");
+    auto* outsideElements = outside->getPropertyByName<App::PropertyLinkList>("ElementList");
+    ASSERT_NE(elements, nullptr);
+    ASSERT_NE(outsideElements, nullptr);
+    // Construct the raw ambiguous metadata natively: Python protects ElementList
+    // against writes. Both real link groups now explicitly claim the same elements.
+    outsideElements->setValues(elements->getValues());
+    EXPECT_NO_THROW(Base::Interpreter().runString(R"PY(
+assert array.ElementList[1] in outside.ElementList
+before = mixed_snapshot(coordinate_ambiguous_doc)
+assert root.solveValidated(False) == -8
+assert mixed_snapshot(coordinate_ambiguous_doc) == before
+)PY"));
+    ASSERT_NO_THROW(Base::Interpreter().runString(R"PY(
+coordinate_ambiguous_scope.__exit__(None, None, None)
+App.closeDocument(coordinate_ambiguous_doc.Name)
 )PY"));
 }

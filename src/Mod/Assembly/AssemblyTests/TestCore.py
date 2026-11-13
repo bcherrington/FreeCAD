@@ -25,6 +25,8 @@ import FreeCAD as App
 import Part
 import AssemblyApp
 import gc
+import hashlib
+import math
 import os
 import tempfile
 import unittest
@@ -529,6 +531,388 @@ class TestCore(AssemblyTestBase):
                         self.assertEqual(poses_and_status(closure(frozen)), frozen_before)
                         for doc, before in sources:
                             self.assertEqual(snapshot(doc), before)
+            finally:
+                for doc in reversed(documents):
+                    App.closeDocument(doc.Name)
+
+    @unittest.skipUnless(App.GuiUp, "Native Motion Python proxy requires the GUI module")
+    def test_posed_flexible_wrappers_keep_motion_holds_and_fixed_tool(self):
+        from CommandCreateSimulation import Motion, Simulation
+
+        def closure(owner):
+            result = [owner]
+            for obj in result:
+                result.extend(child for child in getattr(obj, "Group", ()) if child not in result)
+            return result
+
+        def snapshot(doc):
+            return (
+                [
+                    (
+                        obj.Name,
+                        tuple(obj.State),
+                        tuple(obj.Placement.toMatrix().A) if hasattr(obj, "Placement") else None,
+                        (
+                            tuple(obj.getPropertyStatus("Placement"))
+                            if hasattr(obj, "Placement")
+                            else None
+                        ),
+                    )
+                    for obj in doc.Objects
+                ],
+                doc.isTouched(),
+                doc.UndoCount,
+            )
+
+        documents = []
+        with tempfile.TemporaryDirectory() as directory, ExitStack() as source_scopes:
+
+            def document():
+                doc = App.newDocument()
+                documents.append(doc)
+                source_scopes.enter_context(AssemblyApp.suspendAutomaticMotion(doc))
+                doc.saveAs(os.path.join(directory, doc.Name + ".FCStd"))
+                return doc
+
+            def assembly(doc):
+                obj = doc.addObject("Assembly::AssemblyObject", "Assembly")
+                obj.Type = "Assembly"
+                obj.newObject("Assembly::JointGroup", "Joints")
+                return obj
+
+            def occurrence(owner, source):
+                obj = owner.newObject("Assembly::AssemblyLink", "Occurrence")
+                obj.Rigid = False
+                obj.LinkedObject = source
+                for _ in range(3):
+                    owner.Document.recompute()
+                self.assertTrue(obj.Group)
+                return obj
+
+            def joint(group, name, kind, first, second, offset):
+                obj = group.newObject("App::FeaturePython", name)
+                JointObject.Joint(obj, JointObject.JointTypes.index(kind))
+                JointObject.ViewProviderJoint(obj.ViewObject)
+                obj.Detach1 = obj.Detach2 = True
+                obj.Reference1 = (first, [""])
+                obj.Reference2 = (second, [""])
+                obj.Placement1 = App.Placement(offset, App.Rotation())
+                obj.Placement2 = App.Placement()
+                if kind == "Revolute":
+                    obj.AngleMin, obj.AngleMax = -60, 60
+                    obj.EnableAngleMin = obj.EnableAngleMax = True
+                return obj
+
+            try:
+                with AssemblyApp.suspendAutomaticMotion(self.doc):
+                    source = document()
+                    unit = assembly(source)
+                    parts = {}
+                    for name, offset in (("Base", 0), ("Head", 0), ("Cam", 15), ("Tool", 5)):
+                        part = unit.newObject("Part::Feature", name)
+                        part.Shape = Part.makeCylinder(2, 4)
+                        part.Placement.Base = App.Vector(offset, 0, 0)
+                        parts[name] = part
+                    group = next(obj for obj in unit.Group if obj.TypeId == "Assembly::JointGroup")
+                    joint(
+                        group, "HeadPivot", "Revolute", parts["Base"], parts["Head"], App.Vector()
+                    )
+                    joint(
+                        group,
+                        "CamPivot",
+                        "Revolute",
+                        parts["Base"],
+                        parts["Cam"],
+                        App.Vector(15, 0, 0),
+                    )
+                    joint(
+                        group,
+                        "ToolMount",
+                        "Fixed",
+                        parts["Head"],
+                        parts["Tool"],
+                        App.Vector(5, 0, 0),
+                    )
+                    source.recompute()
+                    source.save()
+                    middle_doc = document()
+                    middle = assembly(middle_doc)
+                    occurrence(middle, unit)
+                    middle_doc.save()
+                    self.doc.saveAs(os.path.join(directory, "Target.FCStd"))
+                    outer = occurrence(self.assembly, middle)
+                    inner = next(
+                        obj for obj in outer.Group if obj.TypeId == "Assembly::AssemblyLink"
+                    )
+                    self.assembly.Placement = App.Placement(
+                        App.Vector(7, -3, 11), App.Rotation(17, 23, 9)
+                    )
+                    outer.Placement = App.Placement(
+                        App.Vector(40, 8, -6), App.Rotation(31, -19, 14)
+                    )
+                    inner.Placement = App.Placement(
+                        App.Vector(-4, 12, 3), App.Rotation(-21, 16, 37)
+                    )
+                    local_parts = {
+                        obj.getLinkedObject(True).Name: obj
+                        for obj in inner.Group
+                        if obj.TypeId == "App::Link"
+                    }
+                    joints = {obj.Label: obj for obj in closure(inner) if hasattr(obj, "JointType")}
+                    head, cam, fixed = (
+                        joints[name] for name in ("HeadPivot", "CamPivot", "ToolMount")
+                    )
+                    for pivot in (head, cam):
+                        self.assertEqual(
+                            pivot.getTypeIdOfProperty("AngleMin"), "App::PropertyAngle"
+                        )
+                        pivot.AngleMin, pivot.AngleMax = -60, 60
+                        pivot.EnableAngleMin = pivot.EnableAngleMax = True
+                    ground = self.jointgroup.newObject("App::FeaturePython", "RootGround")
+                    JointObject.GroundedJoint(ground, local_parts["Base"])
+                    simulations = self.assembly.newObject(
+                        "Assembly::SimulationGroup", "Simulations"
+                    )
+                    simulation = simulations.newObject("App::FeaturePython", "Simulation")
+                    Simulation(simulation)
+                    simulation.bTimeEnd = 0.02
+                    motions = []
+                    for pivot, angle in ((head, 25), (cam, -40)):
+                        motion = self.assembly.newObject("App::FeaturePython", "Motion")
+                        Motion(motion, "Angular", pivot, f"{angle}*pi/180")
+                        motions.append(motion)
+                    simulation.Group = motions
+                    self.doc.recompute()
+                    wrappers = [
+                        App.Placement(obj.Placement) for obj in (self.assembly, outer, inner)
+                    ]
+                    anchor = (
+                        self.assembly.Placement
+                        * outer.Placement
+                        * inner.Placement
+                        * local_parts["Base"].Placement
+                    )
+                    sources = []
+                    for doc in documents:
+                        with open(doc.FileName, "rb") as saved:
+                            sources.append(
+                                (doc, snapshot(doc), hashlib.sha256(saved.read()).hexdigest())
+                            )
+                    self.assertEqual(self.assembly.solveValidated(), 0)
+                    self.assertTrue(AssemblyApp.isAutomaticMotionSuspended(self.doc))
+
+                # This oracle composes the fixture's known containment, independently
+                # of native placement/current-joint helpers and source link geometry.
+                def world(part):
+                    return (
+                        self.assembly.Placement * outer.Placement * inner.Placement * part.Placement
+                    )
+
+                def check_constraints(expected_angles):
+                    for pivot in (head, cam, fixed):
+                        first = world(pivot.Reference1[0]) * pivot.Placement1
+                        second = world(pivot.Reference2[0]) * pivot.Placement2
+                        self.assertLess((first.Base - second.Base).Length, 1e-6, pivot.Label)
+                        relative = first.Rotation.inverted() * second.Rotation
+                        if pivot == fixed:
+                            self.assertLess(math.degrees(relative.Angle), 1e-6)
+                        else:
+                            self.assertTrue(
+                                relative.multVec(App.Vector(0, 0, 1)).isEqual(
+                                    App.Vector(0, 0, 1), 1e-8
+                                )
+                            )
+                            axis = relative.multVec(App.Vector(1, 0, 0))
+                            angle = math.degrees(math.atan2(axis.y, axis.x))
+                            self.assertAlmostEqual(angle, expected_angles[pivot.Label], delta=1e-6)
+                            self.assertGreaterEqual(angle, pivot.AngleMin.Value - 1e-6)
+                            self.assertLessEqual(angle, pivot.AngleMax.Value + 1e-6)
+
+                def apply_frames(expected_angles, extra_checks=None):
+                    with AssemblyApp.suspendAutomaticMotion(self.doc):
+                        before = snapshot(self.doc)
+                        self.assertEqual(self.assembly.generateSimulation(simulation), -7)
+                        self.assembly.updateForFrame(0)
+                        self.assertEqual(snapshot(self.doc), before)
+                        self.assertTrue(AssemblyApp.isAutomaticMotionSuspended(self.doc))
+                    self.assertFalse(AssemblyApp.isAutomaticMotionSuspended(self.doc))
+                    input_poses = {
+                        name: App.Placement(part.Placement) for name, part in local_parts.items()
+                    }
+                    input_angles = {}
+                    for pivot in (head, cam):
+                        first = world(pivot.Reference1[0]) * pivot.Placement1
+                        second = world(pivot.Reference2[0]) * pivot.Placement2
+                        axis = (first.Rotation.inverted() * second.Rotation).multVec(
+                            App.Vector(1, 0, 0)
+                        )
+                        input_angles[pivot.Label] = math.degrees(math.atan2(axis.y, axis.x))
+                    self.assertEqual(self.assembly.generateSimulation(simulation), 0)
+                    self.assertGreater(self.assembly.numberOfFrames(), 1)
+                    # Slot zero is the native series' input pose; the GUI player
+                    # starts at frame one, the first solved motion frame.
+                    self.assembly.updateForFrame(0)
+                    for name, part in local_parts.items():
+                        self.assertTrue(part.Placement.isSame(input_poses[name], 1e-8))
+                    check_constraints(input_angles)
+                    if extra_checks:
+                        extra_checks()
+                    self.assertTrue(world(local_parts["Base"]).isSame(anchor, 1e-8))
+                    for index in range(1, self.assembly.numberOfFrames()):
+                        self.assembly.updateForFrame(index)
+                        check_constraints(expected_angles)
+                        if extra_checks:
+                            extra_checks()
+                        self.assertTrue(world(local_parts["Base"]).isSame(anchor, 1e-8))
+                    for obj, pose in zip((self.assembly, outer, inner), wrappers):
+                        self.assertTrue(obj.Placement.isSame(pose, 1e-9))
+                    for doc, state, digest in sources:
+                        self.assertEqual(snapshot(doc), state)
+                        with open(doc.FileName, "rb") as saved:
+                            self.assertEqual(hashlib.sha256(saved.read()).hexdigest(), digest)
+
+                apply_frames({"HeadPivot": 25, "CamPivot": -40})
+                with AssemblyApp.suspendAutomaticMotion(self.doc):
+                    motions[0].Formula = "35*pi/180"
+                apply_frames({"HeadPivot": 35, "CamPivot": -40})
+                with AssemblyApp.suspendAutomaticMotion(self.doc):
+                    simulation.Group = [motions[1]]
+                    self.doc.removeObject(motions[0].Name)
+                    head_part = local_parts["Head"]
+                    head_part.Placement = App.Placement(
+                        head_part.Placement.Base, App.Rotation(App.Vector(0, 0, 1), 10)
+                    )
+                    local_parts["Tool"].Placement = head_part.Placement * fixed.Placement1
+                apply_frames({"HeadPivot": 10, "CamPivot": -40})
+
+                # Repeat the complete mechanism, retaining every internal joint,
+                # and couple its Base 40mm from the first through a root Fixed.
+                with AssemblyApp.suspendAutomaticMotion(self.doc):
+                    other_outer = occurrence(self.assembly, middle)
+                    other_inner = next(
+                        obj for obj in other_outer.Group if obj.TypeId == "Assembly::AssemblyLink"
+                    )
+                    other_outer.Placement = (
+                        outer.Placement
+                        * inner.Placement
+                        * App.Placement(App.Vector(40, 0, 0), App.Rotation())
+                    )
+                    other_inner.Placement = App.Placement()
+                    other_parts = {
+                        obj.getLinkedObject(True).Name: obj
+                        for obj in other_inner.Group
+                        if obj.TypeId == "App::Link"
+                    }
+                    other_joints = [
+                        obj for obj in closure(other_inner) if hasattr(obj, "JointType")
+                    ]
+                    self.assertEqual(len(other_joints), 3)
+                    self.assertTrue(all(not obj.Suppressed for obj in other_joints))
+                    coupling = joint(
+                        self.jointgroup,
+                        "JoinBases",
+                        "Fixed",
+                        local_parts["Base"],
+                        other_parts["Base"],
+                        App.Vector(40, 0, 0),
+                    )
+                    held_head = self.assembly.newObject("App::FeaturePython", "HeadHold")
+                    Motion(held_head, "Angular", head, "25*pi/180")
+                    simulation.Group = [held_head, motions[1]]
+                    self.assertEqual(self.assembly.solveValidated(), 0)
+                other_wrappers = [
+                    App.Placement(obj.Placement) for obj in (other_outer, other_inner)
+                ]
+
+                def other_world(part):
+                    return (
+                        self.assembly.Placement
+                        * other_outer.Placement
+                        * other_inner.Placement
+                        * part.Placement
+                    )
+
+                def check_second_mechanism():
+                    for obj in other_joints + [coupling]:
+                        first_world = world if obj == coupling else other_world
+                        first = first_world(obj.Reference1[0]) * obj.Placement1
+                        second = other_world(obj.Reference2[0]) * obj.Placement2
+                        self.assertLess((first.Base - second.Base).Length, 1e-6, obj.Label)
+                        relative = first.Rotation.inverted() * second.Rotation
+                        if obj.JointType == "Fixed":
+                            self.assertLess(math.degrees(relative.Angle), 1e-6)
+                        else:
+                            self.assertTrue(
+                                relative.multVec(App.Vector(0, 0, 1)).isEqual(
+                                    App.Vector(0, 0, 1), 1e-8
+                                )
+                            )
+                    for obj, pose in zip((other_outer, other_inner), other_wrappers):
+                        self.assertTrue(obj.Placement.isSame(pose, 1e-9))
+
+                apply_frames({"HeadPivot": 25, "CamPivot": -40}, check_second_mechanism)
+                with AssemblyApp.suspendAutomaticMotion(self.doc):
+                    simulation.Group = [motions[1]]
+                    self.doc.removeObject(held_head.Name)
+                    head_part.Placement = App.Placement(
+                        head_part.Placement.Base, App.Rotation(App.Vector(0, 0, 1), 10)
+                    )
+                    local_parts["Tool"].Placement = head_part.Placement * fixed.Placement1
+                apply_frames({"HeadPivot": 10, "CamPivot": -40}, check_second_mechanism)
+
+                # Unlike the same-wrapper holds, this initialValue must include
+                # two distinct containing frames (whose yaw differs by 45deg).
+                with AssemblyApp.suspendAutomaticMotion(self.doc):
+                    coupling.Suppressed = True
+                    other_outer.Placement = (
+                        outer.Placement
+                        * inner.Placement
+                        * App.Placement(App.Vector(), App.Rotation(App.Vector(0, 0, 1), 45))
+                    )
+                    for obj in closure(other_inner):
+                        if hasattr(obj, "JointType"):
+                            obj.Suppressed = True
+                    other_parts["Head"].Placement = App.Placement()
+                    for name in ("Base", "Cam", "Tool"):
+                        extra_ground = self.jointgroup.newObject(
+                            "App::FeaturePython", "OtherGround"
+                        )
+                        JointObject.GroundedJoint(extra_ground, other_parts[name])
+                    cross = joint(
+                        self.jointgroup,
+                        "CrossWrapperPivot",
+                        "Revolute",
+                        local_parts["Base"],
+                        other_parts["Head"],
+                        App.Vector(),
+                    )
+                    initial_hold = self.assembly.newObject("App::FeaturePython", "InitialHold")
+                    Motion(initial_hold, "Angular", cross, "initialValue")
+                    simulation.Group = [motions[1], initial_hold]
+                    self.assertEqual(self.assembly.solveValidated(), 0)
+                other_wrappers = [
+                    App.Placement(obj.Placement) for obj in (other_outer, other_inner)
+                ]
+                apply_frames({"HeadPivot": 10, "CamPivot": -40})
+                for index in range(1, self.assembly.numberOfFrames()):
+                    self.assembly.updateForFrame(index)
+                    first = world(local_parts["Base"]) * cross.Placement1
+                    second = (
+                        self.assembly.Placement
+                        * other_outer.Placement
+                        * other_inner.Placement
+                        * other_parts["Head"].Placement
+                        * cross.Placement2
+                    )
+                    self.assertLess((first.Base - second.Base).Length, 1e-6)
+                    relative = first.Rotation.inverted() * second.Rotation
+                    self.assertTrue(
+                        relative.multVec(App.Vector(0, 0, 1)).isEqual(App.Vector(0, 0, 1), 1e-8)
+                    )
+                    axis = relative.multVec(App.Vector(1, 0, 0))
+                    self.assertAlmostEqual(math.degrees(math.atan2(axis.y, axis.x)), 45, delta=1e-6)
+                for obj, pose in zip((other_outer, other_inner), other_wrappers):
+                    self.assertTrue(obj.Placement.isSame(pose, 1e-9))
             finally:
                 for doc in reversed(documents):
                     App.closeDocument(doc.Name)

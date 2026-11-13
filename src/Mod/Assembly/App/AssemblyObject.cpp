@@ -106,6 +106,23 @@ struct RotationJointSide
     const char* carrierPlcName = nullptr;
 };
 
+// All solver bodies use the owning assembly's coordinates. The component's
+// Placement remains local to its actual spatial parent in the document.
+Base::Placement solverPlacement(const AssemblyObject* assembly, App::DocumentObject* object)
+{
+    return Assembly::detail::getContainingPlacement(object, assembly)
+        * App::GeoFeature::getPlacementFromProp(object, "Placement");
+}
+
+Base::Placement localPlacement(
+    const AssemblyObject* assembly,
+    App::DocumentObject* object,
+    const Base::Placement& solverPose
+)
+{
+    return Assembly::detail::getContainingPlacement(object, assembly).inverse() * solverPose;
+}
+
 Base::Placement getJointSideGlobalPlacement(
     App::DocumentObject* joint,
     const char* refName,
@@ -121,7 +138,8 @@ Base::Placement getJointSideGlobalPlacement(
         return {};
     }
 
-    return App::GeoFeature::getGlobalPlacement(nullptr, ref)
+    return Assembly::detail::getContainingPlacement(ref->getValue())
+        * App::GeoFeature::getGlobalPlacement(nullptr, ref)
         * App::GeoFeature::getPlacementFromProp(joint, plcName);
 }
 
@@ -329,6 +347,9 @@ public:
         if (!document || !visit(&assembly, {&assembly, true})) {
             return false;
         }
+        // Axis and current-value helpers also compose the document containing
+        // frame. Validate outer spatial ownership before grounding reconciliation.
+        Assembly::detail::getContainingPlacement(&assembly);
         // Collection is safe only after the raw containment traversal checked cycles.
         for (auto& [owner, data] : owners) {
             const auto localComponents
@@ -338,6 +359,9 @@ public:
                     || !component->getPlacementProperty()) {
                     return false;
                 }
+                // Resolve every local structural component before any native
+                // preparation, including metadata below rigid boundaries.
+                Assembly::detail::getContainingPlacement(component, &assembly);
                 data.components.insert(component);
             }
             data.groundable = data.components;
@@ -345,10 +369,12 @@ public:
             if (!origin || origin->getDocument() != document) {
                 return false;
             }
+            Assembly::detail::getContainingPlacement(origin, &assembly);
             data.groundable.insert(origin);
             for (auto* object : owner->Group.getValues()) {
                 if (object->isDerivedFrom<App::LocalCoordinateSystem>()
                     || object->isDerivedFrom<App::DatumElement>()) {
+                    Assembly::detail::getContainingPlacement(object, &assembly);
                     data.groundable.insert(object);
                 }
             }
@@ -1100,7 +1126,7 @@ void AssemblyObject::doDragStep()
 
             dragMbdParts.push_back(mbdPart);
 
-            Base::Placement plc = getPlacementFromProp(part, "Placement");
+            Base::Placement plc = solverPlacement(this, part);
             if (auto it = objectPartMap.find(part);
                 it != objectPartMap.end() && !it->second.offsetPlc.isIdentity()) {
                 plc = plc * it->second.offsetPlc.inverse();
@@ -1166,7 +1192,7 @@ bool AssemblyObject::validateNewPlacements()
     for (auto* obj : groundedParts) {
         auto* propPlacement = obj->getPlacementProperty();
         if (propPlacement) {
-            Base::Placement oldPlc = propPlacement->getValue();
+            Base::Placement oldPlc = solverPlacement(this, obj);
 
             auto it = objectPartMap.find(obj);
             if (it != objectPartMap.end()) {
@@ -1412,7 +1438,7 @@ void AssemblyObject::syncActiveRigidGroupPlacements()
                 break;
             }
 
-            Base::Placement currentPlc = getPlacementFromProp(member, "Placement");
+            Base::Placement currentPlc = solverPlacement(this, member);
             if (!cacheIt->second.isSame(currentPlc)) {
                 movedMembers.push_back(member);
             }
@@ -1423,7 +1449,7 @@ void AssemblyObject::syncActiveRigidGroupPlacements()
                 if (!member) {
                     continue;
                 }
-                rigidPlacementCache[member] = getPlacementFromProp(member, "Placement");
+                rigidPlacementCache[member] = solverPlacement(this, member);
             }
             continue;
         }
@@ -1434,7 +1460,7 @@ void AssemblyObject::syncActiveRigidGroupPlacements()
 
         App::DocumentObject* driver = movedMembers.front();
         const Base::Placement oldDriverPlc = rigidPlacementCache.at(driver);
-        const Base::Placement newDriverPlc = getPlacementFromProp(driver, "Placement");
+        const Base::Placement newDriverPlc = solverPlacement(this, driver);
         const Base::Placement delta = newDriverPlc * oldDriverPlc.inverse();
 
         for (auto* member : members) {
@@ -1444,7 +1470,7 @@ void AssemblyObject::syncActiveRigidGroupPlacements()
 
             if (auto cacheIt = rigidPlacementCache.find(member);
                 cacheIt != rigidPlacementCache.end()) {
-                Base::Placement targetPlc = delta * cacheIt->second;
+                Base::Placement targetPlc = localPlacement(this, member, delta * cacheIt->second);
                 auto* propPlacement = member->getPlacementProperty();
                 if (propPlacement && !propPlacement->getValue().isSame(targetPlc)) {
                     propPlacement->setValue(targetPlc);
@@ -1457,7 +1483,7 @@ void AssemblyObject::syncActiveRigidGroupPlacements()
             if (!member) {
                 continue;
             }
-            rigidPlacementCache[member] = getPlacementFromProp(member, "Placement");
+            rigidPlacementCache[member] = solverPlacement(this, member);
         }
     }
 }
@@ -1473,7 +1499,7 @@ void AssemblyObject::updateRigidPlacementCache()
                 continue;
             }
             activeMembers.insert(member);
-            rigidPlacementCache[member] = getPlacementFromProp(member, "Placement");
+            rigidPlacementCache[member] = solverPlacement(this, member);
         }
     }
 
@@ -1529,6 +1555,7 @@ void AssemblyObject::setNewPlacementsImpl()
         if (!pair.second.offsetPlc.isIdentity()) {
             newPlacement = newPlacement * pair.second.offsetPlc;
         }
+        newPlacement = localPlacement(this, obj, newPlacement);
         if (!isFinitePlacement(newPlacement)) {
             Base::Console().warning(
                 "Assembly: solver returned a non-finite placement for '{}'; keeping its "
@@ -1843,6 +1870,11 @@ std::vector<App::DocumentObject*> AssemblyObject::getRigidGroups()
         componentList.begin(),
         componentList.end()
     );
+    const auto structuralList = Assembly::detail::getAssemblyComponents(Group.getValues(), true);
+    const std::unordered_set<App::DocumentObject*> structuralComponents(
+        structuralList.begin(),
+        structuralList.end()
+    );
     Base::PyGILStateLocker lock;
     for (auto const obj : jointGroup->getObjects()) {
         if (!obj || obj->isError()) {
@@ -1861,7 +1893,7 @@ std::vector<App::DocumentObject*> AssemblyObject::getRigidGroups()
             // Suppression and rigid ancestry remove solver participation, not stored
             // membership. Do not repair dormant metadata into an active group.
             if (std::ranges::any_of(rawMembers, [&](auto* member) {
-                    return member && !member->isError() && hasObject(member)
+                    return member && !member->isError() && structuralComponents.contains(member)
                         && member->getPropertyByName("Placement") != nullptr
                         && !components.contains(member);
                 })) {
@@ -1876,8 +1908,10 @@ std::vector<App::DocumentObject*> AssemblyObject::getRigidGroups()
                     continue;
                 }
 
-                // Keep only parts that belong to this assembly and have placement.
-                if (!hasObject(member) || member->getPropertyByName("Placement") == nullptr) {
+                // Active components include flexible descendants in distinct local
+                // parents. Direct Part membership does not describe solver membership.
+                if (!components.contains(member)
+                    || member->getPropertyByName("Placement") == nullptr) {
                     continue;
                 }
 
@@ -2005,7 +2039,7 @@ std::unordered_set<App::DocumentObject*> AssemblyObject::fixGroundedParts()
             continue;
         }
 
-        Base::Placement plc = getPlacementFromProp(obj, "Placement");
+        Base::Placement plc = solverPlacement(this, obj);
         std::string str = obj->getFullName();
         fixGroundedPart(obj, plc, str);
     }
@@ -2022,10 +2056,12 @@ void AssemblyObject::fixGroundedPart(App::DocumentObject* obj, Base::Placement& 
     auto mbdMarker1 = makeMbdMarker(markerName1, plc);
     mbdAssembly->addMarker(mbdMarker1);
 
-    std::shared_ptr<ASMTPart> mbdPart = getMbDPart(obj);
+    const MbDPartData data = getMbDData(obj);
+    std::shared_ptr<ASMTPart> mbdPart = data.part;
 
-    std::string markerName2 = "FixingMarker";
-    Base::Placement basePlc = Base::Placement();
+    // Several grounded members can share a bundled body with different offsets.
+    std::string markerName2 = "FixingMarker-" + obj->getFullName();
+    Base::Placement basePlc = data.offsetPlc;
     auto mbdMarker2 = makeMbdMarker(markerName2, basePlc);
     mbdPart->addMarker(mbdMarker2);
 
@@ -2880,9 +2916,11 @@ void AssemblyObject::getRackPinionMarkers(
     if (!ref1 || !ref2) {
         return;
     }
-    Base::Placement pinion_global_plc = getGlobalPlacement(obj2, ref2);
+    Base::Placement pinion_global_plc = Assembly::detail::getContainingPlacement(ref2->getValue())
+        * getGlobalPlacement(obj2, ref2);
     plc2 = pinion_global_plc * plc2;
-    Base::Placement rack_global_plc = getGlobalPlacement(obj1, ref1);
+    Base::Placement rack_global_plc = Assembly::detail::getContainingPlacement(ref1->getValue())
+        * getGlobalPlacement(obj1, ref1);
     plc2 = rack_global_plc.inverse() * plc2;
 
     // The rot of the rack placement should be the same as the pinion, but with X axis along the
@@ -2915,7 +2953,8 @@ void AssemblyObject::getRackPinionMarkers(
     if (obj1->getNameInDocument() != part1->getNameInDocument()) {
         plc1 = rack_global_plc * plc1;
 
-        Base::Placement part_global_plc = getGlobalPlacement(part1, ref1);
+        Base::Placement part_global_plc = Assembly::detail::getContainingPlacement(ref1->getValue())
+            * getGlobalPlacement(part1, ref1);
         plc1 = part_global_plc.inverse() * plc1;
     }
     // check if we need to add an offset in case of bundled parts.
@@ -3007,7 +3046,7 @@ AssemblyObject::MbDPartData AssemblyObject::getMbDData(App::DocumentObject* part
 
     // Associate objects that belong to an active rigid cluster.
     if (auto* rep = getRigidRepresentative(part)) {
-        Base::Placement repPlc = getPlacementFromProp(rep, "Placement");
+        Base::Placement repPlc = solverPlacement(this, rep);
 
         std::shared_ptr<ASMTPart> mbdPart;
         const auto repMapped = objectPartMap.find(rep);
@@ -3027,7 +3066,7 @@ AssemblyObject::MbDPartData AssemblyObject::getMbDData(App::DocumentObject* part
                     continue;
                 }
 
-                Base::Placement memberPlc = getPlacementFromProp(member, "Placement");
+                Base::Placement memberPlc = solverPlacement(this, member);
                 objectPartMap[member] = {mbdPart, repPlc.inverse() * memberPlc};
             }
         }
@@ -3040,7 +3079,7 @@ AssemblyObject::MbDPartData AssemblyObject::getMbDData(App::DocumentObject* part
 
     // part has not been associated with an ASMTPart before
     std::string str = part->getFullName();
-    Base::Placement plc = getPlacementFromProp(part, "Placement");
+    Base::Placement plc = solverPlacement(this, part);
     std::shared_ptr<ASMTPart> mbdPart = makeMbdPart(str, plc);
     mbdAssembly->addPart(mbdPart);
     MbDPartData data = {mbdPart, Base::Placement()};
@@ -3062,7 +3101,7 @@ AssemblyObject::MbDPartData AssemblyObject::getMbDData(App::DocumentObject* part
                         continue;
                     }
 
-                    Base::Placement plci = getPlacementFromProp(partToAdd, "Placement");
+                    Base::Placement plci = solverPlacement(this, partToAdd);
                     MbDPartData partData = {mbdPart, plc.inverse() * plci};
                     objectPartMap[partToAdd] = partData;  // Store the association
 
