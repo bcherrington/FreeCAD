@@ -31,6 +31,7 @@
 
 #include <App/Application.h>
 #include <App/Document.h>
+#include <App/DocumentObserver.h>
 #include <Base/Console.h>
 #include <Gui/AsyncPreviewSession.h>
 #include <Gui/Application.h>
@@ -103,12 +104,13 @@ TaskShapeBinder::TaskShapeBinder(ViewProviderShapeBinder* view, bool newObj, QWi
         auto* object = vp.expired() ? nullptr : vp->getObject<PartDesign::ShapeBinder>();
         return object ? App::RecomputeRequest::fromDocumentObject(*object) : App::RecomputeRequest {};
     };
-    callbacks.runSync = [this]() {
+    callbacks.runSyncWithResult = [this]() -> App::RecomputeResult {
         if (!vp.expired()) {
             if (auto* binder = vp->getObject<PartDesign::ShapeBinder>()) {
-                binder->getDocument()->recomputeFeature(binder);
+                return Gui::recomputeDocumentObjectWithResult(binder);
             }
         }
+        return Gui::recomputeDocumentObjectWithResult(nullptr);
     };
     asyncPreviewSession = std::make_unique<Gui::AsyncPreviewSession>(std::move(callbacks), this);
     connect(
@@ -589,11 +591,7 @@ bool TaskDlgShapeBinder::rejectNow()
             doc,
             /*force=*/false,
             shapeBinderRollbackDialogOptions(),
-            [doc]() {
-                if (doc) {
-                    doc->recompute();
-                }
-            }
+            [doc]() { return Gui::recomputeDocumentWithResult(doc); }
         );
         if (!outcome.success && !outcome.canceled) {
             Base::Console().error(
@@ -615,12 +613,19 @@ bool TaskDlgShapeBinder::accept()
     try {
         if (!vp.expired()) {
             PartDesign::ShapeBinder* binder = vp->getObject<PartDesign::ShapeBinder>();
+            if (!binder || !binder->isAttachedToDocument()) {
+                return false;
+            }
+            App::DocumentObjectWeakPtrT binderGuard(binder);
             parameter->clearInteractiveSelection();
             parameter->accept();
             const bool previewSettled = !parameter->hasOutstandingRecompute()
                 && parameter->canReuseAcceptedPreviewResult();
             if (previewSettled) {
                 parameter->flushPendingRecompute();
+                if (binderGuard.expired() || vp.expired() || !binder->isAttachedToDocument()) {
+                    return false;
+                }
                 Gui::cmdAppDocument(binder, "purgeTouched()");
                 if (!binder->isValid()) {
                     throw Base::RuntimeError(binder->getStatusString());
@@ -640,6 +645,9 @@ bool TaskDlgShapeBinder::accept()
                 if (!runAsyncAcceptDocumentRecompute(binder->getDocument(), options)) {
                     return false;
                 }
+                if (binderGuard.expired() || vp.expired() || !binder->isAttachedToDocument()) {
+                    return false;
+                }
                 if (!binder->isValid()) {
                     throw Base::RuntimeError(binder->getStatusString());
                 }
@@ -649,6 +657,9 @@ bool TaskDlgShapeBinder::accept()
         }
     }
     catch (const Base::Exception& e) {
+        if (vp.expired()) {
+            return false;
+        }
         vp->getDocument()->abortCommand();
         QMessageBox::warning(
             parameter,

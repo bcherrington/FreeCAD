@@ -136,9 +136,7 @@ static bool runPrimitiveDocumentRecompute(
 )
 {
     const auto recomputeDocument = [document]() {
-        if (document) {
-            document->recompute();
-        }
+        return Gui::recomputeDocumentWithResult(document, false);
     };
 
     const auto outcome = Gui::runAsyncDocumentRecomputeProgressDialog(
@@ -2186,10 +2184,8 @@ DlgPrimitives::DlgPrimitives(QWidget* parent, Part::Primitive* feature)
             return object ? App::RecomputeRequest::fromDocumentObject(*object)
                           : App::RecomputeRequest {};
         };
-        callbacks.runSync = [this]() {
-            if (auto* primitive = featurePtr.get<Part::Primitive>()) {
-                primitive->recomputeFeature();
-            }
+        callbacks.runSyncWithResult = [this]() {
+            return Gui::recomputeDocumentObjectWithResult(featurePtr.get<Part::Primitive>(), false);
         };
         asyncPreviewSession = std::make_unique<Gui::AsyncPreviewSession>(std::move(callbacks), this);
         asyncPreviewSession->setSchedulerInterval(

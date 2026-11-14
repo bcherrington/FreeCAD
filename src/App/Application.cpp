@@ -316,6 +316,10 @@ const char* recomputeFailureName(RecomputeFailure failure)
             return "dependency_cycle";
         case RecomputeFailure::Exception:
             return "exception";
+        case RecomputeFailure::ModelError:
+            return "model_error";
+        case RecomputeFailure::TargetUnavailable:
+            return "target_unavailable";
     }
 
     return "unknown";
@@ -393,11 +397,27 @@ RecomputeResult processRecomputeRequest(RecomputeRequest& request)
     try {
         if (!request.documentObjectName.empty()) {
             if (DocumentObject* documentObject = request.resolveDocumentObject()) {
-                documentObject->recomputeFeature(request.recursive);
+                if (!documentObject->recomputeFeature(request.recursive)) {
+                    result.success = false;
+                    result.failure = RecomputeFailure::ModelError;
+                }
+            }
+            else {
+                result.success = false;
+                result.failure = RecomputeFailure::TargetUnavailable;
             }
         }
         else if (Document* document = request.resolveDocument()) {
-            document->recompute({}, request.force, nullptr, request.options);
+            bool hasError = false;
+            document->recompute({}, request.force, &hasError, request.options);
+            if (hasError) {
+                result.success = false;
+                result.failure = RecomputeFailure::ModelError;
+            }
+        }
+        else {
+            result.success = false;
+            result.failure = RecomputeFailure::TargetUnavailable;
         }
     }
     catch (Base::UserAbortException& exception) {
@@ -422,7 +442,8 @@ RecomputeResult processRecomputeRequest(RecomputeRequest& request)
         result.success = false;
     }
 
-    if (request.progress && request.progress->wasCanceled() && result.failure == RecomputeFailure::None) {
+    if (request.progress && request.progress->wasCanceled()
+        && (result.failure == RecomputeFailure::None || result.failure == RecomputeFailure::ModelError)) {
         markCanceledRecomputeResult(result);
     }
 
@@ -1434,6 +1455,11 @@ bool Application::canRecomputeRequestOnWorker(const RecomputeRequest& req) const
 
     Document* document = req.resolveDocument();
     return !document || documentCanRecomputeOnWorker(*document);
+}
+
+RecomputeResult Application::recomputeRequestSynchronously(RecomputeRequest request)
+{
+    return processRecomputeRequest(request);
 }
 
 void Application::queueRecomputeRequest(RecomputeRequest req)

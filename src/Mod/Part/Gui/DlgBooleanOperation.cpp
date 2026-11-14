@@ -521,11 +521,7 @@ void DlgBooleanOperation::accept()
             tr("Computing boolean operation..."),
             resultObject,
             /*recursive=*/true,
-            [resultObject]() {
-                if (resultObject && resultObject->getDocument()) {
-                    resultObject->getDocument()->recomputeFeature(resultObject, /*recursive=*/true);
-                }
-            }
+            [resultObject]() { return Gui::recomputeDocumentObjectWithResult(resultObject, true); }
         );
         if (!outcome.success) {
             activeDoc->abortTransaction();

@@ -36,6 +36,7 @@
 #include <Base/Console.h>
 #include <Base/Tools.h>
 #include <Gui/Application.h>
+#include <Gui/AsyncPreviewController.h>
 #include <Gui/View3DInventor.h>
 #include <Gui/View3DInventorViewer.h>
 #include <Mod/Part/App/Tools.h>
@@ -202,6 +203,23 @@ void ViewProviderTransformed::recomputeFeature(bool recompute)
     refreshPreviewResult();
 }
 
+
+App::RecomputeResult ViewProviderTransformed::recomputeFeatureWithResult(bool recompute, QObject* task)
+{
+    auto* transformed = getObject<PartDesign::Transformed>();
+    if (!transformed) {
+        return Gui::recomputeDocumentObjectWithResult(nullptr);
+    }
+    PreviewRecomputeGuard guard(transformed, task, this);
+    App::RecomputeResult result;
+    if (recompute || transformed->isError() || transformed->mustExecute()) {
+        result = Gui::recomputeDocumentObjectWithResult(transformed, true);
+    }
+    if (guard.isLive()) {
+        refreshPreviewResult();
+    }
+    return result;
+}
 
 Gui::View3DInventorViewer* ViewProviderTransformed::getViewer()
 {

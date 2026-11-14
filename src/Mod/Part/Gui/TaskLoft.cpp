@@ -226,11 +226,7 @@ bool LoftWidget::accept(QDialogButtonBox* dialogButtonBox)
             obj,
             /*recursive=*/true,
             recomputeOptions,
-            [obj]() {
-                if (obj && obj->getDocument()) {
-                    obj->getDocument()->recomputeFeature(obj, /*recursive=*/true);
-                }
-            }
+            [obj]() { return Gui::recomputeDocumentObjectWithResult(obj, true); }
         );
         if (!outcome.success) {
             doc->abortCommand();

@@ -40,6 +40,31 @@ namespace Gui
 class DebouncedFunction;
 class Gizmo;
 
+/// Execute once on the caller's model thread and retain the native scoped outcome.
+inline App::RecomputeResult recomputeDocumentObjectWithResult(
+    App::DocumentObject* object,
+    bool recursive = false,
+    int options = App::currentRecomputeOptions()
+)
+{
+    return App::GetApplication().recomputeRequestSynchronously(
+        object ? App::RecomputeRequest::fromDocumentObject(*object, recursive, options)
+               : App::RecomputeRequest {}
+    );
+}
+
+inline App::RecomputeResult recomputeDocumentWithResult(
+    App::Document* document,
+    bool force = false,
+    int options = App::currentRecomputeOptions()
+)
+{
+    return App::GetApplication().recomputeRequestSynchronously(
+        document ? App::RecomputeRequest::fromDocument(*document, force, options)
+                 : App::RecomputeRequest {}
+    );
+}
+
 /**
  * @brief GUI-side controller for an async interactive preview recompute.
  *
@@ -65,8 +90,11 @@ public:
      * `makeRequest()` creates the stable `App::RecomputeRequest` identity.
      * It should return an empty request when the task no longer has a valid
      * document/object target.
-     * `runSync()` is the legacy fallback used when async recompute is disabled or
-     * the request is not worker-safe. Completion callbacks are always delivered
+     * `runSyncWithResult()` retains the native outcome when async recompute is
+     * disabled or the request is not worker-safe. The legacy `runSync()` hook
+     * reports completion only; it cannot infer scoped model validity. Supply
+     * the result hook for model/acceptance decisions. Only one hook executes.
+     * Completion callbacks are always delivered
      * on the GUI side after the controller has accepted the result generation.
      */
     struct Callbacks
@@ -78,6 +106,8 @@ public:
             onCompleted;
         std::function<void(bool success, bool canceled)> onAppliedResult;
         std::function<void()> onStateChanged;
+        // Appended to preserve existing source aggregate initialization.
+        std::function<App::RecomputeResult()> runSyncWithResult;
     };
 
     explicit AsyncPreviewController(Callbacks callbacks, QObject* parent = nullptr);

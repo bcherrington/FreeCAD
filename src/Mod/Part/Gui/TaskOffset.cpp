@@ -120,10 +120,8 @@ OffsetWidget::OffsetWidget(Part::Offset* offset, QWidget* parent)
         auto* object = d->offset;
         return object ? App::RecomputeRequest::fromDocumentObject(*object) : App::RecomputeRequest {};
     };
-    callbacks.runSync = [this]() {
-        if (d->offset && d->offset->getDocument()) {
-            d->offset->getDocument()->recomputeFeature(d->offset);
-        }
+    callbacks.runSyncWithResult = [this]() {
+        return Gui::recomputeDocumentObjectWithResult(d->offset, false);
     };
     d->asyncPreviewSession = std::make_unique<Gui::AsyncPreviewSession>(std::move(callbacks), this);
     d->asyncPreviewSession->setSchedulerInterval(
@@ -324,11 +322,7 @@ bool OffsetWidget::accept(QDialogButtonBox* dialogButtonBox)
             document,
             /*force=*/false,
             recomputeOptions,
-            [document]() {
-                if (document) {
-                    document->recompute();
-                }
-            }
+            [document]() { return Gui::recomputeDocumentWithResult(document, false); }
         );
         if (!outcome.success) {
             if (outcome.canceled) {

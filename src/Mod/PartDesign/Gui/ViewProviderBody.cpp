@@ -598,11 +598,7 @@ void ViewProviderBody::dropObject(App::DocumentObject* obj)
         QObject::tr("Computing body..."),
         doc,
         /*force=*/false,
-        [doc]() {
-            if (doc) {
-                doc->recompute();
-            }
-        }
+        [doc]() { return Gui::recomputeDocumentWithResult(doc); }
     );
     if (!outcome.success && !outcome.canceled) {
         Base::Console().error(

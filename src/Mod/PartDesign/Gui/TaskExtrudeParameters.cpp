@@ -75,11 +75,16 @@ TaskExtrudeParameters::TaskExtrudeParameters(
         auto* object = getObject<PartDesign::FeatureExtrude>();
         return object ? App::RecomputeRequest::fromDocumentObject(*object) : App::RecomputeRequest {};
     };
-    callbacks.runSync = [this]() {
+    callbacks.runSyncWithResult = [this]() -> App::RecomputeResult {
         if (auto* extrude = getObject<PartDesign::FeatureExtrude>()) {
-            extrude->recomputeFeature();
-            extrude->recomputePreview();
+            PreviewRecomputeGuard guard(extrude, this, getViewObject());
+            auto result = Gui::recomputeDocumentObjectWithResult(extrude);
+            if (guard.isLive()) {
+                extrude->recomputePreview();
+            }
+            return result;
         }
+        return Gui::recomputeDocumentObjectWithResult(nullptr);
     };
     callbacks.onAppliedResult = [this](bool success, bool canceled) {
         if (!canceled && success) {

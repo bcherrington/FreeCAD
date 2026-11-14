@@ -203,11 +203,16 @@ TaskPipeParameters::TaskPipeParameters(ViewProviderPipe* PipeView, bool /*newObj
         auto* object = getObject<PartDesign::Pipe>();
         return object ? App::RecomputeRequest::fromDocumentObject(*object) : App::RecomputeRequest {};
     };
-    callbacks.runSync = [this]() {
+    callbacks.runSyncWithResult = [this]() -> App::RecomputeResult {
         if (auto* pipe = getObject<PartDesign::Pipe>()) {
-            pipe->recomputeFeature();
-            pipe->recomputePreview();
+            PreviewRecomputeGuard guard(pipe, this, getViewObject());
+            auto result = Gui::recomputeDocumentObjectWithResult(pipe);
+            if (guard.isLive()) {
+                pipe->recomputePreview();
+            }
+            return result;
         }
+        return Gui::recomputeDocumentObjectWithResult(nullptr);
     };
     callbacks.onAppliedResult = [](bool, bool) {
     };

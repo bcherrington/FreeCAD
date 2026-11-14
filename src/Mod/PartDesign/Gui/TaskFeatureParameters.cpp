@@ -26,6 +26,7 @@
 #include <QDialogButtonBox>
 #include <QMessageBox>
 
+#include <App/Document.h>
 #include <App/DocumentObserver.h>
 #include <App/DocumentObject.h>
 #include <Gui/Application.h>
@@ -33,6 +34,7 @@
 #include <Gui/AsyncRecomputeProgressDialog.h>
 #include <Gui/BitmapFactory.h>
 #include <Gui/CommandT.h>
+#include <Gui/Document.h>
 #include <Gui/InputHint.h>
 #include <Gui/Inventor/Draggers/Gizmo.h>
 #include <Gui/MainWindow.h>
@@ -201,6 +203,53 @@ void TaskFeatureParameters::onUpdateView(bool on)
     recomputeFeature();
 }
 
+PreviewRecomputeGuard::PreviewRecomputeGuard(
+    App::DocumentObject* object,
+    QObject* task,
+    Gui::ViewProviderDocumentObject* view
+)
+    : object(object)
+    , document(object ? object->getDocument() : nullptr)
+    , task(task)
+    , hasTask(task != nullptr)
+    , retired(!object || !document)
+{
+    if (retired) {
+        return;
+    }
+    objectDeleted = document->signalDeletedObject.connect([this](const App::DocumentObject& deleted) {
+        if (&deleted == this->object) {
+            retired = true;
+        }
+    });
+    documentDeleted = App::GetApplication().signalDeleteDocument.connect(
+        [this](const App::Document& deleted) {
+            if (&deleted == document) {
+                retired = true;
+            }
+        }
+    );
+    if (view) {
+        auto* guiDocument = view->getDocument();
+        viewDeleted = guiDocument->signalDeletedObject.connect(
+            [this, view](const Gui::ViewProviderDocumentObject& deleted) {
+                if (&deleted == view) {
+                    retired = true;
+                }
+            }
+        );
+        guiDocumentDeleted = guiDocument->signalDeleteDocument.connect([this](const Gui::Document&) {
+            retired = true;
+        });
+    }
+}
+
+bool PreviewRecomputeGuard::isLive() const
+{
+    return !retired && (!hasTask || task) && object->isAttachedToDocument()
+        && object->getDocument() == document;
+}
+
 void TaskFeatureParameters::recomputeFeature()
 {
     if (!blockUpdate) {
@@ -210,6 +259,20 @@ void TaskFeatureParameters::recomputeFeature()
         feature->recomputeFeature();
         feature->recomputePreview();
     }
+}
+
+App::RecomputeResult TaskFeatureParameters::recomputeFeatureWithResult()
+{
+    if (blockUpdate) {
+        return {};
+    }
+    auto* feature = getObject<PartDesign::Feature>();
+    PreviewRecomputeGuard guard(feature, this, getViewObject());
+    auto result = Gui::recomputeDocumentObjectWithResult(feature);
+    if (guard.isLive()) {
+        feature->recomputePreview();
+    }
+    return result;
 }
 
 Gui::AsyncPreviewSession* TaskFeatureParameters::getAcceptedRecomputeProgressSession()
@@ -327,14 +390,17 @@ bool PartDesignGui::runAsyncAcceptDocumentRecompute(
         document,
         /*force=*/false,
         options,
-        [document]() {
-            if (document) {
-                document->recompute();
-            }
-        }
+        [document]() { return Gui::recomputeDocumentWithResult(document); }
     );
     if (!outcome.success) {
         if (outcome.canceled) {
+            return false;
+        }
+        if (outcome.failure == App::RecomputeFailure::ModelError) {
+            Base::Console().error(
+                "%s\n",
+                outcome.message.empty() ? "Feature recompute failed" : outcome.message.c_str()
+            );
             return false;
         }
         throw Base::RuntimeError(
@@ -447,7 +513,8 @@ void TaskDlgFeatureParameters::finalizeAcceptedFeature(App::DocumentObject* feat
 bool TaskDlgFeatureParameters::reportAcceptException(const Base::Exception& e) const
 {
     QString errorText = QString::fromUtf8(e.what());
-    QString statusText = QString::fromUtf8(getObject()->getStatusString());
+    auto* object = getObject();
+    QString statusText = object ? QString::fromUtf8(object->getStatusString()) : QString();
 
     // generic, fallback error message
     if (errorText == QStringLiteral("Error") || errorText.isEmpty()) {
@@ -469,6 +536,10 @@ bool TaskDlgFeatureParameters::reportAcceptException(const Base::Exception& e) c
 bool TaskDlgFeatureParameters::accept()
 {
     App::DocumentObject* feature = getObject();
+    if (!feature || !feature->isAttachedToDocument()) {
+        return false;
+    }
+    App::DocumentObjectWeakPtrT featureGuard(feature);
     bool isUpdateBlocked = false;
     auto pendingRecomputeAction = acceptPendingRecomputeAction();
     if (pendingRecomputeAction == AcceptPendingRecomputeAction::Flush) {
@@ -486,6 +557,9 @@ bool TaskDlgFeatureParameters::accept()
     }
     try {
         applyAcceptedFeatureParameters(pendingRecomputeAction, isUpdateBlocked);
+        if (featureGuard.expired() || !feature->isAttachedToDocument()) {
+            return false;
+        }
         // Make sure the feature is what we are expecting
         // Should be fine but you never know...
         if (!feature->isDerivedFrom<PartDesign::Feature>()) {
@@ -521,9 +595,16 @@ bool TaskDlgFeatureParameters::accept()
             return false;
         }
 
+        if (featureGuard.expired() || !feature->isAttachedToDocument()) {
+            return false;
+        }
         finalizeAcceptedFeature(feature);
     }
     catch (const Base::Exception& e) {
+        if (featureGuard.expired()) {
+            e.reportException();
+            return false;
+        }
         return reportAcceptException(e);
     }
     return true;
@@ -582,11 +663,7 @@ bool TaskDlgFeatureParameters::reject()
             document,
             /*force=*/false,
             rollbackRecomputeDialogOptions(),
-            [document]() {
-                if (document) {
-                    document->recompute();
-                }
-            }
+            [document]() { return Gui::recomputeDocumentWithResult(document); }
         );
         if (!outcome.success && !outcome.canceled) {
             Base::Console().error(

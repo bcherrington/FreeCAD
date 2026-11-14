@@ -1279,10 +1279,8 @@ DlgProjectOnSurface::DlgProjectOnSurface(Part::ProjectOnSurface* feature, QWidge
         auto* object = this->feature.get();
         return object ? App::RecomputeRequest::fromDocumentObject(*object) : App::RecomputeRequest {};
     };
-    callbacks.runSync = [this]() {
-        if (auto* projection = this->feature.get()) {
-            projection->recomputeFeature();
-        }
+    callbacks.runSyncWithResult = [this]() {
+        return Gui::recomputeDocumentObjectWithResult(this->feature.get(), false);
     };
     asyncPreviewSession = std::make_unique<Gui::AsyncPreviewSession>(std::move(callbacks), this);
     asyncPreviewSession->setSchedulerInterval(
@@ -1430,11 +1428,7 @@ bool DlgProjectOnSurface::accept()
         tr("Computing projection..."),
         document,
         /*force=*/false,
-        [document]() {
-            if (document) {
-                document->recompute();
-            }
-        }
+        [document]() { return Gui::recomputeDocumentWithResult(document, false); }
     );
     if (!outcome.success) {
         if (!outcome.canceled) {

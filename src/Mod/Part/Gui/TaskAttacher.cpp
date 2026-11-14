@@ -1860,11 +1860,7 @@ bool TaskDlgAttacher::accept()
             obj,
             /*recursive=*/false,
             recomputeOptions,
-            [obj]() {
-                if (obj) {
-                    obj->recomputeFeature(/*recursive=*/false);
-                }
-            }
+            [obj]() { return Gui::recomputeDocumentObjectWithResult(obj, false); }
         );
         if (!outcome.success) {
             if (!outcome.canceled) {
@@ -1913,11 +1909,7 @@ bool TaskDlgAttacher::reject()
             tr("Restoring document..."),
             appDocument,
             /*force=*/false,
-            [appDocument]() {
-                if (appDocument) {
-                    appDocument->recompute();
-                }
-            }
+            [appDocument]() { return Gui::recomputeDocumentWithResult(appDocument, false); }
         );
         if (!outcome.success && !outcome.canceled) {
             Base::Console().error(

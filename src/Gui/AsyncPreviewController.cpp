@@ -65,6 +65,10 @@ const char* recomputeFailureName(App::RecomputeFailure failure)
             return "dependency_cycle";
         case App::RecomputeFailure::Exception:
             return "exception";
+        case App::RecomputeFailure::ModelError:
+            return "model_error";
+        case App::RecomputeFailure::TargetUnavailable:
+            return "target_unavailable";
     }
 
     return "unknown";
@@ -303,11 +307,16 @@ void AsyncPreviewController::stopPendingRecompute()
 
 void AsyncPreviewController::requestRecompute(bool waitForCompletion)
 {
-    if (!callbacks.makeRequest || !callbacks.runSync) {
+    if (!callbacks.makeRequest || (!callbacks.runSync && !callbacks.runSyncWithResult)) {
         return;
     }
 
-    App::RecomputeRequest request = callbacks.makeRequest();
+    QPointer<AsyncPreviewController> lifetime(this);
+    const auto makeRequest = callbacks.makeRequest;
+    App::RecomputeRequest request = makeRequest();
+    if (!lifetime) {
+        return;
+    }
     if (!hasStableDocumentIdentity(request)) {
         return;
     }
@@ -315,6 +324,9 @@ void AsyncPreviewController::requestRecompute(bool waitForCompletion)
     const bool asyncEnabled = App::GetApplication().isAsyncRecomputeEnabled();
     const bool canRunOnWorker = asyncEnabled
         && App::GetApplication().canRecomputeRequestOnWorker(request);
+    if (!lifetime) {
+        return;
+    }
     {
         std::ostringstream details;
         details << describeRecomputeRequest(request);
@@ -328,32 +340,29 @@ void AsyncPreviewController::requestRecompute(bool waitForCompletion)
 
     if (!canRunOnWorker) {
         App::ScopedRecomputeOptions optionsScope(request.options);
-        callbacks.runSync();
+        QPointer<AsyncPreviewController> guard(this);
+        App::RecomputeResult result;
+        const auto runSyncWithResult = callbacks.runSyncWithResult;
+        const auto runSync = callbacks.runSync;
+        if (runSyncWithResult) {
+            result = runSyncWithResult();
+        }
+        else {
+            runSync();
+        }
+        if (!guard) {
+            return;
+        }
 
         const auto generation = ++recomputeGeneration;
-        appliedRecomputeGeneration = generation;
-        lastRecomputeSucceeded = true;
-        recomputeInProgress = false;
-        recomputeQueued = false;
-        recomputeCancelRequested = false;
-        detachRecomputeProgressObserver();
-        recomputeProgress.reset();
-        resetRecomputeProgressDisplayState();
-
-        if (callbacks.onCompleted) {
-            callbacks.onCompleted(
-                /*success=*/true,
-                /*canceled=*/false,
-                App::RecomputeFailure::None,
-                {}
-            );
-        }
-        if (callbacks.onAppliedResult) {
-            callbacks.onAppliedResult(/*success=*/true, /*canceled=*/false);
-        }
         appendPreviewControllerDebugLog(this, "request_sync_done", describeRecomputeRequest(request));
-        notifyStateChanged();
-        Q_EMIT recomputeSettled();
+        finishRecompute(
+            generation,
+            result.success,
+            recomputeResultWasCanceled(result),
+            result.failure,
+            result.exception ? result.exception->what() : std::string()
+        );
         return;
     }
 
@@ -366,6 +375,9 @@ void AsyncPreviewController::requestRecompute(bool waitForCompletion)
     }
 
     attachRecomputeProgressObserver(generation);
+    if (!lifetime) {
+        return;
+    }
     request.progress = recomputeProgress;
 
     if (!waitForCompletion) {
@@ -373,6 +385,9 @@ void AsyncPreviewController::requestRecompute(bool waitForCompletion)
         recomputeQueued = hadOutstanding;
         recomputeCancelRequested = false;
         notifyStateChanged();
+        if (!lifetime) {
+            return;
+        }
 
         QPointer<AsyncPreviewController> guard(this);
         request.callback = [guard, generation](App::RecomputeRequest&, App::RecomputeResult& result) {
@@ -435,6 +450,9 @@ void AsyncPreviewController::requestRecompute(bool waitForCompletion)
     std::unique_lock<std::mutex> lock(waitState->mutex);
     waitWithQueuedMainThreadDispatch(lock, waitState->cv, [&waitState]() { return waitState->done; });
     lock.unlock();
+    if (!lifetime) {
+        return;
+    }
 
     finishRecompute(
         generation,
@@ -523,11 +541,20 @@ void AsyncPreviewController::finishRecompute(
     recomputeProgress.reset();
     resetRecomputeProgressDisplayState();
 
-    if (callbacks.onCompleted) {
-        callbacks.onCompleted(success, canceled, failure, message);
+    QPointer<AsyncPreviewController> guard(this);
+    const auto onCompleted = callbacks.onCompleted;
+    if (onCompleted) {
+        onCompleted(success, canceled, failure, message);
     }
-    if (callbacks.onAppliedResult) {
-        callbacks.onAppliedResult(success, canceled);
+    if (!guard) {
+        return;
+    }
+    const auto onAppliedResult = callbacks.onAppliedResult;
+    if (onAppliedResult) {
+        onAppliedResult(success, canceled);
+    }
+    if (!guard) {
+        return;
     }
     {
         std::ostringstream details;
@@ -541,7 +568,9 @@ void AsyncPreviewController::finishRecompute(
         appendPreviewControllerDebugLog(this, "finish_done", details.str());
     }
     notifyStateChanged();
-    Q_EMIT recomputeSettled();
+    if (guard) {
+        Q_EMIT recomputeSettled();
+    }
 }
 
 void AsyncPreviewController::waitForOutstandingRecomputeToSettle()
@@ -665,10 +694,14 @@ void AsyncPreviewController::setRecomputeProgressDisplayState(
 
 void AsyncPreviewController::notifyStateChanged()
 {
-    if (callbacks.onStateChanged) {
-        callbacks.onStateChanged();
+    QPointer<AsyncPreviewController> guard(this);
+    const auto onStateChanged = callbacks.onStateChanged;
+    if (onStateChanged) {
+        onStateChanged();
     }
-    Q_EMIT stateChanged();
+    if (guard) {
+        Q_EMIT stateChanged();
+    }
 }
 
 }  // namespace Gui

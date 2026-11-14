@@ -30,6 +30,7 @@
 
 #include <App/Application.h>
 #include <App/Document.h>
+#include <App/DocumentObserver.h>
 #include <App/DocumentObject.h>
 #include <Gui/Application.h>
 #include <Gui/AsyncRecomputeProgressDialog.h>
@@ -130,11 +131,12 @@ TaskBooleanParameters::TaskBooleanParameters(ViewProviderBoolean* BooleanView, Q
         auto* object = this->BooleanView ? this->BooleanView->getObject() : nullptr;
         return object ? App::RecomputeRequest::fromDocumentObject(*object) : App::RecomputeRequest {};
     };
-    callbacks.runSync = [this]() {
+    callbacks.runSyncWithResult = [this]() -> App::RecomputeResult {
         if (auto* boolean = this->BooleanView ? this->BooleanView->getObject<PartDesign::Boolean>()
                                               : nullptr) {
-            boolean->getDocument()->recomputeFeature(boolean);
+            return Gui::recomputeDocumentObjectWithResult(boolean);
         }
+        return Gui::recomputeDocumentObjectWithResult(nullptr);
     };
     callbacks.onAppliedResult = [](bool, bool) {
     };
@@ -535,6 +537,8 @@ bool TaskDlgBooleanParameters::accept()
     if (!obj || !obj->isAttachedToDocument() || !document) {
         return false;
     }
+    App::DocumentObjectWeakPtrT objectGuard(obj);
+    App::DocumentWeakPtrT documentGuard(document);
     BooleanView->Visibility.setValue(true);
 
     try {
@@ -550,6 +554,9 @@ bool TaskDlgBooleanParameters::accept()
         }
         else {
             parameter->flushPendingRecompute();
+        }
+        if (objectGuard.expired() || !obj->isAttachedToDocument()) {
+            return false;
         }
         std::stringstream str;
         str << Gui::Command::getObjectCmd(obj) << ".setObjects( [";
@@ -581,10 +588,22 @@ bool TaskDlgBooleanParameters::accept()
         if (!runAsyncAcceptDocumentRecompute(document, options)) {
             return false;
         }
+        if (objectGuard.expired() || !obj->isAttachedToDocument()) {
+            return false;
+        }
+        if (!obj->isValid()) {
+            Base::Console().error("%s\n", obj->getStatusString());
+            return false;
+        }
         Gui::cmdGuiDocument(document, "resetEdit()");
-        document->commitTransaction();
+        if (!documentGuard.expired()) {
+            document->commitTransaction();
+        }
     }
     catch (const Base::Exception& e) {
+        if (documentGuard.expired() || objectGuard.expired()) {
+            return false;
+        }
         document->abortTransaction();
         QMessageBox::warning(
             parameter,

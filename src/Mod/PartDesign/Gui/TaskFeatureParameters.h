@@ -62,6 +62,30 @@ namespace PartDesignGui
 
 using AsyncPreviewController = Gui::AsyncPreviewController;
 
+// One recompute call may delete and even recreate its receivers through observers.
+// Retirement is sticky for this call, including when undo restores the same object.
+class PreviewRecomputeGuard
+{
+public:
+    PreviewRecomputeGuard(
+        App::DocumentObject* object,
+        QObject* task,
+        Gui::ViewProviderDocumentObject* view
+    );
+    bool isLive() const;
+
+private:
+    App::DocumentObject* object;
+    App::Document* document;
+    QPointer<QObject> task;
+    bool hasTask;
+    bool retired;
+    fastsignals::scoped_connection objectDeleted;
+    fastsignals::scoped_connection documentDeleted;
+    fastsignals::scoped_connection viewDeleted;
+    fastsignals::scoped_connection guiDocumentDeleted;
+};
+
 bool runAsyncAcceptDocumentRecompute(App::Document* document);
 bool runAsyncAcceptDocumentRecompute(
     App::Document* document,
@@ -133,6 +157,7 @@ public:
     );
 
     void recomputeFeature();
+    App::RecomputeResult recomputeFeatureWithResult();
 
     bool isUpdateBlocked() const
     {

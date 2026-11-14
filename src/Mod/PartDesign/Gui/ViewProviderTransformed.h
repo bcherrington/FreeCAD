@@ -27,6 +27,8 @@
 
 #include "ViewProvider.h"
 
+#include <App/Application.h>
+
 #include <Inventor/nodes/SoMultipleCopy.h>
 
 namespace Gui
@@ -57,6 +59,7 @@ public:
     std::string featureIcon() const;
 
     void recomputeFeature(bool recompute = true);
+    App::RecomputeResult recomputeFeatureWithResult(bool recompute = true, QObject* task = nullptr);
     void refreshPreviewResult();
     void setupContextMenu(QMenu*, QObject*, const char*) override;
 

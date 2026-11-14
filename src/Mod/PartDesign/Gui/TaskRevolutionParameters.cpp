@@ -125,11 +125,16 @@ TaskRevolutionParameters::TaskRevolutionParameters(
         auto* object = getObject<PartDesign::Revolved>();
         return object ? App::RecomputeRequest::fromDocumentObject(*object) : App::RecomputeRequest {};
     };
-    callbacks.runSync = [this]() {
+    callbacks.runSyncWithResult = [this]() -> App::RecomputeResult {
         if (auto* revolution = getObject<PartDesign::Revolved>()) {
-            revolution->recomputeFeature();
-            revolution->recomputePreview();
+            PreviewRecomputeGuard guard(revolution, this, getViewObject());
+            auto result = Gui::recomputeDocumentObjectWithResult(revolution);
+            if (guard.isLive()) {
+                revolution->recomputePreview();
+            }
+            return result;
         }
+        return Gui::recomputeDocumentObjectWithResult(nullptr);
     };
     callbacks.onAppliedResult = [this](bool success, bool canceled) {
         if (!canceled && success) {

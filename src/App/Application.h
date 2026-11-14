@@ -100,14 +100,16 @@ struct DocumentInitFlags {
 };
 
 /**
- * @brief Failure category for async recompute processing.
+ * @brief Failure category for synchronous or queued recompute request processing.
  */
 enum class RecomputeFailure
 {
     None,
     Canceled,
     DependencyCycle,
-    Exception
+    Exception,
+    ModelError,
+    TargetUnavailable
 };
 
 enum class RecomputeOption : int
@@ -553,6 +555,12 @@ public:
     bool isAsyncRecomputeEnabled();
     bool isFineGrainedRecomputeEnabled();
     bool canRecomputeRequestOnWorker(const RecomputeRequest& req) const;
+
+    /** Execute one request on the caller's appropriately routed model thread.
+     * Progress/options and native outcomes match queued recompute processing.
+     * The request callback is not invoked by this synchronous result API.
+     */
+    RecomputeResult recomputeRequestSynchronously(RecomputeRequest request);
 
     // Adds a recompute request to the processing queue.
     void queueRecomputeRequest(RecomputeRequest req);

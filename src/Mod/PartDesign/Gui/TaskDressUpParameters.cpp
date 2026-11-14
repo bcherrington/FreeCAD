@@ -102,11 +102,16 @@ TaskDressUpParameters::TaskDressUpParameters(
         auto* object = getObject<PartDesign::DressUp>();
         return object ? App::RecomputeRequest::fromDocumentObject(*object) : App::RecomputeRequest {};
     };
-    callbacks.runSync = [this]() {
+    callbacks.runSyncWithResult = [this]() -> App::RecomputeResult {
         if (auto* dressUp = getObject<PartDesign::DressUp>()) {
-            dressUp->recomputeFeature();
-            dressUp->recomputePreview();
+            PreviewRecomputeGuard guard(dressUp, this, getViewObject());
+            auto result = Gui::recomputeDocumentObjectWithResult(dressUp);
+            if (guard.isLive()) {
+                dressUp->recomputePreview();
+            }
+            return result;
         }
+        return Gui::recomputeDocumentObjectWithResult(nullptr);
     };
     callbacks.onAppliedResult = [this](bool, bool canceled) {
         if (shouldRestoreReferenceHighlightAfterRecompute()) {

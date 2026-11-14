@@ -33,6 +33,7 @@
 
 #include <App/Application.h>
 #include <App/Document.h>
+#include <App/DocumentObserver.h>
 #include <App/DocumentObject.h>
 #include <App/Transactions.h>
 #include <App/Origin.h>
@@ -110,10 +111,11 @@ void TaskTransformedParameters::setupAsyncPreviewController()
                         )
                       : App::RecomputeRequest {};
     };
-    callbacks.runSync = [this]() {
+    callbacks.runSyncWithResult = [this]() -> App::RecomputeResult {
         if (auto* view = getTopTransformedView()) {
-            view->recomputeFeature();
+            return view->recomputeFeatureWithResult(true, this);
         }
+        return Gui::recomputeDocumentObjectWithResult(nullptr);
     };
     callbacks.onAppliedResult = [this](bool, bool canceled) {
         if (!canceled) {
@@ -1015,6 +1017,7 @@ bool TaskDlgTransformedParameters::accept()
         return false;
     }
 
+    App::DocumentObjectWeakPtrT featureGuard(feature);
     bool isUpdateBlocked = false;
     try {
         const bool canReusePreviewResult = !parameter->hasOutstandingRecompute()
@@ -1032,6 +1035,9 @@ bool TaskDlgTransformedParameters::accept()
         parameter->apply();
         isUpdateBlocked = parameter->isUpdateBlocked();
 
+        if (featureGuard.expired() || !feature->isAttachedToDocument()) {
+            return false;
+        }
         if (!feature->isDerivedFrom<PartDesign::Feature>()) {
             throw Base::TypeError("Bad object processed in the feature dialog.");
         }
@@ -1053,9 +1059,16 @@ bool TaskDlgTransformedParameters::accept()
             return false;
         }
 
+        if (featureGuard.expired() || !feature->isAttachedToDocument()) {
+            return false;
+        }
         finalizeAcceptedFeature(feature);
     }
     catch (const Base::Exception& e) {
+        if (featureGuard.expired()) {
+            e.reportException();
+            return false;
+        }
         return reportAcceptException(e);
     }
 

@@ -106,11 +106,16 @@ TaskHelixParameters::TaskHelixParameters(PartDesignGui::ViewProviderHelix* Helix
         auto* object = getObject<PartDesign::Helix>();
         return object ? App::RecomputeRequest::fromDocumentObject(*object) : App::RecomputeRequest {};
     };
-    callbacks.runSync = [this]() {
+    callbacks.runSyncWithResult = [this]() -> App::RecomputeResult {
         if (auto* helix = getObject<PartDesign::Helix>()) {
-            helix->recomputeFeature();
-            helix->recomputePreview();
+            PreviewRecomputeGuard guard(helix, this, getViewObject());
+            auto result = Gui::recomputeDocumentObjectWithResult(helix);
+            if (guard.isLive()) {
+                helix->recomputePreview();
+            }
+            return result;
         }
+        return Gui::recomputeDocumentObjectWithResult(nullptr);
     };
     callbacks.onAppliedResult = [this](bool success, bool canceled) {
         if (!canceled && success) {

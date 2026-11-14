@@ -3331,6 +3331,11 @@ int Document::_recomputeFeature(DocumentObject* Feat) // NOLINT
     }
     catch (Base::AbortException& e) {
         const bool userCanceled = Base::isUserAbortException(e);
+        if (userCanceled) {
+            if (auto* progress = App::currentRecomputeProgress()) {
+                progress->cancel();
+            }
+        }
         FC_LOG("Failed to recompute " << Feat->getFullName() << ": " << e.what());
         d->addRecomputeLog(userCanceled ? "User aborted" : e.what(),
                            Feat,
@@ -3366,6 +3371,11 @@ int Document::_recomputeFeature(DocumentObject* Feat) // NOLINT
         Feat->resetError();
     }
     else {
+        if (returnCode->Kind == RecomputeIssueKind::Canceled) {
+            if (auto* progress = App::currentRecomputeProgress()) {
+                progress->cancel();
+            }
+        }
         returnCode->Which = Feat;
         d->addRecomputeLog(returnCode);
         FC_LOG("Failed to recompute " << Feat->getFullName() << ": " << returnCode->Why);

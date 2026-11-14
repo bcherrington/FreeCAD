@@ -404,11 +404,7 @@ bool Mirroring::accept()
             tr("Computing mirrored shapes..."),
             activeDoc,
             /*force=*/false,
-            [activeDoc]() {
-                if (activeDoc) {
-                    activeDoc->recompute();
-                }
-            }
+            [activeDoc]() { return Gui::recomputeDocumentWithResult(activeDoc, false); }
         );
         if (!outcome.success) {
             activeDoc->abortTransaction();

@@ -211,9 +211,7 @@ void ShapeBuilderWidget::onCreateButtonClicked()
         }
         App::Document* appDoc = doc->getDocument();
         const auto recomputeDocument = [appDoc]() {
-            if (appDoc) {
-                appDoc->recompute();
-            }
+            return Gui::recomputeDocumentWithResult(appDoc, false);
         };
         const QString recomputeStatus = tr("Computing shape...");
         Gui::AsyncRecomputeDialogOptions recomputeOptions;
