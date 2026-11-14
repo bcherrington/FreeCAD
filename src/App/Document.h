@@ -24,6 +24,7 @@
 
 #pragma once
 
+#include <cstdint>
 #include <CXX/Objects.hxx>
 #include <Base/Observer.h>
 #include <Base/Persistence.h>
@@ -287,6 +288,10 @@ public:
 
     /// Clear the document of all its administration.
     void clearDocument();
+    bool tryCommitTransaction();
+    bool tryAbortTransaction() const;
+    void collectCommitMutationEndpoints(std::vector<DocumentObject*>&) const;
+    std::uint64_t getTransactionGeneration(bool undo, unsigned pos = 0) const;
 
     /** @name File handling of the document
      * @{

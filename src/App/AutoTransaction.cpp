@@ -24,11 +24,13 @@
 
 
 #include <Base/Interpreter.h>
+#include <Base/Tools.h>
 
 #include "AutoTransaction.h"
 #include "Application.h"
 #include "Document.h"
 #include "Transactions.h"
+#include "private/RecomputeAdmission.h"
 
 
 FC_LOG_LEVEL_INIT("App", true, true)
@@ -38,25 +40,70 @@ using namespace App;
 AutoTransaction::AutoTransaction(int tid)
     : tid(tid)
 {
-
+    if (GetApplication().transactionIsActive(tid)) {
+        generation = RecomputeDetail::Coordinator::instance().captureClosure(tid).serial;
+    }
+    else {
+        this->tid = NullTransaction;
+    }
 }
 AutoTransaction::AutoTransaction(Document* doc, const std::string& name)
     : AutoTransaction(doc->openTransaction(name))
+{}
+
+AutoTransaction::~AutoTransaction() noexcept
 {
-    
+    try {
+        if (tryClose(requestedMode)) {
+            return;
+        }
+    }
+    catch (...) {
+        // The exact closure is still owned below, including on an exceptional attempt.
+    }
+    if (tid != NullTransaction) {
+        RecomputeDetail::Coordinator::instance().adoptClosure(
+            {generation, tid},
+            requestedMode == TransactionCloseMode::Abort
+        );
+    }
 }
 
-AutoTransaction::~AutoTransaction()
+bool AutoTransaction::tryClose(TransactionCloseMode mode)
 {
-    close(TransactionCloseMode::Commit);
+    requestedMode = mode;
+    if (tid == NullTransaction) {
+        return true;
+    }
+    auto& coordinator = RecomputeDetail::Coordinator::instance();
+    if (!coordinator.closureCurrent({generation, tid})) {
+        tid = NullTransaction;
+        return true;
+    }
+    if (!GetApplication().closeActiveTransaction(mode, tid)) {
+        return false;
+    }
+    tid = NullTransaction;
+    return true;
 }
 
 void AutoTransaction::close(TransactionCloseMode mode)
 {
-    if (tid != NullTransaction) {
-        GetApplication().closeActiveTransaction(mode, tid);
-        tid = 0;
+    if (!tryClose(mode)) {
+        throw RecomputeDetail::AdmissionRefusal("Transaction close is busy; ownership retained.");
     }
+}
+
+void App::drainDeferredTransactions()
+{
+    auto& coordinator = RecomputeDetail::Coordinator::instance();
+    coordinator.drainClosures([&coordinator](const RecomputeDetail::ClosureToken& token, bool abort) {
+        return !coordinator.closureCurrent(token)
+            || GetApplication().closeActiveTransaction(
+                abort ? TransactionCloseMode::Abort : TransactionCloseMode::Commit,
+                token.transactionId
+            );
+    });
 }
 
 int Application::setActiveTransaction(TransactionName name)
@@ -80,7 +127,8 @@ int Application::openGlobalTransaction(TransactionName name)
     FC_WARN("Setting a global transaction with name='" << name.name);
     if (_globalTransactionID != 0 && transactionTmpName(_globalTransactionID)) {
         setTransactionName(_globalTransactionID, name);
-    } else {
+    }
+    else {
         FC_LOG("set global transaction '" << name.name << "'");
 
         if (_globalTransactionID != 0 && !commitTransaction(_globalTransactionID)) {
@@ -91,10 +139,7 @@ int Application::openGlobalTransaction(TransactionName name)
         _globalTransactionID = Transaction::getNewID();
         setTransactionDescription(
             _globalTransactionID,
-            TransactionDescription {
-                .initiator = nullptr,
-                .name = name
-            }
+            TransactionDescription {.initiator = nullptr, .name = name}
         );
     }
 
@@ -136,6 +181,9 @@ std::optional<TransactionDescription> Application::transactionDescription(int ti
 }
 void Application::setTransactionDescription(int tid, const TransactionDescription& desc)
 {
+    if (tid != NullTransaction && tid == currentlyClosingID) {
+        throw RecomputeDetail::AdmissionRefusal("Cannot reuse a transaction ID while it is closing.");
+    }
     if (tid == NullTransaction) {
         return;
     }
@@ -149,6 +197,9 @@ void Application::setTransactionDescription(int tid, const TransactionDescriptio
     }
 
     if (!wasPresent || found->second.name.temporary) {
+        if (!wasPresent) {
+            RecomputeDetail::Coordinator::instance().captureClosure(tid);
+        }
         _activeTransactionDescriptions[tid] = desc;
         FC_LOG("transaction rename to '" << desc.name.name << "'");
     }
@@ -165,66 +216,136 @@ void Application::setTransactionName(int tid, const TransactionName& name)
         for (auto& v : DocMap) {
             v.second->renameTransaction(name.name, tid);
         }
-    } 
+    }
 }
 
 bool Application::closeActiveTransaction(TransactionCloseMode mode, int id)
 {
     bool abort = (mode == TransactionCloseMode::Abort);
-    
+
     if (id == NullTransaction) {
         if (_pActiveDoc != nullptr && _pActiveDoc->getBookedTransactionID() != NullTransaction) {
             id = _pActiveDoc->getBookedTransactionID();
-        } else {
+        }
+        else {
             id = _globalTransactionID;
         }
     }
-    if (id == NullTransaction || id == currentlyClosingID) {
+    if (id == NullTransaction || currentlyClosingID != NullTransaction || !transactionIsActive(id)) {
         return false;
     }
-    currentlyClosingID = id;
-
     std::vector<Document*> docsToPoke;
     for (auto& docNameAndDoc : DocMap) {
         if (docNameAndDoc.second->getBookedTransactionID() != id) {
             continue;
         }
-        if(docNameAndDoc.second->isTransactionLocked() || docNameAndDoc.second->transacting()) {
+        if (docNameAndDoc.second->isTransactionLocked() || docNameAndDoc.second->transacting()) {
             FC_LOG("pending " << (abort ? "abort" : "close") << " transaction");
-            currentlyClosingID = 0;
-            return false;
-        }
-        if(docNameAndDoc.second->transacting()) {
-            FC_LOG("pending " << (abort ? "abort" : "close") << " transaction");
-            currentlyClosingID = 0;
             return false;
         }
         docsToPoke.push_back(docNameAndDoc.second);
     }
 
-    FC_LOG("close transaction '" << _activeTransactionDescriptions[id].name.name << "' " << abort);
-    _activeTransactionDescriptions.erase(id);
-    if (id == _globalTransactionID) {
-        _globalTransactionID = 0;
+    auto& coordinator = RecomputeDetail::Coordinator::instance();
+    std::optional<RecomputeDetail::MutationScope> admission;
+    if (abort) {
+        admission = coordinator.tryAtomic();
     }
+    else {
+        try {
+            admission.emplace(coordinator.mutation({}, docsToPoke));
+            std::vector<DocumentObject*> endpoints;
+            for (const auto* document : docsToPoke) {
+                document->collectCommitMutationEndpoints(endpoints);
+            }
+            admission->include(endpoints, docsToPoke);
+        }
+        catch (const RecomputeDetail::AdmissionRefusal&) {
+            return false;
+        }
+    }
+    if (!admission) {
+        return false;
+    }
+    if (abort) {
+        try {
+            admission->include({}, docsToPoke);
+        }
+        catch (const RecomputeDetail::AdmissionRefusal&) {
+            return false;
+        }
+    }
+    Base::ScopeGuard resetClosing([this]() { currentlyClosingID = NullTransaction; });
+    currentlyClosingID = id;
+    Base::ScopeGuard resetClosingToken([&]() { coordinator.markClosureClosing(id, false); });
+    coordinator.markClosureClosing(id, true);
 
-    TransactionSignaller signaller(abort, false);
+    FC_LOG("close transaction '" << _activeTransactionDescriptions[id].name.name << "' " << abort);
+    decltype(_activeTransactionDescriptions)::node_type description;
+    const bool wasGlobal = id == _globalTransactionID;
+    bool closed = false;
+    Base::ScopeGuard restoreDescription([&]() {
+        if (!closed) {
+            if (description) {
+                _activeTransactionDescriptions.insert(std::move(description));
+            }
+            if (wasGlobal && _globalTransactionID == NullTransaction) {
+                _globalTransactionID = id;
+            }
+        }
+    });
+    description = _activeTransactionDescriptions.extract(id);
+    if (wasGlobal) {
+        _globalTransactionID = NullTransaction;
+    }
+    TransactionSignaller signaller(abort, true);
+    struct CloseCompletion
+    {
+        TransactionSignaller& signaller;
+        const bool& closed;
+        ~CloseCompletion()
+        {
+            if (!closed) {
+                signaller.suppressCompletion();
+            }
+        }
+    } completion {signaller, closed};
+
+    if (!abort) {
+        // Before-close observers may extend this same transaction. Keep the
+        // source reservation, then refresh the COMPLETE saved/current footprint
+        // before any native history change. Refusal restores close metadata;
+        // observer actions are independent effects and are not rolled back here.
+        try {
+            std::vector<DocumentObject*> endpoints;
+            for (const auto* document : docsToPoke) {
+                document->collectCommitMutationEndpoints(endpoints);
+            }
+            admission->include(endpoints, docsToPoke);
+        }
+        catch (const RecomputeDetail::AdmissionRefusal&) {
+            return false;
+        }
+    }
 
     for (auto& doc : docsToPoke) {
         if (abort) {
             doc->_abortTransaction();
         }
         else {
-            doc->_commitTransaction();
+            if (!doc->_commitTransaction()) {
+                throw Base::RuntimeError("Transaction state changed during admitted close.");
+            }
         }
     }
-    currentlyClosingID = 0;
+    closed = true;
+    coordinator.retireClosure(id);
 
     return true;
 }
 bool Application::commitTransaction(int tid)
 {
-    return  closeActiveTransaction(TransactionCloseMode::Commit, tid);
+    return closeActiveTransaction(TransactionCloseMode::Commit, tid);
 }
 bool Application::abortTransaction(int tid)
 {
@@ -278,4 +399,5 @@ void TransactionLocker::activate(bool enable)
     }
 
     doc->unlockTransaction();
+    RecomputeDetail::Coordinator::instance().requestCleanup();
 }

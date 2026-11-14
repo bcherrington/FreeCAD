@@ -48,6 +48,8 @@ class DynamicProperty;
 class DocumentObjectExecReturn;
 class ObjectIdentifier;
 class Expression;
+class PropertyString;
+namespace RecomputeDetail { class PropertySnapshot; }
 using ExpressionPtr = std::unique_ptr<Expression>;
 
 class AppExport PropertyExpressionContainer: public App::PropertyXLinkContainer
@@ -81,6 +83,7 @@ public:
     virtual void setExpressions(std::map<App::ObjectIdentifier, App::ExpressionPtr>&& exprs) = 0;
 
 protected:
+    void publishAdmissionTargets(const std::vector<DocumentObject*>&);
     /**
      * @brief Handle document relabeling.
      *
@@ -104,6 +107,10 @@ protected:
 
 private:
     friend class DynamicProperty;
+    friend class DocumentObject;
+    friend class PropertyString;
+    static RecomputeDetail::PropertySnapshot snapshotForAdmission(
+        const Document* document, const DocumentObject* object = nullptr);
     static void slotRelabelDocument(const App::Document& doc);
     static void slotMoveDynamicProperty(const App::Property& prop,
                                         const App::DocumentObject& targetObj);
@@ -133,6 +140,8 @@ public:
                                 bool reverse = false,
                                 bool notify = false) override;
     bool referenceChanged() const override;
+    bool isAdmissionPlanning() const override { return admissionStaging; }
+    void collectAdmissionTargets(std::vector<DocumentObject*>&) const override;
     bool adjustLink(const std::set<App::DocumentObject*>& inList) override;
     Property*
     CopyOnImportExternal(const std::map<std::string, std::string>& nameMap) const override;
@@ -356,10 +365,17 @@ private:
     void slotChangedProperty(const App::DocumentObject& obj, const App::Property& prop);
     void updateHiddenReference(const std::string& key);
 
+    bool admissionStaging = false;
     bool running = false; /**< Boolean used to avoid loops */
     bool restoring = false;
 
     ExpressionMap expressions; /**< Stored expressions */
+    ExpressionMap copyExpressions() const;
+    static std::vector<DocumentObject*> admissionTargets(const ExpressionMap&);
+    void commitExpressions(ExpressionMap&&, bool notify = true);
+    void refreshAdmissionMetadata();
+    std::string validateExpressionPlan(const ObjectIdentifier&,
+        std::shared_ptr<const Expression>, const ExpressionMap&) const;
 
     ValidatorFunc validator; /**< Valdiator functor */
 

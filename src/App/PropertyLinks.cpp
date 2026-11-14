@@ -23,6 +23,7 @@
  ***************************************************************************/
 
 #include <algorithm>
+#include <optional>
 #include <set>
 
 #include <QDir>
@@ -45,6 +46,7 @@
 #include "ElementNamingUtils.h"
 #include "GeoFeature.h"
 #include "ComplexGeoData.h"
+#include "private/RecomputeAdmission.h"
 
 
 FC_LOG_LEVEL_INIT("PropertyLinks", true, true)
@@ -64,12 +66,272 @@ TYPESYSTEM_SOURCE_ABSTRACT(App::PropertyLinkBase, App::Property)
 // clang-format off
 static std::unordered_map<std::string, std::set<PropertyLinkBase*>> _LabelMap;
 static std::unordered_map<App::DocumentObject*, std::unordered_set<PropertyLinkBase*>> _ElementRefMap;
+static std::unordered_map<DocumentObject*, std::unordered_set<PropertyLinkBase*>> _AdmissionTargetProperties;
+static std::unordered_map<PropertyLinkBase*, std::vector<DocumentObject*>> _AdmissionPropertyTargets;
+static std::unordered_map<PropertyLinkBase*, PropertyLinkBase*> _AdmissionParents;
+static std::uint64_t _ReferenceIndexEpoch = 0;
 // clang-format on
+
+namespace
+{
+struct PlanningCaptures
+{
+    std::vector<std::unique_ptr<RecomputeDetail::CaptureScope>> values;
+    ~PlanningCaptures()
+    {
+        // CaptureScope is a nested native observation stack, so retire LIFO.
+        while (!values.empty()) {
+            values.pop_back();
+        }
+    }
+};
+
+void preflightSubElementsImpl(
+    PropertyLinkBase* property,
+    RecomputeDetail::MutationScope& admission,
+    const std::vector<DocumentObject*>& roots,
+    const std::vector<std::string>& subs,
+    const std::vector<PropertyLinkBase::ShadowSub>* shadows = nullptr
+)
+{
+    if (property) {
+        auto* owner = freecad_cast<DocumentObject*>(property->getContainer());
+        if (property->isAdmissionPlanning() || !owner || !owner->isAttachedToDocument()) {
+            return;
+        }
+    }
+    if (roots.size() != 1 && !subs.empty() && roots.size() != subs.size()) {
+        throw Base::ValueError("Subelement preflight object/name size mismatch");
+    }
+    admission.include(roots);
+    std::vector<DocumentObject*> pending = roots;
+    std::set<DocumentObject*> declared;
+    std::map<Document*, RecomputeDetail::CaptureScope*> captured;
+    {
+        PlanningCaptures readers;
+        for (std::size_t i = 0; i < pending.size(); ++i) {
+            auto* object = pending[i];
+            if (!object || !declared.insert(object).second) {
+                continue;
+            }
+            admission.include({object});
+            auto* document = object->getDocument();
+            if (!document || !object->isAttachedToDocument()) {
+                throw Base::ValueError("Invalid subelement target object");
+            }
+            auto it = captured.find(document);
+            if (it == captured.end()) {
+                readers.values.push_back(
+                    std::make_unique<RecomputeDetail::CaptureScope>(document, true)
+                );
+                it = captured.emplace(document, readers.values.back().get()).first;
+            }
+            it->second->pin(object);
+            auto outgoing = object->getOutList(DocumentObject::OutListNoHidden);
+            admission.include(outgoing);
+            pending.insert(pending.end(), outgoing.begin(), outgoing.end());
+        }
+        const auto count = subs.empty() ? roots.size() : subs.size();
+        for (std::size_t i = 0; i < count; ++i) {
+            auto* root = roots.empty() ? nullptr : roots[roots.size() == 1 ? 0 : i];
+            if (!root) {
+                continue;
+            }
+            std::vector<std::string> names {subs.empty() ? std::string() : subs[i]};
+            if (shadows && i < shadows->size()) {
+                names.push_back((*shadows)[i].oldName);
+                names.push_back((*shadows)[i].newName);
+            }
+            for (const auto& name : names) {
+                if (name.empty() && names.size() > 1) {
+                    continue;
+                }
+                PropertyLinkBase::ShadowSub local;
+                GeoFeature* geometry = nullptr;
+                auto* resolved = GeoFeature::resolveElement(
+                    root,
+                    name.c_str(),
+                    local,
+                    true,
+                    GeoFeature::ElementNameType::Export,
+                    nullptr,
+                    nullptr,
+                    &geometry
+                );
+                if ((resolved && !declared.contains(resolved))
+                    || (geometry && !declared.contains(geometry))) {
+                    throw RecomputeDetail::AdmissionRefusal(
+                        "Custom subobject resolution must declare every referenced object before "
+                        "mutation"
+                    );
+                }
+                if (resolved) {
+                    RecomputeDetail::CaptureScope::pinCurrent(resolved);
+                }
+                if (geometry) {
+                    RecomputeDetail::CaptureScope::pinCurrent(geometry);
+                }
+            }
+        }
+    }
+    // Captures have ended; keep their exact endpoint pins and the writer cohort
+    // through notification/commit. No global reference index was edited in staging.
+    std::vector<DocumentObject*> targets;
+    if (property) {
+        property->collectAdmissionTargets(targets);
+    }
+    targets.insert(targets.end(), declared.begin(), declared.end());
+    admission.include(targets);
+    if (property) {
+        property->registerAdmissionTargets(targets);
+    }
+}
+void preflightSubElements(
+    PropertyLinkBase& property,
+    RecomputeDetail::MutationScope& admission,
+    const std::vector<DocumentObject*>& roots,
+    const std::vector<std::string>& subs,
+    const std::vector<PropertyLinkBase::ShadowSub>* shadows = nullptr
+)
+{
+    preflightSubElementsImpl(&property, admission, roots, subs, shadows);
+}
+}  // namespace
 
 PropertyLinkBase::PropertyLinkBase() = default;
 
+void PropertyLinkBase::setScope(LinkScope scope)
+{
+    auto admission = isAdmissionPlanning()
+        ? RecomputeDetail::MutationScope {}
+        : RecomputeDetail::Coordinator::instance().mutation(*this);
+    if (_pcScope == scope) {
+        return;
+    }
+    _pcScope = scope;
+}
+
+void PropertyLinkBase::setFlag(int flag, bool value)
+{
+    auto admission = isAdmissionPlanning()
+        ? RecomputeDetail::MutationScope {}
+        : RecomputeDetail::Coordinator::instance().mutation(*this);
+    if (_Flags.test(static_cast<std::size_t>(flag)) == value) {
+        return;
+    }
+    _Flags.set(static_cast<std::size_t>(flag), value);
+}
+
+void PropertyLinkBase::collectElementAdmissionTargets(std::vector<DocumentObject*>& targets) const
+{
+    RecomputeDetail::IndexLock lock;
+    targets.insert(targets.end(), _ElementRefs.begin(), _ElementRefs.end());
+}
+
+void PropertyLinkBase::collectAdmissionTargets(std::vector<DocumentObject*>& targets) const
+{
+    (void)targets;
+    throw RecomputeDetail::AdmissionRefusal(
+        "Custom link property must declare its raw mutation endpoints before native getters"
+    );
+}
+
+void PropertyLinkBase::registerAdmissionTargets(const std::vector<DocumentObject*>& targets)
+{
+    // Source/endpoint reservation has already succeeded. This is metadata only,
+    // including hidden edges which deliberately have no native backlink.
+    auto* child = targets.empty() ? nullptr : freecad_cast<PropertyXLink*>(this);
+    auto* parent = child ? child->parent() : nullptr;
+    std::set<DocumentObject*> unique;
+    for (auto* target : targets) {
+        if (target) {
+            unique.insert(target);
+        }
+    }
+    const std::vector<DocumentObject*> planned(unique.begin(), unique.end());
+    RecomputeDetail::IndexLock lock;
+    auto old = _AdmissionPropertyTargets.find(this);
+    auto oldParent = _AdmissionParents.find(this);
+    const bool sameParent = planned.empty()
+        ? oldParent == _AdmissionParents.end()
+        : oldParent != _AdmissionParents.end() && oldParent->second == parent;
+    if (sameParent
+        && ((old == _AdmissionPropertyTargets.end() && planned.empty())
+            || (old != _AdmissionPropertyTargets.end() && old->second == planned))) {
+        return;
+    }
+    if (old != _AdmissionPropertyTargets.end()) {
+        for (auto* target : old->second) {
+            auto it = _AdmissionTargetProperties.find(target);
+            if (it != _AdmissionTargetProperties.end()) {
+                it->second.erase(this);
+                if (it->second.empty()) {
+                    _AdmissionTargetProperties.erase(it);
+                }
+            }
+        }
+        _AdmissionPropertyTargets.erase(old);
+    }
+    std::vector<DocumentObject*> stored;
+    stored.reserve(targets.size());
+    for (auto* target : planned) {
+        if (_AdmissionTargetProperties[target].insert(this).second) {
+            stored.push_back(target);
+        }
+    }
+    if (!stored.empty()) {
+        _AdmissionPropertyTargets.emplace(this, std::move(stored));
+    }
+    if (targets.empty()) {
+        _AdmissionParents.erase(this);
+    }
+    else {
+        _AdmissionParents[this] = parent;
+    }
+    ++_ReferenceIndexEpoch;
+}
+
+
+RecomputeDetail::PropertySnapshot PropertyLinkBase::snapshotLabelReferences(DocumentObject* object)
+{
+    // Actual label setters retain the original owner reservation while calling
+    // this planner, before proposing or publishing their replacement label.
+    const std::string label = object ? object->Label.getStrValue() : std::string();
+    std::vector<Property*> properties;
+    std::uint64_t epoch;
+    {
+        RecomputeDetail::IndexLock lock;
+        epoch = _ReferenceIndexEpoch;
+        auto it = _LabelMap.find(label);
+        if (it != _LabelMap.end()) {
+            properties.insert(properties.end(), it->second.begin(), it->second.end());
+        }
+    }
+    auto snapshot = RecomputeDetail::Coordinator::instance().snapshotProperties(properties);
+    {
+        RecomputeDetail::IndexLock lock;
+        if (epoch != _ReferenceIndexEpoch) {
+            throw RecomputeDetail::AdmissionRefusal("Label reference index changed during preflight");
+        }
+    }
+    return snapshot;
+}
+
+void PropertyLinkBase::retireAdmissionEdges()
+{
+    // Property::destroy retains its original owner/endpoint capability here.
+    unregisterLabelReferences();
+    unregisterElementReference();
+    registerAdmissionTargets({});
+    RecomputeDetail::IndexLock lock;
+    _AdmissionParents.erase(this);
+    ++_ReferenceIndexEpoch;
+}
+
 PropertyLinkBase::~PropertyLinkBase()
 {
+    _AdmissionDestructing = true;
+    registerAdmissionTargets({});
     unregisterLabelReferences();
     unregisterElementReference();
 }
@@ -108,10 +370,10 @@ bool PropertyLinkBase::isSame(const Property& other) const
         return false;
     }
 
-    static std::vector<App::DocumentObject*> ret;
-    static std::vector<std::string> subs;
-    static std::vector<App::DocumentObject*> ret2;
-    static std::vector<std::string> subs2;
+    std::vector<App::DocumentObject*> ret;
+    std::vector<std::string> subs;
+    std::vector<App::DocumentObject*> ret2;
+    std::vector<std::string> subs2;
 
     ret.clear();
     subs.clear();
@@ -125,30 +387,46 @@ bool PropertyLinkBase::isSame(const Property& other) const
 
 void PropertyLinkBase::unregisterElementReference()
 {
+    auto admission = (_AdmissionDestructing || isAdmissionPlanning())
+        ? RecomputeDetail::MutationScope {}
+        : RecomputeDetail::Coordinator::instance().mutation(*this);
+    RecomputeDetail::IndexLock lock;
+    bool changed = false;
     for (auto obj : _ElementRefs) {
         auto it = _ElementRefMap.find(obj);
         if (it != _ElementRefMap.end()) {
-            it->second.erase(this);
+            changed |= it->second.erase(this) != 0;
             if (it->second.empty()) {
                 _ElementRefMap.erase(it);
             }
         }
     }
     _ElementRefs.clear();
+    if (changed) {
+        ++_ReferenceIndexEpoch;
+    }
 }
 
 void PropertyLinkBase::unregisterLabelReferences()
 {
+    auto admission = (_AdmissionDestructing || isAdmissionPlanning())
+        ? RecomputeDetail::MutationScope {}
+        : RecomputeDetail::Coordinator::instance().mutation(*this);
+    RecomputeDetail::IndexLock lock;
+    bool changed = false;
     for (auto& label : _LabelRefs) {
         auto it = _LabelMap.find(label);
         if (it != _LabelMap.end()) {
-            it->second.erase(this);
+            changed |= it->second.erase(this) != 0;
             if (it->second.empty()) {
                 _LabelMap.erase(it);
             }
         }
     }
     _LabelRefs.clear();
+    if (changed) {
+        ++_ReferenceIndexEpoch;
+    }
 }
 
 void PropertyLinkBase::getLabelReferences(std::vector<std::string>& subs, const char* subname)
@@ -166,9 +444,21 @@ void PropertyLinkBase::getLabelReferences(std::vector<std::string>& subs, const 
 
 void PropertyLinkBase::registerLabelReferences(std::vector<std::string>&& labels, bool reset)
 {
+    auto admission = (_AdmissionDestructing || isAdmissionPlanning())
+        ? RecomputeDetail::MutationScope {}
+        : RecomputeDetail::Coordinator::instance().mutation(*this);
     if (reset) {
         unregisterLabelReferences();
     }
+    auto* owner = freecad_cast<DocumentObject*>(getContainer());
+    if (isAdmissionPlanning() || !owner || !owner->isAttachedToDocument()) {
+        for (auto& label : labels) {
+            _LabelRefs.insert(std::move(label));
+        }
+        return;
+    }
+    RecomputeDetail::IndexLock lock;
+    ++_ReferenceIndexEpoch;
     for (auto& label : labels) {
         auto res = _LabelRefs.insert(std::move(label));
         if (res.second) {
@@ -179,6 +469,9 @@ void PropertyLinkBase::registerLabelReferences(std::vector<std::string>&& labels
 
 void PropertyLinkBase::checkLabelReferences(const std::vector<std::string>& subs, bool reset)
 {
+    auto admission = (_AdmissionDestructing || isAdmissionPlanning())
+        ? RecomputeDetail::MutationScope {}
+        : RecomputeDetail::Coordinator::instance().mutation(*this);
     if (reset) {
         unregisterLabelReferences();
     }
@@ -190,11 +483,13 @@ void PropertyLinkBase::checkLabelReferences(const std::vector<std::string>& subs
     }
 }
 
-std::string PropertyLinkBase::updateLabelReference(const App::DocumentObject* parent,
-                                                   const char* subname,
-                                                   const App::DocumentObject* obj,
-                                                   const std::string& ref,
-                                                   const char* newLabel)
+std::string PropertyLinkBase::updateLabelReference(
+    const App::DocumentObject* parent,
+    const char* subname,
+    const App::DocumentObject* obj,
+    const std::string& ref,
+    const char* newLabel
+)
 {
     if (!obj || !obj->isAttachedToDocument() || !parent || !parent->isAttachedToDocument()) {
         return {};
@@ -204,8 +499,7 @@ std::string PropertyLinkBase::updateLabelReference(const App::DocumentObject* pa
     // hierarchies, we have to search for all occurrences, and make sure the
     // referenced sub-object at the found hierarchy is actually the given
     // object.
-    for (const char* pos = subname; ((pos = strstr(pos, ref.c_str())) != nullptr);
-         pos += ref.size()) {
+    for (const char* pos = subname; ((pos = strstr(pos, ref.c_str())) != nullptr); pos += ref.size()) {
         auto sub = std::string(subname, pos + ref.size() - subname);
         auto sobj = parent->getSubObject(sub.c_str());
         if (sobj == obj) {
@@ -217,24 +511,24 @@ std::string PropertyLinkBase::updateLabelReference(const App::DocumentObject* pa
     return {};
 }
 
-std::vector<std::pair<Property*, std::unique_ptr<Property>>>
-PropertyLinkBase::updateLabelReferences(App::DocumentObject* obj, const char* newLabel)
+std::vector<std::pair<Property*, std::unique_ptr<Property>>> PropertyLinkBase::updateLabelReferences(
+    App::DocumentObject* obj,
+    const char* newLabel
+)
 {
     std::vector<std::pair<Property*, std::unique_ptr<Property>>> ret;
     if (!obj || !obj->isAttachedToDocument()) {
         return ret;
     }
-    auto it = _LabelMap.find(obj->Label.getStrValue());
-    if (it == _LabelMap.end()) {
-        return ret;
-    }
+    auto snapshot = snapshotLabelReferences(obj);
     std::string ref("$");
     ref += obj->Label.getValue();
     ref += '.';
-    std::vector<PropertyLinkBase*> props;
-    props.reserve(it->second.size());
-    props.insert(props.end(), it->second.begin(), it->second.end());
-    for (auto prop : props) {
+    for (auto* property : snapshot.properties()) {
+        auto* prop = freecad_cast<PropertyLinkBase*>(property);
+        if (!prop) {
+            continue;
+        }
         if (!prop->getContainer()) {
             continue;
         }
@@ -260,43 +554,63 @@ static std::string propertyName(const Property* prop)
     return prop->getFullName();
 }
 
-const std::unordered_set<PropertyLinkBase*>&
-PropertyLinkBase::getElementReferences(DocumentObject* feature)
+RecomputeDetail::PropertySnapshot PropertyLinkBase::getElementReferences(DocumentObject* feature)
 {
-    static std::unordered_set<PropertyLinkBase*> none;
-
-    auto it = _ElementRefMap.find(feature);
-    if (it == _ElementRefMap.end()) {
-        return none;
+    std::vector<Property*> properties;
+    std::uint64_t epoch;
+    {
+        RecomputeDetail::IndexLock lock;
+        epoch = _ReferenceIndexEpoch;
+        auto it = _ElementRefMap.find(feature);
+        if (it != _ElementRefMap.end()) {
+            properties.insert(properties.end(), it->second.begin(), it->second.end());
+        }
     }
-
-    return it->second;
+    auto snapshot = RecomputeDetail::Coordinator::instance()
+                        .snapshotProperties(properties, nullptr, nullptr, false);
+    {
+        RecomputeDetail::IndexLock lock;
+        if (epoch != _ReferenceIndexEpoch) {
+            throw RecomputeDetail::AdmissionRefusal("Element reference index changed during preflight");
+        }
+    }
+    return snapshot;
 }
 
 void PropertyLinkBase::updateElementReferences(DocumentObject* feature, bool reverse)
 {
+    auto admission = RecomputeDetail::Coordinator::instance().mutation({feature});
     if (!feature || !feature->getNameInDocument()) {
         return;
     }
-    auto it = _ElementRefMap.find(feature);
-    if (it == _ElementRefMap.end()) {
-        return;
+    auto snapshot = getElementReferences(feature);
+    std::vector<DocumentObject*> targets {feature};
+    for (auto* property : snapshot.properties()) {
+        if (auto* prop = freecad_cast<PropertyLinkBase*>(property)) {
+            prop->collectAdmissionTargets(targets);
+        }
     }
-    std::vector<PropertyLinkBase*> props;
-    props.reserve(it->second.size());
-    props.insert(props.end(), it->second.begin(), it->second.end());
-    for (auto prop : props) {
+    admission.include(targets);
+    for (auto* property : snapshot.properties()) {
+        auto* prop = freecad_cast<PropertyLinkBase*>(property);
+        if (!prop) {
+            continue;
+        }
         if (prop->getContainer()) {
             try {
                 prop->updateElementReference(feature, reverse, true);
+            }
+            catch (const RecomputeDetail::AdmissionRefusal&) {
+                throw;
             }
             catch (Base::Exception& e) {
                 e.reportException();
                 FC_ERR("Failed to update element reference of " << propertyName(prop));
             }
             catch (std::exception& e) {
-                FC_ERR("Failed to update element reference of " << propertyName(prop) << ": "
-                                                                << e.what());
+                FC_ERR(
+                    "Failed to update element reference of " << propertyName(prop) << ": " << e.what()
+                );
             }
         }
     }
@@ -305,40 +619,102 @@ void PropertyLinkBase::updateElementReferences(DocumentObject* feature, bool rev
 void PropertyLinkBase::updateAllElementReferences(const std::vector<App::DocumentT>& newDocs, bool reverse)
 {
     std::set<App::Document*> newDocSet;
-    for (const auto& doc : newDocs) {
-        if (auto* d = doc.getDocument()) {
-            newDocSet.insert(d);
+    for (const auto& document : newDocs) {
+        if (auto* value = document.getDocument()) {
+            newDocSet.insert(value);
         }
     }
-
-    for (auto reference : _ElementRefMap) {
-        const bool targetIsNew = newDocSet.contains(reference.first->getDocument());
-        for (auto prop : reference.second) {
-            if (prop->getContainer()) {
-                const auto docObj = freecad_cast<App::DocumentObject*>(prop->getContainer());
-                if (!docObj || (!targetIsNew && !newDocSet.contains(docObj->getDocument()))) {
-                    continue;
-                }
-                try {
-                    prop->updateElementReference(reference.first, reverse, true);
-                }
-                catch (Base::Exception& e) {
-                    e.reportException();
-                    FC_ERR("Failed to update element reference of " << propertyName(prop));
-                }
-                catch (std::exception& e) {
-                    FC_ERR("Failed to update element reference of " << propertyName(prop) << ": "
-                                                                    << e.what());
-                }
+    std::vector<std::pair<DocumentObject*, std::vector<Property*>>> references;
+    std::vector<Property*> properties;
+    std::vector<DocumentObject*> targets;
+    std::uint64_t epoch;
+    {
+        RecomputeDetail::IndexLock lock;
+        epoch = _ReferenceIndexEpoch;
+        for (const auto& [feature, values] : _ElementRefMap) {
+            references.emplace_back(feature, std::vector<Property*>(values.begin(), values.end()));
+            properties.insert(properties.end(), values.begin(), values.end());
+            targets.push_back(feature);
+        }
+    }
+    auto& coordinator = RecomputeDetail::Coordinator::instance();
+    auto storage = coordinator.snapshotProperties(properties, nullptr, nullptr, false);
+    for (auto* property : storage.properties()) {
+        if (auto* link = freecad_cast<PropertyLinkBase*>(property)) {
+            link->collectAdmissionTargets(targets);
+        }
+    }
+    auto admission = coordinator.mutation(targets);
+    {
+        RecomputeDetail::IndexLock lock;
+        if (epoch != _ReferenceIndexEpoch) {
+            throw RecomputeDetail::AdmissionRefusal(
+                "Element reference cohort changed during preflight"
+            );
+        }
+    }
+    // Pin every referenced feature before native inspection; the capture readers
+    // retire before callback/commit, while their exact operation pins remain.
+    {
+        PlanningCaptures readers;
+        for (const auto& [feature, values] : references) {
+            (void)values;
+            readers.values.push_back(
+                std::make_unique<RecomputeDetail::CaptureScope>(feature->getDocument(), true)
+            );
+            readers.values.back()->pin(feature);
+        }
+    }
+    for (auto* property : storage.properties()) {
+        if (auto* link = freecad_cast<PropertyLinkBase*>(property)) {
+            std::vector<DocumentObject*> objects;
+            std::vector<std::string> subs;
+            link->getLinks(objects, true, &subs, false);
+            preflightSubElements(*link, admission, objects, subs);
+        }
+    }
+    std::set<Property*> retained(storage.properties().begin(), storage.properties().end());
+    for (const auto& [feature, values] : references) {
+        const bool targetIsNew = newDocSet.contains(feature->getDocument());
+        for (auto* property : values) {
+            if (!retained.contains(property)) {
+                continue;
+            }
+            auto* link = freecad_cast<PropertyLinkBase*>(property);
+            auto* owner = link ? freecad_cast<DocumentObject*>(link->getContainer()) : nullptr;
+            if (!owner || (!targetIsNew && !newDocSet.contains(owner->getDocument()))) {
+                continue;
+            }
+            try {
+                link->updateElementReference(feature, reverse, true);
+            }
+            catch (const RecomputeDetail::AdmissionRefusal&) {
+                throw;
+            }
+            catch (Base::Exception& error) {
+                error.reportException();
+                FC_ERR("Failed to update element reference of " << propertyName(link));
+            }
+            catch (std::exception& error) {
+                FC_ERR(
+                    "Failed to update element reference of " << propertyName(link) << ": "
+                                                             << error.what()
+                );
             }
         }
     }
 }
 
-void PropertyLinkBase::_registerElementReference(App::DocumentObject* obj,
-                                                 std::string& sub,
-                                                 ShadowSub& shadow)
+void PropertyLinkBase::_registerElementReference(
+    App::DocumentObject* obj,
+    std::string& sub,
+    ShadowSub& shadow
+)
 {
+    auto admission = isAdmissionPlanning()
+        ? RecomputeDetail::MutationScope {}
+        : RecomputeDetail::Coordinator::instance().mutation(*this, {obj});
+    preflightSubElements(*this, admission, {obj}, {sub}, nullptr);
     if (!obj || !obj->getNameInDocument() || sub.empty()) {
         return;
     }
@@ -349,20 +725,30 @@ void PropertyLinkBase::_registerElementReference(App::DocumentObject* obj,
     GeoFeature* geo = nullptr;
     const char* element = nullptr;
     ShadowSub elementName;
-    GeoFeature::resolveElement(obj,
-                               sub.c_str(),
-                               elementName,
-                               true,
-                               GeoFeature::ElementNameType::Export,
-                               nullptr,
-                               &element,
-                               &geo);
+    GeoFeature::resolveElement(
+        obj,
+        sub.c_str(),
+        elementName,
+        true,
+        GeoFeature::ElementNameType::Export,
+        nullptr,
+        &element,
+        &geo
+    );
     if (!geo || !element || !element[0]) {
         return;
     }
 
-    if (_ElementRefs.insert(geo).second) {
-        _ElementRefMap[geo].insert(this);
+    auto* referenceOwner = freecad_cast<DocumentObject*>(getContainer());
+    if (isAdmissionPlanning() || !referenceOwner || !referenceOwner->isAttachedToDocument()) {
+        _ElementRefs.insert(geo);
+    }
+    else {
+        RecomputeDetail::IndexLock lock;
+        if (_ElementRefs.insert(geo).second) {
+            _ElementRefMap[geo].insert(this);
+            ++_ReferenceIndexEpoch;
+        }
     }
 }
 
@@ -388,10 +774,16 @@ public:
     char v2;
 };
 
-void PropertyLinkBase::restoreLabelReference(const DocumentObject* obj,
-                                             std::string& subname,
-                                             ShadowSub* shadow)
+void PropertyLinkBase::restoreLabelReference(
+    const DocumentObject* obj,
+    std::string& subname,
+    ShadowSub* shadow
+)
 {
+    auto admission = RecomputeDetail::Coordinator::instance().mutation(
+        std::vector<DocumentObject*> {const_cast<DocumentObject*>(obj)}
+    );
+    preflightSubElementsImpl(nullptr, admission, {const_cast<DocumentObject*>(obj)}, {subname});
     std::ostringstream ss;
     char* sub = &subname[0];
     char* next = sub;
@@ -404,8 +796,7 @@ void PropertyLinkBase::restoreLabelReference(const DocumentObject* obj,
             StringGuard guard(dot - 1);
             sobj = obj->getSubObject(subname.c_str());
             if (!sobj) {
-                FC_ERR("Failed to restore label reference " << obj->getFullName() << '.'
-                                                            << ss.str());
+                FC_ERR("Failed to restore label reference " << obj->getFullName() << '.' << ss.str());
                 return;
             }
         }
@@ -441,18 +832,26 @@ static std::vector<std::string> rescueDriftedElement(const GeoFeature& geo, cons
     if (names.empty()) {
         return {};
     }
-    FC_WARN("recovered drifted element reference " << element << " -> " << names.front() << " in "
-                                                    << geo.getFullName());
+    FC_WARN(
+        "recovered drifted element reference " << element << " -> " << names.front() << " in "
+                                               << geo.getFullName()
+    );
     return names;
 }
 
-bool PropertyLinkBase::_updateElementReference(DocumentObject* feature,
-                                               App::DocumentObject* obj,
-                                               std::string& sub,
-                                               ShadowSub& shadow,
-                                               bool reverse,
-                                               bool notify)
+bool PropertyLinkBase::_updateElementReference(
+    DocumentObject* feature,
+    App::DocumentObject* obj,
+    std::string& sub,
+    ShadowSub& shadow,
+    bool reverse,
+    bool notify
+)
 {
+    auto admission = isAdmissionPlanning()
+        ? RecomputeDetail::MutationScope {}
+        : RecomputeDetail::Coordinator::instance().mutation(*this, {obj, feature});
+    preflightSubElements(*this, admission, {obj}, {sub});
     if (!obj || !obj->getNameInDocument()) {
         return false;
     }
@@ -469,14 +868,16 @@ bool PropertyLinkBase::_updateElementReference(DocumentObject* feature,
     }
     GeoFeature* geo = nullptr;
     const char* element = nullptr;
-    auto ret = GeoFeature::resolveElement(obj,
-                                          subname,
-                                          elementName,
-                                          true,
-                                          GeoFeature::ElementNameType::Export,
-                                          feature,
-                                          &element,
-                                          &geo);
+    auto ret = GeoFeature::resolveElement(
+        obj,
+        subname,
+        elementName,
+        true,
+        GeoFeature::ElementNameType::Export,
+        feature,
+        &element,
+        &geo
+    );
     if (!ret || !geo || !element || !element[0]) {
         if (elementName.oldName.size()) {
             shadow.oldName.swap(elementName.oldName);
@@ -484,8 +885,16 @@ bool PropertyLinkBase::_updateElementReference(DocumentObject* feature,
         return false;
     }
 
-    if (_ElementRefs.insert(geo).second) {
-        _ElementRefMap[geo].insert(this);
+    auto* referenceOwner = freecad_cast<DocumentObject*>(getContainer());
+    if (isAdmissionPlanning() || !referenceOwner || !referenceOwner->isAttachedToDocument()) {
+        _ElementRefs.insert(geo);
+    }
+    else {
+        RecomputeDetail::IndexLock lock;
+        if (_ElementRefs.insert(geo).second) {
+            _ElementRefMap[geo].insert(this);
+            ++_ReferenceIndexEpoch;
+        }
     }
 
     if (!reverse) {
@@ -517,19 +926,22 @@ bool PropertyLinkBase::_updateElementReference(DocumentObject* feature,
                 missing = false;
                 std::string newsub(subname, strlen(subname) - strlen(element));
                 newsub += names.front();
-                GeoFeature::resolveElement(obj,
-                                           newsub.c_str(),
-                                           elementName,
-                                           true,
-                                           GeoFeature::ElementNameType::Export,
-                                           feature);
+                GeoFeature::resolveElement(
+                    obj,
+                    newsub.c_str(),
+                    elementName,
+                    true,
+                    GeoFeature::ElementNameType::Export,
+                    feature
+                );
                 const auto& oldName = shadow.newName.size() ? shadow.newName : shadow.oldName;
-                const auto& newName =
-                    elementName.newName.size() ? elementName.newName : elementName.oldName;
+                const auto& newName = elementName.newName.size() ? elementName.newName
+                                                                 : elementName.oldName;
                 if (oldName != newName) {
-                    FC_LOG(propertyName(this)
-                           << " auto change element reference " << ret->getFullName() << " "
-                           << oldName << " -> " << newName);
+                    FC_LOG(
+                        propertyName(this) << " auto change element reference " << ret->getFullName()
+                                           << " " << oldName << " -> " << newName
+                    );
                 }
             }
         }
@@ -547,14 +959,18 @@ bool PropertyLinkBase::_updateElementReference(DocumentObject* feature,
     };
 
     if (missing) {
-        FC_WARN(propertyName(this)
-                << " missing element reference " << ret->getFullName() << " "
-                << (elementName.newName.size() ? elementName.newName : elementName.oldName));
+        FC_WARN(
+            propertyName(this) << " missing element reference " << ret->getFullName() << " "
+                               << (elementName.newName.size() ? elementName.newName
+                                                              : elementName.oldName)
+        );
         shadow.oldName.swap(elementName.oldName);
     }
     else {
-        FC_TRACE(propertyName(this) << " element reference shadow update " << ret->getFullName()
-                                    << " " << shadow.newName << " -> " << elementName.newName);
+        FC_TRACE(
+            propertyName(this) << " element reference shadow update " << ret->getFullName() << " "
+                               << shadow.newName << " -> " << elementName.newName
+        );
         shadow.swap(elementName);
         if (shadow.newName.size() && Data::hasMappedElementName(sub.c_str())) {
             updateSub(shadow.newName);
@@ -603,13 +1019,14 @@ bool PropertyLinkBase::_updateElementReference(DocumentObject* feature,
     return true;
 }
 
-std::pair<DocumentObject*, std::string>
-PropertyLinkBase::tryReplaceLink(const PropertyContainer* owner,
-                                 DocumentObject* obj,
-                                 const DocumentObject* parent,
-                                 DocumentObject* oldObj,
-                                 DocumentObject* newObj,
-                                 const char* subname)
+std::pair<DocumentObject*, std::string> PropertyLinkBase::tryReplaceLink(
+    const PropertyContainer* owner,
+    DocumentObject* obj,
+    const DocumentObject* parent,
+    DocumentObject* oldObj,
+    DocumentObject* newObj,
+    const char* subname
+)
 {
     std::pair<DocumentObject*, std::string> res;
     res.first = 0;
@@ -678,13 +1095,14 @@ PropertyLinkBase::tryReplaceLink(const PropertyContainer* owner,
     return res;
 }
 
-std::pair<DocumentObject*, std::vector<std::string>>
-PropertyLinkBase::tryReplaceLinkSubs(const PropertyContainer* owner,
-                                     DocumentObject* obj,
-                                     const DocumentObject* parent,
-                                     DocumentObject* oldObj,
-                                     DocumentObject* newObj,
-                                     const std::vector<std::string>& subs)
+std::pair<DocumentObject*, std::vector<std::string>> PropertyLinkBase::tryReplaceLinkSubs(
+    const PropertyContainer* owner,
+    DocumentObject* obj,
+    const DocumentObject* parent,
+    DocumentObject* oldObj,
+    DocumentObject* newObj,
+    const std::vector<std::string>& subs
+)
 {
     std::pair<DocumentObject*, std::vector<std::string>> res;
     res.first = 0;
@@ -747,6 +1165,14 @@ PropertyLink::~PropertyLink()
 
 void PropertyLink::resetLink()
 {
+    auto* owner = freecad_cast<DocumentObject*>(getContainer());
+    if (!_pcLink || !owner || owner->testStatus(ObjectStatus::Destroy)) {
+        _pcLink = nullptr;
+        return;
+    }
+    auto admission = isAdmissionPlanning()
+        ? RecomputeDetail::MutationScope {}
+        : RecomputeDetail::Coordinator::instance().mutation(*this);
     // in case this property gets dynamically removed
     // maintain the back link in the DocumentObject class if it is from a document object
     if (_pcScope != LinkScope::Hidden && _pcLink && getContainer()
@@ -766,6 +1192,9 @@ void PropertyLink::resetLink()
 
 void PropertyLink::setValue(App::DocumentObject* lValue)
 {
+    auto admission = isAdmissionPlanning()
+        ? RecomputeDetail::MutationScope {}
+        : RecomputeDetail::Coordinator::instance().mutation(*this, {lValue});
     auto parent = dynamic_cast<App::DocumentObject*>(getContainer());
     if (!testFlag(LinkAllowExternal) && parent && lValue
         && parent->getDocument() != lValue->getDocument()) {
@@ -832,6 +1261,11 @@ void PropertyLink::Save(Base::Writer& writer) const
 
 void PropertyLink::Restore(Base::XMLReader& reader)
 {
+    auto structural = isAdmissionPlanning() ? RecomputeDetail::MutationScope {}
+                                            : RecomputeDetail::Coordinator::instance().atomic();
+    auto admission = isAdmissionPlanning()
+        ? RecomputeDetail::MutationScope {}
+        : RecomputeDetail::Coordinator::instance().mutation(*this);
     // read my element
     reader.readElement("Link");
     // get the value of my attribute
@@ -847,9 +1281,11 @@ void PropertyLink::Restore(Base::XMLReader& reader)
         DocumentObject* object = document ? document->getObject(name.c_str()) : nullptr;
         if (!object) {
             if (reader.isVerbose()) {
-                Base::Console().warning("Lost link to '{}' while loading, maybe "
-                                        "an object was not loaded correctly\n",
-                                        name);
+                Base::Console().warning(
+                    "Lost link to '{}' while loading, maybe "
+                    "an object was not loaded correctly\n",
+                    name
+                );
             }
         }
         else if (parent == object) {
@@ -882,10 +1318,12 @@ void PropertyLink::Paste(const Property& from)
     setValue(static_cast<const PropertyLink&>(from)._pcLink);
 }
 
-void PropertyLink::getLinks(std::vector<App::DocumentObject*>& objs,
-                            bool all,
-                            std::vector<std::string>* subs,
-                            bool newStyle) const
+void PropertyLink::getLinks(
+    std::vector<App::DocumentObject*>& objs,
+    bool all,
+    std::vector<std::string>* subs,
+    bool newStyle
+) const
 {
     (void)newStyle;
     (void)subs;
@@ -894,10 +1332,12 @@ void PropertyLink::getLinks(std::vector<App::DocumentObject*>& objs,
     }
 }
 
-void PropertyLink::getLinksTo(std::vector<App::ObjectIdentifier>& identifiers,
-                              App::DocumentObject* obj,
-                              const char* subname,
-                              bool all) const
+void PropertyLink::getLinksTo(
+    std::vector<App::ObjectIdentifier>& identifiers,
+    App::DocumentObject* obj,
+    const char* subname,
+    bool all
+) const
 {
     (void)subname;
     if (!all && _pcScope == LinkScope::Hidden) {
@@ -910,6 +1350,9 @@ void PropertyLink::getLinksTo(std::vector<App::ObjectIdentifier>& identifiers,
 
 void PropertyLink::breakLink(App::DocumentObject* obj, bool clear)
 {
+    auto admission = isAdmissionPlanning()
+        ? RecomputeDetail::MutationScope {}
+        : RecomputeDetail::Coordinator::instance().mutation(*this, {obj});
     if (_pcLink == obj || (clear && getContainer() == obj)) {
         setValue(nullptr);
     }
@@ -917,13 +1360,18 @@ void PropertyLink::breakLink(App::DocumentObject* obj, bool clear)
 
 bool PropertyLink::adjustLink(const std::set<App::DocumentObject*>& inList)
 {
+    auto admission = isAdmissionPlanning()
+        ? RecomputeDetail::MutationScope {}
+        : RecomputeDetail::Coordinator::instance().mutation(*this, {});
     (void)inList;
     return false;
 }
 
-Property* PropertyLink::CopyOnLinkReplace(const App::DocumentObject* parent,
-                                          App::DocumentObject* oldObj,
-                                          App::DocumentObject* newObj) const
+Property* PropertyLink::CopyOnLinkReplace(
+    const App::DocumentObject* parent,
+    App::DocumentObject* oldObj,
+    App::DocumentObject* newObj
+) const
 {
     auto res = tryReplaceLink(getContainer(), _pcLink, parent, oldObj, newObj);
     if (res.first) {
@@ -972,12 +1420,19 @@ PropertyLinkList::~PropertyLinkList()
 
 void PropertyLinkList::setSize(int newSize)
 {
+    auto admission = isAdmissionPlanning()
+        ? RecomputeDetail::MutationScope {}
+        : RecomputeDetail::Coordinator::instance().mutation(*this, {});
     for (int i = newSize; i < (int)_lValueList.size(); ++i) {
         auto obj = _lValueList[i];
         if (!obj || !obj->isAttachedToDocument()) {
             continue;
         }
-        _nameMap.erase(obj->getNameInDocument());
+        const std::string objectName = obj->getNameInDocument();
+        {
+            RecomputeDetail::IndexLock indexLock;
+            _nameMap.erase(objectName);
+        }
 
         if (_pcScope != LinkScope::Hidden) {
             obj->_removeBackLink(static_cast<DocumentObject*>(getContainer()));
@@ -989,6 +1444,9 @@ void PropertyLinkList::setSize(int newSize)
 
 void PropertyLinkList::setSize(int newSize, const_reference def)
 {
+    auto admission = isAdmissionPlanning()
+        ? RecomputeDetail::MutationScope {}
+        : RecomputeDetail::Coordinator::instance().mutation(*this, {def});
     auto oldSize = getSize();
     setSize(newSize);
     for (auto i = oldSize; i < newSize; ++i) {
@@ -998,6 +1456,9 @@ void PropertyLinkList::setSize(int newSize, const_reference def)
 
 void PropertyLinkList::set1Value(int idx, DocumentObject* const& value)
 {
+    auto admission = isAdmissionPlanning()
+        ? RecomputeDetail::MutationScope {}
+        : RecomputeDetail::Coordinator::instance().mutation(*this, {value});
     DocumentObject* obj = nullptr;
     if (idx >= 0 && idx < (int)_lValueList.size()) {
         obj = _lValueList[idx];
@@ -1010,7 +1471,10 @@ void PropertyLinkList::set1Value(int idx, DocumentObject* const& value)
         throw Base::ValueError("invalid document object");
     }
 
-    _nameMap.clear();
+    {
+        RecomputeDetail::IndexLock indexLock;
+        _nameMap.clear();
+    }
 
     if (getContainer() && getContainer()->isDerivedFrom<App::DocumentObject>()) {
         App::DocumentObject* parent = static_cast<DocumentObject*>(getContainer());
@@ -1033,6 +1497,9 @@ void PropertyLinkList::set1Value(int idx, DocumentObject* const& value)
 
 void PropertyLinkList::setValues(const std::vector<DocumentObject*>& value)
 {
+    auto admission = isAdmissionPlanning()
+        ? RecomputeDetail::MutationScope {}
+        : RecomputeDetail::Coordinator::instance().mutation(*this, value);
     if (value.size() == 1 && !value[0]) {
         // one null element means clear, as backward compatibility for old code
         setValues(std::vector<DocumentObject*>());
@@ -1048,7 +1515,10 @@ void PropertyLinkList::setValues(const std::vector<DocumentObject*>& value)
             throw Base::ValueError("PropertyLinkList does not support external object");
         }
     }
-    _nameMap.clear();
+    {
+        RecomputeDetail::IndexLock indexLock;
+        _nameMap.clear();
+    }
 
     // maintain the back link in the DocumentObject class
     if (parent) {
@@ -1122,6 +1592,11 @@ void PropertyLinkList::Save(Base::Writer& writer) const
 
 void PropertyLinkList::Restore(Base::XMLReader& reader)
 {
+    auto structural = isAdmissionPlanning() ? RecomputeDetail::MutationScope {}
+                                            : RecomputeDetail::Coordinator::instance().atomic();
+    auto admission = isAdmissionPlanning()
+        ? RecomputeDetail::MutationScope {}
+        : RecomputeDetail::Coordinator::instance().mutation(*this);
     // read my element
     reader.readElement("LinkList");
     // get the value of my attribute
@@ -1152,8 +1627,10 @@ void PropertyLinkList::Restore(Base::XMLReader& reader)
             values.push_back(child);
         }
         else if (reader.isVerbose()) {
-            FC_WARN("Lost link to " << (document ? document->getName() : "") << " " << name
-                                    << " while loading, maybe an object was not loaded correctly");
+            FC_WARN(
+                "Lost link to " << (document ? document->getName() : "") << " " << name
+                                << " while loading, maybe an object was not loaded correctly"
+            );
         }
     }
 
@@ -1163,9 +1640,11 @@ void PropertyLinkList::Restore(Base::XMLReader& reader)
     setValues(values);
 }
 
-Property* PropertyLinkList::CopyOnLinkReplace(const App::DocumentObject* parent,
-                                              App::DocumentObject* oldObj,
-                                              App::DocumentObject* newObj) const
+Property* PropertyLinkList::CopyOnLinkReplace(
+    const App::DocumentObject* parent,
+    App::DocumentObject* oldObj,
+    App::DocumentObject* newObj
+) const
 {
     std::vector<DocumentObject*> links;
     bool copied = false;
@@ -1224,63 +1703,88 @@ unsigned int PropertyLinkList::getMemSize() const
 
 DocumentObject* PropertyLinkList::find(const char* name, int* pindex) const
 {
-    const int DONT_MAP_UNDER = 10;
     if (!name) {
         return nullptr;
     }
-    if (_lValueList.size() <= DONT_MAP_UNDER) {
+    const auto size = _lValueList.size();
+    if (size <= 10) {
         int index = -1;
-        for (auto obj : _lValueList) {
+        for (auto* object : _lValueList) {
             ++index;
-            if (obj && obj->getNameInDocument() && boost::equals(name, obj->getNameInDocument())) {
+            if (object && object->getNameInDocument()
+                && boost::equals(name, object->getNameInDocument())) {
                 if (pindex) {
                     *pindex = index;
                 }
-                return obj;
+                return object;
             }
         }
         return nullptr;
     }
-    // We're using a map.  Do we need to (re)create it?
-    if (_nameMap.empty() || _nameMap.size() > _lValueList.size()) {
-        _nameMap.clear();
-        for (int i = 0; i < (int)_lValueList.size(); ++i) {
-            auto obj = _lValueList[i];
-            if (obj && obj->isAttachedToDocument()) {
-                _nameMap[obj->getNameInDocument()] = i;
+    bool rebuild;
+    {
+        RecomputeDetail::IndexLock lock;
+        rebuild = _nameMap.empty() || _nameMap.size() > size;
+    }
+    if (rebuild) {
+        std::map<std::string, int> names;
+        for (std::size_t i = 0; i < size; ++i) {
+            auto* object = _lValueList[i];
+            if (object && object->isAttachedToDocument()) {
+                names[object->getNameInDocument()] = static_cast<int>(i);
             }
         }
+        RecomputeDetail::IndexLock lock;
+        _nameMap = std::move(names);
     }
-    // Now lookup up in that map
-    auto it = _nameMap.find(name);
-    if (it == _nameMap.end()) {
-        return nullptr;
+    int index;
+    {
+        RecomputeDetail::IndexLock lock;
+        const auto found = _nameMap.find(name);
+        if (found == _nameMap.end()) {
+            return nullptr;
+        }
+        index = found->second;
     }
     if (pindex) {
-        *pindex = it->second;
+        *pindex = index;
     }
-    return _lValueList[it->second];
+    return _lValueList[index];
 }
 
 DocumentObject* PropertyLinkList::findUsingMap(const std::string& name, int* pindex) const
 {
-    if (_nameMap.size() == _lValueList.size()) {
-        auto it = _nameMap.find(name);
-        if (it == _nameMap.end()) {
+    const auto size = _lValueList.size();
+    std::optional<int> index;
+    bool complete;
+    {
+        RecomputeDetail::IndexLock lock;
+        complete = _nameMap.size() == size;
+        if (complete) {
+            const auto found = _nameMap.find(name);
+            if (found != _nameMap.end()) {
+                index = found->second;
+            }
+        }
+    }
+    if (complete) {
+        if (!index) {
             return nullptr;
         }
         if (pindex) {
-            *pindex = it->second;
+            *pindex = *index;
         }
-        return _lValueList[it->second];
+        return _lValueList[*index];
     }
     return find(name.c_str(), pindex);
 }
 
-void PropertyLinkList::getLinks(std::vector<App::DocumentObject*>& objs,
-                                bool all,
-                                std::vector<std::string>* subs,
-                                bool newStyle) const
+void PropertyLinkList::getLinks(
+    std::vector<App::DocumentObject*>& objs,
+    bool all,
+    std::vector<std::string>* subs,
+    bool newStyle
+) const
 {
     (void)subs;
     (void)newStyle;
@@ -1294,10 +1798,12 @@ void PropertyLinkList::getLinks(std::vector<App::DocumentObject*>& objs,
     }
 }
 
-void PropertyLinkList::getLinksTo(std::vector<App::ObjectIdentifier>& identifiers,
-                                  App::DocumentObject* obj,
-                                  const char* subname,
-                                  bool all) const
+void PropertyLinkList::getLinksTo(
+    std::vector<App::ObjectIdentifier>& identifiers,
+    App::DocumentObject* obj,
+    const char* subname,
+    bool all
+) const
 {
     (void)subname;
     if (!obj || (!all && _pcScope == LinkScope::Hidden)) {
@@ -1315,6 +1821,9 @@ void PropertyLinkList::getLinksTo(std::vector<App::ObjectIdentifier>& identifier
 
 void PropertyLinkList::breakLink(App::DocumentObject* obj, bool clear)
 {
+    auto admission = isAdmissionPlanning()
+        ? RecomputeDetail::MutationScope {}
+        : RecomputeDetail::Coordinator::instance().mutation(*this, {obj});
     if (clear && getContainer() == obj) {
         setValues({});
         return;
@@ -1333,6 +1842,9 @@ void PropertyLinkList::breakLink(App::DocumentObject* obj, bool clear)
 
 bool PropertyLinkList::adjustLink(const std::set<App::DocumentObject*>& inList)
 {
+    auto admission = isAdmissionPlanning()
+        ? RecomputeDetail::MutationScope {}
+        : RecomputeDetail::Coordinator::instance().mutation(*this, {});
     (void)inList;
     return false;
 }
@@ -1357,8 +1869,7 @@ PropertyLinkSub::~PropertyLinkSub()
 {
     // in case this property is dynamically removed
 
-    if (_pcLinkSub && getContainer()
-        && getContainer()->isDerivedFrom<App::DocumentObject>()) {
+    if (_pcLinkSub && getContainer() && getContainer()->isDerivedFrom<App::DocumentObject>()) {
         App::DocumentObject* parent = static_cast<DocumentObject*>(getContainer());
         // before accessing internals make sure the object is not about to be destroyed
         // otherwise the backlink contains dangling pointers
@@ -1373,27 +1884,37 @@ PropertyLinkSub::~PropertyLinkSub()
 
 void PropertyLinkSub::setSyncSubObject(bool enable)
 {
-    _Flags.set((std::size_t)LinkSyncSubObject, enable);
+    setFlag(LinkSyncSubObject, enable);
 }
 
-void PropertyLinkSub::setValue(App::DocumentObject* lValue,
-                               const std::vector<std::string>& SubList,
-                               std::vector<ShadowSub>&& shadows)
+void PropertyLinkSub::setValue(
+    App::DocumentObject* lValue,
+    const std::vector<std::string>& SubList,
+    std::vector<ShadowSub>&& shadows
+)
 {
+    auto admission = isAdmissionPlanning()
+        ? RecomputeDetail::MutationScope {}
+        : RecomputeDetail::Coordinator::instance().mutation(*this, {lValue});
     setValue(lValue, std::vector<std::string>(SubList), std::move(shadows));
 }
 
-void PropertyLinkSub::setValue(App::DocumentObject* lValue,
-                               std::vector<std::string>&& subs,
-                               std::vector<ShadowSub>&& shadows)
+void PropertyLinkSub::setValue(
+    App::DocumentObject* lValue,
+    std::vector<std::string>&& subs,
+    std::vector<ShadowSub>&& shadows
+)
 {
+    auto admission = isAdmissionPlanning()
+        ? RecomputeDetail::MutationScope {}
+        : RecomputeDetail::Coordinator::instance().mutation(*this, {lValue});
+    preflightSubElements(*this, admission, {lValue}, subs, &shadows);
     auto parent = freecad_cast<App::DocumentObject*>(getContainer());
     if (lValue) {
         if (!lValue->isAttachedToDocument()) {
             throw Base::ValueError("PropertyLinkSub: invalid document object");
         }
-        if (!testFlag(LinkAllowExternal) && parent
-            && parent->getDocument() != lValue->getDocument()) {
+        if (!testFlag(LinkAllowExternal) && parent && parent->getDocument() != lValue->getDocument()) {
             throw Base::ValueError("PropertyLinkSub does not support external object");
         }
     }
@@ -1437,10 +1958,12 @@ const std::vector<std::string>& PropertyLinkSub::getSubValues() const
     return _cSubList;
 }
 
-static inline const std::string& getSubNameWithStyle(const std::string& subName,
-                                                     const PropertyLinkBase::ShadowSub& shadow,
-                                                     bool newStyle,
-                                                     std::string& tmp)
+static inline const std::string& getSubNameWithStyle(
+    const std::string& subName,
+    const PropertyLinkBase::ShadowSub& shadow,
+    bool newStyle,
+    std::string& tmp
+)
 {
     if (!newStyle) {
         if (!shadow.oldName.empty()) {
@@ -1473,8 +1996,7 @@ std::vector<std::string> PropertyLinkSub::getSubValues(bool newStyle) const
     return ret;
 }
 
-std::vector<std::string> PropertyLinkSub::getSubValuesStartsWith(const char* starter,
-                                                                 bool newStyle) const
+std::vector<std::string> PropertyLinkSub::getSubValuesStartsWith(const char* starter, bool newStyle) const
 {
     assert(_cSubList.size() == _ShadowSubList.size());
     std::vector<std::string> ret;
@@ -1568,20 +2090,23 @@ void PropertyLinkSub::setPyObject(PyObject* value)
     }
     else {
         std::string error = std::string(
-            "type must be 'DocumentObject', 'NoneType' or ('DocumentObject',['String',]) not ");
+            "type must be 'DocumentObject', 'NoneType' or ('DocumentObject',['String',]) not "
+        );
         error += value->ob_type->tp_name;
         throw Base::TypeError(error);
     }
 }
 
-static bool updateLinkReference(App::PropertyLinkBase* prop,
-                                App::DocumentObject* feature,
-                                bool reverse,
-                                bool notify,
-                                App::DocumentObject* link,
-                                std::vector<std::string>& subs,
-                                std::vector<int>& mapped,
-                                std::vector<PropertyLinkBase::ShadowSub>& shadows)
+static bool updateLinkReference(
+    App::PropertyLinkBase* prop,
+    App::DocumentObject* feature,
+    bool reverse,
+    bool notify,
+    App::DocumentObject* link,
+    std::vector<std::string>& subs,
+    std::vector<int>& mapped,
+    std::vector<PropertyLinkBase::ShadowSub>& shadows
+)
 {
     if (!feature) {
         shadows.clear();
@@ -1598,12 +2123,9 @@ static bool updateLinkReference(App::PropertyLinkBase* prop,
     int i = 0;
     bool touched = false;
     for (auto& sub : subs) {
-        if (prop->_updateElementReference(feature,
-                                          link,
-                                          sub,
-                                          shadows[i++],
-                                          reverse,
-                                          notify && !touched)) {
+        if (
+            prop->_updateElementReference(feature, link, sub, shadows[i++], reverse, notify && !touched)
+        ) {
             touched = true;
         }
     }
@@ -1624,6 +2146,10 @@ static bool updateLinkReference(App::PropertyLinkBase* prop,
 
 void PropertyLinkSub::afterRestore()
 {
+    auto admission = isAdmissionPlanning()
+        ? RecomputeDetail::MutationScope {}
+        : RecomputeDetail::Coordinator::instance().mutation(*this, {});
+    preflightSubElements(*this, admission, {_pcLinkSub}, _cSubList, &_ShadowSubList);
     _ShadowSubList.resize(_cSubList.size());
     if (!testFlag(LinkRestoreLabel) || !_pcLinkSub || !_pcLinkSub->isAttachedToDocument()) {
         return;
@@ -1636,6 +2162,10 @@ void PropertyLinkSub::afterRestore()
 
 void PropertyLinkSub::onContainerRestored()
 {
+    auto admission = isAdmissionPlanning()
+        ? RecomputeDetail::MutationScope {}
+        : RecomputeDetail::Coordinator::instance().mutation(*this, {});
+    preflightSubElements(*this, admission, {_pcLinkSub}, _cSubList, &_ShadowSubList);
     unregisterElementReference();
     if (!_pcLinkSub || !_pcLinkSub->isAttachedToDocument()) {
         return;
@@ -1647,14 +2177,13 @@ void PropertyLinkSub::onContainerRestored()
 
 void PropertyLinkSub::updateElementReference(DocumentObject* feature, bool reverse, bool notify)
 {
-    if (!updateLinkReference(this,
-                             feature,
-                             reverse,
-                             notify,
-                             _pcLinkSub,
-                             _cSubList,
-                             _mapped,
-                             _ShadowSubList)) {
+    auto admission = isAdmissionPlanning()
+        ? RecomputeDetail::MutationScope {}
+        : RecomputeDetail::Coordinator::instance().mutation(*this, {feature});
+    preflightSubElements(*this, admission, {_pcLinkSub}, _cSubList, &_ShadowSubList);
+    if (
+        !updateLinkReference(this, feature, reverse, notify, _pcLinkSub, _cSubList, _mapped, _ShadowSubList)
+    ) {
         return;
     }
     if (notify) {
@@ -1667,8 +2196,7 @@ bool PropertyLinkSub::referenceChanged() const
     return !_mapped.empty();
 }
 
-std::string
-PropertyLinkBase::importSubName(Base::XMLReader& reader, const char* sub, bool& restoreLabel)
+std::string PropertyLinkBase::importSubName(Base::XMLReader& reader, const char* sub, bool& restoreLabel)
 {
     if (!reader.doNameMapping()) {
         return sub;
@@ -1690,10 +2218,12 @@ PropertyLinkBase::importSubName(Base::XMLReader& reader, const char* sub, bool& 
     return str.str();
 }
 
-const char* PropertyLinkBase::exportSubName(std::string& output,
-                                            const App::DocumentObject* obj,
-                                            const char* sub,
-                                            bool first_obj)
+const char* PropertyLinkBase::exportSubName(
+    std::string& output,
+    const App::DocumentObject* obj,
+    const char* sub,
+    bool first_obj
+)
 {
     std::ostringstream str;
     const char* res = sub;
@@ -1709,7 +2239,8 @@ const char* PropertyLinkBase::exportSubName(std::string& output,
             return res;
         }
         const char* hash;
-        for (hash = sub; hash < dot && *hash != '#'; ++hash) {}
+        for (hash = sub; hash < dot && *hash != '#'; ++hash) {
+        }
         App::Document* doc = nullptr;
         if (*hash == '#') {
             doc = GetApplication().getDocument(std::string(sub, hash - sub).c_str());
@@ -1776,9 +2307,11 @@ const char* PropertyLinkBase::exportSubName(std::string& output,
     return output.c_str();
 }
 
-App::DocumentObject* PropertyLinkBase::tryImport(const App::Document* doc,
-                                                 const App::DocumentObject* obj,
-                                                 const std::map<std::string, std::string>& nameMap)
+App::DocumentObject* PropertyLinkBase::tryImport(
+    const App::Document* doc,
+    const App::DocumentObject* obj,
+    const std::map<std::string, std::string>& nameMap
+)
 {
     if (doc && obj && obj->isAttachedToDocument()) {
         auto it = nameMap.find(obj->getExportName(true));
@@ -1792,10 +2325,12 @@ App::DocumentObject* PropertyLinkBase::tryImport(const App::Document* doc,
     return const_cast<DocumentObject*>(obj);
 }
 
-std::string PropertyLinkBase::tryImportSubName(const App::DocumentObject* obj,
-                                               const char* _subname,
-                                               const App::Document* doc,
-                                               const std::map<std::string, std::string>& nameMap)
+std::string PropertyLinkBase::tryImportSubName(
+    const App::DocumentObject* obj,
+    const char* _subname,
+    const App::Document* doc,
+    const std::map<std::string, std::string>& nameMap
+)
 {
     if (!doc || !obj || !obj->isAttachedToDocument()) {
         return {};
@@ -1844,11 +2379,13 @@ std::string PropertyLinkBase::tryImportSubName(const App::DocumentObject* obj,
     return {};
 }
 
-void PropertyLinkBase::_getLinksTo(std::vector<App::ObjectIdentifier>& identifiers,
-                                   App::DocumentObject* obj,
-                                   const char* subname,
-                                   const std::vector<std::string>& subs,
-                                   const std::vector<PropertyLinkBase::ShadowSub>& shadows) const
+void PropertyLinkBase::_getLinksTo(
+    std::vector<App::ObjectIdentifier>& identifiers,
+    App::DocumentObject* obj,
+    const char* subname,
+    const std::vector<std::string>& subs,
+    const std::vector<PropertyLinkBase::ShadowSub>& shadows
+) const
 {
     if (!subname) {
         identifiers.emplace_back(*this);
@@ -1884,9 +2421,10 @@ void PropertyLinkBase::_getLinksTo(std::vector<App::ObjectIdentifier>& identifie
             if (!subObject) {
                 continue;
             }
-            App::SubObjectT shadowobjT(obj,
-                                       shadowNewName.empty() ? shadowOldName.c_str()
-                                                             : shadowNewName.c_str());
+            App::SubObjectT shadowobjT(
+                obj,
+                shadowNewName.empty() ? shadowOldName.c_str() : shadowNewName.c_str()
+            );
             if (shadowobjT.getSubObject() == subObject
                 && shadowobjT.getOldElementName() == subElement) {
                 identifiers.emplace_back(*this);
@@ -1955,6 +2493,11 @@ void PropertyLinkSub::Save(Base::Writer& writer) const
 
 void PropertyLinkSub::Restore(Base::XMLReader& reader)
 {
+    auto structural = isAdmissionPlanning() ? RecomputeDetail::MutationScope {}
+                                            : RecomputeDetail::Coordinator::instance().atomic();
+    auto admission = isAdmissionPlanning()
+        ? RecomputeDetail::MutationScope {}
+        : RecomputeDetail::Coordinator::instance().mutation(*this);
     // read my element
     reader.readElement("LinkSub");
     // get the values of my attributes
@@ -1970,8 +2513,9 @@ void PropertyLinkSub::Restore(Base::XMLReader& reader)
         pcObject = document ? document->getObject(name.c_str()) : nullptr;
         if (!pcObject) {
             if (reader.isVerbose()) {
-                FC_WARN("Lost link to "
-                        << name << " while loading, maybe an object was not loaded correctly");
+                FC_WARN(
+                    "Lost link to " << name << " while loading, maybe an object was not loaded correctly"
+                );
             }
         }
     }
@@ -1983,16 +2527,20 @@ void PropertyLinkSub::Restore(Base::XMLReader& reader)
     // Sub may store '.' separated object names, so be aware of the possible mapping when import
     for (int i = 0; i < count; i++) {
         reader.readElement("Sub");
-        shadows[i].oldName = importSubName(reader, reader.getAttribute<const char*>("value"), restoreLabel);
+        shadows[i].oldName
+            = importSubName(reader, reader.getAttribute<const char*>("value"), restoreLabel);
         if (reader.hasAttribute(ATTR_SHADOWED) && !IGNORE_SHADOW) {
-            values[i] = shadows[i].newName =
-                importSubName(reader, reader.getAttribute<const char*>(ATTR_SHADOWED), restoreLabel);
+            values[i] = shadows[i].newName
+                = importSubName(reader, reader.getAttribute<const char*>(ATTR_SHADOWED), restoreLabel);
         }
         else {
             values[i] = shadows[i].oldName;
             if (reader.hasAttribute(ATTR_SHADOW) && !IGNORE_SHADOW) {
-                shadows[i].newName =
-                    importSubName(reader, reader.getAttribute<const char*>(ATTR_SHADOW), restoreLabel);
+                shadows[i].newName = importSubName(
+                    reader,
+                    reader.getAttribute<const char*>(ATTR_SHADOW),
+                    restoreLabel
+                );
             }
         }
         if (reader.hasAttribute(ATTR_MAPPED)) {
@@ -2015,10 +2563,12 @@ void PropertyLinkSub::Restore(Base::XMLReader& reader)
 }
 
 template<class Func, class... Args>
-std::vector<std::string> updateLinkSubs(const App::DocumentObject* obj,
-                                        const std::vector<std::string>& subs,
-                                        Func* f,
-                                        Args&&... args)
+std::vector<std::string> updateLinkSubs(
+    const App::DocumentObject* obj,
+    const std::vector<std::string>& subs,
+    Func* f,
+    Args&&... args
+)
 {
     if (!obj || !obj->isAttachedToDocument()) {
         return {};
@@ -2042,8 +2592,7 @@ std::vector<std::string> updateLinkSubs(const App::DocumentObject* obj,
     return res;
 }
 
-Property*
-PropertyLinkSub::CopyOnImportExternal(const std::map<std::string, std::string>& nameMap) const
+Property* PropertyLinkSub::CopyOnImportExternal(const std::map<std::string, std::string>& nameMap) const
 {
     auto owner = dynamic_cast<const DocumentObject*>(getContainer());
     if (!owner || !owner->getDocument()) {
@@ -2053,8 +2602,7 @@ PropertyLinkSub::CopyOnImportExternal(const std::map<std::string, std::string>& 
         return nullptr;
     }
 
-    auto subs =
-        updateLinkSubs(_pcLinkSub, _cSubList, &tryImportSubName, owner->getDocument(), nameMap);
+    auto subs = updateLinkSubs(_pcLinkSub, _cSubList, &tryImportSubName, owner->getDocument(), nameMap);
     auto linked = tryImport(owner->getDocument(), _pcLinkSub, nameMap);
     if (subs.empty() && linked == _pcLinkSub) {
         return nullptr;
@@ -2071,9 +2619,11 @@ PropertyLinkSub::CopyOnImportExternal(const std::map<std::string, std::string>& 
     return p;
 }
 
-Property* PropertyLinkSub::CopyOnLabelChange(App::DocumentObject* obj,
-                                             const std::string& ref,
-                                             const char* newLabel) const
+Property* PropertyLinkSub::CopyOnLabelChange(
+    App::DocumentObject* obj,
+    const std::string& ref,
+    const char* newLabel
+) const
 {
     auto owner = dynamic_cast<const DocumentObject*>(getContainer());
     if (!owner || !owner->getDocument()) {
@@ -2094,9 +2644,11 @@ Property* PropertyLinkSub::CopyOnLabelChange(App::DocumentObject* obj,
     return p;
 }
 
-Property* PropertyLinkSub::CopyOnLinkReplace(const App::DocumentObject* parent,
-                                             App::DocumentObject* oldObj,
-                                             App::DocumentObject* newObj) const
+Property* PropertyLinkSub::CopyOnLinkReplace(
+    const App::DocumentObject* parent,
+    App::DocumentObject* oldObj,
+    App::DocumentObject* newObj
+) const
 {
     auto res = tryReplaceLinkSubs(getContainer(), _pcLinkSub, parent, oldObj, newObj, _cSubList);
     if (res.first) {
@@ -2126,10 +2678,12 @@ void PropertyLinkSub::Paste(const Property& from)
     setValue(link._pcLinkSub, link._cSubList, std::vector<ShadowSub>(link._ShadowSubList));
 }
 
-void PropertyLinkSub::getLinks(std::vector<App::DocumentObject*>& objs,
-                               bool all,
-                               std::vector<std::string>* subs,
-                               bool newStyle) const
+void PropertyLinkSub::getLinks(
+    std::vector<App::DocumentObject*>& objs,
+    bool all,
+    std::vector<std::string>* subs,
+    bool newStyle
+) const
 {
     if (all || _pcScope != LinkScope::Hidden) {
         if (_pcLinkSub && _pcLinkSub->isAttachedToDocument()) {
@@ -2145,10 +2699,12 @@ void PropertyLinkSub::getLinks(std::vector<App::DocumentObject*>& objs,
     }
 }
 
-void PropertyLinkSub::getLinksTo(std::vector<App::ObjectIdentifier>& identifiers,
-                                 App::DocumentObject* obj,
-                                 const char* subname,
-                                 bool all) const
+void PropertyLinkSub::getLinksTo(
+    std::vector<App::ObjectIdentifier>& identifiers,
+    App::DocumentObject* obj,
+    const char* subname,
+    bool all
+) const
 {
     if (all || _pcScope != LinkScope::Hidden) {
         if (obj && obj == _pcLinkSub) {
@@ -2159,17 +2715,21 @@ void PropertyLinkSub::getLinksTo(std::vector<App::ObjectIdentifier>& identifiers
 
 void PropertyLinkSub::breakLink(App::DocumentObject* obj, bool clear)
 {
+    auto admission = isAdmissionPlanning()
+        ? RecomputeDetail::MutationScope {}
+        : RecomputeDetail::Coordinator::instance().mutation(*this, {obj});
     if (obj == _pcLinkSub || (clear && getContainer() == obj)) {
         setValue(nullptr);
     }
 }
 
-static App::DocumentObject*
-adjustLinkSubs(App::PropertyLinkBase* prop,
-               const std::set<App::DocumentObject*>& inList,
-               App::DocumentObject* link,
-               std::vector<std::string>& subs,
-               std::map<App::DocumentObject*, std::vector<std::string>>* links = nullptr)
+static App::DocumentObject* adjustLinkSubs(
+    App::PropertyLinkBase* prop,
+    const std::set<App::DocumentObject*>& inList,
+    App::DocumentObject* link,
+    std::vector<std::string>& subs,
+    std::map<App::DocumentObject*, std::vector<std::string>>* links = nullptr
+)
 {
     App::DocumentObject* newLink = nullptr;
     for (auto& sub : subs) {
@@ -2211,6 +2771,9 @@ adjustLinkSubs(App::PropertyLinkBase* prop,
 
 bool PropertyLinkSub::adjustLink(const std::set<App::DocumentObject*>& inList)
 {
+    auto admission = isAdmissionPlanning()
+        ? RecomputeDetail::MutationScope {}
+        : RecomputeDetail::Coordinator::instance().mutation(*this, {});
     if (_pcScope == LinkScope::Hidden) {
         return false;
     }
@@ -2264,7 +2827,7 @@ PropertyLinkSubList::~PropertyLinkSubList()
 
 void PropertyLinkSubList::setSyncSubObject(bool enable)
 {
-    _Flags.set((std::size_t)LinkSyncSubObject, enable);
+    setFlag(LinkSyncSubObject, enable);
 }
 
 void PropertyLinkSubList::verifyObject(App::DocumentObject* obj, App::DocumentObject* parent)
@@ -2281,6 +2844,9 @@ void PropertyLinkSubList::verifyObject(App::DocumentObject* obj, App::DocumentOb
 
 void PropertyLinkSubList::setSize(int newSize)
 {
+    auto admission = isAdmissionPlanning()
+        ? RecomputeDetail::MutationScope {}
+        : RecomputeDetail::Coordinator::instance().mutation(*this, {});
     _lValueList.resize(newSize);
     _lSubList.resize(newSize);
     _ShadowSubList.resize(newSize);
@@ -2293,6 +2859,10 @@ int PropertyLinkSubList::getSize() const
 
 void PropertyLinkSubList::setValue(DocumentObject* lValue, const char* SubName)
 {
+    auto admission = isAdmissionPlanning()
+        ? RecomputeDetail::MutationScope {}
+        : RecomputeDetail::Coordinator::instance().mutation(*this, {lValue});
+    preflightSubElements(*this, admission, {lValue}, {SubName ? SubName : ""});
     auto parent = freecad_cast<App::DocumentObject*>(getContainer());
     verifyObject(lValue, parent);
 
@@ -2331,9 +2901,20 @@ void PropertyLinkSubList::setValue(DocumentObject* lValue, const char* SubName)
     hasSetValue();
 }
 
-void PropertyLinkSubList::setValues(const std::vector<DocumentObject*>& lValue,
-                                    const std::vector<const char*>& lSubNames)
+void PropertyLinkSubList::setValues(
+    const std::vector<DocumentObject*>& lValue,
+    const std::vector<const char*>& lSubNames
+)
 {
+    auto admission = isAdmissionPlanning()
+        ? RecomputeDetail::MutationScope {}
+        : RecomputeDetail::Coordinator::instance().mutation(*this, lValue);
+    std::vector<std::string> plannedSubs;
+    plannedSubs.reserve(lSubNames.size());
+    for (auto* sub : lSubNames) {
+        plannedSubs.emplace_back(sub ? sub : "");
+    }
+    preflightSubElements(*this, admission, lValue, plannedSubs);
     auto parent = freecad_cast<App::DocumentObject*>(getContainer());
     for (auto obj : lValue) {
         verifyObject(obj, parent);
@@ -2341,7 +2922,8 @@ void PropertyLinkSubList::setValues(const std::vector<DocumentObject*>& lValue,
 
     if (lValue.size() != lSubNames.size()) {
         throw Base::ValueError(
-            "PropertyLinkSubList::setValues: size of subelements list != size of objects list");
+            "PropertyLinkSubList::setValues: size of subelements list != size of objects list"
+        );
     }
 
     // maintain backlinks.
@@ -2384,26 +2966,40 @@ void PropertyLinkSubList::setValues(const std::vector<DocumentObject*>& lValue,
     hasSetValue();
 }
 
-void PropertyLinkSubList::setValues(const std::vector<DocumentObject*>& lValue,
-                                    const std::vector<std::string>& lSubNames,
-                                    std::vector<ShadowSub>&& ShadowSubList)
+void PropertyLinkSubList::setValues(
+    const std::vector<DocumentObject*>& lValue,
+    const std::vector<std::string>& lSubNames,
+    std::vector<ShadowSub>&& ShadowSubList
+)
 {
-    setValues(std::vector<DocumentObject*>(lValue),
-              std::vector<std::string>(lSubNames),
-              std::move(ShadowSubList));
+    auto admission = isAdmissionPlanning()
+        ? RecomputeDetail::MutationScope {}
+        : RecomputeDetail::Coordinator::instance().mutation(*this, lValue);
+    setValues(
+        std::vector<DocumentObject*>(lValue),
+        std::vector<std::string>(lSubNames),
+        std::move(ShadowSubList)
+    );
 }
 
-void PropertyLinkSubList::setValues(std::vector<DocumentObject*>&& lValue,
-                                    std::vector<std::string>&& lSubNames,
-                                    std::vector<ShadowSub>&& ShadowSubList)
+void PropertyLinkSubList::setValues(
+    std::vector<DocumentObject*>&& lValue,
+    std::vector<std::string>&& lSubNames,
+    std::vector<ShadowSub>&& ShadowSubList
+)
 {
+    auto admission = isAdmissionPlanning()
+        ? RecomputeDetail::MutationScope {}
+        : RecomputeDetail::Coordinator::instance().mutation(*this, lValue);
+    preflightSubElements(*this, admission, lValue, lSubNames, &ShadowSubList);
     auto parent = freecad_cast<App::DocumentObject*>(getContainer());
     for (auto obj : lValue) {
         verifyObject(obj, parent);
     }
     if (lValue.size() != lSubNames.size()) {
         throw Base::ValueError(
-            "PropertyLinkSubList::setValues: size of subelements list != size of objects list");
+            "PropertyLinkSubList::setValues: size of subelements list != size of objects list"
+        );
     }
 
     // maintain backlinks.
@@ -2447,6 +3043,10 @@ void PropertyLinkSubList::setValues(std::vector<DocumentObject*>&& lValue,
 
 void PropertyLinkSubList::setValue(DocumentObject* lValue, const std::vector<std::string>& SubList)
 {
+    auto admission = isAdmissionPlanning()
+        ? RecomputeDetail::MutationScope {}
+        : RecomputeDetail::Coordinator::instance().mutation(*this, {lValue});
+    preflightSubElements(*this, admission, {lValue}, SubList);
     auto parent = dynamic_cast<App::DocumentObject*>(getContainer());
     verifyObject(lValue, parent);
 
@@ -2492,10 +3092,16 @@ void PropertyLinkSubList::setValue(DocumentObject* lValue, const std::vector<std
     hasSetValue();
 }
 
-void PropertyLinkSubList::addValue(App::DocumentObject* obj,
-                                   const std::vector<std::string>& subs,
-                                   bool reset)
+void PropertyLinkSubList::addValue(
+    App::DocumentObject* obj,
+    const std::vector<std::string>& subs,
+    bool reset
+)
 {
+    auto admission = isAdmissionPlanning()
+        ? RecomputeDetail::MutationScope {}
+        : RecomputeDetail::Coordinator::instance().mutation(*this, {obj});
+    preflightSubElements(*this, admission, {obj}, subs);
     auto parent = freecad_cast<App::DocumentObject*>(getContainer());
     verifyObject(obj, parent);
 
@@ -2645,8 +3251,7 @@ void PropertyLinkSubList::setSubListValues(const std::vector<PropertyLinkSubList
             subs.emplace_back();
             continue;
         }
-        for (std::vector<std::string>::const_iterator jt = it->second.begin();
-             jt != it->second.end();
+        for (std::vector<std::string>::const_iterator jt = it->second.begin(); jt != it->second.end();
              ++jt) {
             links.push_back(it->first);
             subs.push_back(*jt);
@@ -2659,8 +3264,10 @@ std::vector<PropertyLinkSubList::SubSet> PropertyLinkSubList::getSubListValues(b
 {
     std::vector<PropertyLinkSubList::SubSet> values;
     if (_lValueList.size() != _lSubList.size()) {
-        throw Base::ValueError("PropertyLinkSubList::getSubListValues: size of subelements list != "
-                               "size of objects list");
+        throw Base::ValueError(
+            "PropertyLinkSubList::getSubListValues: size of subelements list != "
+            "size of objects list"
+        );
     }
 
     assert(_ShadowSubList.size() == _lSubList.size());
@@ -2720,6 +3327,9 @@ void PropertyLinkSubList::setPyObject(PyObject* value)
         this->setValue(dummy.getValue(), dummy.getSubValues());
         return;
     }
+    catch (const RecomputeDetail::AdmissionRefusal&) {
+        throw;
+    }
     catch (...) {
     }
     try {
@@ -2731,11 +3341,14 @@ void PropertyLinkSubList::setPyObject(PyObject* value)
         this->setValues(values, subs);
         return;
     }
+    catch (const RecomputeDetail::AdmissionRefusal&) {
+        throw;
+    }
     catch (...) {
     }
 
-    static const char* errMsg =
-        "Expects sequence of items of type DocObj, (DocObj,SubName), or (DocObj, (SubName,...))";
+    static const char* errMsg
+        = "Expects sequence of items of type DocObj, (DocObj,SubName), or (DocObj, (SubName,...))";
 
     if (!PyTuple_Check(value) && !PyList_Check(value)) {
         throw Base::TypeError(errMsg);
@@ -2791,6 +3404,10 @@ void PropertyLinkSubList::setPyObject(PyObject* value)
 
 void PropertyLinkSubList::afterRestore()
 {
+    auto admission = isAdmissionPlanning()
+        ? RecomputeDetail::MutationScope {}
+        : RecomputeDetail::Coordinator::instance().mutation(*this, {});
+    preflightSubElements(*this, admission, _lValueList, _lSubList, &_ShadowSubList);
     assert(_lSubList.size() == _ShadowSubList.size());
     if (!testFlag(LinkRestoreLabel)) {
         return;
@@ -2803,6 +3420,10 @@ void PropertyLinkSubList::afterRestore()
 
 void PropertyLinkSubList::onContainerRestored()
 {
+    auto admission = isAdmissionPlanning()
+        ? RecomputeDetail::MutationScope {}
+        : RecomputeDetail::Coordinator::instance().mutation(*this, {});
+    preflightSubElements(*this, admission, _lValueList, _lSubList, &_ShadowSubList);
     unregisterElementReference();
     for (size_t i = 0; i < _lSubList.size(); ++i) {
         _registerElementReference(_lValueList[i], _lSubList[i], _ShadowSubList[i]);
@@ -2811,6 +3432,10 @@ void PropertyLinkSubList::onContainerRestored()
 
 void PropertyLinkSubList::updateElementReference(DocumentObject* feature, bool reverse, bool notify)
 {
+    auto admission = isAdmissionPlanning()
+        ? RecomputeDetail::MutationScope {}
+        : RecomputeDetail::Coordinator::instance().mutation(*this, {feature});
+    preflightSubElements(*this, admission, _lValueList, _lSubList, &_ShadowSubList);
     if (!feature) {
         _ShadowSubList.clear();
         unregisterElementReference();
@@ -2824,12 +3449,9 @@ void PropertyLinkSubList::updateElementReference(DocumentObject* feature, bool r
     bool touched = false;
     for (auto& sub : _lSubList) {
         auto obj = _lValueList[i];
-        if (_updateElementReference(feature,
-                                    obj,
-                                    sub,
-                                    _ShadowSubList[i++],
-                                    reverse,
-                                    notify && !touched)) {
+        if (
+            _updateElementReference(feature, obj, sub, _ShadowSubList[i++], reverse, notify && !touched)
+        ) {
             touched = true;
         }
     }
@@ -2920,6 +3542,11 @@ void PropertyLinkSubList::Save(Base::Writer& writer) const
 
 void PropertyLinkSubList::Restore(Base::XMLReader& reader)
 {
+    auto structural = isAdmissionPlanning() ? RecomputeDetail::MutationScope {}
+                                            : RecomputeDetail::Coordinator::instance().atomic();
+    auto admission = isAdmissionPlanning()
+        ? RecomputeDetail::MutationScope {}
+        : RecomputeDetail::Coordinator::instance().mutation(*this);
     // read my element
     reader.readElement("LinkSubList");
     // get the value of my attribute
@@ -2947,17 +3574,24 @@ void PropertyLinkSubList::Restore(Base::XMLReader& reader)
             values.push_back(child);
             shadows.emplace_back();
             auto& shadow = shadows.back();
-            shadow.oldName = importSubName(reader, reader.getAttribute<const char*>("sub"), restoreLabel);
+            shadow.oldName
+                = importSubName(reader, reader.getAttribute<const char*>("sub"), restoreLabel);
             if (reader.hasAttribute(ATTR_SHADOWED) && !IGNORE_SHADOW) {
-                shadow.newName =
-                    importSubName(reader, reader.getAttribute<const char*>(ATTR_SHADOWED), restoreLabel);
+                shadow.newName = importSubName(
+                    reader,
+                    reader.getAttribute<const char*>(ATTR_SHADOWED),
+                    restoreLabel
+                );
                 SubNames.push_back(shadow.newName);
             }
             else {
                 SubNames.push_back(shadow.oldName);
                 if (reader.hasAttribute(ATTR_SHADOW) && !IGNORE_SHADOW) {
-                    shadow.newName =
-                        importSubName(reader, reader.getAttribute<const char*>(ATTR_SHADOW), restoreLabel);
+                    shadow.newName = importSubName(
+                        reader,
+                        reader.getAttribute<const char*>(ATTR_SHADOW),
+                        restoreLabel
+                    );
                 }
             }
             if (reader.hasAttribute(ATTR_MAPPED)) {
@@ -2965,9 +3599,11 @@ void PropertyLinkSubList::Restore(Base::XMLReader& reader)
             }
         }
         else if (reader.isVerbose()) {
-            Base::Console().warning("Lost link to '{}' while loading, maybe "
-                                    "an object was not loaded correctly\n",
-                                    name);
+            Base::Console().warning(
+                "Lost link to '{}' while loading, maybe "
+                "an object was not loaded correctly\n",
+                name
+            );
         }
     }
     setFlag(LinkRestoreLabel, restoreLabel);
@@ -2981,6 +3617,11 @@ void PropertyLinkSubList::Restore(Base::XMLReader& reader)
 
 bool PropertyLinkSubList::upgrade(Base::XMLReader& reader, const char* typeName)
 {
+    auto structural = isAdmissionPlanning() ? RecomputeDetail::MutationScope {}
+                                            : RecomputeDetail::Coordinator::instance().atomic();
+    auto admission = isAdmissionPlanning()
+        ? RecomputeDetail::MutationScope {}
+        : RecomputeDetail::Coordinator::instance().mutation(*this);
     Base::Type type = Base::Type::fromName(typeName);
     if (type.isDerivedFrom(PropertyLink::getClassTypeId())) {
         PropertyLink prop;
@@ -3009,8 +3650,9 @@ bool PropertyLinkSubList::upgrade(Base::XMLReader& reader, const char* typeName)
     return false;
 }
 
-Property*
-PropertyLinkSubList::CopyOnImportExternal(const std::map<std::string, std::string>& nameMap) const
+Property* PropertyLinkSubList::CopyOnImportExternal(
+    const std::map<std::string, std::string>& nameMap
+) const
 {
     auto owner = dynamic_cast<const DocumentObject*>(getContainer());
     if (!owner || !owner->getDocument() || _lValueList.size() != _lSubList.size()) {
@@ -3055,9 +3697,11 @@ PropertyLinkSubList::CopyOnImportExternal(const std::map<std::string, std::strin
     return p.release();
 }
 
-Property* PropertyLinkSubList::CopyOnLabelChange(App::DocumentObject* obj,
-                                                 const std::string& ref,
-                                                 const char* newLabel) const
+Property* PropertyLinkSubList::CopyOnLabelChange(
+    App::DocumentObject* obj,
+    const std::string& ref,
+    const char* newLabel
+) const
 {
     auto owner = dynamic_cast<const DocumentObject*>(getContainer());
     if (!owner || !owner->getDocument()) {
@@ -3101,9 +3745,11 @@ Property* PropertyLinkSubList::CopyOnLabelChange(App::DocumentObject* obj,
     return p.release();
 }
 
-Property* PropertyLinkSubList::CopyOnLinkReplace(const App::DocumentObject* parent,
-                                                 App::DocumentObject* oldObj,
-                                                 App::DocumentObject* newObj) const
+Property* PropertyLinkSubList::CopyOnLinkReplace(
+    const App::DocumentObject* parent,
+    App::DocumentObject* oldObj,
+    App::DocumentObject* newObj
+) const
 {
     std::vector<App::DocumentObject*> values;
     std::vector<std::string> subs;
@@ -3190,8 +3836,7 @@ void PropertyLinkSubList::Paste(const Property& from)
 
 unsigned int PropertyLinkSubList::getMemSize() const
 {
-    unsigned int size =
-        static_cast<unsigned int>(_lValueList.size() * sizeof(App::DocumentObject*));
+    unsigned int size = static_cast<unsigned int>(_lValueList.size() * sizeof(App::DocumentObject*));
     for (int i = 0; i < getSize(); i++) {
         size += _lSubList[i].size();
     }
@@ -3210,19 +3855,20 @@ std::vector<std::string> PropertyLinkSubList::getSubValues(bool newStyle) const
     return ret;
 }
 
-void PropertyLinkSubList::getLinks(std::vector<App::DocumentObject*>& objs,
-                                   bool all,
-                                   std::vector<std::string>* subs,
-                                   bool newStyle) const
+void PropertyLinkSubList::getLinks(
+    std::vector<App::DocumentObject*>& objs,
+    bool all,
+    std::vector<std::string>* subs,
+    bool newStyle
+) const
 {
     if (all || _pcScope != LinkScope::Hidden) {
         objs.reserve(objs.size() + _lValueList.size());
         for (auto obj : _lValueList) {
             if (obj && obj->isAttachedToDocument()) {
-                // we use to run this method everytime the program needed to access the sub-elements in
-                // a property link, but it caused multiple issues (#23441 and #23402) so it has been
-                // commented out.
-                // updateElementReferences(obj);
+                // we use to run this method everytime the program needed to access the sub-elements
+                // in a property link, but it caused multiple issues (#23441 and #23402) so it has
+                // been commented out. updateElementReferences(obj);
                 objs.push_back(obj);
             }
         }
@@ -3234,10 +3880,12 @@ void PropertyLinkSubList::getLinks(std::vector<App::DocumentObject*>& objs,
     }
 }
 
-void PropertyLinkSubList::getLinksTo(std::vector<App::ObjectIdentifier>& identifiers,
-                                     App::DocumentObject* obj,
-                                     const char* subname,
-                                     bool all) const
+void PropertyLinkSubList::getLinksTo(
+    std::vector<App::ObjectIdentifier>& identifiers,
+    App::DocumentObject* obj,
+    const char* subname,
+    bool all
+) const
 {
     if (!obj || (!all && _pcScope == LinkScope::Hidden)) {
         return;
@@ -3269,9 +3917,10 @@ void PropertyLinkSubList::getLinksTo(std::vector<App::ObjectIdentifier>& identif
         }
         if (i < (int)_ShadowSubList.size()) {
             const auto& shadow = _ShadowSubList[i];
-            App::SubObjectT sobjT(obj,
-                                  shadow.newName.empty() ? shadow.oldName.c_str()
-                                                         : shadow.newName.c_str());
+            App::SubObjectT sobjT(
+                obj,
+                shadow.newName.empty() ? shadow.oldName.c_str() : shadow.newName.c_str()
+            );
             if (sobjT.getSubObject() == subObject && sobjT.getOldElementName() == subElement) {
                 identifiers.emplace_back(*this);
                 continue;
@@ -3282,6 +3931,9 @@ void PropertyLinkSubList::getLinksTo(std::vector<App::ObjectIdentifier>& identif
 
 void PropertyLinkSubList::breakLink(App::DocumentObject* obj, bool clear)
 {
+    auto admission = isAdmissionPlanning()
+        ? RecomputeDetail::MutationScope {}
+        : RecomputeDetail::Coordinator::instance().mutation(*this, {obj});
     std::vector<DocumentObject*> values;
     std::vector<std::string> subs;
 
@@ -3310,6 +3962,9 @@ void PropertyLinkSubList::breakLink(App::DocumentObject* obj, bool clear)
 
 bool PropertyLinkSubList::adjustLink(const std::set<App::DocumentObject*>& inList)
 {
+    auto admission = isAdmissionPlanning()
+        ? RecomputeDetail::MutationScope {}
+        : RecomputeDetail::Coordinator::instance().mutation(*this, {});
     if (_pcScope == LinkScope::Hidden) {
         return false;
     }
@@ -3374,11 +4029,170 @@ public:
     std::string myPath;
     App::Document* pcDoc {nullptr};
     std::set<PropertyXLink*> links;
+    std::uint64_t revision {0};
 
-    static std::string getDocPath(const char* filename,
-                                  App::Document* pDoc,
-                                  bool relative,
-                                  QString* fullPath = nullptr)
+    struct AdmissionPlan
+    {
+        RecomputeDetail::MutationScope mutation;
+        RecomputeDetail::PropertySnapshot storage;
+        std::vector<PropertyXLink*> properties;
+        std::vector<DocumentObject*> endpoints;
+        Document* document {nullptr};
+    };
+
+    struct IterationStorage
+    {
+        RecomputeDetail::PropertySnapshot parents;
+        std::map<PropertyLinkBase*, RecomputeDetail::PropertySnapshot> groups;
+    };
+
+    static IterationStorage prepareIterationStorage(
+        AdmissionPlan& plan,
+        const std::map<PropertyLinkBase*, std::vector<Property*>>& groups
+    )
+    {
+        // Reject other borrowers before ANY group effect. Ancestor receivers are
+        // retained separately; they must not be destroyed during reconciliation.
+        plan.storage.requireExclusiveStorage();
+        auto& coordinator = RecomputeDetail::Coordinator::instance();
+        IterationStorage storage;
+        std::vector<Property*> parents;
+        for (const auto& group : groups) {
+            if (group.first) {
+                parents.push_back(group.first);
+            }
+        }
+        storage.parents = coordinator.snapshotProperties(parents, nullptr, nullptr, false);
+        for (const auto& group : groups) {
+            storage.groups.emplace(
+                group.first,
+                coordinator.snapshotProperties(group.second, nullptr, nullptr, false)
+            );
+        }
+        // Keep source/endpoint reservations while transferring iteration storage
+        // to individual groups. Future groups remain pinned across callbacks.
+        plan.storage.releaseStorage();
+        return storage;
+    }
+
+    // Do not call virtual collectAdmissionTargets here: XLink's collector joins
+    // its DocInfo cohort and would recurse. All getters run outside the index gate.
+    static void collectRawTargets(PropertyLinkBase* property, std::vector<DocumentObject*>& endpoints)
+    {
+        if (auto* owner = freecad_cast<DocumentObject*>(property->getContainer())) {
+            endpoints.push_back(owner);
+        }
+        property->getLinks(endpoints, true);
+        endpoints.insert(endpoints.end(), property->_ElementRefs.begin(), property->_ElementRefs.end());
+        if (auto* container = freecad_cast<PropertyXLinkContainer*>(property)) {
+            std::vector<std::pair<std::string, DocumentObject*>> dependencies;
+            container->getLinksProp(dependencies, true);
+            for (const auto& dependency : dependencies) {
+                endpoints.push_back(dependency.second);
+            }
+        }
+    }
+
+    AdmissionPlan reserve(
+        Document* proposed = nullptr,
+        PropertyXLink* extra = nullptr,
+        Document* source = nullptr
+    ) const
+    {
+        auto& coordinator = RecomputeDetail::Coordinator::instance();
+        AdmissionPlan plan;
+        plan.mutation = coordinator.mutation(std::vector<DocumentObject*> {}, {proposed, source});
+        plan.mutation.reserveResource(std::const_pointer_cast<DocInfo>(shared_from_this()));
+        std::vector<Property*> properties;
+        std::uint64_t epoch;
+        {
+            RecomputeDetail::IndexLock lock;
+            epoch = revision;
+            plan.document = pcDoc;
+            properties.insert(properties.end(), links.begin(), links.end());
+        }
+        // The source intent precedes all native property/graph reads. Snapshot
+        // storage and ancestry remain pinned for the complete callback iteration.
+        plan.mutation.include({}, {plan.document, proposed, source});
+        if (extra && std::find(properties.begin(), properties.end(), extra) == properties.end()) {
+            properties.push_back(extra);
+        }
+        plan.storage = coordinator.snapshotProperties(properties, nullptr, nullptr, false);
+        {
+            RecomputeDetail::IndexLock lock;
+            if (epoch != revision) {
+                throw RecomputeDetail::AdmissionRefusal(
+                    "XLink document index changed during preflight"
+                );
+            }
+        }
+        for (auto* property : plan.storage.properties()) {
+            auto* link = freecad_cast<PropertyXLink*>(property);
+            if (!link) {
+                continue;
+            }
+            plan.properties.push_back(link);
+            // getLinks may inspect target attachment. Reserve published/raw old
+            // endpoints before invoking it, including detached saved children
+            // whose owner alone cannot prevent target destruction.
+            plan.endpoints.push_back(link->_pcLink);
+            plan.endpoints
+                .insert(plan.endpoints.end(), link->_ElementRefs.begin(), link->_ElementRefs.end());
+            {
+                RecomputeDetail::IndexLock lock;
+                for (auto* property : {static_cast<PropertyLinkBase*>(link), link->parentProp}) {
+                    auto found = _AdmissionPropertyTargets.find(property);
+                    if (found != _AdmissionPropertyTargets.end()) {
+                        plan.endpoints.insert(
+                            plan.endpoints.end(),
+                            found->second.begin(),
+                            found->second.end()
+                        );
+                    }
+                }
+            }
+        }
+        plan.mutation.include(plan.endpoints, {plan.document, proposed, source});
+        for (auto* link : plan.properties) {
+            collectRawTargets(link, plan.endpoints);
+            if (link->parentProp) {
+                collectRawTargets(link->parentProp, plan.endpoints);
+            }
+            if (proposed) {
+                if (auto* target = proposed->getObject(link->objectName.c_str())) {
+                    plan.endpoints.push_back(target);
+                }
+            }
+        }
+        plan.mutation.include(plan.endpoints, {plan.document, proposed, source});
+        {
+            RecomputeDetail::IndexLock lock;
+            if (epoch != revision) {
+                throw RecomputeDetail::AdmissionRefusal(
+                    "XLink document cohort changed during planning"
+                );
+            }
+        }
+        return plan;
+    }
+
+    void collectAdmissionTargets(std::vector<DocumentObject*>& endpoints) const
+    {
+        // The outer lexical writer retains membership exclusivity through its
+        // final include, first notification and native commit, beyond this DTO.
+        RecomputeDetail::Coordinator::instance().retainMutationResource(
+            std::const_pointer_cast<DocInfo>(shared_from_this())
+        );
+        auto plan = reserve();
+        endpoints.insert(endpoints.end(), plan.endpoints.begin(), plan.endpoints.end());
+    }
+
+    static std::string getDocPath(
+        const char* filename,
+        App::Document* pDoc,
+        bool relative,
+        QString* fullPath = nullptr
+    )
     {
         bool absolute;
         // The path could be an URI, in that case
@@ -3408,7 +4222,7 @@ public:
             throw Base::RuntimeError("Owner document not saved");
         }
 
-        QFileInfo docFileInfo{QString::fromUtf8(docPath)};
+        QFileInfo docFileInfo {QString::fromUtf8(docPath)};
         QDir docDir(docFileInfo.canonicalPath());
         if (!absolute) {
             path = QDir::cleanPath(docDir.absoluteFilePath(path));
@@ -3423,50 +4237,107 @@ public:
         return std::string(path.toUtf8().constData());
     }
 
-    static DocInfoPtr
-    get(const char* filename, App::Document* pDoc, PropertyXLink* l, const char* objName)
+    static DocInfoPtr get(
+        const char* filename,
+        App::Document* pDoc,
+        PropertyXLink* link,
+        const char* objName,
+        Document* candidate = nullptr
+    )
     {
+        auto& coordinator = RecomputeDetail::Coordinator::instance();
+        // Filename discovery/reload has opaque observers. Typed callers pass the
+        // already resolved, reserved candidate and retain the precise route.
+        std::optional<RecomputeDetail::MutationScope> opaque;
+        if (!candidate) {
+            opaque.emplace(coordinator.atomic());
+        }
+        auto source = coordinator.mutation(std::vector<DocumentObject*> {}, {pDoc, candidate});
         QString path;
-        l->filePath = getDocPath(filename, pDoc, true, &path);
-
+        const std::string relativePath = getDocPath(filename, pDoc, true, &path);
         FC_LOG("finding doc " << filename);
-
-        auto it = _DocInfoMap.find(path);
         DocInfoPtr info;
-        if (it != _DocInfoMap.end()) {
-            info = it->second;
-            if (!info->pcDoc) {
-                QString fullpath(info->getFullPath());
-                if (fullpath.size()
-                    && App::GetApplication().addPendingDocument(
-                           fullpath.toUtf8().constData(),
-                           objName,
-                           l->testFlag(PropertyLinkBase::LinkAllowPartial))
-                        == 0) {
-                    for (App::Document* doc : App::GetApplication().getDocuments()) {
-                        if (getFullPath(doc->getFileName()) == fullpath) {
-                            info->attach(doc);
-                            break;
-                        }
+        {
+            RecomputeDetail::IndexLock lock;
+            auto found = _DocInfoMap.find(path);
+            if (found != _DocInfoMap.end()) {
+                info = found->second;
+            }
+        }
+        const bool existing = static_cast<bool>(info);
+        if (!info) {
+            info = std::make_shared<DocInfo>();
+        }
+        if (!candidate) {
+            for (auto* document : App::GetApplication().getDocuments()) {
+                if (getFullPath(document->getFileName()) == path) {
+                    if (existing || !document->testStatus(App::Document::PartialDoc)
+                        || document->getObject(objName)) {
+                        candidate = document;
                     }
+                    break;
                 }
             }
         }
-        else {
-            info = std::make_shared<DocInfo>();
-            auto ret = _DocInfoMap.insert(std::make_pair(path, info));
-            info->init(ret.first, objName, l);
+        auto plan = info->reserve(candidate, link, pDoc);
+        if (candidate && plan.document && candidate != plan.document) {
+            throw RecomputeDetail::AdmissionRefusal("XLink path belongs to another live document");
         }
-
-        if (info->pcDoc) {
-            // make sure to attach only external object
-            auto owner = freecad_cast<DocumentObject*>(l->getContainer());
-            if (owner && owner->getDocument() == info->pcDoc) {
-                return info;
+        if (candidate) {
+            plan.mutation.include({candidate->getObject(objName)}, {candidate});
+        }
+        RecomputeDetail::PropertySnapshot receiver;
+        bool created = false;
+        DocInfoMap::iterator position;
+        {
+            RecomputeDetail::IndexLock lock;
+            auto found = _DocInfoMap.find(path);
+            if (found == _DocInfoMap.end()) {
+                auto inserted = _DocInfoMap.emplace(path, info);
+                position = inserted.first;
+                created = true;
+                ++_ReferenceIndexEpoch;
+                ++info->revision;
+            }
+            else {
+                if (found->second != info) {
+                    throw RecomputeDetail::AdmissionRefusal("XLink path changed during preflight");
+                }
+                position = found;
             }
         }
-
-        info->links.insert(l);
+        if (created) {
+            info->init(position, objName, link, candidate);
+        }
+        else if (!plan.document && candidate) {
+            receiver = coordinator.snapshotProperties({link}, nullptr, nullptr, false);
+            plan.storage.releaseStorage();
+            info->attach(candidate);
+        }
+        else if (!plan.document) {
+            App::GetApplication().addPendingDocument(
+                path.toUtf8().constData(),
+                objName,
+                link->testFlag(PropertyLinkBase::LinkAllowPartial)
+            );
+        }
+        link->filePath = relativePath;
+        auto* owner = freecad_cast<DocumentObject*>(link->getContainer());
+        if (!owner && link->parentProp) {
+            owner = freecad_cast<DocumentObject*>(link->parentProp->getContainer());
+        }
+        Document* attached;
+        {
+            RecomputeDetail::IndexLock lock;
+            attached = info->pcDoc;
+        }
+        if (!owner || owner->getDocument() != attached) {
+            RecomputeDetail::IndexLock lock;
+            if (info->links.insert(link).second) {
+                ++_ReferenceIndexEpoch;
+                ++info->revision;
+            }
+        }
         return info;
     }
 
@@ -3485,314 +4356,587 @@ public:
 
     QString getFullPath() const
     {
-        QString path = myPos->first;
+        QString path;
+        {
+            RecomputeDetail::IndexLock lock;
+            path = QString::fromUtf8(myPath.c_str());
+        }
         if (path.startsWith(QLatin1String("https://"))) {
             return path;
         }
-        return QFileInfo(myPos->first).absoluteFilePath();
+        return QFileInfo(path).absoluteFilePath();
     }
 
-    const char* filePath() const
+    std::string filePath() const
     {
-        return myPath.c_str();
+        RecomputeDetail::IndexLock lock;
+        return myPath;
     }
 
     void deinit()
     {
-        FC_LOG("deinit " << (pcDoc ? pcDoc->getName() : filePath()));
-        assert(links.empty());
+        // Only remove/slotDelete call this, retaining their complete admission.
+        auto me = shared_from_this();
         connFinishRestoreDocument.disconnect();
         connPendingReloadDocument.disconnect();
         connDeleteDocument.disconnect();
         connSaveDocument.disconnect();
         connDeletedObject.disconnect();
-
-        auto me = shared_from_this();
-        _DocInfoMap.erase(myPos);
-        myPos = _DocInfoMap.end();
-        myPath.clear();
-        pcDoc = nullptr;
+        {
+            RecomputeDetail::IndexLock lock;
+            assert(links.empty());
+            _DocInfoMap.erase(myPos);
+            myPos = _DocInfoMap.end();
+            myPath.clear();
+            pcDoc = nullptr;
+            ++_ReferenceIndexEpoch;
+            ++revision;
+        }
     }
 
-    void init(DocInfoMap::iterator pos, const char* objName, PropertyXLink* l)
+    void init(
+        DocInfoMap::iterator position,
+        const char* objName,
+        PropertyXLink* link,
+        Document* candidate = nullptr
+    )
     {
-        myPos = pos;
-        myPath = myPos->first.toUtf8().constData();
-        App::Application& app = App::GetApplication();
-        // NOLINTBEGIN
+        {
+            RecomputeDetail::IndexLock lock;
+            myPos = position;
+            myPath = position->first.toUtf8().constData();
+            pcDoc = candidate;
+            ++_ReferenceIndexEpoch;
+            ++revision;
+        }
+        auto& app = App::GetApplication();
         connFinishRestoreDocument = app.signalFinishRestoreDocument.connect(
-            std::bind(&DocInfo::slotFinishRestoreDocument, this, sp::_1));
+            std::bind(&DocInfo::slotFinishRestoreDocument, this, sp::_1)
+        );
         connPendingReloadDocument = app.signalPendingReloadDocument.connect(
-            std::bind(&DocInfo::slotFinishRestoreDocument, this, sp::_1));
-        connDeleteDocument =
-            app.signalDeleteDocument.connect(std::bind(&DocInfo::slotDeleteDocument, this, sp::_1));
-        connSaveDocument =
-            app.signalSaveDocument.connect(std::bind(&DocInfo::slotSaveDocument, this, sp::_1));
-        // NOLINTEND
-
-        QString fullpath(getFullPath());
-        if (fullpath.isEmpty()) {
-            FC_ERR("document not found " << filePath());
-        }
-        else {
-            for (App::Document* doc : App::GetApplication().getDocuments()) {
-                if (getFullPath(doc->getFileName()) == fullpath) {
-                    if (doc->testStatus(App::Document::PartialDoc) && !doc->getObject(objName)) {
-                        break;
-                    }
-                    attach(doc);
-                    return;
-                }
-            }
-            FC_LOG("document pending " << filePath());
-            app.addPendingDocument(fullpath.toUtf8().constData(),
-                                   objName,
-                                   l->testFlag(PropertyLinkBase::LinkAllowPartial));
-        }
-    }
-
-    void attach(Document* doc)
-    {
-        assert(!pcDoc);
-        pcDoc = doc;
-        FC_LOG("attaching " << doc->getName() << ", " << doc->getFileName());
-        std::map<App::PropertyLinkBase*, std::vector<App::PropertyXLink*>> parentLinks;
-        for (auto it = links.begin(), itNext = it; it != links.end(); it = itNext) {
-            ++itNext;
-            auto link = *it;
-            if (link->_pcLink) {
-                continue;
-            }
-            if (link->parentProp) {
-                parentLinks[link->parentProp].push_back(link);
-                continue;
-            }
-            auto obj = doc->getObject(link->objectName.c_str());
-            if (obj) {
-                link->restoreLink(obj);
-            }
-            else if (doc->testStatus(App::Document::PartialDoc)) {
-                App::GetApplication().addPendingDocument(doc->FileName.getValue(),
-                                                         link->objectName.c_str(),
-                                                         false);
-                FC_WARN("reloading partial document '" << doc->FileName.getValue()
-                                                       << "' due to object " << link->objectName);
+            std::bind(&DocInfo::slotFinishRestoreDocument, this, sp::_1)
+        );
+        connDeleteDocument = app.signalDeleteDocument.connect(
+            std::bind(&DocInfo::slotDeleteDocument, this, sp::_1)
+        );
+        connSaveDocument = app.signalSaveDocument.connect(
+            std::bind(&DocInfo::slotSaveDocument, this, sp::_1)
+        );
+        if (!candidate) {
+            const QString path = getFullPath();
+            if (!path.isEmpty()) {
+                FC_LOG("document pending " << filePath());
+                app.addPendingDocument(
+                    path.toUtf8().constData(),
+                    objName,
+                    link->testFlag(PropertyLinkBase::LinkAllowPartial)
+                );
             }
             else {
-                FC_WARN("object '" << link->objectName << "' not found in document '"
-                                   << doc->getName() << "'");
+                FC_ERR("document not found " << filePath());
             }
         }
-        for (auto& v : parentLinks) {
-            v.first->setFlag(PropertyLinkBase::LinkRestoring);
-            v.first->aboutToSetValue();
-            for (auto link : v.second) {
-                auto obj = doc->getObject(link->objectName.c_str());
-                if (obj) {
-                    link->restoreLink(obj);
+    }
+
+    void attach(Document* document)
+    {
+        auto plan = reserve(document);
+        if (plan.document) {
+            if (plan.document != document) {
+                throw RecomputeDetail::AdmissionRefusal("XLink document is already attached");
+            }
+            return;
+        }
+        std::vector<std::pair<PropertyXLink*, DocumentObject*>> prepared;
+        for (auto* link : plan.properties) {
+            if (!link->_pcLink) {
+                prepared.emplace_back(link, document->getObject(link->objectName.c_str()));
+            }
+        }
+        std::optional<RecomputeDetail::MutationScope> reload;
+        if (document->testStatus(App::Document::PartialDoc)
+            && std::any_of(prepared.begin(), prepared.end(), [](const auto& entry) {
+                   return entry.second == nullptr;
+               })) {
+            // Reload may run opaque document/extension observers. Reserve before
+            // pcDoc/flags/first parent notification, not at a later missing child.
+            reload.emplace(RecomputeDetail::Coordinator::instance().atomic());
+        }
+        // Every proposed member is included before publishing pcDoc or notifying
+        // the first parent. Leaf writers inherit this complete capability.
+        std::vector<DocumentObject*> proposed;
+        for (const auto& entry : prepared) {
+            proposed.push_back(entry.second);
+        }
+        plan.mutation.include(proposed, {document});
+        for (const auto& entry : prepared) {
+            if (entry.second) {
+                preflightSubElements(
+                    *entry.first,
+                    plan.mutation,
+                    {entry.second},
+                    entry.first->_SubList,
+                    &entry.first->_ShadowSubList
+                );
+            }
+        }
+        std::map<PropertyLinkBase*, std::vector<std::pair<PropertyXLink*, DocumentObject*>>> parents;
+        std::map<PropertyLinkBase*, std::vector<Property*>> groupProperties;
+        for (const auto& entry : prepared) {
+            parents[entry.first->parentProp].push_back(entry);
+            groupProperties[entry.first->parentProp].push_back(entry.first);
+        }
+        auto iteration = prepareIterationStorage(plan, groupProperties);
+        {
+            RecomputeDetail::IndexLock lock;
+            pcDoc = document;
+            ++_ReferenceIndexEpoch;
+            ++revision;
+        }
+        for (const auto& parent : parents) {
+            if (parent.first) {
+                parent.first->setFlag(PropertyLinkBase::LinkRestoring);
+                parent.first->aboutToSetValue();
+            }
+            for (const auto& entry : parent.second) {
+                if (entry.second) {
+                    entry.first->restoreLink(entry.second);
                 }
-                else if (doc->testStatus(App::Document::PartialDoc)) {
-                    App::GetApplication().addPendingDocument(doc->FileName.getValue(),
-                                                             link->objectName.c_str(),
-                                                             false);
-                    FC_WARN("reloading partial document '"
-                            << doc->FileName.getValue() << "' due to object " << link->objectName);
+                else if (document->testStatus(App::Document::PartialDoc)) {
+                    App::GetApplication().addPendingDocument(
+                        document->FileName.getValue(),
+                        entry.first->objectName.c_str(),
+                        false
+                    );
+                    FC_WARN(
+                        "reloading partial document '" << document->FileName.getValue()
+                                                       << "' due to object " << entry.first->objectName
+                    );
                 }
                 else {
-                    FC_WARN("object '" << link->objectName << "' not found in document '"
-                                       << doc->getName() << "'");
+                    FC_WARN(
+                        "object '" << entry.first->objectName << "' not found in document '"
+                                   << document->getName() << "'"
+                    );
                 }
             }
-            v.first->hasSetValue();
-            v.first->setFlag(PropertyLinkBase::LinkRestoring, false);
-        }
-    }
-
-    void remove(PropertyXLink* l)
-    {
-        auto it = links.find(l);
-        if (it != links.end()) {
-            links.erase(it);
-            if (links.empty()) {
-                deinit();
+            // The last child native frame returned. Parent reconciliation may
+            // legitimately retire those children; all later groups stay pinned.
+            iteration.groups.at(parent.first).releaseStorage();
+            if (parent.first) {
+                parent.first->hasSetValue();
+                parent.first->setFlag(PropertyLinkBase::LinkRestoring, false);
             }
         }
     }
 
-    static void restoreDocument(const App::Document& doc)
+    void remove(PropertyXLink* link)
     {
-        auto it = _DocInfoMap.find(getFullPath(doc.FileName.getValue()));
-        if (it == _DocInfoMap.end()) {
-            return;
-        }
-        it->second->slotFinishRestoreDocument(doc);
-    }
-
-    void slotFinishRestoreDocument(const App::Document& doc)
-    {
-        if (pcDoc) {
-            return;
-        }
-        QString fullpath(getFullPath());
-        if (!fullpath.isEmpty() && getFullPath(doc.getFileName()) == fullpath) {
-            attach(const_cast<App::Document*>(&doc));
-        }
-    }
-
-    void slotSaveDocument(const App::Document& doc)
-    {
-        if (!pcDoc) {
-            slotFinishRestoreDocument(doc);
-            return;
-        }
-        if (&doc != pcDoc) {
-            return;
-        }
-
-        QFileInfo info(myPos->first);
-        QString path(info.absoluteFilePath());
-        const char* filename = doc.getFileName();
-        QString docPath(getFullPath(filename));
-
-        if (path.isEmpty() || path != docPath) {
-            FC_LOG("document '" << doc.getName() << "' path changed");
-            auto me = shared_from_this();
-            auto ret = _DocInfoMap.insert(std::make_pair(docPath, me));
-            if (!ret.second) {
-                // is that even possible?
-                FC_WARN("document '" << doc.getName() << "' path exists, detach");
-                slotDeleteDocument(doc);
+        {
+            RecomputeDetail::IndexLock lock;
+            if (links.find(link) == links.end()) {
                 return;
             }
-            _DocInfoMap.erase(myPos);
-            myPos = ret.first;
-
-            std::set<PropertyXLink*> tmp;
-            tmp.swap(links);
-            for (auto link : tmp) {
-                auto owner = static_cast<DocumentObject*>(link->getContainer());
-                // adjust file path for each PropertyXLink
-                DocInfo::get(filename, owner->getDocument(), link, link->objectName.c_str());
-            }
         }
-
-        // time stamp changed, touch the linking document.
-        std::set<Document*> docs;
-        for (auto link : links) {
-            auto linkdoc = static_cast<DocumentObject*>(link->getContainer())->getDocument();
-            auto ret = docs.insert(linkdoc);
-            if (ret.second) {
-                // This will signal the Gui::Document to call setModified();
-                FC_LOG("touch document " << linkdoc->getName() << " on time stamp change of "
-                                         << link->getFullName());
-                linkdoc->Comment.touch();
+        auto plan = reserve(nullptr, link);
+        bool empty;
+        {
+            RecomputeDetail::IndexLock lock;
+            if (links.erase(link)) {
+                ++_ReferenceIndexEpoch;
+                ++revision;
             }
+            empty = links.empty();
         }
-    }
-
-    void slotDeleteDocument(const App::Document& doc)
-    {
-        for (auto it = links.begin(), itNext = it; it != links.end(); it = itNext) {
-            ++itNext;
-            auto link = *it;
-            auto obj = freecad_cast<DocumentObject*>(link->getContainer());
-            if (obj && obj->getDocument() == &doc) {
-                links.erase(it);
-                // must call unlink here, so that PropertyLink::resetLink can
-                // remove back link before the owner object is marked as being
-                // destroyed
-                link->unlink();
-            }
-        }
-        if (links.empty()) {
+        if (empty) {
             deinit();
-            return;
         }
-        if (pcDoc != &doc) {
-            return;
-        }
-        std::map<App::PropertyLinkBase*, std::vector<App::PropertyXLink*>> parentLinks;
-        for (auto link : links) {
-            link->setFlag(PropertyLinkBase::LinkDetached);
-            if (link->parentProp) {
-                parentLinks[link->parentProp].push_back(link);
-            }
-            else {
-                parentLinks[nullptr].push_back(link);
-            }
-        }
-        for (auto& v : parentLinks) {
-            if (v.first) {
-                v.first->setFlag(PropertyLinkBase::LinkDetached);
-                v.first->aboutToSetValue();
-            }
-            for (auto l : v.second) {
-                l->detach();
-            }
-            if (v.first) {
-                v.first->hasSetValue();
-                v.first->setFlag(PropertyLinkBase::LinkDetached, false);
-            }
-        }
-        pcDoc = nullptr;
     }
 
-    bool hasXLink(const App::Document* doc) const
+    static void restoreDocument(const App::Document& document)
     {
-        for (auto link : links) {
-            auto obj = freecad_cast<DocumentObject*>(link->getContainer());
-            if (obj && obj->getDocument() == doc) {
+        const QString path = getFullPath(document.FileName.getValue());
+        DocInfoPtr info;
+        {
+            RecomputeDetail::IndexLock lock;
+            auto found = _DocInfoMap.find(path);
+            if (found != _DocInfoMap.end()) {
+                info = found->second;
+            }
+        }
+        if (info) {
+            info->slotFinishRestoreDocument(document);
+        }
+    }
+
+    void slotFinishRestoreDocument(const App::Document& document)
+    {
+        Document* attached;
+        {
+            RecomputeDetail::IndexLock lock;
+            attached = pcDoc;
+        }
+        if (attached) {
+            return;
+        }
+        const QString path = getFullPath();
+        if (!path.isEmpty() && getFullPath(document.getFileName()) == path) {
+            attach(const_cast<App::Document*>(&document));
+        }
+    }
+
+    void slotSaveDocument(const App::Document& document)
+    {
+        auto plan = reserve(const_cast<Document*>(&document));
+        if (!plan.document) {
+            plan.storage.releaseStorage();
+            slotFinishRestoreDocument(document);
+            return;
+        }
+        if (plan.document != &document) {
+            return;
+        }
+        const QString path = getFullPath();
+        const std::string filename = document.getFileName();
+        const QString documentPath = getFullPath(filename.c_str());
+        if (path.isEmpty() || path != documentPath) {
+            auto me = shared_from_this();
+            bool collision;
+            {
+                RecomputeDetail::IndexLock lock;
+                auto found = _DocInfoMap.find(documentPath);
+                collision = found != _DocInfoMap.end() && found->second.get() != this;
+            }
+            if (collision) {
+                FC_WARN("document '" << document.getName() << "' path exists, detach");
+                plan.storage.releaseStorage();
+                slotDeleteDocument(document);
+                return;
+            }
+            std::vector<std::pair<PropertyXLink*, std::string>> paths;
+            for (auto* link : plan.properties) {
+                auto* owner = freecad_cast<DocumentObject*>(link->getContainer());
+                if (!owner && link->parentProp) {
+                    owner = freecad_cast<DocumentObject*>(link->parentProp->getContainer());
+                }
+                if (owner) {
+                    paths.emplace_back(link, getDocPath(filename.c_str(), owner->getDocument(), true));
+                }
+            }
+            {
+                RecomputeDetail::IndexLock lock;
+                auto inserted = _DocInfoMap.emplace(documentPath, me);
+                if (inserted.first != myPos) {
+                    _DocInfoMap.erase(myPos);
+                }
+                myPos = inserted.first;
+                myPath = documentPath.toUtf8().constData();
+                links.clear();
+                ++_ReferenceIndexEpoch;
+                ++revision;
+            }
+            for (auto& entry : paths) {
+                entry.first->filePath.swap(entry.second);
+                RecomputeDetail::IndexLock lock;
+                links.insert(entry.first);
+                ++_ReferenceIndexEpoch;
+                ++revision;
+            }
+        }
+        std::set<Document*> touched;
+        for (auto* link : plan.properties) {
+            auto* owner = freecad_cast<DocumentObject*>(link->getContainer());
+            if (!owner && link->parentProp) {
+                owner = freecad_cast<DocumentObject*>(link->parentProp->getContainer());
+            }
+            if (owner && touched.insert(owner->getDocument()).second) {
+                FC_LOG(
+                    "touch document " << owner->getDocument()->getName()
+                                      << " on time stamp change of " << link->getFullName()
+                );
+                owner->getDocument()->Comment.touch();
+            }
+        }
+    }
+
+    void slotDeleteDocument(const App::Document& document)
+    {
+        auto me = shared_from_this();
+        auto plan = reserve(const_cast<Document*>(&document));
+        std::vector<PropertyXLink*> removed;
+        std::map<PropertyLinkBase*, std::vector<PropertyXLink*>> parents;
+        for (auto* link : plan.properties) {
+            auto* owner = freecad_cast<DocumentObject*>(link->getContainer());
+            if (!owner && link->parentProp) {
+                owner = freecad_cast<DocumentObject*>(link->parentProp->getContainer());
+            }
+            if (owner && owner->getDocument() == &document) {
+                removed.push_back(link);
+            }
+            else if (plan.document == &document) {
+                parents[link->parentProp].push_back(link);
+            }
+        }
+        std::map<PropertyLinkBase*, std::vector<Property*>> groupProperties;
+        for (const auto& parent : parents) {
+            groupProperties[parent.first].insert(
+                groupProperties[parent.first].end(),
+                parent.second.begin(),
+                parent.second.end()
+            );
+        }
+        // Removed owner links have no later parent notification; retain these
+        // direct receivers until every planned unlink returned.
+        for (auto* link : removed) {
+            groupProperties[nullptr].push_back(link);
+        }
+        auto iteration = prepareIterationStorage(plan, groupProperties);
+        // Plan all unlink/detach groups before the first native edit.
+        for (auto* link : removed) {
+            {
+                RecomputeDetail::IndexLock lock;
+                links.erase(link);
+                ++_ReferenceIndexEpoch;
+                ++revision;
+            }
+            link->unlink();
+        }
+        for (const auto& parent : parents) {
+            for (auto* link : parent.second) {
+                link->setFlag(PropertyLinkBase::LinkDetached);
+            }
+            if (parent.first) {
+                parent.first->setFlag(PropertyLinkBase::LinkDetached);
+                parent.first->aboutToSetValue();
+            }
+            for (auto* link : parent.second) {
+                link->detach();
+            }
+            iteration.groups.at(parent.first).releaseStorage();
+            if (parent.first) {
+                parent.first->hasSetValue();
+                parent.first->setFlag(PropertyLinkBase::LinkDetached, false);
+            }
+        }
+        bool empty;
+        {
+            RecomputeDetail::IndexLock lock;
+            if (pcDoc == &document) {
+                pcDoc = nullptr;
+                ++_ReferenceIndexEpoch;
+                ++revision;
+            }
+            empty = links.empty();
+        }
+        if (empty) {
+            deinit();
+        }
+    }
+
+    bool hasXLink(const App::Document* document) const
+    {
+        auto plan = reserve();
+        for (auto* link : plan.properties) {
+            auto* owner = freecad_cast<DocumentObject*>(link->getContainer());
+            if (!owner && link->parentProp) {
+                owner = freecad_cast<DocumentObject*>(link->parentProp->getContainer());
+            }
+            if (owner && owner->getDocument() == document) {
                 return true;
             }
         }
         return false;
     }
 
-    static void breakLinks(App::DocumentObject* obj, bool clear)
+    static void breakLinks(App::DocumentObject* object, bool clear)
     {
-        auto doc = obj->getDocument();
-        for (auto itD = _DocInfoMap.begin(), itDNext = itD; itD != _DocInfoMap.end();
-             itD = itDNext) {
-            ++itDNext;
-            auto docInfo = itD->second;
-            if (docInfo->pcDoc != doc) {
-                continue;
-            }
-            auto& links = docInfo->links;
-            std::set<PropertyLinkBase*> parentLinks;
-            for (auto it = links.begin(), itNext = it; it != links.end(); it = itNext) {
-                ++itNext;
-                auto link = *it;
-                if (link->_pcLink != obj && !(clear && link->getContainer() == obj)) {
-                    continue;
-                }
-                if (link->parentProp) {
-                    parentLinks.insert(link->parentProp);
-                }
-                else {
-                    link->breakLink(obj, clear);
+        auto& coordinator = RecomputeDetail::Coordinator::instance();
+        auto* document = object->getDocument();
+        auto primary = coordinator.mutation({object}, {document});
+        std::vector<DocInfoPtr> infos;
+        {
+            RecomputeDetail::IndexLock lock;
+            for (const auto& entry : _DocInfoMap) {
+                if (entry.second->pcDoc == document) {
+                    infos.push_back(entry.second);
                 }
             }
-            for (auto link : parentLinks) {
-                link->breakLink(obj, clear);
+        }
+        std::vector<AdmissionPlan> plans;
+        plans.reserve(infos.size());
+        std::set<PropertyLinkBase*> affected;
+        for (const auto& info : infos) {
+            plans.push_back(info->reserve());
+            for (auto* link : plans.back().properties) {
+                auto* owner = link->getContainer();
+                if (!owner && link->parentProp) {
+                    owner = link->parentProp->getContainer();
+                }
+                if (link->_pcLink == object || (clear && owner == object)) {
+                    affected.insert(link->parentProp ? link->parentProp : link);
+                }
             }
+        }
+        for (const auto& plan : plans) {
+            plan.storage.requireExclusiveStorage();
+        }
+        std::vector<Property*> receivers(affected.begin(), affected.end());
+        auto receiverStorage = coordinator.snapshotProperties(receivers, nullptr, nullptr, false);
+        for (auto& plan : plans) {
+            plan.storage.releaseStorage();
+        }
+        // Only selected parent/direct receivers are used from this point. Their
+        // native methods may reconcile children whose iteration has completed.
+        for (auto* link : affected) {
+            link->breakLink(object, clear);
         }
     }
 };
 
-void PropertyLinkBase::breakLinks(App::DocumentObject* link,
-                                  const std::vector<App::DocumentObject*>& objs,
-                                  bool clear)
+namespace
 {
-    std::vector<Property*> props;
-    for (auto obj : objs) {
-        props.clear();
-        obj->getPropertyList(props);
-        for (auto prop : props) {
-            auto linkProp = freecad_cast<PropertyLinkBase*>(prop);
-            if (linkProp) {
-                linkProp->breakLink(link, clear);
+std::vector<DocInfo::AdmissionPlan> preflightProposedXLinks(
+    PropertyLinkBase& property,
+    RecomputeDetail::MutationScope& admission,
+    const std::vector<DocumentObject*>& targets
+)
+{
+    std::vector<DocInfo::AdmissionPlan> plans;
+    if (property.isAdmissionPlanning()) {
+        return plans;
+    }
+    auto* owner = freecad_cast<DocumentObject*>(property.getContainer());
+    if (!owner || !owner->getDocument()) {
+        return plans;
+    }
+    std::set<DocInfo*> seen;
+    for (auto* target : targets) {
+        if (!target || target->getDocument() == owner->getDocument()) {
+            continue;
+        }
+        QString path;
+        DocInfo::getDocPath(target->getDocument()->getFileName(), owner->getDocument(), true, &path);
+        DocInfoPtr existing;
+        {
+            RecomputeDetail::IndexLock lock;
+            auto found = _DocInfoMap.find(path);
+            if (found != _DocInfoMap.end()) {
+                existing = found->second;
             }
+        }
+        if (existing && seen.insert(existing.get()).second) {
+            admission.reserveResource(existing);
+            plans.push_back(existing->reserve(target->getDocument(), nullptr, owner->getDocument()));
+            // No child receiver is used after collection. Retain the complete
+            // endpoint/source and resource cohort while allowing the parent to
+            // reconcile its own embedded children during the native commit.
+            plans.back().storage.releaseStorage();
+        }
+    }
+    return plans;
+}
+}  // namespace
+
+std::vector<Property*> PropertyLinkBase::incomingAdmissionProperties(
+    const std::vector<DocumentObject*>& targets,
+    const std::vector<Document*>& documents
+)
+{
+    std::set<Property*> selected;
+    RecomputeDetail::IndexLock lock;
+    for (auto* target : targets) {
+        auto it = _AdmissionTargetProperties.find(target);
+        if (it != _AdmissionTargetProperties.end()) {
+            selected.insert(it->second.begin(), it->second.end());
+        }
+        auto refs = _ElementRefMap.find(target);
+        if (refs != _ElementRefMap.end()) {
+            selected.insert(refs->second.begin(), refs->second.end());
+        }
+    }
+    for (const auto& [path, info] : _DocInfoMap) {
+        (void)path;
+        if (std::find(documents.begin(), documents.end(), info->pcDoc) != documents.end()) {
+            selected.insert(info->links.begin(), info->links.end());
+        }
+    }
+    return {selected.begin(), selected.end()};
+}
+
+void PropertyLinkBase::collectRemovalAdmissionTargets(
+    DocumentObject* target,
+    std::vector<DocumentObject*>& targets
+)
+{
+    targets.push_back(target);
+    auto properties = incomingAdmissionProperties({target});
+    auto snapshot = RecomputeDetail::Coordinator::instance()
+                        .snapshotProperties(properties, nullptr, nullptr, false);
+    for (auto* property : snapshot.properties()) {
+        auto* owner = freecad_cast<DocumentObject*>(property->getContainer());
+        if (owner) {
+            targets.push_back(owner);
+        }
+        if (auto* link = freecad_cast<PropertyLinkBase*>(property)) {
+            link->collectAdmissionTargets(targets);
+        }
+    }
+    // This is a footprint collector. Its caller must retain the matching
+    // generation-qualified source reservation while committing the outer plan.
+}
+
+void PropertyLinkBase::breakLinks(
+    App::DocumentObject* link,
+    const std::vector<App::DocumentObject*>& objs,
+    bool clear
+)
+{
+    auto& coordinator = RecomputeDetail::Coordinator::instance();
+    auto endpoints = objs;
+    endpoints.push_back(link);
+    auto admission = coordinator.mutation(endpoints);
+    std::set<Property*> selected;
+    for (auto* object : objs) {
+        std::vector<Property*> properties;
+        object->getPropertyList(properties);
+        for (auto* property : properties) {
+            if (freecad_cast<PropertyLinkBase*>(property)) {
+                selected.insert(property);
+            }
+        }
+    }
+    for (auto* property : incomingAdmissionProperties({link})) {
+        selected.insert(property);
+    }
+    // Retain top-level receivers. Embedded XLink children are reconciled by
+    // their parent and must not be kept as stale iteration receivers.
+    {
+        RecomputeDetail::IndexLock lock;
+        std::set<Property*> parents;
+        for (auto* property : selected) {
+            auto parent = _AdmissionParents.find(static_cast<PropertyLinkBase*>(property));
+            parents.insert(
+                parent != _AdmissionParents.end() && parent->second
+                    ? static_cast<Property*>(parent->second)
+                    : property
+            );
+        }
+        selected.swap(parents);
+    }
+    const std::vector<Property*> receivers(selected.begin(), selected.end());
+    auto storage = coordinator.snapshotProperties(receivers);
+    for (auto* property : storage.properties()) {
+        auto* receiver = freecad_cast<PropertyLinkBase*>(property);
+        if (receiver) {
+            receiver->collectAdmissionTargets(endpoints);
+        }
+    }
+    admission.include(endpoints);
+    // Every source, old endpoint and hidden/external receiver is reserved before
+    // the first child notification. DocInfo joins inherit the same resource.
+    for (auto* property : storage.properties()) {
+        if (auto* receiver = freecad_cast<PropertyLinkBase*>(property)) {
+            receiver->breakLink(link, clear);
         }
     }
     DocInfo::breakLinks(link, clear);
@@ -3812,6 +4956,7 @@ PropertyXLink::PropertyXLink(bool _allowPartial, PropertyLinkBase* parent)
     setSyncSubObject(true);
     if (parent) {
         setContainer(parent->getContainer());
+        RecomputeDetail::Coordinator::instance().setPropertyParent(this, parent);
     }
 }
 
@@ -3819,18 +4964,22 @@ PropertyXLink::~PropertyXLink()
 {
     try {
         unlink();
-    } catch (std::bad_weak_ptr &) {
+    }
+    catch (std::bad_weak_ptr&) {
         FC_WARN("Bad pointer exception caught when destroying PropertyXLink\n");
     }
 }
 
 void PropertyXLink::setSyncSubObject(bool enable)
 {
-    _Flags.set((std::size_t)LinkSyncSubObject, enable);
+    setFlag(LinkSyncSubObject, enable);
 }
 
 void PropertyXLink::unlink()
 {
+    auto admission = isAdmissionPlanning()
+        ? RecomputeDetail::MutationScope {}
+        : RecomputeDetail::Coordinator::instance().mutation(*this, {});
     if (docInfo) {
         docInfo->remove(this);
         docInfo.reset();
@@ -3841,6 +4990,9 @@ void PropertyXLink::unlink()
 
 void PropertyXLink::detach()
 {
+    auto admission = isAdmissionPlanning()
+        ? RecomputeDetail::MutationScope {}
+        : RecomputeDetail::Coordinator::instance().mutation(*this, {});
     if (docInfo && _pcLink) {
         aboutToSetValue();
         resetLink();
@@ -3871,10 +5023,14 @@ void PropertyXLink::hasSetValue()
 
 void PropertyXLink::setSubName(const char* subname)
 {
+    auto admission = isAdmissionPlanning()
+        ? RecomputeDetail::MutationScope {}
+        : RecomputeDetail::Coordinator::instance().mutation(*this, {});
     std::vector<std::string> subs;
     if (!Base::Tools::isNullOrEmpty(subname)) {
         subs.emplace_back(subname);
     }
+    preflightSubElements(*this, admission, {_pcLink}, subs);
     aboutToSetValue();
     setSubValues(std::move(subs));
     hasSetValue();
@@ -3882,6 +5038,10 @@ void PropertyXLink::setSubName(const char* subname)
 
 void PropertyXLink::setSubValues(std::vector<std::string>&& subs, std::vector<ShadowSub>&& shadows)
 {
+    auto admission = isAdmissionPlanning()
+        ? RecomputeDetail::MutationScope {}
+        : RecomputeDetail::Coordinator::instance().mutation(*this, {});
+    preflightSubElements(*this, admission, {_pcLink}, subs, &shadows);
     _SubList = std::move(subs);
     _ShadowSubList.clear();
     if (shadows.size() == _SubList.size()) {
@@ -3896,11 +5056,17 @@ void PropertyXLink::setSubValues(std::vector<std::string>&& subs, std::vector<Sh
 
 void PropertyXLink::setValue(App::DocumentObject* lValue)
 {
+    auto admission = isAdmissionPlanning()
+        ? RecomputeDetail::MutationScope {}
+        : RecomputeDetail::Coordinator::instance().mutation(*this, {lValue});
     setValue(lValue, nullptr);
 }
 
 void PropertyXLink::setValue(App::DocumentObject* lValue, const char* subname)
 {
+    auto admission = isAdmissionPlanning()
+        ? RecomputeDetail::MutationScope {}
+        : RecomputeDetail::Coordinator::instance().mutation(*this, {lValue});
     std::vector<std::string> subs;
     if (!Base::Tools::isNullOrEmpty(subname)) {
         subs.emplace_back(subname);
@@ -3910,6 +5076,9 @@ void PropertyXLink::setValue(App::DocumentObject* lValue, const char* subname)
 
 void PropertyXLink::restoreLink(App::DocumentObject* lValue)
 {
+    auto admission = isAdmissionPlanning()
+        ? RecomputeDetail::MutationScope {}
+        : RecomputeDetail::Coordinator::instance().mutation(*this, {lValue});
     assert(!_pcLink && lValue && docInfo);
 
     auto owner = freecad_cast<DocumentObject*>(getContainer());
@@ -3938,10 +5107,16 @@ void PropertyXLink::restoreLink(App::DocumentObject* lValue)
     }
 }
 
-void PropertyXLink::setValue(App::DocumentObject* lValue,
-                             std::vector<std::string>&& subs,
-                             std::vector<ShadowSub>&& shadows)
+void PropertyXLink::setValue(
+    App::DocumentObject* lValue,
+    std::vector<std::string>&& subs,
+    std::vector<ShadowSub>&& shadows
+)
 {
+    auto admission = isAdmissionPlanning()
+        ? RecomputeDetail::MutationScope {}
+        : RecomputeDetail::Coordinator::instance().mutation(*this, {lValue});
+    preflightSubElements(*this, admission, {lValue}, subs, &shadows);
     if (_pcLink == lValue && _SubList == subs) {
         return;
     }
@@ -3959,6 +5134,7 @@ void PropertyXLink::setValue(App::DocumentObject* lValue,
         throw Base::ValueError("self linking");
     }
 
+    auto proposedInfos = preflightProposedXLinks(*this, admission, {lValue});
     aboutToSetValue();
 
     DocInfoPtr info;
@@ -3972,7 +5148,7 @@ void PropertyXLink::setValue(App::DocumentObject* lValue,
                     throw Base::RuntimeError("Linked document not saved");
                 }
                 FC_LOG("xlink set to new document " << lValue->getDocument()->getName());
-                info = DocInfo::get(filename, owner->getDocument(), this, name);
+                info = DocInfo::get(filename, owner->getDocument(), this, name, lValue->getDocument());
                 assert(info && info->pcDoc == lValue->getDocument());
             }
             else {
@@ -4010,11 +5186,18 @@ void PropertyXLink::setValue(App::DocumentObject* lValue,
     hasSetValue();
 }
 
-void PropertyXLink::setValue(std::string&& filename,
-                             std::string&& name,
-                             std::vector<std::string>&& subs,
-                             std::vector<ShadowSub>&& shadows)
+void PropertyXLink::setValue(
+    std::string&& filename,
+    std::string&& name,
+    std::vector<std::string>&& subs,
+    std::vector<ShadowSub>&& shadows
+)
 {
+    auto structural = isAdmissionPlanning() ? RecomputeDetail::MutationScope {}
+                                            : RecomputeDetail::Coordinator::instance().atomic();
+    auto admission = isAdmissionPlanning()
+        ? RecomputeDetail::MutationScope {}
+        : RecomputeDetail::Coordinator::instance().mutation(*this);
     if (name.empty()) {
         setValue(nullptr, std::move(subs), std::move(shadows));
         return;
@@ -4065,10 +5248,16 @@ void PropertyXLink::setValue(std::string&& filename,
     hasSetValue();
 }
 
-void PropertyXLink::setValue(App::DocumentObject* link,
-                             const std::vector<std::string>& subs,
-                             std::vector<ShadowSub>&& shadows)
+void PropertyXLink::setValue(
+    App::DocumentObject* link,
+    const std::vector<std::string>& subs,
+    std::vector<ShadowSub>&& shadows
+)
 {
+    auto admission = isAdmissionPlanning()
+        ? RecomputeDetail::MutationScope {}
+        : RecomputeDetail::Coordinator::instance().mutation(*this, {link});
+    preflightSubElements(*this, admission, {link}, subs, &shadows);
     setValue(link, std::vector<std::string>(subs), std::move(shadows));
 }
 
@@ -4079,7 +5268,18 @@ App::Document* PropertyXLink::getDocument() const
 
 const char* PropertyXLink::getDocumentPath() const
 {
-    return docInfo ? docInfo->filePath() : filePath.c_str();
+    if (!docInfo) {
+        return filePath.c_str();
+    }
+    // Keep the borrowed string owned by this property. Reading another link's
+    // path must not invalidate it, and the shared DocInfo gate cannot protect
+    // a c_str pointer after the native getter returns.
+    auto path = docInfo->filePath();
+    RecomputeDetail::IndexLock lock;
+    if (documentPathSnapshot != path) {
+        documentPathSnapshot = std::move(path);
+    }
+    return documentPathSnapshot.c_str();
 }
 
 const char* PropertyXLink::getObjectName() const
@@ -4089,6 +5289,11 @@ const char* PropertyXLink::getObjectName() const
 
 bool PropertyXLink::upgrade(Base::XMLReader& reader, const char* typeName)
 {
+    auto structural = isAdmissionPlanning() ? RecomputeDetail::MutationScope {}
+                                            : RecomputeDetail::Coordinator::instance().atomic();
+    auto admission = isAdmissionPlanning()
+        ? RecomputeDetail::MutationScope {}
+        : RecomputeDetail::Coordinator::instance().mutation(*this);
     if (typeName == App::PropertyLinkGlobal::getClassTypeId().getName()
         || typeName == App::PropertyLink::getClassTypeId().getName()
         || typeName == App::PropertyLinkChild::getClassTypeId().getName()) {
@@ -4153,6 +5358,10 @@ int PropertyXLink::checkRestore(std::string* msg) const
 
 void PropertyXLink::afterRestore()
 {
+    auto admission = isAdmissionPlanning()
+        ? RecomputeDetail::MutationScope {}
+        : RecomputeDetail::Coordinator::instance().mutation(*this, {});
+    preflightSubElements(*this, admission, {_pcLink}, _SubList, &_ShadowSubList);
     assert(_SubList.size() == _ShadowSubList.size());
     if (!testFlag(LinkRestoreLabel) || !_pcLink || !_pcLink->isAttachedToDocument()) {
         return;
@@ -4166,6 +5375,10 @@ void PropertyXLink::afterRestore()
 
 void PropertyXLink::onContainerRestored()
 {
+    auto admission = isAdmissionPlanning()
+        ? RecomputeDetail::MutationScope {}
+        : RecomputeDetail::Coordinator::instance().mutation(*this, {});
+    preflightSubElements(*this, admission, {_pcLink}, _SubList, &_ShadowSubList);
     if (!_pcLink || !_pcLink->isAttachedToDocument()) {
         return;
     }
@@ -4176,14 +5389,13 @@ void PropertyXLink::onContainerRestored()
 
 void PropertyXLink::updateElementReference(DocumentObject* feature, bool reverse, bool notify)
 {
-    if (!updateLinkReference(this,
-                             feature,
-                             reverse,
-                             notify,
-                             _pcLink,
-                             _SubList,
-                             _mapped,
-                             _ShadowSubList)) {
+    auto admission = isAdmissionPlanning()
+        ? RecomputeDetail::MutationScope {}
+        : RecomputeDetail::Coordinator::instance().mutation(*this, {feature});
+    preflightSubElements(*this, admission, {_pcLink}, _SubList, &_ShadowSubList);
+    if (
+        !updateLinkReference(this, feature, reverse, notify, _pcLink, _SubList, _mapped, _ShadowSubList)
+    ) {
         return;
     }
     if (notify) {
@@ -4240,8 +5452,7 @@ void PropertyXLink::Save(Base::Writer& writer) const
                 path = _path.c_str();
             }
         }
-        writer.Stream() << writer.ind() << "<XLink file=\"" << encodeAttribute(path)
-                        << "\" stamp=\""
+        writer.Stream() << writer.ind() << "<XLink file=\"" << encodeAttribute(path) << "\" stamp=\""
                         << (docInfo && docInfo->pcDoc ? docInfo->pcDoc->LastModifiedDate.getValue()
                                                       : "")
                         << "\" name=\"" << objectName;
@@ -4273,8 +5484,7 @@ void PropertyXLink::Save(Base::Writer& writer) const
                     writer.Stream() << "\" " ATTR_SHADOWED "=\"" << encodeAttribute(subName);
                 }
                 else if (!shadowSub.newName.empty()) {
-                    writer.Stream()
-                        << "\" " ATTR_SHADOW "=\"" << encodeAttribute(shadowSub.newName);
+                    writer.Stream() << "\" " ATTR_SHADOW "=\"" << encodeAttribute(shadowSub.newName);
                 }
             }
         }
@@ -4301,12 +5511,10 @@ void PropertyXLink::Save(Base::Writer& writer) const
                 writer.Stream() << encodeAttribute(sub);
                 if (!_SubList[i].empty()) {
                     if (sub != _SubList[i]) {
-                        writer.Stream()
-                            << "\" " ATTR_SHADOWED "=\"" << encodeAttribute(_SubList[i]);
+                        writer.Stream() << "\" " ATTR_SHADOWED "=\"" << encodeAttribute(_SubList[i]);
                     }
                     else if (!shadow.newName.empty()) {
-                        writer.Stream()
-                            << "\" " ATTR_SHADOW "=\"" << encodeAttribute(shadow.newName);
+                        writer.Stream() << "\" " ATTR_SHADOW "=\"" << encodeAttribute(shadow.newName);
                     }
                 }
             }
@@ -4319,6 +5527,11 @@ void PropertyXLink::Save(Base::Writer& writer) const
 
 void PropertyXLink::Restore(Base::XMLReader& reader)
 {
+    auto structural = isAdmissionPlanning() ? RecomputeDetail::MutationScope {}
+                                            : RecomputeDetail::Coordinator::instance().atomic();
+    auto admission = isAdmissionPlanning()
+        ? RecomputeDetail::MutationScope {}
+        : RecomputeDetail::Coordinator::instance().mutation(*this);
     // read my element
     reader.readElement("XLink");
     std::string stampAttr, file;
@@ -4329,8 +5542,7 @@ void PropertyXLink::Restore(Base::XMLReader& reader)
         file = reader.getAttribute<const char*>("file");
     }
 
-    setFlag(LinkAllowPartial,
-            reader.hasAttribute("partial") && reader.getAttribute<bool>("partial"));
+    setFlag(LinkAllowPartial, reader.hasAttribute("partial") && reader.getAttribute<bool>("partial"));
     std::string name;
     if (file.empty()) {
         name = reader.getName(reader.getAttribute<const char*>("name"));
@@ -4345,9 +5557,11 @@ void PropertyXLink::Restore(Base::XMLReader& reader)
             Document* document = parent->getDocument();
             object = document ? document->getObject(name.c_str()) : nullptr;
             if (!object && reader.isVerbose()) {
-                FC_WARN("Lost link to '" << name
-                                         << "' while loading, maybe "
-                                            "an object was not loaded correctly");
+                FC_WARN(
+                    "Lost link to '" << name
+                                     << "' while loading, maybe "
+                                        "an object was not loaded correctly"
+                );
             }
         }
     }
@@ -4366,14 +5580,17 @@ void PropertyXLink::Restore(Base::XMLReader& reader)
         auto& shadow = shadows.back();
         shadow.oldName = importSubName(reader, reader.getAttribute<const char*>("sub"), restoreLabel);
         if (reader.hasAttribute(ATTR_SHADOWED) && !IGNORE_SHADOW) {
-            subname = shadow.newName =
-                importSubName(reader, reader.getAttribute<const char*>(ATTR_SHADOWED), restoreLabel);
+            subname = shadow.newName
+                = importSubName(reader, reader.getAttribute<const char*>(ATTR_SHADOWED), restoreLabel);
         }
         else {
             subname = shadow.oldName;
             if (reader.hasAttribute(ATTR_SHADOW) && !IGNORE_SHADOW) {
-                shadow.newName =
-                    importSubName(reader, reader.getAttribute<const char*>(ATTR_SHADOW), restoreLabel);
+                shadow.newName = importSubName(
+                    reader,
+                    reader.getAttribute<const char*>(ATTR_SHADOW),
+                    restoreLabel
+                );
             }
         }
     }
@@ -4383,16 +5600,23 @@ void PropertyXLink::Restore(Base::XMLReader& reader)
         shadows.resize(count);
         for (int i = 0; i < count; i++) {
             reader.readElement("Sub");
-            shadows[i].oldName = importSubName(reader, reader.getAttribute<const char*>("value"), restoreLabel);
+            shadows[i].oldName
+                = importSubName(reader, reader.getAttribute<const char*>("value"), restoreLabel);
             if (reader.hasAttribute(ATTR_SHADOWED) && !IGNORE_SHADOW) {
-                subs[i] = shadows[i].newName =
-                    importSubName(reader, reader.getAttribute<const char*>(ATTR_SHADOWED), restoreLabel);
+                subs[i] = shadows[i].newName = importSubName(
+                    reader,
+                    reader.getAttribute<const char*>(ATTR_SHADOWED),
+                    restoreLabel
+                );
             }
             else {
                 subs[i] = shadows[i].oldName;
                 if (reader.hasAttribute(ATTR_SHADOW) && !IGNORE_SHADOW) {
-                    shadows[i].newName =
-                        importSubName(reader, reader.getAttribute<const char*>(ATTR_SHADOW), restoreLabel);
+                    shadows[i].newName = importSubName(
+                        reader,
+                        reader.getAttribute<const char*>(ATTR_SHADOW),
+                        restoreLabel
+                    );
                 }
             }
             if (reader.hasAttribute(ATTR_MAPPED)) {
@@ -4418,8 +5642,7 @@ void PropertyXLink::Restore(Base::XMLReader& reader)
     _mapped = std::move(mapped);
 }
 
-Property*
-PropertyXLink::CopyOnImportExternal(const std::map<std::string, std::string>& nameMap) const
+Property* PropertyXLink::CopyOnImportExternal(const std::map<std::string, std::string>& nameMap) const
 {
     auto owner = freecad_cast<const DocumentObject*>(getContainer());
     if (!owner || !owner->getDocument() || !_pcLink || !_pcLink->isAttachedToDocument()) {
@@ -4437,9 +5660,11 @@ PropertyXLink::CopyOnImportExternal(const std::map<std::string, std::string>& na
     return p.release();
 }
 
-Property* PropertyXLink::CopyOnLinkReplace(const App::DocumentObject* parent,
-                                           App::DocumentObject* oldObj,
-                                           App::DocumentObject* newObj) const
+Property* PropertyXLink::CopyOnLinkReplace(
+    const App::DocumentObject* parent,
+    App::DocumentObject* oldObj,
+    App::DocumentObject* newObj
+) const
 {
     auto res = tryReplaceLinkSubs(getContainer(), _pcLink, parent, oldObj, newObj, _SubList);
     if (!res.first) {
@@ -4450,9 +5675,11 @@ Property* PropertyXLink::CopyOnLinkReplace(const App::DocumentObject* parent,
     return p.release();
 }
 
-Property* PropertyXLink::CopyOnLabelChange(App::DocumentObject* obj,
-                                           const std::string& ref,
-                                           const char* newLabel) const
+Property* PropertyXLink::CopyOnLabelChange(
+    App::DocumentObject* obj,
+    const std::string& ref,
+    const char* newLabel
+) const
 {
     auto owner = dynamic_cast<const DocumentObject*>(getContainer());
     if (!owner || !owner->getDocument() || !_pcLink || !_pcLink->isAttachedToDocument()) {
@@ -4467,10 +5694,11 @@ Property* PropertyXLink::CopyOnLabelChange(App::DocumentObject* obj,
     return p.release();
 }
 
-void PropertyXLink::copyTo(PropertyXLink& other,
-                           DocumentObject* linked,
-                           std::vector<std::string>* subs) const
+void PropertyXLink::copyTo(PropertyXLink& other, DocumentObject* linked, std::vector<std::string>* subs) const
 {
+    if (other.getContainer()) {
+        throw RecomputeDetail::AdmissionRefusal("XLink copy requires a detached destination");
+    }
     if (!linked) {
         linked = _pcLink;
     }
@@ -4505,54 +5733,96 @@ Property* PropertyXLink::Copy() const
 
 void PropertyXLink::Paste(const Property& from)
 {
+    if (&from == this) {
+        return;
+    }
+    auto& coordinator = RecomputeDetail::Coordinator::instance();
+    auto admission = isAdmissionPlanning() ? RecomputeDetail::MutationScope {}
+                                           : coordinator.mutation(*this);
     if (!from.isDerivedFrom<PropertyXLink>()) {
         throw Base::TypeError("Incompatible property to paste to");
     }
-
-    const auto& other = static_cast<const PropertyXLink&>(from);
-    if (!other.docName.empty()) {
-        auto doc = GetApplication().getDocument(other.docName.c_str());
-        if (!doc) {
-            FC_WARN("Document '" << other.docName << "' not found");
+    auto source = coordinator.snapshotProperties({const_cast<Property*>(&from)});
+    const auto& original = static_cast<const PropertyXLink&>(from);
+    PropertyXLink staged;
+    original.copyTo(staged);
+    if (!original.getValue()) {
+        staged.docName = original.docName;
+    }
+    const auto& other = staged;
+    std::optional<RecomputeDetail::MutationScope> structural;
+    if (other.docName.empty() && !other.filePath.empty() && !other.objectName.empty()) {
+        // Unresolved filename discovery/reload is the selected opaque route.
+        structural.emplace(coordinator.atomic());
+        setValue(
+            std::string(other.filePath),
+            std::string(other.objectName),
+            std::vector<std::string>(other._SubList),
+            std::vector<ShadowSub>(other._ShadowSubList)
+        );
+    }
+    else if (!other.objectName.empty()) {
+        auto* owner = freecad_cast<DocumentObject*>(getContainer());
+        const std::string documentName = !other.docName.empty() ? other.docName
+            : owner && owner->getDocument()                     ? owner->getDocument()->getName()
+                                                                : "";
+        auto binding = coordinator.bindNames(documentName, other.objectName, true);
+        if (!binding || binding->missing) {
+            FC_WARN("Object '" << documentName << '#' << other.objectName << "' not found");
             return;
         }
-        auto obj = doc->getObject(other.objectName.c_str());
-        if (!obj) {
-            FC_WARN("Object '" << other.docName << '#' << other.objectName << "' not found");
-            return;
-        }
-        setValue(obj,
-                 std::vector<std::string>(other._SubList),
-                 std::vector<ShadowSub>(other._ShadowSubList));
+        auto targets = admission.pinBindings({binding});
+        preflightSubElements(*this, admission, targets, other._SubList, &other._ShadowSubList);
+        auto proposedInfos = preflightProposedXLinks(*this, admission, targets);
+        setValue(
+            targets.front(),
+            std::vector<std::string>(other._SubList),
+            std::vector<ShadowSub>(other._ShadowSubList)
+        );
     }
     else {
-        setValue(std::string(other.filePath),
-                 std::string(other.objectName),
-                 std::vector<std::string>(other._SubList),
-                 std::vector<ShadowSub>(other._ShadowSubList));
+        setValue(
+            nullptr,
+            std::vector<std::string>(other._SubList),
+            std::vector<ShadowSub>(other._ShadowSubList)
+        );
     }
     setFlag(LinkAllowPartial, other.testFlag(LinkAllowPartial));
 }
 
 bool PropertyXLink::supportXLink(const App::Property* prop)
 {
-    return prop->isDerivedFrom<PropertyXLink>()
-        || prop->isDerivedFrom<PropertyXLinkSubList>()
+    return prop->isDerivedFrom<PropertyXLink>() || prop->isDerivedFrom<PropertyXLinkSubList>()
         || prop->isDerivedFrom<PropertyXLinkContainer>();
 }
 
+namespace
+{
+std::vector<DocInfoPtr> snapshotDocInfos()
+{
+    std::vector<DocInfoPtr> result;
+    RecomputeDetail::IndexLock lock;
+    for (const auto& entry : _DocInfoMap) {
+        result.push_back(entry.second);
+    }
+    return result;
+}
+}  // namespace
+
 bool PropertyXLink::hasXLink(const App::Document* doc)
 {
-    for (auto& v : _DocInfoMap) {
-        if (v.second->hasXLink(doc)) {
+    for (const auto& info : snapshotDocInfos()) {
+        if (info->hasXLink(doc)) {
             return true;
         }
     }
     return false;
 }
 
-bool PropertyXLink::hasXLink(const std::vector<App::DocumentObject*>& objs,
-                             std::vector<App::Document*>* unsaved)
+bool PropertyXLink::hasXLink(
+    const std::vector<App::DocumentObject*>& objs,
+    std::vector<App::Document*>* unsaved
+)
 {
     std::set<App::Document*> docs;
     bool ret = false;
@@ -4578,15 +5848,14 @@ void PropertyXLink::restoreDocument(const App::Document& doc)
     DocInfo::restoreDocument(doc);
 }
 
-std::map<App::Document*, std::set<App::Document*>>
-PropertyXLink::getDocumentOutList(App::Document* doc)
+std::map<App::Document*, std::set<App::Document*>> PropertyXLink::getDocumentOutList(App::Document* doc)
 {
     std::map<App::Document*, std::set<App::Document*>> ret;
-    for (auto& v : _DocInfoMap) {
-        for (auto link : v.second->links) {
-            if (!v.second->pcDoc || link->getScope() == LinkScope::Hidden
-                || link->testStatus(Property::PropTransient)
-                || link->testStatus(Property::Transient)
+    for (const auto& info : snapshotDocInfos()) {
+        auto plan = info->reserve();
+        for (auto link : plan.properties) {
+            if (!plan.document || link->getScope() == LinkScope::Hidden
+                || link->testStatus(Property::PropTransient) || link->testStatus(Property::Transient)
                 || link->testStatus(Property::PropNoPersist)) {
                 continue;
             }
@@ -4597,22 +5866,22 @@ PropertyXLink::getDocumentOutList(App::Document* doc)
             if (doc && obj->getDocument() != doc) {
                 continue;
             }
-            ret[obj->getDocument()].insert(v.second->pcDoc);
+            ret[obj->getDocument()].insert(plan.document);
         }
     }
     return ret;
 }
 
-std::map<App::Document*, std::set<App::Document*>>
-PropertyXLink::getDocumentInList(App::Document* doc)
+std::map<App::Document*, std::set<App::Document*>> PropertyXLink::getDocumentInList(App::Document* doc)
 {
     std::map<App::Document*, std::set<App::Document*>> ret;
-    for (auto& v : _DocInfoMap) {
-        if (!v.second->pcDoc || (doc && doc != v.second->pcDoc) || v.second->links.empty()) {
+    for (const auto& info : snapshotDocInfos()) {
+        auto plan = info->reserve();
+        if (!plan.document || (doc && doc != plan.document) || plan.properties.empty()) {
             continue;
         }
-        auto& docs = ret[v.second->pcDoc];
-        for (auto link : v.second->links) {
+        auto& docs = ret[plan.document];
+        for (auto link : plan.properties) {
             if (link->getScope() == LinkScope::Hidden || link->testStatus(Property::PropTransient)
                 || link->testStatus(Property::Transient)
                 || link->testStatus(Property::PropNoPersist)) {
@@ -4692,8 +5961,7 @@ void PropertyXLink::setPyObject(PyObject* value)
         else {
             throw Base::TypeError("Expect the second element to be a string or sequence of string");
         }
-        setValue(static_cast<DocumentObjectPy*>(pyObj.ptr())->getDocumentObjectPtr(),
-                 std::move(subs));
+        setValue(static_cast<DocumentObjectPy*>(pyObj.ptr())->getDocumentObjectPtr(), std::move(subs));
     }
     else if (PyObject_TypeCheck(value, &(DocumentObjectPy::Type))) {
         setValue(static_cast<DocumentObjectPy*>(value)->getDocumentObjectPtr());
@@ -4704,7 +5972,8 @@ void PropertyXLink::setPyObject(PyObject* value)
     else {
         throw Base::TypeError(
             "type must be 'DocumentObject', 'None', or '(DocumentObject, SubName)' or "
-            "'DocumentObject, [SubName..])");
+            "'DocumentObject, [SubName..])"
+        );
     }
 }
 
@@ -4716,10 +5985,12 @@ const char* PropertyXLink::getSubName(bool newStyle) const
     return getSubNameWithStyle(_SubList[0], _ShadowSubList[0], newStyle, tmpShadow).c_str();
 }
 
-void PropertyXLink::getLinks(std::vector<App::DocumentObject*>& objs,
-                             bool all,
-                             std::vector<std::string>* subs,
-                             bool newStyle) const
+void PropertyXLink::getLinks(
+    std::vector<App::DocumentObject*>& objs,
+    bool all,
+    std::vector<std::string>* subs,
+    bool newStyle
+) const
 {
     if ((all || _pcScope != LinkScope::Hidden) && _pcLink && _pcLink->isAttachedToDocument()) {
         // we use to run this method everytime the program needed to access the sub-elements in
@@ -4733,10 +6004,12 @@ void PropertyXLink::getLinks(std::vector<App::DocumentObject*>& objs,
     }
 }
 
-void PropertyXLink::getLinksTo(std::vector<App::ObjectIdentifier>& identifiers,
-                               App::DocumentObject* obj,
-                               const char* subname,
-                               bool all) const
+void PropertyXLink::getLinksTo(
+    std::vector<App::ObjectIdentifier>& identifiers,
+    App::DocumentObject* obj,
+    const char* subname,
+    bool all
+) const
 {
     if (all || _pcScope != LinkScope::Hidden) {
         if (obj && obj == _pcLink) {
@@ -4747,6 +6020,9 @@ void PropertyXLink::getLinksTo(std::vector<App::ObjectIdentifier>& identifiers,
 
 bool PropertyXLink::adjustLink(const std::set<App::DocumentObject*>& inList)
 {
+    auto admission = isAdmissionPlanning()
+        ? RecomputeDetail::MutationScope {}
+        : RecomputeDetail::Coordinator::instance().mutation(*this, {});
     if (_pcScope == LinkScope::Hidden) {
         return false;
     }
@@ -4774,8 +6050,7 @@ std::vector<std::string> PropertyXLink::getSubValues(bool newStyle) const
     return ret;
 }
 
-std::vector<std::string> PropertyXLink::getSubValuesStartsWith(const char* starter,
-                                                               bool newStyle) const
+std::vector<std::string> PropertyXLink::getSubValuesStartsWith(const char* starter, bool newStyle) const
 {
     (void)newStyle;
 
@@ -4790,17 +6065,19 @@ std::vector<std::string> PropertyXLink::getSubValuesStartsWith(const char* start
 
 void PropertyXLink::setAllowPartial(bool enable)
 {
-    setFlag(LinkAllowPartial, enable);
-    if (enable) {
-        return;
-    }
-    auto owner = dynamic_cast<const DocumentObject*>(getContainer());
-    if (!owner) {
-        return;
-    }
-    if (!App::GetApplication().isRestoring() && !owner->getDocument()->isPerformingTransaction()
+    auto admission = isAdmissionPlanning()
+        ? RecomputeDetail::MutationScope {}
+        : RecomputeDetail::Coordinator::instance().mutation(*this);
+    auto* owner = freecad_cast<DocumentObject*>(getContainer());
+    const bool reload = !enable && owner && owner->getDocument()
+        && !App::GetApplication().isRestoring() && !owner->getDocument()->isPerformingTransaction()
         && !_pcLink && docInfo && !filePath.empty() && !objectName.empty()
-        && (!docInfo->pcDoc || docInfo->pcDoc->testStatus(Document::PartialDoc))) {
+        && (!docInfo->pcDoc || docInfo->pcDoc->testStatus(Document::PartialDoc));
+    auto structural = reload && !isAdmissionPlanning()
+        ? RecomputeDetail::Coordinator::instance().atomic()
+        : RecomputeDetail::MutationScope {};
+    setFlag(LinkAllowPartial, enable);
+    if (reload) {
         auto path = docInfo->getDocPath(filePath.c_str(), owner->getDocument(), false);
         if (!path.empty()) {
             App::GetApplication().openDocument(path.c_str());
@@ -4823,6 +6100,11 @@ PropertyXLinkSub::~PropertyXLinkSub() = default;
 
 bool PropertyXLinkSub::upgrade(Base::XMLReader& reader, const char* typeName)
 {
+    auto structural = isAdmissionPlanning() ? RecomputeDetail::MutationScope {}
+                                            : RecomputeDetail::Coordinator::instance().atomic();
+    auto admission = isAdmissionPlanning()
+        ? RecomputeDetail::MutationScope {}
+        : RecomputeDetail::Coordinator::instance().mutation(*this);
     if (typeName == PropertyLinkSubGlobal::getClassTypeId().getName()
         || typeName == PropertyLinkSub::getClassTypeId().getName()
         || typeName == PropertyLinkSubChild::getClassTypeId().getName()) {
@@ -4874,7 +6156,7 @@ PropertyXLinkSubList::~PropertyXLinkSubList() = default;
 
 void PropertyXLinkSubList::setSyncSubObject(bool enable)
 {
-    _Flags.set((std::size_t)LinkSyncSubObject, enable);
+    setFlag(LinkSyncSubObject, enable);
 }
 
 int PropertyXLinkSubList::getSize() const
@@ -4884,6 +6166,9 @@ int PropertyXLinkSubList::getSize() const
 
 void PropertyXLinkSubList::setValue(DocumentObject* lValue, const char* SubName)
 {
+    auto admission = isAdmissionPlanning()
+        ? RecomputeDetail::MutationScope {}
+        : RecomputeDetail::Coordinator::instance().mutation(*this, {lValue});
     std::map<DocumentObject*, std::vector<std::string>> values;
     if (lValue) {
         auto& subs = values[lValue];
@@ -4894,13 +6179,18 @@ void PropertyXLinkSubList::setValue(DocumentObject* lValue, const char* SubName)
     setValues(std::move(values));
 }
 
-void PropertyXLinkSubList::setValues(const std::vector<DocumentObject*>& lValue,
-                                     const std::vector<const char*>& lSubNames)
+void PropertyXLinkSubList::setValues(
+    const std::vector<DocumentObject*>& lValue,
+    const std::vector<const char*>& lSubNames
+)
 {
-#define CHECK_SUB_SIZE(_l, _r)                                                                     \
-    do {                                                                                           \
-        if (_l.size() != _r.size())                                                                \
-            FC_THROWM(Base::ValueError, "object and subname size mismatch");                       \
+    auto admission = isAdmissionPlanning()
+        ? RecomputeDetail::MutationScope {}
+        : RecomputeDetail::Coordinator::instance().mutation(*this, lValue);
+#define CHECK_SUB_SIZE(_l, _r) \
+    do { \
+        if (_l.size() != _r.size()) \
+            FC_THROWM(Base::ValueError, "object and subname size mismatch"); \
     } while (0)
     CHECK_SUB_SIZE(lValue, lSubNames);
     std::map<DocumentObject*, std::vector<std::string>> values;
@@ -4914,9 +6204,14 @@ void PropertyXLinkSubList::setValues(const std::vector<DocumentObject*>& lValue,
     setValues(std::move(values));
 }
 
-void PropertyXLinkSubList::setValues(const std::vector<DocumentObject*>& lValue,
-                                     const std::vector<std::string>& lSubNames)
+void PropertyXLinkSubList::setValues(
+    const std::vector<DocumentObject*>& lValue,
+    const std::vector<std::string>& lSubNames
+)
 {
+    auto admission = isAdmissionPlanning()
+        ? RecomputeDetail::MutationScope {}
+        : RecomputeDetail::Coordinator::instance().mutation(*this, lValue);
     CHECK_SUB_SIZE(lValue, lSubNames);
     std::map<DocumentObject*, std::vector<std::string>> values;
     int i = 0;
@@ -4938,14 +6233,47 @@ void PropertyXLinkSubList::setSubListValues(const std::vector<PropertyLinkSubLis
 }
 
 void PropertyXLinkSubList::setValues(
-    const std::map<App::DocumentObject*, std::vector<std::string>>& values)
+    const std::map<App::DocumentObject*, std::vector<std::string>>& values
+)
 {
+    auto admission = isAdmissionPlanning()
+        ? RecomputeDetail::MutationScope {}
+        : RecomputeDetail::Coordinator::instance().mutation(*this, [&] {
+              std::vector<DocumentObject*> targets;
+              for (const auto& entry : values) {
+                  targets.push_back(entry.first);
+              }
+              return targets;
+          }());
     setValues(std::map<App::DocumentObject*, std::vector<std::string>>(values));
 }
 
-void PropertyXLinkSubList::setValues(
-    std::map<App::DocumentObject*, std::vector<std::string>>&& values)
+void PropertyXLinkSubList::setValues(std::map<App::DocumentObject*, std::vector<std::string>>&& values)
 {
+    auto admission = isAdmissionPlanning()
+        ? RecomputeDetail::MutationScope {}
+        : RecomputeDetail::Coordinator::instance().mutation(*this, [&] {
+              std::vector<DocumentObject*> targets;
+              for (const auto& entry : values) {
+                  targets.push_back(entry.first);
+              }
+              return targets;
+          }());
+    preflightAdmissionStorage();
+    std::vector<DocumentObject*> plannedObjects;
+    std::vector<std::string> plannedSubs;
+    for (const auto& [object, names] : values) {
+        if (names.empty()) {
+            plannedObjects.push_back(object);
+            plannedSubs.emplace_back();
+        }
+        for (const auto& name : names) {
+            plannedObjects.push_back(object);
+            plannedSubs.push_back(name);
+        }
+    }
+    preflightSubElements(*this, admission, plannedObjects, plannedSubs);
+    auto proposedInfos = preflightProposedXLinks(*this, admission, plannedObjects);
     for (auto& v : values) {
         if (!v.first || !v.first->isAttachedToDocument()) {
             FC_THROWM(Base::ValueError, "invalid document object");
@@ -4972,17 +6300,25 @@ void PropertyXLinkSubList::setValues(
     guard.tryInvoke();
 }
 
-void PropertyXLinkSubList::addValue(App::DocumentObject* obj,
-                                    const std::vector<std::string>& subs,
-                                    bool reset)
+void PropertyXLinkSubList::addValue(
+    App::DocumentObject* obj,
+    const std::vector<std::string>& subs,
+    bool reset
+)
 {
+    auto admission = isAdmissionPlanning()
+        ? RecomputeDetail::MutationScope {}
+        : RecomputeDetail::Coordinator::instance().mutation(*this, {obj});
     addValue(obj, std::vector<std::string>(subs), reset);
 }
 
-void PropertyXLinkSubList::addValue(App::DocumentObject* obj,
-                                    std::vector<std::string>&& subs,
-                                    bool reset)
+void PropertyXLinkSubList::addValue(App::DocumentObject* obj, std::vector<std::string>&& subs, bool reset)
 {
+    auto admission = isAdmissionPlanning()
+        ? RecomputeDetail::MutationScope {}
+        : RecomputeDetail::Coordinator::instance().mutation(*this, {obj});
+    preflightSubElements(*this, admission, {obj}, subs);
+    auto proposedInfos = preflightProposedXLinks(*this, admission, {obj});
 
     if (!obj || !obj->isAttachedToDocument()) {
         FC_THROWM(Base::ValueError, "invalid document object");
@@ -5010,6 +6346,9 @@ void PropertyXLinkSubList::addValue(App::DocumentObject* obj,
 
 void PropertyXLinkSubList::setValue(DocumentObject* lValue, const std::vector<std::string>& SubList)
 {
+    auto admission = isAdmissionPlanning()
+        ? RecomputeDetail::MutationScope {}
+        : RecomputeDetail::Coordinator::instance().mutation(*this, {lValue});
     std::map<DocumentObject*, std::vector<std::string>> values;
     if (lValue) {
         values[lValue] = SubList;
@@ -5019,6 +6358,12 @@ void PropertyXLinkSubList::setValue(DocumentObject* lValue, const std::vector<st
 
 void PropertyXLinkSubList::setValues(const std::vector<DocumentObject*>& values)
 {
+    auto admission = isAdmissionPlanning()
+        ? RecomputeDetail::MutationScope {}
+        : RecomputeDetail::Coordinator::instance().mutation(*this, values);
+    preflightAdmissionStorage();
+    preflightSubElements(*this, admission, values, {});
+    auto proposedInfos = preflightProposedXLinks(*this, admission, values);
     atomic_change guard(*this);
     _Links.clear();
     for (auto obj : values) {
@@ -5028,10 +6373,13 @@ void PropertyXLinkSubList::setValues(const std::vector<DocumentObject*>& values)
     guard.tryInvoke();
 }
 
-void PropertyXLinkSubList::set1Value(int idx,
-                                     DocumentObject* value,
-                                     const std::vector<std::string>& SubList)
+void PropertyXLinkSubList::set1Value(int idx, DocumentObject* value, const std::vector<std::string>& SubList)
 {
+    auto admission = isAdmissionPlanning()
+        ? RecomputeDetail::MutationScope {}
+        : RecomputeDetail::Coordinator::instance().mutation(*this, {value});
+    preflightSubElements(*this, admission, {value}, SubList);
+    auto proposedInfos = preflightProposedXLinks(*this, admission, {value});
     if (idx < -1 || idx > getSize()) {
         throw Base::RuntimeError("index out of bound");
     }
@@ -5094,6 +6442,10 @@ DocumentObject* PropertyXLinkSubList::getValue() const
 
 int PropertyXLinkSubList::removeValue(App::DocumentObject* lValue)
 {
+    auto admission = isAdmissionPlanning()
+        ? RecomputeDetail::MutationScope {}
+        : RecomputeDetail::Coordinator::instance().mutation(*this, {lValue});
+    preflightAdmissionStorage();
     atomic_change guard(*this, false);
     int ret = 0;
     for (auto it = _Links.begin(); it != _Links.end();) {
@@ -5142,12 +6494,16 @@ void PropertyXLinkSubList::setPyObject(PyObject* value)
         this->setValue(dummy.getValue(), dummy.getSubValues());
         return;
     }
+    catch (const RecomputeDetail::AdmissionRefusal&) {
+        throw;
+    }
     catch (Base::Exception&) {
     }
 
     if (!PyTuple_Check(value) && !PyList_Check(value)) {
         throw Base::TypeError(
-            "Invalid type. Accepts (DocumentObject, (subname...)) or sequence of such type.");
+            "Invalid type. Accepts (DocumentObject, (subname...)) or sequence of such type."
+        );
     }
     Py::Sequence seq(value);
     std::map<DocumentObject*, std::vector<std::string>> values;
@@ -5162,15 +6518,31 @@ void PropertyXLinkSubList::setPyObject(PyObject* value)
             s.insert(s.end(), subs.begin(), subs.end());
         }
     }
+    catch (const RecomputeDetail::AdmissionRefusal&) {
+        throw;
+    }
     catch (Base::Exception&) {
         throw Base::TypeError(
-            "Invalid type inside sequence. Must be type of (DocumentObject, (subname...))");
+            "Invalid type inside sequence. Must be type of (DocumentObject, (subname...))"
+        );
     }
     setValues(std::move(values));
 }
 
 void PropertyXLinkSubList::afterRestore()
 {
+    auto admission = isAdmissionPlanning()
+        ? RecomputeDetail::MutationScope {}
+        : RecomputeDetail::Coordinator::instance().mutation(*this, {});
+    std::vector<DocumentObject*> plannedObjects;
+    std::vector<std::string> plannedSubs;
+    for (const auto& child : _Links) {
+        for (const auto& name : child.getSubValues()) {
+            plannedObjects.push_back(child.getValue());
+            plannedSubs.push_back(name);
+        }
+    }
+    preflightSubElements(*this, admission, plannedObjects, plannedSubs);
     for (auto& l : _Links) {
         l.afterRestore();
     }
@@ -5178,15 +6550,37 @@ void PropertyXLinkSubList::afterRestore()
 
 void PropertyXLinkSubList::onContainerRestored()
 {
+    auto admission = isAdmissionPlanning()
+        ? RecomputeDetail::MutationScope {}
+        : RecomputeDetail::Coordinator::instance().mutation(*this, {});
+    std::vector<DocumentObject*> plannedObjects;
+    std::vector<std::string> plannedSubs;
+    for (const auto& child : _Links) {
+        for (const auto& name : child.getSubValues()) {
+            plannedObjects.push_back(child.getValue());
+            plannedSubs.push_back(name);
+        }
+    }
+    preflightSubElements(*this, admission, plannedObjects, plannedSubs);
     for (auto& l : _Links) {
         l.onContainerRestored();
     }
 }
 
-void PropertyXLinkSubList::updateElementReference(DocumentObject* feature,
-                                                  bool reverse,
-                                                  bool notify)
+void PropertyXLinkSubList::updateElementReference(DocumentObject* feature, bool reverse, bool notify)
 {
+    auto admission = isAdmissionPlanning()
+        ? RecomputeDetail::MutationScope {}
+        : RecomputeDetail::Coordinator::instance().mutation(*this, {feature});
+    std::vector<DocumentObject*> plannedObjects;
+    std::vector<std::string> plannedSubs;
+    for (const auto& child : _Links) {
+        for (const auto& name : child.getSubValues()) {
+            plannedObjects.push_back(child.getValue());
+            plannedSubs.push_back(name);
+        }
+    }
+    preflightSubElements(*this, admission, plannedObjects, plannedSubs);
     for (auto& l : _Links) {
         l.updateElementReference(feature, reverse, notify);
     }
@@ -5219,9 +6613,14 @@ void PropertyXLinkSubList::Save(Base::Writer& writer) const
 
 void PropertyXLinkSubList::Restore(Base::XMLReader& reader)
 {
+    auto structural = isAdmissionPlanning() ? RecomputeDetail::MutationScope {}
+                                            : RecomputeDetail::Coordinator::instance().atomic();
+    auto admission = isAdmissionPlanning()
+        ? RecomputeDetail::MutationScope {}
+        : RecomputeDetail::Coordinator::instance().mutation(*this);
+    preflightAdmissionStorage();
     reader.readElement("XLinkSubList");
-    setFlag(LinkAllowPartial,
-            reader.hasAttribute("partial") && reader.getAttribute<bool>("partial"));
+    setFlag(LinkAllowPartial, reader.hasAttribute("partial") && reader.getAttribute<bool>("partial"));
     int count = reader.getAttribute<long>("count");
     atomic_change guard(*this, false);
     _Links.clear();
@@ -5233,8 +6632,9 @@ void PropertyXLinkSubList::Restore(Base::XMLReader& reader)
     guard.tryInvoke();
 }
 
-Property*
-PropertyXLinkSubList::CopyOnImportExternal(const std::map<std::string, std::string>& nameMap) const
+Property* PropertyXLinkSubList::CopyOnImportExternal(
+    const std::map<std::string, std::string>& nameMap
+) const
 {
     std::unique_ptr<Property> copy;
     auto it = _Links.begin();
@@ -5267,9 +6667,11 @@ PropertyXLinkSubList::CopyOnImportExternal(const std::map<std::string, std::stri
     return p.release();
 }
 
-Property* PropertyXLinkSubList::CopyOnLabelChange(App::DocumentObject* obj,
-                                                  const std::string& ref,
-                                                  const char* newLabel) const
+Property* PropertyXLinkSubList::CopyOnLabelChange(
+    App::DocumentObject* obj,
+    const std::string& ref,
+    const char* newLabel
+) const
 {
     std::unique_ptr<Property> copy;
     auto it = _Links.begin();
@@ -5302,9 +6704,11 @@ Property* PropertyXLinkSubList::CopyOnLabelChange(App::DocumentObject* obj,
     return p.release();
 }
 
-Property* PropertyXLinkSubList::CopyOnLinkReplace(const App::DocumentObject* parent,
-                                                  App::DocumentObject* oldObj,
-                                                  App::DocumentObject* newObj) const
+Property* PropertyXLinkSubList::CopyOnLinkReplace(
+    const App::DocumentObject* parent,
+    App::DocumentObject* oldObj,
+    App::DocumentObject* newObj
+) const
 {
     std::unique_ptr<Property> copy;
     PropertyXLinkSub* copied = nullptr;
@@ -5344,8 +6748,7 @@ Property* PropertyXLinkSubList::CopyOnLinkReplace(const App::DocumentObject* par
     copied->copyTo(p->_Links.back());
     copied = &p->_Links.back();
     for (++it; it != _Links.end(); ++it) {
-        if ((it->getValue() == newObj || it->getValue() == oldObj)
-            && copied->getValue() == newObj) {
+        if ((it->getValue() == newObj || it->getValue() == oldObj) && copied->getValue() == newObj) {
             // merge subnames in case new object already exists
             for (auto& sub : it->getSubValues()) {
                 if (subs.insert(sub).second) {
@@ -5378,15 +6781,72 @@ Property* PropertyXLinkSubList::Copy() const
 
 void PropertyXLinkSubList::Paste(const Property& from)
 {
+    if (&from == this) {
+        return;
+    }
+    auto& coordinator = RecomputeDetail::Coordinator::instance();
+    auto admission = isAdmissionPlanning() ? RecomputeDetail::MutationScope {}
+                                           : coordinator.mutation(*this);
+    preflightAdmissionStorage();
     if (!from.isDerivedFrom<PropertyXLinkSubList>()) {
         throw Base::TypeError("Incompatible property to paste to");
     }
-
+    auto source = coordinator.snapshotProperties({const_cast<Property*>(&from)});
+    const auto& original = static_cast<const PropertyXLinkSubList&>(from);
+    PropertyXLinkSubList staged;
+    for (const auto& child : original._Links) {
+        staged._Links.emplace_back();
+        child.copyTo(staged._Links.back());
+        if (!child.getValue()) {
+            staged._Links.back().docName = child.docName;
+        }
+    }
+    const auto& other = staged;
+    const bool discovery = std::any_of(other._Links.begin(), other._Links.end(), [](const auto& child) {
+        return child.docName.empty() && !child.filePath.empty() && !child.objectName.empty();
+    });
+    std::optional<RecomputeDetail::MutationScope> structural;
+    if (discovery) {
+        structural.emplace(coordinator.atomic());
+    }
+    std::vector<RecomputeDetail::BindingPtr> bindings;
+    auto* owner = freecad_cast<DocumentObject*>(getContainer());
+    for (const auto& child : other._Links) {
+        if (child.objectName.empty() || (child.docName.empty() && !child.filePath.empty())) {
+            continue;
+        }
+        const std::string documentName = !child.docName.empty() ? child.docName
+            : owner && owner->getDocument()                     ? owner->getDocument()->getName()
+                                                                : "";
+        auto binding = coordinator.bindNames(documentName, child.objectName, true);
+        if (binding && !binding->missing) {
+            bindings.push_back(std::move(binding));
+        }
+    }
+    auto targets = admission.pinBindings(bindings);
+    auto proposedInfos = preflightProposedXLinks(*this, admission, targets);
+    // All known names and every child subelement are planned before clear or
+    // first notification. Filename-only children are covered by the opaque phase.
+    for (const auto& child : other._Links) {
+        if (child.objectName.empty() || (child.docName.empty() && !child.filePath.empty())) {
+            continue;
+        }
+        const std::string documentName = !child.docName.empty() ? child.docName
+            : owner && owner->getDocument()                     ? owner->getDocument()->getName()
+                                                                : "";
+        for (std::size_t i = 0; i < bindings.size(); ++i) {
+            if (bindings[i]->documentName == documentName
+                && bindings[i]->objectName == child.objectName) {
+                preflightSubElements(*this, admission, {targets[i]}, child._SubList, &child._ShadowSubList);
+                break;
+            }
+        }
+    }
     aboutToSetValue();
     _Links.clear();
-    for (auto& l : static_cast<const PropertyXLinkSubList&>(from)._Links) {
+    for (const auto& child : other._Links) {
         _Links.emplace_back(testFlag(LinkAllowPartial), this);
-        _Links.back().Paste(l);
+        _Links.back().Paste(child);
     }
     hasSetValue();
 }
@@ -5410,8 +6870,7 @@ const std::vector<std::string>& PropertyXLinkSubList::getSubValues(App::Document
     FC_THROWM(Base::RuntimeError, "object not found");
 }
 
-std::vector<std::string> PropertyXLinkSubList::getSubValues(App::DocumentObject* obj,
-                                                            bool newStyle) const
+std::vector<std::string> PropertyXLinkSubList::getSubValues(App::DocumentObject* obj, bool newStyle) const
 {
     for (auto& l : _Links) {
         if (l.getValue() == obj) {
@@ -5421,10 +6880,12 @@ std::vector<std::string> PropertyXLinkSubList::getSubValues(App::DocumentObject*
     return {};
 }
 
-void PropertyXLinkSubList::getLinks(std::vector<App::DocumentObject*>& objs,
-                                    bool all,
-                                    std::vector<std::string>* subs,
-                                    bool newStyle) const
+void PropertyXLinkSubList::getLinks(
+    std::vector<App::DocumentObject*>& objs,
+    bool all,
+    std::vector<std::string>* subs,
+    bool newStyle
+) const
 {
     if (all || _pcScope != LinkScope::Hidden) {
         if (!subs) {
@@ -5460,10 +6921,9 @@ void PropertyXLinkSubList::getLinks(std::vector<App::DocumentObject*>& objs,
         for (auto& l : _Links) {
             auto obj = l.getValue();
             if (obj && obj->isAttachedToDocument()) {
-                // we use to run this method everytime the program needed to access the sub-elements in
-                // a property link, but it caused multiple issues (#23441 and #23402) so it has been
-                // commented out.
-                // updateElementReferences(obj);
+                // we use to run this method everytime the program needed to access the sub-elements
+                // in a property link, but it caused multiple issues (#23441 and #23402) so it has
+                // been commented out. updateElementReferences(obj);
 
                 auto subnames = l.getSubValues(newStyle);
                 if (subnames.empty()) {
@@ -5484,7 +6944,8 @@ void PropertyXLinkSubList::_getLinksToList(
     App::DocumentObject* obj,
     const char* subname,
     const std::vector<std::string>& subs,
-    const std::vector<PropertyLinkBase::ShadowSub>& shadows) const
+    const std::vector<PropertyLinkBase::ShadowSub>& shadows
+) const
 {
     if (!subname) {
         identifiers.emplace_back(*this);
@@ -5520,9 +6981,10 @@ void PropertyXLinkSubList::_getLinksToList(
             if (!subObject) {
                 continue;
             }
-            App::SubObjectT shadowobjT(obj,
-                                       shadowNewName.empty() ? shadowOldName.c_str()
-                                                             : shadowNewName.c_str());
+            App::SubObjectT shadowobjT(
+                obj,
+                shadowNewName.empty() ? shadowOldName.c_str() : shadowNewName.c_str()
+            );
             if (shadowobjT.getSubObject() == subObject
                 && shadowobjT.getOldElementName() == subElement) {
                 identifiers.emplace_back(*this, i);
@@ -5532,10 +6994,12 @@ void PropertyXLinkSubList::_getLinksToList(
     }
 }
 
-void PropertyXLinkSubList::getLinksTo(std::vector<App::ObjectIdentifier>& identifiers,
-                                      App::DocumentObject* obj,
-                                      const char* subname,
-                                      bool all) const
+void PropertyXLinkSubList::getLinksTo(
+    std::vector<App::ObjectIdentifier>& identifiers,
+    App::DocumentObject* obj,
+    const char* subname,
+    bool all
+) const
 {
     if (!all && _pcScope != LinkScope::Hidden) {
         return;
@@ -5549,6 +7013,9 @@ void PropertyXLinkSubList::getLinksTo(std::vector<App::ObjectIdentifier>& identi
 
 void PropertyXLinkSubList::breakLink(App::DocumentObject* obj, bool clear)
 {
+    auto admission = isAdmissionPlanning()
+        ? RecomputeDetail::MutationScope {}
+        : RecomputeDetail::Coordinator::instance().mutation(*this, {obj});
     if (clear && getContainer() == obj) {
         setValue(nullptr);
         return;
@@ -5565,6 +7032,10 @@ void PropertyXLinkSubList::breakLink(App::DocumentObject* obj, bool clear)
 
 bool PropertyXLinkSubList::adjustLink(const std::set<App::DocumentObject*>& inList)
 {
+    auto admission = isAdmissionPlanning()
+        ? RecomputeDetail::MutationScope {}
+        : RecomputeDetail::Coordinator::instance().mutation(*this, {});
+    preflightAdmissionStorage();
     if (_pcScope == LinkScope::Hidden) {
         return false;
     }
@@ -5582,6 +7053,20 @@ bool PropertyXLinkSubList::adjustLink(const std::set<App::DocumentObject*>& inLi
         }
     }
     if (touched) {
+        std::vector<DocumentObject*> proposed;
+        std::vector<std::string> proposedSubs;
+        for (const auto& value : values) {
+            for (const auto& sub : value.second) {
+                proposed.push_back(value.first);
+                proposedSubs.push_back(sub);
+            }
+            if (value.second.empty()) {
+                proposed.push_back(value.first);
+                proposedSubs.emplace_back();
+            }
+        }
+        preflightSubElements(*this, admission, proposed, proposedSubs);
+        auto proposedInfos = preflightProposedXLinks(*this, admission, proposed);
         decltype(_Links) tmp;
         if (count) {
             // XLink allows detached state, i.e. with closed external document. So
@@ -5612,6 +7097,12 @@ int PropertyXLinkSubList::checkRestore(std::string* msg) const
 
 bool PropertyXLinkSubList::upgrade(Base::XMLReader& reader, const char* typeName)
 {
+    auto structural = isAdmissionPlanning() ? RecomputeDetail::MutationScope {}
+                                            : RecomputeDetail::Coordinator::instance().atomic();
+    auto admission = isAdmissionPlanning()
+        ? RecomputeDetail::MutationScope {}
+        : RecomputeDetail::Coordinator::instance().mutation(*this);
+    preflightAdmissionStorage();
     if (typeName == PropertyLinkListGlobal::getClassTypeId().getName()
         || typeName == PropertyLinkList::getClassTypeId().getName()
         || typeName == PropertyLinkListChild::getClassTypeId().getName()) {
@@ -5648,9 +7139,28 @@ bool PropertyXLinkSubList::upgrade(Base::XMLReader& reader, const char* typeName
 
 void PropertyXLinkSubList::setAllowPartial(bool enable)
 {
+    auto admission = isAdmissionPlanning()
+        ? RecomputeDetail::MutationScope {}
+        : RecomputeDetail::Coordinator::instance().mutation(*this);
+    bool reload = false;
+    auto* owner = freecad_cast<DocumentObject*>(getContainer());
+    if (!enable && owner && owner->getDocument() && !App::GetApplication().isRestoring()
+        && !owner->getDocument()->isPerformingTransaction()) {
+        for (const auto& child : _Links) {
+            auto* document = child.getDocument();
+            if (!child.getValue() && child.getDocumentPath()[0] && child.getObjectName()[0]
+                && (!document || document->testStatus(App::Document::PartialDoc))) {
+                reload = true;
+                break;
+            }
+        }
+    }
+    auto structural = reload && !isAdmissionPlanning()
+        ? RecomputeDetail::Coordinator::instance().atomic()
+        : RecomputeDetail::MutationScope {};
     setFlag(LinkAllowPartial, enable);
-    for (auto& l : _Links) {
-        l.setAllowPartial(enable);
+    for (auto& child : _Links) {
+        child.setAllowPartial(enable);
     }
 }
 
@@ -5723,6 +7233,9 @@ void PropertyXLinkList::setPyObject(PyObject* value)
         this->setValues(dummy.getValues());
         return;
     }
+    catch (const RecomputeDetail::AdmissionRefusal&) {
+        throw;
+    }
     catch (Base::Exception&) {
     }
 
@@ -5744,6 +7257,12 @@ PropertyXLinkContainer::~PropertyXLinkContainer() = default;
 
 void PropertyXLinkContainer::afterRestore()
 {
+    auto structural = isAdmissionPlanning() ? RecomputeDetail::MutationScope {}
+                                            : RecomputeDetail::Coordinator::instance().atomic();
+    auto admission = isAdmissionPlanning()
+        ? RecomputeDetail::MutationScope {}
+        : RecomputeDetail::Coordinator::instance().mutation(*this);
+    preflightAdmissionStorage();
     _DocMap.clear();
     if (!_XLinkRestores) {
         return;
@@ -5772,6 +7291,10 @@ void PropertyXLinkContainer::afterRestore()
 
 void PropertyXLinkContainer::breakLink(App::DocumentObject* obj, bool clear)
 {
+    auto admission = isAdmissionPlanning()
+        ? RecomputeDetail::MutationScope {}
+        : RecomputeDetail::Coordinator::instance().mutation(*this, {obj});
+    preflightAdmissionStorage();
     if (!obj || !obj->isAttachedToDocument()) {
         return;
     }
@@ -5895,6 +7418,12 @@ void PropertyXLinkContainer::Save(Base::Writer& writer) const
 
 void PropertyXLinkContainer::Restore(Base::XMLReader& reader)
 {
+    auto structural = isAdmissionPlanning() ? RecomputeDetail::MutationScope {}
+                                            : RecomputeDetail::Coordinator::instance().atomic();
+    auto admission = isAdmissionPlanning()
+        ? RecomputeDetail::MutationScope {}
+        : RecomputeDetail::Coordinator::instance().mutation(*this);
+    preflightAdmissionStorage();
     reader.readElement("XLinks");
     auto count = reader.getAttribute<unsigned long>("count");
     _XLinkRestores = std::make_unique<std::vector<RestoreInfo>>(count);
@@ -5937,6 +7466,8 @@ void PropertyXLinkContainer::Restore(Base::XMLReader& reader)
 
 void PropertyXLinkContainer::aboutToSetChildValue(App::Property& prop)
 {
+    // Callback-only continuation: the enclosing child/aggregate writer owns
+    // the complete cohort before notification. Never acquire late Busy here.
     auto xlink = dynamic_cast<App::PropertyXLink*>(&prop);
     if (xlink && xlink->testFlag(LinkDetached)) {
         auto obj = const_cast<App::DocumentObject*>(xlink->getValue());
@@ -5952,8 +7483,13 @@ void PropertyXLinkContainer::onBreakLink(DocumentObject*)
 
 void PropertyXLinkContainer::_onBreakLink(DocumentObject* obj)
 {
+    // Callback-only continuation: the enclosing child/aggregate writer owns
+    // the complete cohort before notification. Never acquire late Busy here.
     try {
         onBreakLink(obj);
+    }
+    catch (const RecomputeDetail::AdmissionRefusal&) {
+        throw;
     }
     catch (Base::Exception& e) {
         e.reportException();
@@ -5986,17 +7522,25 @@ bool PropertyXLinkContainer::isLinkedToDocument(const App::Document& doc) const
 // Mimics updateDeps() but for fine-grained property dependencies.  It does not
 // handle the XLink logic that is left to updateDeps().
 void PropertyXLinkContainer::updateDepsProp(
-    std::map<std::pair<std::string, DocumentObject*>, bool>& propDeps)
+    std::map<std::pair<std::string, DocumentObject*>, bool>& propDeps
+)
 {
+    auto admission = isAdmissionPlanning()
+        ? RecomputeDetail::MutationScope {}
+        : RecomputeDetail::Coordinator::instance().mutation(*this, [&] {
+              std::vector<DocumentObject*> targets;
+              for (const auto& entry : propDeps) {
+                  targets.push_back(entry.first.second);
+              }
+              return targets;
+          }());
     auto owner = freecad_cast<DocumentObject*>(getContainer());
     if (!owner || !owner->isAttachedToDocument()) {
         return;
     }
 
     // delete all entries in propDeps of owner:
-    std::erase_if(propDeps, [owner](auto const& kv) {
-        return kv.first.second == owner;
-    });
+    std::erase_if(propDeps, [owner](auto const& kv) { return kv.first.second == owner; });
 
     for (auto& [pair, hidden] : propDeps) {
         std::string const& propName = pair.first;
@@ -6035,9 +7579,31 @@ void PropertyXLinkContainer::updateDepsProp(
     _PropDeps = std::move(propDeps);
 }
 
-void PropertyXLinkContainer::updateDeps(std::map<DocumentObject*, bool>&& newDeps,
-                                        std::map<std::pair<std::string, DocumentObject*>, bool>* propDeps)
+void PropertyXLinkContainer::updateDeps(
+    std::map<DocumentObject*, bool>&& newDeps,
+    std::map<std::pair<std::string, DocumentObject*>, bool>* propDeps
+)
 {
+    auto admission = isAdmissionPlanning()
+        ? RecomputeDetail::MutationScope {}
+        : RecomputeDetail::Coordinator::instance().mutation(*this, [&] {
+              std::vector<DocumentObject*> targets;
+              for (const auto& entry : newDeps) {
+                  targets.push_back(entry.first);
+              }
+              if (propDeps) {
+                  for (const auto& entry : *propDeps) {
+                      targets.push_back(entry.first.second);
+                  }
+              }
+              return targets;
+          }());
+    preflightAdmissionStorage();
+    std::vector<DocumentObject*> proposed;
+    for (const auto& dependency : newDeps) {
+        proposed.push_back(dependency.first);
+    }
+    auto proposedInfos = preflightProposedXLinks(*this, admission, proposed);
     // We want dependencies in terms of the to- and fromProperty if true.
     // Otherwise we only want the dependencies in terms of HEAD.
     bool fineGrainedProps = propDeps != nullptr;
@@ -6124,6 +7690,10 @@ void PropertyXLinkContainer::updateDeps(std::map<DocumentObject*, bool>&& newDep
 
 void PropertyXLinkContainer::clearDeps()
 {
+    auto admission = isAdmissionPlanning()
+        ? RecomputeDetail::MutationScope {}
+        : RecomputeDetail::Coordinator::instance().mutation(*this, {});
+    preflightAdmissionStorage();
     auto owner = dynamic_cast<App::DocumentObject*>(getContainer());
     if (!owner || !owner->isAttachedToDocument()) {
         return;
@@ -6145,10 +7715,8 @@ void PropertyXLinkContainer::clearDeps()
     _LinkRestored = false;
 }
 
-void PropertyXLinkContainer::getLinks(std::vector<App::DocumentObject*>& objs,
-                                      bool all,
-                                      std::vector<std::string>* /*subs*/,
-                                      bool /*newStyle*/) const
+void PropertyXLinkContainer::
+    getLinks(std::vector<App::DocumentObject*>& objs, bool all, std::vector<std::string>* /*subs*/, bool /*newStyle*/) const
 {
     for (auto& v : _Deps) {
         if (all || !v.second) {
@@ -6157,12 +7725,239 @@ void PropertyXLinkContainer::getLinks(std::vector<App::DocumentObject*>& objs,
     }
 }
 
-void PropertyXLinkContainer::getLinksProp(std::vector<std::pair<std::string, App::DocumentObject*>>& links,
-                                          bool all) const
+void PropertyXLinkContainer::getLinksProp(
+    std::vector<std::pair<std::string, App::DocumentObject*>>& links,
+    bool all
+) const
 {
     for (auto& [pair, hidden] : _PropDeps) {
         if (all || !hidden) {
             links.push_back(pair);
+        }
+    }
+}
+
+
+void PropertyLink::retireAdmissionEdges()
+{
+    resetLink();
+    PropertyLinkBase::retireAdmissionEdges();
+}
+
+void PropertyLinkList::retireAdmissionEdges()
+{
+    auto* owner = freecad_cast<DocumentObject*>(getContainer());
+    if (owner && !owner->testStatus(ObjectStatus::Destroy) && _pcScope != LinkScope::Hidden) {
+        for (auto* target : _lValueList) {
+            if (target) {
+                target->_removeBackLink(owner);
+                target->_removeBackLinkProp(getName(), owner);
+            }
+        }
+    }
+    _lValueList.clear();
+    {
+        RecomputeDetail::IndexLock lock;
+        _nameMap.clear();
+    }
+    PropertyLinkBase::retireAdmissionEdges();
+}
+
+void PropertyLinkSub::retireAdmissionEdges()
+{
+    auto* owner = freecad_cast<DocumentObject*>(getContainer());
+    if (owner && _pcLinkSub && !owner->testStatus(ObjectStatus::Destroy)
+        && _pcScope != LinkScope::Hidden) {
+        _pcLinkSub->_removeBackLink(owner);
+        _pcLinkSub->_removeBackLinkProp(getName(), owner);
+    }
+    _pcLinkSub = nullptr;
+    PropertyLinkBase::retireAdmissionEdges();
+}
+
+void PropertyLinkSubList::retireAdmissionEdges()
+{
+    auto* owner = freecad_cast<DocumentObject*>(getContainer());
+    if (owner && !owner->testStatus(ObjectStatus::Destroy) && _pcScope != LinkScope::Hidden) {
+        for (auto* target : _lValueList) {
+            if (target) {
+                target->_removeBackLink(owner);
+                target->_removeBackLinkProp(getName(), owner);
+            }
+        }
+    }
+    _lValueList.clear();
+    _lSubList.clear();
+    _ShadowSubList.clear();
+    PropertyLinkBase::retireAdmissionEdges();
+}
+
+void PropertyXLink::retireAdmissionEdges()
+{
+    unlink();
+    PropertyLinkBase::retireAdmissionEdges();
+}
+
+void PropertyXLinkSubList::retireAdmissionEdges()
+{
+    preflightAdmissionStorage();
+    for (auto& child : _Links) {
+        child.retireAdmissionEdges();
+    }
+    _Links.clear();
+    PropertyLinkBase::retireAdmissionEdges();
+}
+
+void PropertyXLinkContainer::collectAdmissionTargets(std::vector<DocumentObject*>& targets) const
+{
+    collectElementAdmissionTargets(targets);
+    for (const auto& [target, hidden] : _Deps) {
+        (void)hidden;
+        targets.push_back(target);
+    }
+    for (const auto& [edge, hidden] : _PropDeps) {
+        (void)hidden;
+        targets.push_back(edge.second);
+    }
+    for (const auto& [name, child] : _XLinks) {
+        (void)name;
+        if (child) {
+            child->collectAdmissionTargets(targets);
+        }
+    }
+    if (_XLinkRestores) {
+        for (const auto& info : *_XLinkRestores) {
+            if (info.xlink) {
+                info.xlink->collectAdmissionTargets(targets);
+            }
+        }
+    }
+}
+
+void PropertyXLinkContainer::retireAdmissionEdges()
+{
+    preflightAdmissionStorage();
+    auto* owner = freecad_cast<DocumentObject*>(getContainer());
+    if (owner && !owner->testStatus(ObjectStatus::Destroy)) {
+        for (const auto& [edge, hidden] : _PropDeps) {
+            if (!hidden && edge.second) {
+                edge.second->_removeBackLinkProp(getName(), owner, edge.first.c_str());
+            }
+        }
+    }
+    _PropDeps.clear();
+    clearDeps();
+    if (_XLinkRestores) {
+        for (auto& info : *_XLinkRestores) {
+            if (info.xlink) {
+                info.xlink->retireAdmissionEdges();
+            }
+        }
+        _XLinkRestores.reset();
+    }
+    _DocMap.clear();
+    PropertyLinkBase::retireAdmissionEdges();
+}
+
+
+void PropertyLinkList::setPyValues(const std::vector<PyObject*>& input, const std::vector<int>& indices)
+{
+    std::vector<DocumentObject*> staged;
+    staged.reserve(input.size());
+    for (auto* value : input) {
+        staged.push_back(getPyValue(value));
+    }
+    if (indices.empty()) {
+        setValues(staged);
+        return;
+    }
+    if (staged.size() != indices.size()) {
+        throw Base::ValueError("Link value/index size mismatch");
+    }
+    auto admission = RecomputeDetail::Coordinator::instance().mutation(*this, staged);
+    auto size = getSize();
+    for (auto index : indices) {
+        if (index < -1 || index > size) {
+            throw Base::RuntimeError("index out of bound");
+        }
+        if (index == -1 || index == size) {
+            ++size;
+        }
+    }
+    atomic_change guard(*this);
+    for (std::size_t i = 0; i < staged.size(); ++i) {
+        set1Value(indices[i], staged[i]);
+    }
+    guard.tryInvoke();
+}
+
+bool PropertyXLink::isAdmissionPlanning() const
+{
+    return parentProp && parentProp->isAdmissionPlanning();
+}
+
+void PropertyLink::collectAdmissionTargets(std::vector<DocumentObject*>& targets) const
+{
+    collectElementAdmissionTargets(targets);
+    targets.push_back(_pcLink);
+}
+
+void PropertyLinkList::collectAdmissionTargets(std::vector<DocumentObject*>& targets) const
+{
+    collectElementAdmissionTargets(targets);
+    targets.insert(targets.end(), _lValueList.begin(), _lValueList.end());
+}
+
+void PropertyLinkSub::collectAdmissionTargets(std::vector<DocumentObject*>& targets) const
+{
+    collectElementAdmissionTargets(targets);
+    targets.push_back(_pcLinkSub);
+}
+
+void PropertyLinkSubList::collectAdmissionTargets(std::vector<DocumentObject*>& targets) const
+{
+    collectElementAdmissionTargets(targets);
+    targets.insert(targets.end(), _lValueList.begin(), _lValueList.end());
+}
+
+void PropertyXLink::collectAdmissionTargets(std::vector<DocumentObject*>& targets) const
+{
+    PropertyLink::collectAdmissionTargets(targets);
+    if (docInfo) {
+        docInfo->collectAdmissionTargets(targets);
+    }
+}
+
+void PropertyXLinkSubList::collectAdmissionTargets(std::vector<DocumentObject*>& targets) const
+{
+    collectElementAdmissionTargets(targets);
+    for (const auto& child : _Links) {
+        child.collectAdmissionTargets(targets);
+    }
+}
+
+void PropertyXLinkSubList::preflightAdmissionStorage() const
+{
+    auto& coordinator = RecomputeDetail::Coordinator::instance();
+    for (const auto& child : _Links) {
+        coordinator.ensurePropertyStorageAvailable(const_cast<PropertyXLinkSub*>(&child));
+    }
+}
+
+void PropertyXLinkContainer::preflightAdmissionStorage() const
+{
+    auto& coordinator = RecomputeDetail::Coordinator::instance();
+    for (const auto& [name, child] : _XLinks) {
+        (void)name;
+        if (child) {
+            coordinator.ensurePropertyStorageAvailable(child.get());
+        }
+    }
+    if (_XLinkRestores) {
+        for (const auto& info : *_XLinkRestores) {
+            if (info.xlink) {
+                coordinator.ensurePropertyStorageAvailable(info.xlink.get());
+            }
         }
     }
 }

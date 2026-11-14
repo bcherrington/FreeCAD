@@ -20,6 +20,7 @@
  ******************************************************************************/
 
 #include "MainThreadSignal.h"
+#include "private/RecomputeAdmission.h"
 
 #include <atomic>
 
@@ -111,6 +112,16 @@ bool MainThreadSignalConfig::canPumpEvents()
 void MainThreadSignalConfig::invoke(std::function<void()>&& fn, bool blocking)
 {
     if (const auto* hooks = activeHooks.load(std::memory_order_acquire)) {
+        // The synchronous receiver observes the originating operation, but does
+        // not inherit authority to mutate its pinned native receivers.
+        if ((blocking || !hooks->invoke) && !hooks->isMainThread()) {
+            if (auto observation = RecomputeDetail::Coordinator::instance().observation()) {
+                fn = [observation = std::move(observation), task = std::move(fn)]() mutable {
+                    RecomputeDetail::ObservationScope scope(std::move(observation));
+                    task();
+                };
+            }
+        }
         if (hooks->invoke) {
             hooks->invoke(std::move(fn), blocking);
             return;
@@ -137,11 +148,29 @@ void MainThreadSignalConfig::pumpEvents()
 bool MainThreadSignalConfig::invokeSync(TaskFn task, void* context)
 {
     if (const auto* hooks = activeHooks.load(std::memory_order_acquire)) {
+        struct ObservedTask
+        {
+            TaskFn task;
+            void* context;
+            RecomputeDetail::Observation observation;
+        } observed {task, context, hooks->isMainThread()
+                ? RecomputeDetail::Observation {}
+                : RecomputeDetail::Coordinator::instance().observation()};
+        auto dispatch = [](void* data) {
+            auto& observed = *static_cast<ObservedTask*>(data);
+            if (observed.observation) {
+                RecomputeDetail::ObservationScope scope(observed.observation);
+                observed.task(observed.context);
+            }
+            else {
+                observed.task(observed.context);
+            }
+        };
         if (hooks->invokeSync) {
-            return hooks->invokeSync(task, context);
+            return hooks->invokeSync(dispatch, &observed);
         }
         if (hooks->invoke) {
-            hooks->invoke([task, context] { task(context); }, true);
+            hooks->invoke([dispatch, &observed] { dispatch(&observed); }, true);
             return true;
         }
     }

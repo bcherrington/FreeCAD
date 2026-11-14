@@ -297,7 +297,15 @@ void SequencerLauncher::stop()
 {
     std::lock_guard<std::recursive_mutex> locker(SequencerP::mutex);
     if (SequencerP::_topLauncher == this) {
-        SequencerBase::Instance().stop();
+        try {
+            SequencerBase::Instance().stop();
+        }
+        catch (...) {
+            if (SequencerP::_topLauncher == this) {
+                SequencerP::_topLauncher = nullptr;
+            }
+            throw;
+        }
         SequencerP::_topLauncher = nullptr;
     }
 }

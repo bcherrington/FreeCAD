@@ -47,6 +47,8 @@
 #include <Base/PyWrapParseTupleAndKeywords.h>
 
 #include "PropertyStandard.h"
+#include "PropertyExpressionEngine.h"
+#include "private/RecomputeAdmission.h"
 #include "Application.h"
 #include "Document.h"
 #include "DocumentObject.h"
@@ -1622,13 +1624,117 @@ void PropertyString::setValue(const char* newValue)
         return;
     }
 
-    std::vector<std::pair<Property*, std::unique_ptr<Property>>> propChanges;
     std::string newValueStr = newValue;
     auto obj = freecad_cast<DocumentObject*>(getContainer());
+    auto* document = dynamic_cast<Document*>(getContainer());
+    std::optional<RecomputeDetail::MutationScope> labelMutation;
+    std::optional<RecomputeDetail::PropertySnapshot> labelReferences;
+    std::optional<RecomputeDetail::PropertySnapshot> expressionReferences;
+    RecomputeDetail::BindingPtr labelObject;
+    std::optional<RecomputeDetail::PropertySnapshot> proposalReceiver;
+    std::optional<RecomputeDetail::PropertySnapshot> refreshedLabelReferences;
+    std::optional<RecomputeDetail::PropertySnapshot> refreshedExpressionReferences;
+    std::optional<RecomputeDetail::PropertySnapshot> proposedProperties;
+    // Owned proposal copies retire before their source/endpoint scopes unwind.
+    std::vector<std::pair<Property*, std::unique_ptr<Property>>> propChanges;
+    std::vector<PropertyContainer*> destinationOwners;
+    if (obj && this == &obj->Label) {
+        labelObject = RecomputeDetail::Coordinator::instance().bindObject(obj);
+        if (labelObject->missing && labelObject->attachmentGeneration) {
+            throw RecomputeDetail::AdmissionRefusal("Cannot relabel a retired object");
+        }
+        labelMutation.emplace(RecomputeDetail::Coordinator::instance().mutation(*this));
+        labelReferences.emplace(PropertyLinkBase::snapshotLabelReferences(obj));
+        expressionReferences.emplace(PropertyExpressionContainer::snapshotForAdmission(nullptr, obj));
+    }
+    else if (document && this == &document->Label) {
+        labelMutation.emplace(RecomputeDetail::Coordinator::instance().mutation(*this));
+        expressionReferences.emplace(PropertyExpressionContainer::snapshotForAdmission(document));
+    }
+    auto requireReceiver = [&] {
+        if (!labelObject) {
+            return;
+        }
+        auto& admission = RecomputeDetail::Coordinator::instance();
+        // Registry identity precedes native inspection after every callback.
+        if (labelObject->attachmentGeneration && admission.resolveObject(labelObject) != obj) {
+            throw RecomputeDetail::AdmissionRefusal("Label callback retired its original object");
+        }
+        auto current = admission.snapshotProperties({this}, nullptr, nullptr, false);
+        if (current.properties().size() != 1 || getContainer() != obj) {
+            throw RecomputeDetail::AdmissionRefusal("Label callback retired or moved its original property");
+        }
+    };
     bool commit = false;
 
     if (obj && this == &obj->Label) {
+        requireReceiver();
         propChanges = obj->onProposedLabelChange(newValueStr);
+        auto& admission = RecomputeDetail::Coordinator::instance();
+        requireReceiver();
+        proposalReceiver.emplace(admission.snapshotProperties({this}, nullptr, nullptr, false));
+        // The proposal hook may add references or return a copy with entirely
+        // new endpoints. Refresh the cohort before any label/transaction commit.
+        refreshedLabelReferences.emplace(PropertyLinkBase::snapshotLabelReferences(obj));
+        refreshedExpressionReferences.emplace(
+            PropertyExpressionContainer::snapshotForAdmission(nullptr, obj));
+        std::vector<Property*> destinations;
+        destinations.reserve(propChanges.size());
+        for (const auto& change : propChanges) {
+            if (!change.first || !change.second) {
+                throw RecomputeDetail::AdmissionRefusal("Invalid property in label proposal");
+            }
+            destinations.push_back(change.first);
+        }
+        // Raw returned destinations are metadata lookup keys until the complete
+        // snapshot has pinned their storage and original source owners.
+        proposedProperties.emplace(admission.snapshotProperties(destinations));
+        for (auto* destination : destinations) {
+            const auto& pinned = proposedProperties->properties();
+            if (std::find(pinned.begin(), pinned.end(), destination) == pinned.end()) {
+                throw RecomputeDetail::AdmissionRefusal("Label proposal target is retired");
+            }
+        }
+        destinationOwners.reserve(destinations.size());
+        for (auto* destination : destinations) {
+            destinationOwners.push_back(destination->getContainer());
+        }
+        std::vector<DocumentObject*> endpoints;
+        for (auto* property : refreshedLabelReferences->properties()) {
+            if (auto* link = dynamic_cast<const PropertyLinkBase*>(property)) {
+                link->collectAdmissionTargets(endpoints);
+                link->preflightAdmissionStorage();
+            }
+        }
+        for (auto* property : refreshedExpressionReferences->properties()) {
+            if (auto* link = dynamic_cast<const PropertyLinkBase*>(property)) {
+                link->collectAdmissionTargets(endpoints);
+                link->preflightAdmissionStorage();
+            }
+        }
+        for (const auto& change : propChanges) {
+            if (auto* proposed = dynamic_cast<const PropertyLinkBase*>(change.second.get())) {
+                proposed->collectAdmissionTargets(endpoints);
+            }
+        }
+        labelMutation->include(endpoints);
+        for (auto* destination : destinations) {
+            if (auto* link = dynamic_cast<const PropertyLinkBase*>(destination)) {
+                link->preflightAdmissionStorage();
+            }
+        }
+        {
+            auto current = admission.snapshotProperties(destinations, nullptr, nullptr, false);
+            for (std::size_t index = 0; index < destinations.size(); ++index) {
+                auto* destination = destinations[index];
+                if (std::find(current.properties().begin(), current.properties().end(), destination)
+                        == current.properties().end()
+                    || destination->getContainer() != destinationOwners[index]) {
+                    throw RecomputeDetail::AdmissionRefusal("Label proposal retired or moved a target");
+                }
+            }
+        }
+        requireReceiver();
         if (_cValue == newValueStr) {
             // OnProposedLabelChange has changed the new value to what the current value is
             return;
@@ -1642,14 +1748,25 @@ void PropertyString::setValue(const char* newValue)
     }
 
     aboutToSetValue();
+    requireReceiver();
     _cValue = newValueStr;
     hasSetValue();
 
-    for (auto& change : propChanges) {
+    for (std::size_t index = 0; index < propChanges.size(); ++index) {
+        auto& change = propChanges[index];
+        auto current = RecomputeDetail::Coordinator::instance().snapshotProperties(
+            {change.first}, nullptr, nullptr, false);
+        if (current.properties().size() != 1 || change.first->getContainer() != destinationOwners[index]) {
+            throw RecomputeDetail::AdmissionRefusal("Label notification retired or moved a target");
+        }
         change.first->Paste(*change.second);
     }
 
     if (commit) {
+        auto& admission = RecomputeDetail::Coordinator::instance();
+        if (admission.resolveObject(labelObject) != obj) {
+            throw RecomputeDetail::AdmissionRefusal("Label notification retired its original object");
+        }
         obj->getDocument()->commitTransaction();
     }
 }

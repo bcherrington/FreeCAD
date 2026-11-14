@@ -26,7 +26,9 @@
 
 #pragma once
 
+#include <atomic>
 #include <cstdint>
+#include <map>
 #include <functional>
 #include <memory>
 #include <string>
@@ -34,6 +36,8 @@
 #include <QObject>
 
 #include <App/Application.h>
+
+class QTimer;
 
 namespace Gui
 {
@@ -95,7 +99,10 @@ public:
      * reports completion only; it cannot infer scoped model validity. Supply
      * the result hook for model/acceptance decisions. Only one hook executes.
      * Completion callbacks are always delivered
-     * on the GUI side after the controller has accepted the result generation.
+     * on the GUI side after native retirement. If the original target has
+     * retired before GUI delivery, a native success becomes a GUI
+     * TargetUnavailable result; the shared App outcome is unchanged. Model
+     * application is skipped when the original receiver is no longer live.
      */
     struct Callbacks
     {
@@ -148,10 +155,14 @@ public:
 Q_SIGNALS:
     /// Emitted whenever progress, queued, in-progress, or cancel state changes.
     void stateChanged();
-    /// Emitted when the latest accepted recompute generation has settled.
+    /// Emitted when accepted registrations retire and the latest application settles.
     void recomputeSettled();
 
 private:
+    struct Registration;
+    void drainRetiredRecomputes();
+    void updatePendingState();
+    void waitForRegistration(const std::shared_ptr<Registration>& registration);
     int effectiveSchedulerIntervalMs() const;
     void waitForOutstandingRecomputeToSettle();
     void finishRecompute(
@@ -176,7 +187,12 @@ private:
     int schedulerIntervalMs = 0;
     std::shared_ptr<App::RecomputeProgressHandle> recomputeProgress;
     std::uint64_t recomputeGeneration = 0;
-    std::uint64_t appliedRecomputeGeneration = 0;
+    std::uint64_t nextRecomputeGeneration = 0;
+    std::uint64_t applyEligibleGeneration = 0;
+    std::uint64_t settledRecomputeGeneration = 0;
+    std::map<std::uint64_t, std::shared_ptr<Registration>> registrations;
+    std::unique_ptr<QTimer> retirementTimer;
+    std::shared_ptr<std::atomic<bool>> controllerAlive = std::make_shared<std::atomic<bool>>(true);
     bool lastRecomputeSucceeded = true;
     bool recomputeInProgress = false;
     bool recomputeQueued = false;

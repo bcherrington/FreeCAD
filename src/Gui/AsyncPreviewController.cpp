@@ -29,6 +29,7 @@
 #include <QMetaObject>
 #include <QPointer>
 #include <QThread>
+#include <QTimer>
 
 #include <algorithm>
 #include <chrono>
@@ -40,6 +41,7 @@
 #include <App/Document.h>
 #include <App/DocumentObject.h>
 #include <App/MainThreadSignal.h>
+#include <App/private/RecomputeAdmission.h>
 #include <Gui/ActionFunction.h>
 #include <Gui/Inventor/Draggers/Gizmo.h>
 
@@ -54,41 +56,9 @@ bool recomputeResultWasCanceled(const App::RecomputeResult& result)
     return result.failure == App::RecomputeFailure::Canceled;
 }
 
-const char* recomputeFailureName(App::RecomputeFailure failure)
-{
-    switch (failure) {
-        case App::RecomputeFailure::None:
-            return "none";
-        case App::RecomputeFailure::Canceled:
-            return "canceled";
-        case App::RecomputeFailure::DependencyCycle:
-            return "dependency_cycle";
-        case App::RecomputeFailure::Exception:
-            return "exception";
-        case App::RecomputeFailure::ModelError:
-            return "model_error";
-        case App::RecomputeFailure::TargetUnavailable:
-            return "target_unavailable";
-    }
-
-    return "unknown";
-}
-
 bool hasStableDocumentIdentity(const App::RecomputeRequest& request)
 {
     return !request.documentName.empty();
-}
-
-std::string describeRecomputeRequest(const App::RecomputeRequest& request)
-{
-    std::ostringstream stream;
-    stream << "doc=" << (request.documentName.empty() ? "<none>" : request.documentName);
-    stream << " object="
-           << (request.documentObjectName.empty() ? "<none>" : request.documentObjectName);
-    stream << " recursive=" << request.recursive;
-    stream << " force=" << request.force;
-    stream << " options=" << request.options;
-    return stream.str();
 }
 
 void appendPreviewControllerDebugLog(
@@ -145,28 +115,24 @@ void pumpQueuedMainThreadDispatches()
     }
 }
 
-template<typename Predicate>
-void waitWithQueuedMainThreadDispatch(
-    std::unique_lock<std::mutex>& lock,
-    std::condition_variable& cv,
-    Predicate&& predicate
-)
-{
-    while (!predicate()) {
-        if (canPumpQueuedMainThreadDispatches()) {
-            lock.unlock();
-            pumpQueuedMainThreadDispatches();
-            lock.lock();
-            if (!predicate()) {
-                cv.wait_for(lock, std::chrono::milliseconds(1));
-            }
-            continue;
-        }
-
-        cv.wait(lock, std::forward<Predicate>(predicate));
-    }
-}
 }  // namespace
+
+struct AsyncPreviewController::Registration
+{
+    std::uint64_t generation {};
+    App::RecomputeRequest request;
+    App::RecomputeDetail::RetirementPtr retirement
+        = std::make_shared<App::RecomputeDetail::Retirement>();
+    std::mutex mutex;
+    std::condition_variable changed;
+    bool submitted {false};        // GUI owner only
+    bool cancelRequested {false};  // GUI owner only
+    bool resultReady {false};
+    bool success {true};
+    bool canceled {false};
+    App::RecomputeFailure failure {App::RecomputeFailure::None};
+    std::string message;
+};
 
 AsyncPreviewController::AsyncPreviewController(Callbacks callbacks, QObject* parent)
     : QObject(parent)
@@ -175,6 +141,13 @@ AsyncPreviewController::AsyncPreviewController(Callbacks callbacks, QObject* par
 
 AsyncPreviewController::~AsyncPreviewController()
 {
+    controllerAlive->store(false);
+    if (retirementTimer) {
+        retirementTimer->stop();
+    }
+    for (const auto& [generation, registration] : registrations) {
+        registration->changed.notify_all();
+    }
     if (recomputeScheduler) {
         recomputeScheduler->stop();
     }
@@ -262,45 +235,49 @@ void AsyncPreviewController::flushPendingRecompute()
 void AsyncPreviewController::stopPendingRecompute()
 {
     stopScheduledRecompute();
-
-    if (!recomputeProgress || !callbacks.makeRequest) {
+    const auto alive = controllerAlive;
+    QPointer<AsyncPreviewController> guard(this);
+    std::vector<std::shared_ptr<Registration>> canceled;
+    for (const auto& [generation, registration] : registrations) {
+        if (!registration->cancelRequested) {
+            registration->cancelRequested = true;
+            canceled.push_back(registration);
+        }
+    }
+    if (canceled.empty()) {
         return;
     }
-
-    App::RecomputeRequest request = callbacks.makeRequest();
-    if (!hasStableDocumentIdentity(request)) {
-        return;
+    const auto latest = recomputeGeneration;
+    std::uint64_t activeCancellation {};
+    for (const auto& registration : canceled) {
+        if (!registration->submitted) {
+            {
+                std::lock_guard lock(registration->mutex);
+                registration->resultReady = true;
+                registration->success = false;
+                registration->canceled = true;
+                registration->failure = App::RecomputeFailure::Canceled;
+            }
+            registration->retirement->markRetired();
+            registration->changed.notify_all();
+            continue;
+        }
+        const auto result = App::GetApplication().cancelRecomputeRequest(registration->request);
+        if (!alive->load() || !guard) {
+            return;
+        }
+        if (result.canceledInProgress && !activeCancellation) {
+            activeCancellation = registration->generation;
+        }
     }
-
-    appendPreviewControllerDebugLog(this, "stop_pending_begin", describeRecomputeRequest(request));
-
-    const App::RecomputeCancellationResult cancellation
-        = App::GetApplication().cancelRecomputeRequest(request);
-
-    {
-        std::ostringstream details;
-        details << describeRecomputeRequest(request);
-        details << " canceled_in_progress=" << cancellation.canceledInProgress;
-        details << " removed_queued=" << cancellation.removedQueued;
-        appendPreviewControllerDebugLog(this, "stop_pending_result", details.str());
+    if (recomputeGeneration == latest && activeCancellation) {
+        // The active native cancellation retains its native exception metadata;
+        // removed reruns retire too, without rewinding the accepted serial.
+        applyEligibleGeneration = activeCancellation;
     }
-
-    if (cancellation.canceledInProgress) {
-        recomputeGeneration = appliedRecomputeGeneration + 1;
-        recomputeQueued = false;
-        recomputeCancelRequested = true;
-        notifyStateChanged();
-        return;
-    }
-
-    if (cancellation.removedQueued) {
-        recomputeGeneration = appliedRecomputeGeneration;
-        recomputeInProgress = false;
-        recomputeQueued = false;
-        recomputeCancelRequested = false;
-        detachRecomputeProgressObserver();
-        recomputeProgress.reset();
-        resetRecomputeProgressDisplayState();
+    updatePendingState();
+    drainRetiredRecomputes();
+    if (alive->load() && guard) {
         notifyStateChanged();
     }
 }
@@ -310,162 +287,244 @@ void AsyncPreviewController::requestRecompute(bool waitForCompletion)
     if (!callbacks.makeRequest || (!callbacks.runSync && !callbacks.runSyncWithResult)) {
         return;
     }
-
-    QPointer<AsyncPreviewController> lifetime(this);
+    const auto alive = controllerAlive;
+    QPointer<AsyncPreviewController> guard(this);
+    const auto generation = ++nextRecomputeGeneration;
     const auto makeRequest = callbacks.makeRequest;
     App::RecomputeRequest request = makeRequest();
-    if (!lifetime) {
+    if (!alive->load() || !guard || !hasStableDocumentIdentity(request)) {
         return;
     }
-    if (!hasStableDocumentIdentity(request)) {
+    // This controller owns its completion channel. Retiring any ignored factory
+    // callback may itself reenter; no member is used until lifetime is checked.
+    request.callback = {};
+    if (!alive->load() || !guard) {
         return;
     }
-
     const bool asyncEnabled = App::GetApplication().isAsyncRecomputeEnabled();
-    const bool canRunOnWorker = asyncEnabled
-        && App::GetApplication().canRecomputeRequestOnWorker(request);
-    if (!lifetime) {
+    const auto route = App::GetApplication().classifyRecomputeRequest(request, asyncEnabled);
+    if (!alive->load() || !guard) {
         return;
     }
-    {
-        std::ostringstream details;
-        details << describeRecomputeRequest(request);
-        details << " wait=" << waitForCompletion;
-        details << " async_enabled=" << asyncEnabled;
-        details << " worker=" << canRunOnWorker;
-        details << " generation=" << (recomputeGeneration + 1);
-        details << " had_outstanding=" << (recomputeGeneration != appliedRecomputeGeneration);
-        appendPreviewControllerDebugLog(this, "request_begin", details.str());
+    const bool workerRoute = asyncEnabled
+        && route != App::RecomputeDetail::RouteDisposition::KnownUnsafe;
+    if (waitForCompletion
+        && (workerRoute || route == App::RecomputeDetail::RouteDisposition::Parked)) {
+        App::RecomputeDetail::throwIfBlockingRecomputeWaitIsCyclic();
     }
-
-    if (!canRunOnWorker) {
+    auto registration = std::make_shared<Registration>();
+    registration->generation = generation;
+    if (!workerRoute) {
         App::ScopedRecomputeOptions optionsScope(request.options);
-        QPointer<AsyncPreviewController> guard(this);
+        const auto typed = callbacks.runSyncWithResult;
+        const auto legacy = callbacks.runSync;
         App::RecomputeResult result;
-        const auto runSyncWithResult = callbacks.runSyncWithResult;
-        const auto runSync = callbacks.runSync;
-        if (runSyncWithResult) {
-            result = runSyncWithResult();
+        if (route == App::RecomputeDetail::RouteDisposition::Parked) {
+            result.success = false;
+            result.failure = App::RecomputeFailure::Exception;
+            result.exception = std::make_unique<App::RecomputeDetail::AdmissionRefusal>(
+                "Recompute is busy; asynchronous execution is disabled"
+            );
+        }
+        else if (route == App::RecomputeDetail::RouteDisposition::Unavailable) {
+            result = App::GetApplication().recomputeRequestSynchronously(request);
+        }
+        else if (typed) {
+            result = typed();
         }
         else {
-            runSync();
+            legacy();
         }
-        if (!guard) {
+        if (!alive->load() || !guard) {
             return;
         }
-
-        const auto generation = ++recomputeGeneration;
-        appendPreviewControllerDebugLog(this, "request_sync_done", describeRecomputeRequest(request));
-        finishRecompute(
-            generation,
-            result.success,
-            recomputeResultWasCanceled(result),
-            result.failure,
-            result.exception ? result.exception->what() : std::string()
-        );
+        registration->request = request;
+        registration->resultReady = true;
+        registration->success = result.success;
+        registration->canceled = recomputeResultWasCanceled(result);
+        registration->failure = result.failure;
+        registration->message = result.exception ? result.exception->what() : std::string();
+        registration->retirement->markRetired();
+        registrations.emplace(generation, registration);
+        if (generation > recomputeGeneration) {
+            recomputeGeneration = generation;
+            applyEligibleGeneration = generation;
+        }
+        drainRetiredRecomputes();
         return;
     }
 
-    const bool hadOutstanding = recomputeGeneration != appliedRecomputeGeneration;
-    const auto generation = ++recomputeGeneration;
-    if (!recomputeProgress || !hadOutstanding) {
+    const bool hadOutstanding = hasOutstandingRecompute();
+    if (!recomputeProgress || !hadOutstanding || recomputeProgress->wasCanceled()
+        || recomputeCancelRequested) {
         detachRecomputeProgressObserver();
         recomputeProgress = std::make_shared<App::RecomputeProgressHandle>();
         resetRecomputeProgressDisplayState();
     }
-
-    attachRecomputeProgressObserver(generation);
-    if (!lifetime) {
-        return;
-    }
     request.progress = recomputeProgress;
-
-    if (!waitForCompletion) {
-        recomputeInProgress = true;
-        recomputeQueued = hadOutstanding;
-        recomputeCancelRequested = false;
-        notifyStateChanged();
-        if (!lifetime) {
+    registration->request = request;
+    registrations.emplace(generation, registration);
+    if (generation > recomputeGeneration) {
+        recomputeGeneration = generation;
+        applyEligibleGeneration = generation;
+    }
+    updatePendingState();
+    try {
+        if (generation == applyEligibleGeneration) {
+            attachRecomputeProgressObserver(generation);
+        }
+        if (!alive->load() || !guard) {
             return;
         }
-
-        QPointer<AsyncPreviewController> guard(this);
-        request.callback = [guard, generation](App::RecomputeRequest&, App::RecomputeResult& result) {
-            const bool success = result.success;
-            const bool canceled = recomputeResultWasCanceled(result);
-            const auto failure = result.failure;
-            const std::string message = result.exception ? result.exception->what() : std::string();
-
+        if (registration->cancelRequested || !registrations.contains(generation)) {
+            drainRetiredRecomputes();
+            return;
+        }
+        notifyStateChanged();
+        if (!alive->load() || !guard) {
+            return;
+        }
+        if (registration->cancelRequested || !registrations.contains(generation)) {
+            drainRetiredRecomputes();
+            return;
+        }
+        request.callback = [guard,
+                            alive,
+                            registration](App::RecomputeRequest&, App::RecomputeResult& result) {
             {
-                std::ostringstream details;
-                details << "generation=" << generation;
-                details << " success=" << success;
-                details << " canceled=" << canceled;
-                details << " failure=" << recomputeFailureName(failure);
-                if (!message.empty()) {
-                    details << " message=" << message;
-                }
-                appendPreviewControllerDebugLog(guard, "request_callback", details.str());
+                std::lock_guard lock(registration->mutex);
+                registration->resultReady = true;
+                registration->success = result.success;
+                registration->canceled = recomputeResultWasCanceled(result);
+                registration->failure = result.failure;
+                registration->message = result.exception ? result.exception->what() : std::string();
             }
-
-            queueOnMainThread([guard, generation, success, canceled, failure, message]() {
-                if (guard) {
-                    guard->finishRecompute(generation, success, canceled, failure, message);
+            registration->changed.notify_all();
+            queueOnMainThread([guard, alive] {
+                if (alive->load() && guard) {
+                    guard->drainRetiredRecomputes();
                 }
             });
         };
-
-        App::GetApplication().queueRecomputeRequest(std::move(request));
+        registration->submitted = true;
+        App::GetApplication().queueRecomputeRequestWithRetirement(
+            std::move(request),
+            registration->retirement
+        );
+    }
+    catch (...) {
+        if (alive->load() && guard) {
+            registrations.erase(generation);
+            updatePendingState();
+            lastRecomputeSucceeded = false;
+        }
+        throw;
+    }
+    if (!alive->load() || !guard) {
         return;
     }
+    if (waitForCompletion) {
+        waitForRegistration(registration);
+        if (alive->load() && guard) {
+            waitForOutstandingRecomputeToSettle();
+        }
+    }
+    else {
+        drainRetiredRecomputes();
+    }
+}
 
-    struct WaitState
-    {
-        std::mutex mutex;
-        std::condition_variable cv;
-        bool done = false;
-        bool success = true;
-        bool canceled = false;
-        App::RecomputeFailure failure = App::RecomputeFailure::None;
+void AsyncPreviewController::updatePendingState()
+{
+    recomputeInProgress = !registrations.empty();
+    const auto eligible = std::ranges::count_if(registrations, [](const auto& value) {
+        return !value.second->cancelRequested;
+    });
+    recomputeQueued = eligible > 1;
+    recomputeCancelRequested = std::ranges::any_of(registrations, [](const auto& value) {
+        return value.second->cancelRequested;
+    });
+}
+
+void AsyncPreviewController::drainRetiredRecomputes()
+{
+    const auto alive = controllerAlive;
+    QPointer<AsyncPreviewController> guard(this);
+    std::vector<std::shared_ptr<Registration>> snapshot;
+    for (const auto& [generation, registration] : registrations) {
+        snapshot.push_back(registration);
+    }
+    for (const auto& registration : snapshot) {
+        if (!registration->retirement->retired()) {
+            continue;
+        }
+        bool ready;
+        bool success;
+        bool canceled;
+        App::RecomputeFailure failure;
         std::string message;
-    };
-
-    auto waitState = std::make_shared<WaitState>();
-    request.callback = [waitState](App::RecomputeRequest&, App::RecomputeResult& result) {
         {
-            std::lock_guard<std::mutex> lock(waitState->mutex);
-            waitState->done = true;
-            waitState->success = result.success;
-            waitState->canceled = recomputeResultWasCanceled(result);
-            waitState->failure = result.failure;
-            if (result.exception) {
-                waitState->message = result.exception->what();
+            std::lock_guard lock(registration->mutex);
+            ready = registration->resultReady;
+            success = registration->success;
+            canceled = registration->canceled;
+            failure = registration->failure;
+            message = registration->message;
+        }
+        if (ready) {
+            finishRecompute(registration->generation, success, canceled, failure, std::move(message));
+            if (!alive->load() || !guard) {
+                return;
             }
         }
-        waitState->cv.notify_one();
-    };
-
-    App::GetApplication().queueRecomputeRequest(std::move(request));
-
-    std::unique_lock<std::mutex> lock(waitState->mutex);
-    waitWithQueuedMainThreadDispatch(lock, waitState->cv, [&waitState]() { return waitState->done; });
-    lock.unlock();
-    if (!lifetime) {
-        return;
     }
+    // Completion callbacks may have inserted and partially drained new entries.
+    // Inspect the live ledger: a stale snapshot must not cancel their only wakeup.
+    const bool readyPending = std::ranges::any_of(registrations, [](const auto& value) {
+        std::lock_guard lock(value.second->mutex);
+        return value.second->resultReady;
+    });
+    if (readyPending) {
+        if (!retirementTimer) {
+            retirementTimer = std::make_unique<QTimer>(this);
+            retirementTimer->setSingleShot(true);
+            retirementTimer->setInterval(10);
+            QObject::connect(retirementTimer.get(), &QTimer::timeout, this, [this] {
+                drainRetiredRecomputes();
+            });
+        }
+        if (!retirementTimer->isActive()) {
+            retirementTimer->start();
+        }
+    }
+    else if (retirementTimer) {
+        retirementTimer->stop();
+    }
+}
 
-    finishRecompute(
-        generation,
-        waitState->success,
-        waitState->canceled,
-        waitState->failure,
-        std::move(waitState->message)
-    );
+void AsyncPreviewController::waitForRegistration(const std::shared_ptr<Registration>& registration)
+{
+    App::RecomputeDetail::throwIfBlockingRecomputeWaitIsCyclic();
+    const auto alive = controllerAlive;
+    QPointer<AsyncPreviewController> guard(this);
+    while (alive->load() && !registration->retirement->retired()) {
+        if (canPumpQueuedMainThreadDispatches()) {
+            pumpQueuedMainThreadDispatches();
+        }
+        if (!alive->load()) {
+            return;
+        }
+        std::unique_lock lock(registration->mutex);
+        registration->changed.wait_for(lock, std::chrono::milliseconds(1));
+    }
+    if (alive->load() && guard) {
+        drainRetiredRecomputes();
+    }
 }
 
 bool AsyncPreviewController::hasOutstandingRecompute() const
 {
-    return recomputeGeneration != appliedRecomputeGeneration;
+    return !registrations.empty();
 }
 
 bool AsyncPreviewController::isInProgress() const
@@ -516,93 +575,76 @@ void AsyncPreviewController::finishRecompute(
     std::string message
 )
 {
-    if (generation != recomputeGeneration) {
-        recomputeQueued = generation + 1 < recomputeGeneration;
-        recomputeInProgress = true;
-        {
-            std::ostringstream details;
-            details << "generation=" << generation;
-            details << " current_generation=" << recomputeGeneration;
-            details << " success=" << success;
-            details << " canceled=" << canceled;
-            details << " failure=" << recomputeFailureName(failure);
-            appendPreviewControllerDebugLog(this, "finish_superseded", details.str());
-        }
-        notifyStateChanged();
+    const auto found = registrations.find(generation);
+    if (found == registrations.end()) {
         return;
     }
-
-    appliedRecomputeGeneration = generation;
-    lastRecomputeSucceeded = success;
-    recomputeInProgress = false;
-    recomputeQueued = false;
-    recomputeCancelRequested = false;
-    detachRecomputeProgressObserver();
-    recomputeProgress.reset();
-    resetRecomputeProgressDisplayState();
-
+    const auto registration = found->second;
+    registrations.erase(found);
+    const auto targetAvailable = [&registration] {
+        const auto& request = registration->request;
+        return request.documentObjectName.empty() ? request.resolveDocument() != nullptr
+                                                  : request.resolveDocumentObject() != nullptr;
+    };
+    const auto alive = controllerAlive;
     QPointer<AsyncPreviewController> guard(this);
-    const auto onCompleted = callbacks.onCompleted;
-    if (onCompleted) {
-        onCompleted(success, canceled, failure, message);
-    }
-    if (!guard) {
-        return;
-    }
-    const auto onAppliedResult = callbacks.onAppliedResult;
-    if (onAppliedResult) {
-        onAppliedResult(success, canceled);
-    }
-    if (!guard) {
-        return;
-    }
-    {
-        std::ostringstream details;
-        details << "generation=" << generation;
-        details << " success=" << success;
-        details << " canceled=" << canceled;
-        details << " failure=" << recomputeFailureName(failure);
-        if (!message.empty()) {
-            details << " message=" << message;
+    updatePendingState();
+    const bool apply = generation == applyEligibleGeneration;
+    if (apply) {
+        // Native completion and the current GUI receiver are separate facts.
+        // Keep the App subscribers' shared outcome unchanged.
+        if (success && !targetAvailable()) {
+            success = false;
+            failure = App::RecomputeFailure::TargetUnavailable;
+            message = "Recompute target was retired before GUI application";
         }
-        appendPreviewControllerDebugLog(this, "finish_done", details.str());
+        lastRecomputeSucceeded = success;
+        detachRecomputeProgressObserver();
+        recomputeProgress.reset();
+        resetRecomputeProgressDisplayState();
+        const auto onCompleted = callbacks.onCompleted;
+        if (onCompleted) {
+            onCompleted(success, canceled, failure, message);
+        }
+        if (!alive->load() || !guard) {
+            return;
+        }
+        if (generation == applyEligibleGeneration) {
+            if (!targetAvailable()) {
+                lastRecomputeSucceeded = false;
+            }
+            else {
+                const auto onAppliedResult = callbacks.onAppliedResult;
+                if (onAppliedResult) {
+                    onAppliedResult(success, canceled);
+                }
+            }
+        }
+        if (!alive->load() || !guard) {
+            return;
+        }
     }
     notifyStateChanged();
-    if (guard) {
+    if (alive->load() && guard && registrations.empty()
+        && settledRecomputeGeneration != recomputeGeneration) {
+        settledRecomputeGeneration = recomputeGeneration;
         Q_EMIT recomputeSettled();
     }
 }
 
 void AsyncPreviewController::waitForOutstandingRecomputeToSettle()
 {
-    if (!hasOutstandingRecompute()) {
-        return;
+    App::RecomputeDetail::throwIfBlockingRecomputeWaitIsCyclic();
+    const auto alive = controllerAlive;
+    QPointer<AsyncPreviewController> guard(this);
+    while (alive->load() && guard) {
+        drainRetiredRecomputes();
+        if (!alive->load() || !guard || registrations.empty()) {
+            return;
+        }
+        const auto registration = registrations.begin()->second;
+        waitForRegistration(registration);
     }
-
-    struct WaitState
-    {
-        std::mutex mutex;
-        std::condition_variable cv;
-        bool done = false;
-    };
-
-    auto waitState = std::make_shared<WaitState>();
-    QMetaObject::Connection connection
-        = QObject::connect(this, &AsyncPreviewController::recomputeSettled, this, [waitState]() {
-              {
-                  std::lock_guard<std::mutex> lock(waitState->mutex);
-                  waitState->done = true;
-              }
-              waitState->cv.notify_one();
-          });
-
-    std::unique_lock<std::mutex> lock(waitState->mutex);
-    waitWithQueuedMainThreadDispatch(lock, waitState->cv, [this, &waitState]() {
-        return waitState->done || !hasOutstandingRecompute();
-    });
-    lock.unlock();
-
-    QObject::disconnect(connection);
 }
 
 void AsyncPreviewController::attachRecomputeProgressObserver(std::uint64_t generation)
@@ -611,22 +653,24 @@ void AsyncPreviewController::attachRecomputeProgressObserver(std::uint64_t gener
         resetRecomputeProgressDisplayState();
         return;
     }
-
-    auto* progressHandle = recomputeProgress.get();
+    const auto alive = controllerAlive;
+    const auto progress = recomputeProgress;
+    auto* progressHandle = progress.get();
     QPointer<AsyncPreviewController> guard(this);
-    recomputeProgress->setDisplayObserver(
-        [guard, progressHandle, generation](const App::RecomputeProgressDisplayState& state) {
-            queueOnMainThread([guard, progressHandle, generation, state]() {
-                if (!guard || guard->recomputeProgress.get() != progressHandle
+    progress->setDisplayObserver(
+        [guard, alive, progressHandle, generation](const App::RecomputeProgressDisplayState& state) {
+            queueOnMainThread([guard, alive, progressHandle, generation, state]() {
+                if (!alive->load() || !guard || guard->recomputeProgress.get() != progressHandle
                     || guard->recomputeGeneration != generation) {
                     return;
                 }
-
                 guard->setRecomputeProgressDisplayState(generation, state);
             });
         }
     );
-    setRecomputeProgressDisplayState(generation, recomputeProgress->displayState());
+    if (alive->load() && guard && recomputeProgress == progress && recomputeGeneration == generation) {
+        setRecomputeProgressDisplayState(generation, progress->displayState());
+    }
 }
 
 void AsyncPreviewController::detachRecomputeProgressObserver()

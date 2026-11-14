@@ -11,7 +11,12 @@
 #include <mutex>
 #include <string>
 #include <thread>
+#include <future>
 
+#include <boost/scope_exit.hpp>
+
+#include <QCoreApplication>
+#include <QEvent>
 #include <QSignalSpy>
 #include <QHBoxLayout>
 #include <QLabel>
@@ -24,6 +29,7 @@
 #include <App/Document.h>
 #include <App/FeatureTest.h>
 #include <App/MainThreadSignal.h>
+#include <App/private/RecomputeAdmission.h>
 #include <Base/Parameter.h>
 
 #include <Gui/AsyncRecomputeProgressDialog.h>
@@ -49,6 +55,13 @@ public:
         return App::FeatureTest::execute();
     }
 
+    bool canRecomputeOnWorker() const override
+    {
+        ++eligibilityCalls;
+        return App::FeatureTest::canRecomputeOnWorker();
+    }
+
+    mutable std::atomic<int> eligibilityCalls {0};
     const std::thread::id ownerThread = std::this_thread::get_id();
     std::atomic<int> executionCount {0};
     std::atomic<int> observedOptions {0};
@@ -170,6 +183,9 @@ public:
 private Q_SLOTS:
     void init()  // NOLINT
     {
+        if (PartDesign::PreviewOutcomeFeature::getClassTypeId().isBad()) {
+            PartDesign::PreviewOutcomeFeature::init();
+        }
         params = App::GetApplication().GetParameterGroupByPath(AsyncPrefsPath);
         const auto boolValues = params->GetBoolMap();
         hadAsyncEnabled = std::any_of(boolValues.begin(), boolValues.end(), [](const auto& value) {
@@ -226,12 +242,18 @@ private Q_SLOTS:
 
     void cleanup()  // NOLINT
     {
-        App::MainThreadSignalConfig::setHooks(nullptr, nullptr, nullptr);
-
         if (controller) {
             controller->stopPendingRecompute();
             App::FeatureTestAsyncBlocker::releaseBlocker();
-            QTRY_VERIFY_WITH_TIMEOUT(!controller->hasOutstandingRecompute(), 2000);
+            auto recomputeSettled = [&] {
+                if (App::MainThreadSignalConfig::hasHooks()
+                    && App::MainThreadSignalConfig::isMainThread()
+                    && App::MainThreadSignalConfig::canPumpEvents()) {
+                    App::MainThreadSignalConfig::pumpEvents();
+                }
+                return !controller || !controller->hasOutstandingRecompute();
+            };
+            QTRY_VERIFY_WITH_TIMEOUT(recomputeSettled(), 2000);
             controller.reset();
         }
         else {
@@ -243,6 +265,10 @@ private Q_SLOTS:
         if (!docName.empty() && App::GetApplication().getDocument(docName.c_str())) {
             App::GetApplication().closeDocument(docName.c_str());
         }
+
+        // A worker may still be returning through the fake synchronous dispatcher.
+        // Keep its owner pump installed until document close has drained it.
+        App::MainThreadSignalConfig::setHooks(nullptr, nullptr, nullptr);
 
         doc = nullptr;
         docName.clear();
@@ -269,9 +295,6 @@ private Q_SLOTS:
     {
         QFETCH(bool, asyncEnabled);
         params->SetBool("EnableAsyncRecompute", asyncEnabled);
-        if (PartDesign::PreviewOutcomeFeature::getClassTypeId().isBad()) {
-            PartDesign::PreviewOutcomeFeature::init();
-        }
         auto* feature = doc->addObject<PartDesign::PreviewOutcomeFeature>("OutcomeFeature");
         QVERIFY(feature != nullptr);
         QVERIFY(feature->getPropertyByName("Shape") == nullptr);
@@ -382,9 +405,6 @@ private Q_SLOTS:
     void legacyVoidFallbackReportsCompletionOnly()  // NOLINT
     {
         params->SetBool("EnableAsyncRecompute", false);
-        if (PartDesign::PreviewOutcomeFeature::getClassTypeId().isBad()) {
-            PartDesign::PreviewOutcomeFeature::init();
-        }
         auto* feature = doc->addObject<PartDesign::PreviewOutcomeFeature>("LegacyOutcome");
         QVERIFY(feature != nullptr);
         feature->Bool.setValue(false);
@@ -531,9 +551,6 @@ private Q_SLOTS:
         QFETCH(bool, documentRequest);
         QFETCH(bool, typed);
         params->SetBool("EnableAsyncRecompute", false);
-        if (PartDesign::PreviewOutcomeFeature::getClassTypeId().isBad()) {
-            PartDesign::PreviewOutcomeFeature::init();
-        }
         auto* feature = doc->addObject<PartDesign::PreviewOutcomeFeature>("ProgressOutcome");
         feature->Bool.setValue(false);
         feature->touch();
@@ -601,6 +618,523 @@ private Q_SLOTS:
         );
         QVERIFY(!outcome.canceled);
         QCOMPARE(App::currentRecomputeOptions(), inherited);
+    }
+
+    void subscriberRetirementPreventsGuiApplication()  // NOLINT
+    {
+        auto* feature = doc->addObject<PartDesign::PreviewOutcomeFeature>("RetireBeforeGui");
+        feature->Bool.setValue(true);
+        const std::string featureName = feature->getNameInDocument();
+        std::atomic<bool> nativeBefore {false};
+        std::atomic<bool> nativeAfter {false};
+        std::atomic<bool> canceledAfter {true};
+        int completed = 0;
+        int applied = 0;
+        App::RecomputeFailure guiFailure = App::RecomputeFailure::None;
+        Gui::AsyncPreviewController::Callbacks hooks;
+        hooks.makeRequest = [feature] {
+            return App::RecomputeRequest::fromDocumentObject(*feature);
+        };
+        hooks.runSyncWithResult = [feature] {
+            return Gui::recomputeDocumentObjectWithResult(feature);
+        };
+        hooks.onCompleted = [&](bool success, bool, App::RecomputeFailure failure, const std::string&) {
+            ++completed;
+            QVERIFY(!success);
+            guiFailure = failure;
+        };
+        hooks.onAppliedResult = [&](bool, bool) {
+            ++applied;
+        };
+        Gui::AsyncPreviewController observed(std::move(hooks));
+        blocker->touch();
+        App::GetApplication().queueRecomputeRequest(
+            App::RecomputeRequest::fromDocumentObject(*blocker)
+        );
+        QVERIFY(App::FeatureTestAsyncBlocker::waitUntilStarted(2s));
+        observed.requestRecompute(false);
+        auto removal = App::RecomputeRequest::fromDocumentObject(*feature);
+        removal.callback =
+            [&, owner = doc, featureName](App::RecomputeRequest&, App::RecomputeResult& result) {
+                nativeBefore.store(result.success);
+                owner->removeObject(featureName.c_str());
+            };
+        App::GetApplication().queueRecomputeRequest(std::move(removal));
+        auto later = App::RecomputeRequest::fromDocumentObject(*feature);
+        later.callback = [&](App::RecomputeRequest& request, App::RecomputeResult& result) {
+            nativeAfter.store(result.success);
+            canceledAfter.store(request.progress && request.progress->wasCanceled());
+        };
+        App::GetApplication().queueRecomputeRequest(std::move(later));
+        App::FeatureTestAsyncBlocker::releaseBlocker();
+        QTRY_VERIFY_WITH_TIMEOUT(!observed.hasOutstandingRecompute(), 2000);
+        QCOMPARE(completed, 1);
+        QCOMPARE(applied, 0);
+        QVERIFY(nativeBefore.load());
+        QVERIFY(nativeAfter.load());
+        QVERIFY(!canceledAfter.load());
+        QVERIFY(guiFailure == App::RecomputeFailure::TargetUnavailable);
+        QVERIFY(!observed.didLastRecomputeSucceed());
+        QTRY_VERIFY_WITH_TIMEOUT(doc->getObject(featureName.c_str()) == nullptr, 2000);
+    }
+
+    void completionRetirementPreventsFollowingModelApplication()  // NOLINT
+    {
+        params->SetBool("EnableAsyncRecompute", false);
+        auto* feature = doc->addObject<PartDesign::PreviewOutcomeFeature>("RetireInCompletion");
+        feature->Bool.setValue(true);
+        const std::string featureName = feature->getNameInDocument();
+        int completed = 0;
+        int applied = 0;
+        Gui::AsyncPreviewController::Callbacks hooks;
+        hooks.makeRequest = [feature] {
+            return App::RecomputeRequest::fromDocumentObject(*feature);
+        };
+        hooks.runSyncWithResult = [feature] {
+            return Gui::recomputeDocumentObjectWithResult(feature);
+        };
+        hooks.onCompleted = [&](bool success, bool, App::RecomputeFailure failure, const std::string&) {
+            ++completed;
+            QVERIFY(success);
+            QVERIFY(failure == App::RecomputeFailure::None);
+            doc->removeObject(featureName.c_str());
+        };
+        hooks.onAppliedResult = [&](bool, bool) {
+            ++applied;
+        };
+        Gui::AsyncPreviewController observed(std::move(hooks));
+        observed.requestRecompute(true);
+        QCOMPARE(completed, 1);
+        QCOMPARE(applied, 0);
+        QVERIFY(!observed.didLastRecomputeSucceed());
+        QVERIFY(!observed.hasOutstandingRecompute());
+    }
+
+    void disabledAsyncDoesNotInvokeWorkerEligibility()  // NOLINT
+    {
+        params->SetBool("EnableAsyncRecompute", false);
+        auto* feature = doc->addObject<PartDesign::PreviewOutcomeFeature>("OwnerWithoutWorkerProbe");
+        feature->Bool.setValue(true);
+        int fallback = 0;
+        Gui::AsyncPreviewController::Callbacks hooks;
+        hooks.makeRequest = [feature] {
+            return App::RecomputeRequest::fromDocumentObject(*feature);
+        };
+        hooks.runSyncWithResult = [&] {
+            ++fallback;
+            return Gui::recomputeDocumentObjectWithResult(feature);
+        };
+        Gui::AsyncPreviewController observed(std::move(hooks));
+        observed.requestRecompute(false);
+        QCOMPARE(fallback, 1);
+        QCOMPARE(feature->executionCount.load(), 1);
+        QCOMPARE(feature->eligibilityCalls.load(), 0);
+        QVERIFY(feature->executedOnOwnerThread.load());
+        QVERIFY(observed.didLastRecomputeSucceed());
+        QVERIFY(!observed.hasOutstandingRecompute());
+    }
+
+    void completionReentryKeepsNewRetirementWakeup()  // NOLINT
+    {
+        auto* feature = doc->addObject<PartDesign::PreviewOutcomeFeature>("ReentrantRetirement");
+        feature->Bool.setValue(true);
+        std::unique_ptr<Gui::AsyncPreviewController> observed;
+        auto entered = std::make_shared<std::promise<void>>();
+        auto enteredFuture = entered->get_future();
+        auto release = std::make_shared<std::promise<void>>();
+        auto proceed = release->get_future().share();
+        int completed = 0;
+        bool nestedDrain = false;
+        bool released = false;
+        Gui::AsyncPreviewController::Callbacks hooks;
+        hooks.makeRequest = [feature] {
+            return App::RecomputeRequest::fromDocumentObject(*feature);
+        };
+        hooks.runSyncWithResult = [feature] {
+            return Gui::recomputeDocumentObjectWithResult(feature);
+        };
+        hooks.onCompleted = [&](bool, bool, App::RecomputeFailure, const std::string&) {
+            if (++completed != 1) {
+                return;
+            }
+            feature->touch();
+            blocker->touch();
+            App::GetApplication().queueRecomputeRequest(
+                App::RecomputeRequest::fromDocumentObject(*blocker)
+            );
+            QVERIFY(App::FeatureTestAsyncBlocker::waitUntilStarted(2s));
+            observed->requestRecompute(false);
+            auto second = App::RecomputeRequest::fromDocumentObject(*feature);
+            second.callback = [entered, proceed](App::RecomputeRequest&, App::RecomputeResult&) {
+                entered->set_value();
+                proceed.wait();
+            };
+            App::GetApplication().queueRecomputeRequest(std::move(second));
+            App::FeatureTestAsyncBlocker::releaseBlocker();
+            QVERIFY(enteredFuture.wait_for(2s) == std::future_status::ready);
+            QCoreApplication::sendPostedEvents(nullptr, QEvent::MetaCall);
+            nestedDrain = true;
+        };
+        observed = std::make_unique<Gui::AsyncPreviewController>(std::move(hooks));
+        BOOST_SCOPE_EXIT_ALL(&)
+        {
+            if (!released) {
+                release->set_value();
+            }
+        };
+        observed->requestRecompute(false);
+        QTRY_VERIFY_WITH_TIMEOUT(nestedDrain, 2000);
+        QCOMPARE(completed, 1);
+        QVERIFY(observed->hasOutstandingRecompute());
+        released = true;
+        release->set_value();
+        QTRY_VERIFY_WITH_TIMEOUT(!observed->hasOutstandingRecompute(), 2000);
+        QCOMPARE(completed, 2);
+        QCOMPARE(feature->executionCount.load(), 2);
+    }
+
+    void resultDoesNotApplyUntilSubscriberCleanupRetires()  // NOLINT
+    {
+        auto* feature = doc->addObject<PartDesign::PreviewOutcomeFeature>("TerminalRetirement");
+        feature->Bool.setValue(true);
+        int completed = 0;
+        bool nativeQuiescent = false;
+        Gui::AsyncPreviewController::Callbacks hooks;
+        hooks.makeRequest = [feature] {
+            return App::RecomputeRequest::fromDocumentObject(*feature);
+        };
+        hooks.runSyncWithResult = [feature] {
+            return Gui::recomputeDocumentObjectWithResult(feature);
+        };
+        hooks.onCompleted = [&](bool, bool, App::RecomputeFailure, const std::string&) {
+            ++completed;
+            try {
+                auto operation = App::RecomputeDetail::Coordinator::instance().atomic();
+                nativeQuiescent = true;
+            }
+            catch (const App::RecomputeDetail::AdmissionRefusal&) {
+                nativeQuiescent = false;
+            }
+        };
+        Gui::AsyncPreviewController observed(std::move(hooks));
+        auto entered = std::make_shared<std::promise<void>>();
+        auto enteredFuture = entered->get_future();
+        auto release = std::make_shared<std::promise<void>>();
+        auto proceed = release->get_future().share();
+        bool released = false;
+        BOOST_SCOPE_EXIT_ALL(&)
+        {
+            if (!released) {
+                release->set_value();
+            }
+        };
+        blocker->touch();
+        App::GetApplication().queueRecomputeRequest(
+            App::RecomputeRequest::fromDocumentObject(*blocker)
+        );
+        QVERIFY(App::FeatureTestAsyncBlocker::waitUntilStarted(2s));
+        observed.requestRecompute(false);
+        auto second = App::RecomputeRequest::fromDocumentObject(*feature);
+        second.callback = [entered, proceed](App::RecomputeRequest&, App::RecomputeResult&) {
+            entered->set_value();
+            proceed.wait();
+        };
+        App::GetApplication().queueRecomputeRequest(std::move(second));
+        App::FeatureTestAsyncBlocker::releaseBlocker();
+        QVERIFY(enteredFuture.wait_for(2s) == std::future_status::ready);
+        QCoreApplication::sendPostedEvents(nullptr, QEvent::MetaCall);
+        QCOMPARE(completed, 0);
+        QVERIFY(observed.hasOutstandingRecompute());
+        released = true;
+        release->set_value();
+        QTRY_VERIFY_WITH_TIMEOUT(!observed.hasOutstandingRecompute(), 2000);
+        QCOMPARE(completed, 1);
+        QVERIFY(nativeQuiescent);
+        QCOMPARE(feature->executionCount.load(), 1);
+    }
+
+    void borrowedGuiSignalCannotCloseItsNativeOperation()  // NOLINT
+    {
+        resetFakeMainThreadHooks();
+        App::MainThreadSignalConfig::setHooks(
+            &fakeIsMainThread,
+            &fakeInvokeOnMainThread,
+            &fakePumpMainThreadEvents
+        );
+        auto* feature = doc->addObject<PartDesign::PreviewOutcomeFeature>("BorrowedSignal");
+        feature->Bool.setValue(true);
+        bool attempted = false;
+        bool closed = true;
+        bool onGui = false;
+        fastsignals::scoped_connection before(
+            doc->signalBeforeRecompute.connect([&](const App::Document&) {
+                App::MainThreadSignalConfig::callOnMainThreadSync([&] {
+                    onGui = fakeIsMainThread();
+                    attempted = true;
+                    closed = App::GetApplication().closeDocument(docName.c_str());
+                });
+            })
+        );
+        Gui::AsyncPreviewController::Callbacks hooks;
+        hooks.makeRequest = [feature] {
+            return App::RecomputeRequest::fromDocumentObject(*feature, true);
+        };
+        hooks.runSyncWithResult = [feature] {
+            return Gui::recomputeDocumentObjectWithResult(feature, true);
+        };
+        Gui::AsyncPreviewController observed(std::move(hooks));
+        observed.requestRecompute(true);
+        QVERIFY(attempted);
+        QVERIFY(onGui);
+        QVERIFY(!closed);
+        QCOMPARE(App::GetApplication().getDocument(docName.c_str()), doc);
+        QCOMPARE(feature->executionCount.load(), 1);
+        QVERIFY(observed.didLastRecomputeSucceed());
+        QVERIFY(!observed.hasOutstandingRecompute());
+    }
+
+    void borrowedGuiSignalMayReleaseWaitingController()  // NOLINT
+    {
+        resetFakeMainThreadHooks();
+        App::MainThreadSignalConfig::setHooks(
+            &fakeIsMainThread,
+            &fakeInvokeOnMainThread,
+            &fakePumpMainThreadEvents
+        );
+        auto* feature = doc->addObject<PartDesign::PreviewOutcomeFeature>("WaitingRelease");
+        feature->Bool.setValue(true);
+        std::unique_ptr<Gui::AsyncPreviewController> observed;
+        bool destroyed = false;
+        fastsignals::scoped_connection before(
+            doc->signalBeforeRecompute.connect([&](const App::Document&) {
+                App::MainThreadSignalConfig::callOnMainThreadSync([&] {
+                    observed.reset();
+                    destroyed = true;
+                });
+            })
+        );
+        auto request = App::RecomputeRequest::fromDocumentObject(*feature, true);
+        Gui::AsyncPreviewController::Callbacks hooks;
+        hooks.makeRequest = [request] {
+            return request;
+        };
+        hooks.runSyncWithResult = [feature] {
+            return Gui::recomputeDocumentObjectWithResult(feature, true);
+        };
+        observed = std::make_unique<Gui::AsyncPreviewController>(std::move(hooks));
+        observed->requestRecompute(true);
+        QVERIFY(destroyed);
+        QVERIFY(!observed);
+        auto& app = App::GetApplication();
+        app.cancelRecomputeRequest(request);
+        auto nativeRetired = [&] {
+            fakePumpMainThreadEvents();
+            return app.classifyRecomputeRequest(request, false)
+                == App::RecomputeDetail::RouteDisposition::OwnerReady;
+        };
+        QTRY_VERIFY_WITH_TIMEOUT(nativeRetired(), 2000);
+        QCOMPARE(App::GetApplication().getDocument(docName.c_str()), doc);
+    }
+
+    void stateCallbackCanCancelBeforeSubmission()  // NOLINT
+    {
+        auto* feature = doc->addObject<PartDesign::PreviewOutcomeFeature>("BeforeSubmission");
+        feature->Bool.setValue(true);
+        std::unique_ptr<Gui::AsyncPreviewController> observed;
+        bool stopOnce = true;
+        int completed = 0;
+        bool canceled = false;
+        Gui::AsyncPreviewController::Callbacks hooks;
+        hooks.makeRequest = [feature] {
+            return App::RecomputeRequest::fromDocumentObject(*feature);
+        };
+        hooks.runSyncWithResult = [feature] {
+            return Gui::recomputeDocumentObjectWithResult(feature);
+        };
+        hooks.onStateChanged = [&] {
+            if (stopOnce) {
+                stopOnce = false;
+                observed->stopPendingRecompute();
+            }
+        };
+        hooks.onCompleted =
+            [&](bool success, bool wasCanceled, App::RecomputeFailure failure, const std::string&) {
+                ++completed;
+                QVERIFY(!success);
+                QVERIFY(failure == App::RecomputeFailure::Canceled);
+                canceled = wasCanceled;
+            };
+        observed = std::make_unique<Gui::AsyncPreviewController>(std::move(hooks));
+        QSignalSpy settled(observed.get(), &Gui::AsyncPreviewController::recomputeSettled);
+        observed->requestRecompute(false);
+        QVERIFY(!observed->hasOutstandingRecompute());
+        QVERIFY(canceled);
+        QCOMPARE(completed, 1);
+        QCOMPARE(settled.count(), 1);
+        QCOMPARE(feature->executionCount.load(), 0);
+        QVERIFY(observed->currentGeneration() > 0);
+    }
+
+    void completionReentryDoesNotApplyOlderResultOrSettleTwice()  // NOLINT
+    {
+        params->SetBool("EnableAsyncRecompute", false);
+        auto* feature = doc->addObject<PartDesign::PreviewOutcomeFeature>("CompletionReentry");
+        feature->Bool.setValue(true);
+        std::unique_ptr<Gui::AsyncPreviewController> observed;
+        int completed = 0;
+        int applied = 0;
+        Gui::AsyncPreviewController::Callbacks hooks;
+        hooks.makeRequest = [feature] {
+            return App::RecomputeRequest::fromDocumentObject(*feature);
+        };
+        hooks.runSyncWithResult = [feature] {
+            return Gui::recomputeDocumentObjectWithResult(feature);
+        };
+        hooks.onCompleted = [&](bool, bool, App::RecomputeFailure, const std::string&) {
+            if (++completed == 1) {
+                feature->touch();
+                observed->requestRecompute(true);
+            }
+        };
+        hooks.onAppliedResult = [&](bool, bool) {
+            ++applied;
+        };
+        observed = std::make_unique<Gui::AsyncPreviewController>(std::move(hooks));
+        QSignalSpy settled(observed.get(), &Gui::AsyncPreviewController::recomputeSettled);
+        observed->requestRecompute(true);
+        QCOMPARE(completed, 2);
+        QCOMPARE(applied, 1);
+        QCOMPARE(settled.count(), 1);
+        QCOMPARE(feature->executionCount.load(), 2);
+        QCOMPARE(observed->currentGeneration(), std::uint64_t(2));
+        QVERIFY(!observed->hasOutstandingRecompute());
+    }
+
+    void progressStateCallbackCanReleaseControllerBeforeSubmission()  // NOLINT
+    {
+        auto* feature = doc->addObject<PartDesign::PreviewOutcomeFeature>("ProgressRelease");
+        feature->Bool.setValue(true);
+        std::unique_ptr<Gui::AsyncPreviewController> observed;
+        Gui::AsyncPreviewController::Callbacks hooks;
+        hooks.makeRequest = [feature] {
+            return App::RecomputeRequest::fromDocumentObject(*feature);
+        };
+        hooks.runSyncWithResult = [feature] {
+            return Gui::recomputeDocumentObjectWithResult(feature);
+        };
+        hooks.onStateChanged = [&] {
+            observed.reset();
+        };
+        observed = std::make_unique<Gui::AsyncPreviewController>(std::move(hooks));
+        observed->requestRecompute(false);
+        QVERIFY(!observed);
+        QCOMPARE(feature->executionCount.load(), 0);
+    }
+
+    void queuedCancellationRetiresAndFreshRetryExecutes()  // NOLINT
+    {
+        auto* feature = doc->addObject<PartDesign::PreviewOutcomeFeature>("QueuedRetry");
+        feature->Bool.setValue(true);
+        int completed = 0;
+        bool canceled = false;
+        bool success = false;
+        Gui::AsyncPreviewController::Callbacks hooks;
+        hooks.makeRequest = [feature] {
+            return App::RecomputeRequest::fromDocumentObject(*feature);
+        };
+        hooks.runSyncWithResult = [feature] {
+            return Gui::recomputeDocumentObjectWithResult(feature);
+        };
+        hooks.onCompleted = [&](bool ok, bool wasCanceled, App::RecomputeFailure, const std::string&) {
+            ++completed;
+            success = ok;
+            canceled = wasCanceled;
+        };
+        Gui::AsyncPreviewController observed(std::move(hooks));
+        blocker->touch();
+        App::GetApplication().queueRecomputeRequest(
+            App::RecomputeRequest::fromDocumentObject(*blocker)
+        );
+        QVERIFY(App::FeatureTestAsyncBlocker::waitUntilStarted(2s));
+        observed.requestRecompute(false);
+        const auto firstGeneration = observed.currentGeneration();
+        observed.stopPendingRecompute();
+        QTRY_VERIFY_WITH_TIMEOUT(!observed.hasOutstandingRecompute(), 2000);
+        QCOMPARE(completed, 1);
+        QVERIFY(canceled);
+        QVERIFY(!success);
+        QCOMPARE(observed.currentGeneration(), firstGeneration);
+        QCOMPARE(feature->executionCount.load(), 0);
+        observed.requestRecompute(false);
+        QVERIFY(observed.currentGeneration() > firstGeneration);
+        QVERIFY(observed.hasOutstandingRecompute());
+        App::FeatureTestAsyncBlocker::releaseBlocker();
+        QTRY_VERIFY_WITH_TIMEOUT(!observed.hasOutstandingRecompute(), 2000);
+        QCOMPARE(completed, 2);
+        QVERIFY(success);
+        QVERIFY(!canceled);
+        QCOMPARE(feature->executionCount.load(), 1);
+    }
+
+    void opaqueObserverAsyncSubmissionExecutesAfterReleaseAndRefusesFlushWait_data()  // NOLINT
+    {
+        QTest::addColumn<bool>("asyncEnabled");
+        QTest::newRow("enabled") << true;
+        QTest::newRow("disabled") << false;
+    }
+
+    void opaqueObserverAsyncSubmissionExecutesAfterReleaseAndRefusesFlushWait()  // NOLINT
+    {
+        QFETCH(bool, asyncEnabled);
+        params->SetBool("EnableAsyncRecompute", asyncEnabled);
+        auto* feature = doc->addObject<PartDesign::PreviewOutcomeFeature>("OpaqueQueued");
+        feature->Bool.setValue(true);
+        int fallbackCalls = 0;
+        App::RecomputeFailure failure = App::RecomputeFailure::None;
+        Gui::AsyncPreviewController::Callbacks hooks;
+        hooks.makeRequest = [feature] {
+            return App::RecomputeRequest::fromDocumentObject(*feature);
+        };
+        hooks.runSyncWithResult = [&] {
+            ++fallbackCalls;
+            return Gui::recomputeDocumentObjectWithResult(feature);
+        };
+        hooks.onCompleted = [&](bool, bool, App::RecomputeFailure value, const std::string&) {
+            failure = value;
+        };
+        Gui::AsyncPreviewController observed(std::move(hooks));
+        {
+            auto operation = App::RecomputeDetail::Coordinator::instance().atomic();
+            observed.requestRecompute(false);
+            QCOMPARE(feature->executionCount.load(), 0);
+            QCOMPARE(fallbackCalls, 0);
+            if (asyncEnabled) {
+                QVERIFY(observed.hasOutstandingRecompute());
+                bool refused = false;
+                try {
+                    observed.flushPendingRecompute();
+                }
+                catch (const App::RecomputeDetail::AdmissionRefusal&) {
+                    refused = true;
+                }
+                QVERIFY(refused);
+                QVERIFY(observed.hasOutstandingRecompute());
+            }
+            else {
+                QVERIFY(!observed.hasOutstandingRecompute());
+                QVERIFY(!observed.didLastRecomputeSucceed());
+                QVERIFY(failure == App::RecomputeFailure::Exception);
+            }
+        }
+        if (!asyncEnabled) {
+            QCOMPARE(feature->executionCount.load(), 0);
+            observed.requestRecompute(false);
+            QCOMPARE(fallbackCalls, 1);
+            QVERIFY(feature->executedOnOwnerThread.load());
+        }
+        QTRY_VERIFY_WITH_TIMEOUT(!observed.hasOutstandingRecompute(), 2000);
+        QVERIFY(observed.didLastRecomputeSucceed());
+        QCOMPARE(feature->executionCount.load(), 1);
     }
 
     void stopPendingRecomputeCancelsScheduledBurstBeforeQueueing()  // NOLINT

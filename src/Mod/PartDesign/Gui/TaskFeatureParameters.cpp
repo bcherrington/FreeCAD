@@ -28,6 +28,7 @@
 
 #include <App/Document.h>
 #include <App/DocumentObserver.h>
+#include <App/private/RecomputeAdmission.h>
 #include <App/DocumentObject.h>
 #include <Gui/Application.h>
 #include <Gui/AsyncPreviewSession.h>
@@ -613,8 +614,21 @@ bool TaskDlgFeatureParameters::accept()
 bool TaskDlgFeatureParameters::reject()
 {
     auto feature = getObject<PartDesign::Feature>();
+    if (!feature || !feature->isAttachedToDocument()) {
+        return false;
+    }
+    auto admission = App::RecomputeDetail::Coordinator::instance().tryAtomic();
+    if (!admission) {
+        return false;
+    }
     App::DocumentObjectWeakPtrT weakptr(feature);
     App::Document* document = feature->getDocument();
+    try {
+        admission->include({}, {document});
+    }
+    catch (const App::RecomputeDetail::AdmissionRefusal&) {
+        return false;
+    }
 
     PartDesign::Body* body = PartDesign::Body::findBodyOf(feature);
 
@@ -625,9 +639,11 @@ bool TaskDlgFeatureParameters::reject()
     // detach the task panel from the selection to avoid to invoke
     // eventually onAddSelection when the selection changes
     std::vector<QWidget*> subwidgets = getDialogContent();
+    std::vector<QPointer<TaskSketchBasedParameters>> detachedSelection;
     for (auto it : subwidgets) {
         TaskSketchBasedParameters* param = qobject_cast<TaskSketchBasedParameters*>(it);
-        if (param) {
+        if (param && param->isSelectionAttached()) {
+            detachedSelection.emplace_back(param);
             param->detachSelection();
         }
 
@@ -638,7 +654,14 @@ bool TaskDlgFeatureParameters::reject()
     }
 
     // roll back the done things which may delete the feature
-    document->abortTransaction();
+    if (!document->tryAbortTransaction()) {
+        for (const auto& param : detachedSelection) {
+            if (param) {
+                param->attachSelection();
+            }
+        }
+        return false;
+    }
 
     // if abort command deleted the object make the previous feature visible again
     if (weakptr.expired()) {
@@ -655,6 +678,9 @@ bool TaskDlgFeatureParameters::reject()
         }
     }
 
+    // Rollback and its structural/UI restoration are complete. The following
+    // progress helper may wait for recompute, which must not wait on this phase.
+    admission.reset();
     if (document->mustExecute()) {
         const auto outcome = Gui::runAsyncDocumentRecomputeProgressDialog(
             Gui::getMainWindow(),

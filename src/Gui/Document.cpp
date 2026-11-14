@@ -47,6 +47,7 @@
 #include <App/DocumentObject.h>
 #include <App/DocumentObjectGroup.h>
 #include <App/Transactions.h>
+#include <App/private/RecomputeAdmission.h>
 #include <App/ElementNamingUtils.h>
 #include <Base/Console.h>
 #include <Base/Exception.h>
@@ -3021,9 +3022,55 @@ std::vector<std::string> Document::getRedoVector() const
     return getDocument()->getAvailableRedoNames();
 }
 
-bool Document::checkTransactionID(bool undo, int iSteps)
+struct Document::TransactionPlan
 {
-    if (!iSteps) {
+    struct Entry
+    {
+        App::Document* document;
+        std::unique_ptr<App::DocumentWeakPtrT> lifetime;
+        std::vector<int> ids;
+        std::vector<std::uint64_t> generations;
+    };
+    std::vector<Entry> entries;
+
+    bool append(App::Document* document, bool undo, int steps)
+    {
+        if (steps <= 0) {
+            return false;
+        }
+        Entry entry {document, std::make_unique<App::DocumentWeakPtrT>(document), {}, {}};
+        for (int i = 0; i < steps; ++i) {
+            const int id = document->getTransactionID(undo, i);
+            if (!id) {
+                return false;
+            }
+            entry.ids.push_back(id);
+            entry.generations.push_back(document->getTransactionGeneration(undo, i));
+        }
+        entries.push_back(std::move(entry));
+        return true;
+    }
+
+    bool isCurrent(bool undo) const
+    {
+        for (const auto& entry : entries) {
+            if (entry.lifetime->expired()) {
+                return false;
+            }
+            for (std::size_t i = 0; i < entry.ids.size(); ++i) {
+                if (entry.document->getTransactionID(undo, i) != entry.ids[i]
+                    || entry.document->getTransactionGeneration(undo, i) != entry.generations[i]) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+};
+
+bool Document::checkTransactionID(bool undo, int iSteps, TransactionPlan& plan)
+{
+    if (iSteps <= 0) {
         return false;
     }
 
@@ -3054,6 +3101,16 @@ bool Document::checkTransactionID(bool undo, int iSteps)
                 currentSteps = steps;
             }
         }
+    }
+    // Capture every selected native document and exact range before the modal
+    // prompt. A close or stack change during its event loop invalidates the plan.
+    for (const auto& entry : dmap) {
+        if (!plan.append(entry.first, undo, entry.second)) {
+            return false;
+        }
+    }
+    if (!plan.append(getDocument(), undo, static_cast<int>(ids.size()))) {
+        return false;
     }
     if (!prompts.empty()) {
         std::ostringstream str;
@@ -3088,20 +3145,12 @@ bool Document::checkTransactionID(bool undo, int iSteps)
             return false;
         }
         if (ret == QMessageBox::No) {
-            return true;
+            auto active = std::move(plan.entries.back());
+            plan.entries.clear();
+            plan.entries.push_back(std::move(active));
         }
     }
-    for (auto& v : dmap) {
-        for (int i = 0; i < v.second; ++i) {
-            if (undo) {
-                v.first->undo();
-            }
-            else {
-                v.first->redo();
-            }
-        }
-    }
-    return true;
+    return plan.isCurrent(undo);
 }
 
 bool Document::isPerformingTransaction() const
@@ -3109,39 +3158,62 @@ bool Document::isPerformingTransaction() const
     return d->_isTransacting;
 }
 
+bool Document::applyTransactionPlan(bool undo, int iSteps)
+{
+    TransactionPlan plan;
+    if (!checkTransactionID(undo, iSteps, plan)) {
+        return false;
+    }
+    // Arbitrary native/Python/GUI undo observers make the structural footprint
+    // opaque. Acquire once, after the prompt, before ANY selected document changes.
+    auto admission = App::RecomputeDetail::Coordinator::instance().tryAtomic();
+    if (!admission || !plan.isCurrent(undo)) {
+        return false;
+    }
+    std::vector<App::Document*> cohort;
+    for (const auto& entry : plan.entries) {
+        cohort.push_back(entry.document);
+    }
+    try {
+        admission->include({}, cohort);
+    }
+    catch (const App::RecomputeDetail::AdmissionRefusal&) {
+        return false;
+    }
+    Base::FlagToggler<> flag(d->_isTransacting);
+    for (const auto& entry : plan.entries) {
+        if (entry.lifetime->expired()) {
+            return false;
+        }
+        const bool applied = undo ? entry.document->undo(entry.ids.back())
+                                  : entry.document->redo(entry.ids.back());
+        if (!applied) {
+            return false;
+        }
+    }
+    if (undo) {
+        App::GetApplication().signalUndo();
+    }
+    else {
+        App::GetApplication().signalRedo();
+        for (auto it : d->_redoViewProviders) {
+            handleChildren3D(it);
+        }
+        d->_redoViewProviders.clear();
+    }
+    return true;
+}
+
 /// Will UNDO one or more steps
 void Document::undo(int iSteps)
 {
-    Base::FlagToggler<> flag(d->_isTransacting);
-
-    if (!checkTransactionID(true, iSteps)) {
-        return;
-    }
-
-    for (int i = 0; i < iSteps; i++) {
-        getDocument()->undo();
-    }
-    App::GetApplication().signalUndo();
+    applyTransactionPlan(true, iSteps);
 }
 
 /// Will REDO one or more steps
 void Document::redo(int iSteps)
 {
-    Base::FlagToggler<> flag(d->_isTransacting);
-
-    if (!checkTransactionID(false, iSteps)) {
-        return;
-    }
-
-    for (int i = 0; i < iSteps; i++) {
-        getDocument()->redo();
-    }
-    App::GetApplication().signalRedo();
-
-    for (auto it : d->_redoViewProviders) {
-        handleChildren3D(it);
-    }
-    d->_redoViewProviders.clear();
+    applyTransactionPlan(false, iSteps);
 }
 
 PyObject* Document::getPyObject()

@@ -26,7 +26,9 @@
 
 #pragma once
 
+#include <cstdint>
 #include <unordered_map>
+#include <vector>
 #include <Base/Factory.h>
 #include <Base/Persistence.h>
 #include <App/PropertyContainer.h>
@@ -44,6 +46,7 @@ namespace App
 {
 
 class Document;
+class DocumentObject;
 class Property;
 class Transaction;
 class TransactionObject;
@@ -85,6 +88,10 @@ public:
      */
     void apply(Document& Doc, bool forward);
 
+    // Internal preflight, called while the owning document is reserved for planning.
+    // Includes saved and current topology; callers reserve the union before mutation.
+    void collectMutationEndpoints(std::vector<DocumentObject*>& endpoints) const;
+
     /// The UTF-8 name of the transaction
     std::string Name;
 
@@ -94,6 +101,8 @@ public:
 
     /// Get the transaction ID of this transaction.
     int getID() const;
+    // Native history-record incarnation, independent of a reused grouped integer ID.
+    std::uint64_t getGeneration() const noexcept { return generation; }
 
     /// Generate a new unique transaction ID.
     static int getNewID();
@@ -173,6 +182,7 @@ private:
 
 private:
     int transID;
+    const std::uint64_t generation;
     using Info = std::pair<const TransactionalObject*, TransactionObject*>;
     bmi::multi_index_container<
         Info,

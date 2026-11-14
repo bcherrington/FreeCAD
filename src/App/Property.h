@@ -30,6 +30,7 @@
 #include <boost/any.hpp>
 #include <fastsignals/signal.h>
 #include <bitset>
+#include <optional>
 #include <string>
 #include <FCGlobal.h>
 
@@ -619,6 +620,7 @@ private:
     void syncType(unsigned type);
 
 private:
+    friend struct PropertyCleaner;
     PropertyContainer* father {nullptr};
     const char* myName {nullptr};
     int64_t _id;
@@ -696,8 +698,18 @@ public:
             : mProp(prop)
         {
             mProp.signalCounter++;
-            if (markChange) {
-                aboutToChange();
+            const bool wasChanged = mProp.hasChanged;
+            try {
+                if (markChange) {
+                    aboutToChange();
+                }
+            }
+            catch (...) {
+                // A throwing before-change observer prevents construction, so
+                // the destructor cannot restore the notification bookkeeping.
+                --mProp.signalCounter;
+                mProp.hasChanged = wasChanged;
+                throw;
             }
         }
 
@@ -711,7 +723,13 @@ public:
         {
             if (!mProp.hasChanged) {
                 mProp.hasChanged = true;
-                mProp.aboutToSetValue();
+                try {
+                    mProp.aboutToSetValue();
+                }
+                catch (...) {
+                    mProp.hasChanged = false;
+                    throw;
+                }
             }
         }
 
@@ -756,7 +774,14 @@ public:
         void tryInvoke()
         {
             if (mProp.signalCounter == 1 && mProp.hasChanged) {
-                mProp.hasSetValue();
+                try {
+                    mProp.hasSetValue();
+                }
+                catch (...) {
+                    // Do not repeat a throwing notification from the destructor.
+                    mProp.hasChanged = false;
+                    throw;
+                }
                 if (mProp.signalCounter > 0) {
                     --mProp.signalCounter;
                 }
@@ -1076,11 +1101,17 @@ public:
      */
     void setPyObject(PyObject* value) override
     {
+        std::optional<T> parsed;
         try {
-            setValue(getPyValue(value));
-            return;
+            parsed.emplace(getPyValue(value));
         }
         catch (...) {
+            // Only conversion failures select the sequence parser. A setter's
+            // admission refusal must propagate without a second mutation try.
+        }
+        if (parsed) {
+            setValue(*parsed);
+            return;
         }
         parent_type::setPyObject(value);
     }
@@ -1138,10 +1169,15 @@ protected:
             return;
         }
         assert(vals.size() == indices.size());
+        ListT parsed;
+        parsed.reserve(vals.size());
+        for (auto* value : vals) {
+            parsed.push_back(getPyValue(value));
+        }
         atomic_change guard(*this);
         int i {0};
         for (auto index : indices) {
-            set1Value(index, getPyValue(vals[i]));
+            set1Value(index, parsed[i]);
             i++;
         }
         guard.tryInvoke();

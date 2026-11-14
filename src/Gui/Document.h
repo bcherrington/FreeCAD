@@ -365,8 +365,10 @@ private:
     // handles the scene graph nodes to correctly group child and parents
     void handleChildren3D(ViewProvider* viewProvider, bool deleting = false);
 
-    /// Check other documents for the same transaction ID
-    bool checkTransactionID(bool undo, int iSteps);
+    struct TransactionPlan;
+    /// Prompt and validate a complete grouped plan without applying any transaction.
+    bool checkTransactionID(bool undo, int iSteps, TransactionPlan& plan);
+    bool applyTransactionPlan(bool undo, int iSteps);
     /// Ask for user interaction if saving has failed
     bool askIfSavingFailed(const QString&);
     /// Warn if saving a document from an older FreeCAD version (returns false if user cancels)

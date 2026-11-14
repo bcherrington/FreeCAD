@@ -31,6 +31,7 @@
 #include <App/Application.h>
 #include <App/Document.h>
 #include <App/DocumentObserver.h>
+#include <App/private/RecomputeAdmission.h>
 #include <App/DocumentObject.h>
 #include <Gui/Application.h>
 #include <Gui/AsyncRecomputeProgressDialog.h>
@@ -604,7 +605,11 @@ bool TaskDlgBooleanParameters::accept()
         if (documentGuard.expired() || objectGuard.expired()) {
             return false;
         }
-        document->abortTransaction();
+        if (!document->tryAbortTransaction()) {
+            Base::Console().error("Boolean rollback is busy; the editable transaction is retained.\n");
+            e.reportException();
+            return false;
+        }
         QMessageBox::warning(
             parameter,
             tr("Boolean: Accept: Input error"),
@@ -617,26 +622,44 @@ bool TaskDlgBooleanParameters::accept()
 
 bool TaskDlgBooleanParameters::performReject()
 {
-    if (!parameter) {
+    if (!parameter || !BooleanView) {
         return false;
     }
-
-    // Show the bodies again
-    PartDesign::Boolean* obj = BooleanView->getObject<PartDesign::Boolean>();
-    Gui::Document* doc = Gui::Application::Instance->activeDocument();
-    if (doc) {
-        if (obj->BaseFeature.getValue()) {
-            doc->setShow(obj->BaseFeature.getValue()->getNameInDocument());
-            std::vector<App::DocumentObject*> bodies = obj->Group.getValues();
-            for (auto body : bodies) {
-                doc->setShow(body->getNameInDocument());
-            }
-        }
-        // roll back the done things
-        doc->abortCommand();
-        Gui::Command::doCommand(Gui::Command::Gui, "Gui.activeDocument().resetEdit()");
+    auto* object = BooleanView->getObject<PartDesign::Boolean>();
+    if (!object || !object->isAttachedToDocument()) {
+        return false;
     }
-
+    auto admission = App::RecomputeDetail::Coordinator::instance().tryAtomic();
+    if (!admission) {
+        return false;
+    }
+    auto* document = object->getDocument();
+    try {
+        admission->include({}, {document});
+    }
+    catch (const App::RecomputeDetail::AdmissionRefusal&) {
+        return false;
+    }
+    App::DocumentWeakPtrT documentGuard(document);
+    std::vector<std::unique_ptr<App::DocumentObjectWeakPtrT>> showAfterAbort;
+    if (auto* base = object->BaseFeature.getValue()) {
+        showAfterAbort.push_back(std::make_unique<App::DocumentObjectWeakPtrT>(base));
+        for (auto* body : object->Group.getValues()) {
+            showAfterAbort.push_back(std::make_unique<App::DocumentObjectWeakPtrT>(body));
+        }
+    }
+    if (!document->tryAbortTransaction()) {
+        return false;
+    }
+    if (documentGuard.expired()) {
+        return true;
+    }
+    for (const auto& target : showAfterAbort) {
+        if (!target->expired()) {
+            Gui::cmdAppObjectShow(**target);
+        }
+    }
+    Gui::cmdGuiDocument(document, "resetEdit()");
     return true;
 }
 

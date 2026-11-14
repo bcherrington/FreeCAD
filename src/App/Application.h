@@ -200,7 +200,10 @@ public:
     ~RecomputeProgressHandle();
 
     void activate();
+    void activateAccepted();
+    void finishExecution() noexcept;
     void cancel();
+    // Safe on foreign threads. Native scopes poll/mirror their owner's sequencer.
     bool wasCanceled() const;
     RecomputeProgressScope makeScope(const char* text = nullptr);
     RecomputeProgressScope makeStepScope(
@@ -215,7 +218,13 @@ public:
 
 private:
     friend class RecomputeProgressScope;
+    friend AppExport bool currentRecomputeWasCanceled();
+    friend AppExport void throwIfRecomputeCanceled();
 
+    // Scope/progress mutation and activation belong to one native owner. Overlapping
+    // activations of the same handle are unsupported; cancel/poll remain thread safe.
+    bool pollCancellation() const;
+    void activateImpl(bool resetCancellation);
     static constexpr std::uint64_t ProgressScale = 10000;
 
     void ensureSequencer();
@@ -236,7 +245,7 @@ private:
     void resetDisplayState();
     void syncDisplay();
 
-    std::atomic<bool> _canceled {false};
+    mutable std::atomic<bool> _canceled {false};
     bool _hasStandaloneState {false};
     RecomputeProgressScope* _activeScope {nullptr};
     std::uint64_t _standaloneProgress {0};
@@ -270,6 +279,34 @@ struct AppExport RecomputeCancellationResult
     bool removedQueued {false};
 };
 
+namespace RecomputeDetail
+{
+struct Binding;
+class Retirement;
+enum class RouteDisposition;
+class Coordinator;
+class CloseScope;
+}
+
+/// Opaque incarnation binding. Moving a public handle does not unbind its source.
+class AppExport RecomputeBindingHandle
+{
+public:
+    RecomputeBindingHandle() = default;
+    RecomputeBindingHandle(const RecomputeBindingHandle&) = default;
+    RecomputeBindingHandle(RecomputeBindingHandle&& other) noexcept
+        : binding(other.binding)
+    {}
+
+private:
+    friend struct RecomputeRequest;
+    friend class Application;
+    friend class RecomputeDetail::Coordinator;
+    RecomputeBindingHandle& operator=(const RecomputeBindingHandle&) = default;
+    RecomputeBindingHandle& operator=(RecomputeBindingHandle&&) = default;
+    std::shared_ptr<const RecomputeDetail::Binding> binding;
+};
+
 /// Stable, queueable work item for document or object recompute.
 struct AppExport RecomputeRequest
 {
@@ -285,11 +322,9 @@ struct AppExport RecomputeRequest
     Document* resolveDocument() const;
     DocumentObject* resolveDocumentObject() const;
 
-    // Stable identifiers are queued instead of raw pointers so worker-side
-    // resolution cannot dereference destroyed documents or objects. The
-    // internal document name is assigned once at creation time and does not
-    // change afterwards, so queued requests do not need to track
-    // signalRenameDocument.
+    // Public target names remain editable for source compatibility. Factories
+    // capture an opaque incarnation binding below; queued matching and execution
+    // never retarget that binding when a name is reused or this view is edited.
     std::string documentName;
     std::string documentObjectName;
     bool force {false};
@@ -298,6 +333,8 @@ struct AppExport RecomputeRequest
     std::shared_ptr<RecomputeProgressHandle> progress;
     // Callback to be invoked when recompute is complete.
     Callback callback {};
+    // Append-only opaque state preserves existing aggregate initialization.
+    RecomputeBindingHandle targetBinding {};
 };
 
 /**
@@ -555,6 +592,8 @@ public:
     bool isAsyncRecomputeEnabled();
     bool isFineGrainedRecomputeEnabled();
     bool canRecomputeRequestOnWorker(const RecomputeRequest& req) const;
+    RecomputeDetail::RouteDisposition classifyRecomputeRequest(
+        RecomputeRequest& request, bool checkWorker = true);
 
     /** Execute one request on the caller's appropriately routed model thread.
      * Progress/options and native outcomes match queued recompute processing.
@@ -564,6 +603,8 @@ public:
 
     // Adds a recompute request to the processing queue.
     void queueRecomputeRequest(RecomputeRequest req);
+    void queueRecomputeRequestWithRetirement(
+        RecomputeRequest req, std::shared_ptr<RecomputeDetail::Retirement> retirement);
     std::size_t cancelQueuedRecomputeRequestsForDocument(const std::string& documentName);
     RecomputeCancellationResult cancelRecomputeRequest(const RecomputeRequest& req);
 
@@ -1140,6 +1181,8 @@ protected:
          */
         TransactionSignaller(bool abort, bool signal);
         ~TransactionSignaller();
+        // A before notification was emitted, but no complete native close occurred.
+        void suppressCompletion();
     private:
         bool abort;
     };
@@ -1226,11 +1269,22 @@ private:
     std::thread _recomputeThread;
     struct RecomputeQueueEntry
     {
+        std::uint64_t sequence {0};
+        std::uint64_t operation {0};
+        // This execution copy is never exposed to mutable completion callbacks.
         RecomputeRequest request;
         std::vector<RecomputeRequest::Callback> callbacks;
-        bool rerunRequested {false};
-        std::vector<RecomputeRequest::Callback> rerunCallbacks;
+        // Include registrations without callbacks and retain their original handles.
+        std::vector<std::shared_ptr<RecomputeProgressHandle>> progressHandles;
+        std::vector<std::weak_ptr<RecomputeProgressHandle>> terminalHandles;
+        std::vector<std::shared_ptr<RecomputeDetail::Retirement>> retirements;
+        std::unique_ptr<RecomputeQueueEntry> rerun;
+        bool outcomeCommitted {false};
+        bool cancelRequested {false};
     };
+    std::uint64_t _nextRecomputeSequence {0};
+    std::uint64_t _recomputeQueueRevision {0};
+    bool _recomputeWorkerExited {false};
     // Protects the queued/in-progress recompute state below
     std::mutex _recomputeMutex;
     std::deque<RecomputeQueueEntry> _recomputeRequests;
@@ -1244,8 +1298,14 @@ private:
 
     // Worker thread function that processes _recomputeRequests
     void recomputeWorker();
+    void stopRecomputeWorker();
+    bool closeBoundDocument(const std::shared_ptr<const RecomputeDetail::Binding>& binding);
+    static void bindRecomputeRequest(RecomputeRequest& request);
     static bool recomputeRequestsMatch(const RecomputeRequest& lhs, const RecomputeRequest& rhs);
     static RecomputeQueueEntry makeRecomputeQueueEntry(RecomputeRequest request);
+    static void mergeRecomputeQueueEntry(RecomputeQueueEntry& destination, RecomputeQueueEntry source);
+    static void cancelRecomputeHandles(const RecomputeQueueEntry& entry);
+    static void deliverCanceledRecomputeEntries(std::vector<RecomputeQueueEntry> entries);
     static void collectRecomputeCallback(
         RecomputeRequest& request,
         std::vector<RecomputeRequest::Callback>& callbacks
@@ -1259,7 +1319,8 @@ private:
     void notifyRecomputeWorker();
     // Drop queued requests for a document and wait for any active recompute of
     // that document to finish before closing it
-    void cancelRecomputeRequestsForDocument(const std::string& documentName);
+    void cancelRecomputeRequestsForDocument(
+        const std::string& documentName, const RecomputeDetail::CloseScope* closing = nullptr);
 
     bool _isRestoring{false};
     bool _allowPartial{false};

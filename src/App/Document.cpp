@@ -81,6 +81,8 @@
 #include "MergeDocuments.h"
 #include "StringHasher.h"
 #include "Transactions.h"
+#include "private/RecomputeAdmission.h"
+#include <cstdio>
 
 #ifdef _MSC_VER
 #include <zipios++/zipios-config.h>
@@ -134,6 +136,50 @@ public:
     const RecomputeLifetimeGuard* const previous;
     static inline thread_local const RecomputeLifetimeGuard* active = nullptr;
 };
+
+template<typename Fn>
+void notifyAfterNativeCommit(Fn&& notification) noexcept
+{
+    try {
+        notification();
+    }
+    catch (...) {
+        try {
+            try {
+                throw;
+            }
+            catch (const Base::Exception& exception) {
+                exception.reportException();
+            }
+            catch (const std::exception& exception) {
+                Base::Console().error("Post-commit observer failed: {}\n", exception.what());
+            }
+            catch (...) {
+                Base::Console().error("Post-commit observer failed\n");
+            }
+        }
+        catch (...) {
+            std::fputs("Post-commit observer notification failed\n", stderr);
+        }
+    }
+}
+
+bool isClosingStructuralTransaction(const Document& document)
+{
+    auto id = document.getBookedTransactionID();
+    if (!id) {
+        id = document.getTransactionID(true, 0);
+    }
+    return RecomputeDetail::Coordinator::instance().isClosureClosing(id);
+}
+void refuseClosingStructuralTransaction(const Document& document)
+{
+    if (isClosingStructuralTransaction(document)) {
+        throw RecomputeDetail::AdmissionRefusal(
+            "Cannot change document history during transaction closure"
+        );
+    }
+}
 
 bool transactionStateBlocksRecoveryWrite(const DocumentP& documentPrivate)
 {
@@ -198,6 +244,13 @@ bool Document::checkOnCycle()
 
 bool Document::undo(const int id)
 {
+    if (isClosingStructuralTransaction(*this)) {
+        return false;
+    }
+    auto atomic = RecomputeDetail::Coordinator::instance().tryAtomic();
+    if (!atomic) {
+        return false;
+    }
     if (id != 0) {
         const auto it = mUndoMap.find(id);
         if (it == mUndoMap.end()) {
@@ -205,13 +258,15 @@ bool Document::undo(const int id)
         }
         if (it->second != d->activeUndoTransaction) {
             while (!mUndoTransactions.empty() && mUndoTransactions.back() != it->second) {
-                undo(0);
+                if (!undo(0)) {
+                    return false;
+                }
             }
         }
     }
 
-    if (d->activeUndoTransaction) {
-        _commitTransaction(true);
+    if (d->activeUndoTransaction && !_commitTransaction(true)) {
+        return false;
     }
     if (mUndoTransactions.empty()) {
         return false;
@@ -251,18 +306,27 @@ bool Document::undo(const int id)
 
 bool Document::redo(const int id)
 {
+    if (isClosingStructuralTransaction(*this)) {
+        return false;
+    }
+    auto atomic = RecomputeDetail::Coordinator::instance().tryAtomic();
+    if (!atomic) {
+        return false;
+    }
     if (id != 0) {
         const auto it = mRedoMap.find(id);
         if (it == mRedoMap.end()) {
             return false;
         }
         while (!mRedoTransactions.empty() && mRedoTransactions.back() != it->second) {
-            redo(0);
+            if (!redo(0)) {
+                return false;
+            }
         }
     }
 
-    if (d->activeUndoTransaction) {
-        _commitTransaction(true);
+    if (d->activeUndoTransaction && !_commitTransaction(true)) {
+        return false;
     }
 
     assert(mRedoTransactions.size() != 0);
@@ -436,8 +500,8 @@ int Document::_openTransaction(std::string name, int id)
     if ((id != 0) && mUndoMap.find(id) != mUndoMap.end()) {
         throw Base::RuntimeError("invalid transaction id");
     }
-    if (d->activeUndoTransaction) {
-        _commitTransaction(true);
+    if (d->activeUndoTransaction && !_commitTransaction(true)) {
+        throw RecomputeDetail::AdmissionRefusal("Cannot replace a closing transaction");
     }
     _clearRedos();
 
@@ -488,6 +552,7 @@ int Document::setActiveTransaction(TransactionName name, int tid)
             return NullTransaction;
         }
         d->bookedTransaction = tid;
+        RecomputeDetail::Coordinator::instance().captureClosure(tid, {this});
 
         if (GetApplication().transactionTmpName(d->bookedTransaction)) {
             GetApplication().setTransactionName(d->bookedTransaction, name);
@@ -507,6 +572,7 @@ int Document::setActiveTransaction(TransactionName name, int tid)
     d->bookedTransaction = Transaction::getNewID();
 
     GetApplication().setTransactionDescription(d->bookedTransaction, TransactionDescription {.initiator = this, .name = name});
+    RecomputeDetail::Coordinator::instance().captureClosure(d->bookedTransaction, {this});
     return d->bookedTransaction;
 }
 
@@ -583,6 +649,10 @@ void Document::_checkTransaction(DocumentObject* pcDelObj, const Property* What,
 
 void Document::_clearRedos()
 {
+    auto admission = RecomputeDetail::Coordinator::instance().mutation({}, {this});
+    std::vector<DocumentObject*> endpoints;
+    collectCommitMutationEndpoints(endpoints);
+    admission.include(endpoints);
     if (isPerformingTransaction() || d->committing) {
         FC_ERR("Cannot clear redo while transacting");
         return;
@@ -595,19 +665,56 @@ void Document::_clearRedos()
     }
 }
 
-void Document::commitTransaction() // NOLINT
+std::uint64_t Document::getTransactionGeneration(bool undo, unsigned pos) const
+{
+    if (undo) {
+        if (d->activeUndoTransaction) {
+            if (!pos) {
+                return d->activeUndoTransaction->getGeneration();
+            }
+            --pos;
+        }
+        if (pos >= mUndoTransactions.size()) {
+            return 0;
+        }
+        auto it = mUndoTransactions.rbegin();
+        std::advance(it, pos);
+        return (*it)->getGeneration();
+    }
+    if (pos >= mRedoTransactions.size()) {
+        return 0;
+    }
+    auto it = mRedoTransactions.rbegin();
+    std::advance(it, pos);
+    return (*it)->getGeneration();
+}
+
+void Document::collectCommitMutationEndpoints(std::vector<DocumentObject*>& endpoints) const
+{
+    if (d->activeUndoTransaction) {
+        d->activeUndoTransaction->collectMutationEndpoints(endpoints);
+    }
+    for (auto* transaction : mUndoTransactions) {
+        transaction->collectMutationEndpoints(endpoints);
+    }
+    for (auto* transaction : mRedoTransactions) {
+        transaction->collectMutationEndpoints(endpoints);
+    }
+}
+
+bool Document::tryCommitTransaction()
 {
     if (isPerformingTransaction() || d->committing) {
         if (FC_LOG_INSTANCE.isEnabled(FC_LOGLEVEL_LOG)) {
             FC_WARN("Cannot commit transaction while transacting");
         }
-        return;
+        return false;
     }
 
     if (d->activeUndoTransaction) {
         // This will iterate over all documents and ask them to
         // commit their transaction if their ID matches
-        GetApplication().commitTransaction(d->activeUndoTransaction->getID());
+        return GetApplication().commitTransaction(d->activeUndoTransaction->getID());
     } else {
         const bool wasRecoveryWriteBlocked = transactionStateBlocksRecoveryWrite(*d);
         d->bookedTransaction = 0; // Reset booked transaction even if it was not used
@@ -615,10 +722,31 @@ void Document::commitTransaction() // NOLINT
             signalBecameStable(*this);
         }
     }
+    return true;
+}
+
+void Document::commitTransaction()  // NOLINT
+{
+    if (!tryCommitTransaction()) {
+        throw RecomputeDetail::AdmissionRefusal("Transaction commit is busy");
+    }
 }
 
 bool Document::_commitTransaction(const bool notify)
 {
+    if (notify && d->activeUndoTransaction) {
+        const int id = d->activeUndoTransaction->getID();
+        if (RecomputeDetail::Coordinator::instance().isClosureClosing(id)) {
+            return false;
+        }
+        if (GetApplication().transactionIsActive(id)) {
+            return GetApplication().commitTransaction(id);
+        }
+    }
+    auto admission = RecomputeDetail::Coordinator::instance().mutation({}, {this});
+    std::vector<DocumentObject*> endpoints;
+    collectCommitMutationEndpoints(endpoints);
+    admission.include(endpoints);
     if (isPerformingTransaction()) {
         if (FC_LOG_INSTANCE.isEnabled(FC_LOGLEVEL_LOG)) {
             FC_WARN("Cannot commit transaction while transacting");
@@ -647,7 +775,7 @@ bool Document::_commitTransaction(const bool notify)
                 delete mUndoTransactions.front();
                 mUndoTransactions.pop_front();
             }
-            signalCommitTransaction(*this);
+            notifyAfterNativeCommit([this]() { signalCommitTransaction(*this); });
 
             // commitTransaction() may call again _commitTransaction()
             if (notify) {
@@ -657,21 +785,21 @@ bool Document::_commitTransaction(const bool notify)
         committed = true;
     }
     if (committed) {
-        signalBecameStable(*this);
+        notifyAfterNativeCommit([this]() { signalBecameStable(*this); });
     }
     return true;
 }
 
-void Document::abortTransaction() const
+bool Document::tryAbortTransaction() const
 {
     if (isPerformingTransaction() || d->committing) {
         if (FC_LOG_INSTANCE.isEnabled(FC_LOGLEVEL_LOG)) {
             FC_WARN("Cannot abort transaction while transacting");
         }
-        return;
+        return false;
     }
     if (d->activeUndoTransaction) {
-        GetApplication().abortTransaction(d->activeUndoTransaction->getID());
+        return GetApplication().abortTransaction(d->activeUndoTransaction->getID());
     } else {
         const bool wasRecoveryWriteBlocked = transactionStateBlocksRecoveryWrite(*d);
         d->bookedTransaction = 0; // Reset booked transaction even if it was not used
@@ -679,10 +807,19 @@ void Document::abortTransaction() const
             signalBecameStable(*this);
         }
     }
+    return true;
+}
+
+void Document::abortTransaction() const
+{
+    if (!tryAbortTransaction()) {
+        throw RecomputeDetail::AdmissionRefusal("Transaction abort is busy");
+    }
 }
 
 void Document::_abortTransaction()
 {
+    auto atomic = RecomputeDetail::Coordinator::instance().atomic();
     if (isPerformingTransaction() || d->committing) {
         if (FC_LOG_INSTANCE.isEnabled(FC_LOGLEVEL_LOG)) {
             FC_WARN("Cannot abort transaction while transacting");
@@ -758,6 +895,8 @@ bool Document::isTransactionEmpty() const
 
 void Document::clearDocument() // NOLINT
 {
+    refuseClosingStructuralTransaction(*this);
+    auto atomic = RecomputeDetail::Coordinator::instance().atomic();
     d->activeObject = nullptr;
 
     if (!d->objectArray.empty()) {
@@ -782,13 +921,18 @@ void Document::clearDocument() // NOLINT
 
 void Document::clearUndos()
 {
+    refuseClosingStructuralTransaction(*this);
+    auto admission = RecomputeDetail::Coordinator::instance().mutation({}, {this});
+    std::vector<DocumentObject*> endpoints;
+    collectCommitMutationEndpoints(endpoints);
+    admission.include(endpoints);
     if (isPerformingTransaction() || d->committing) {
         FC_ERR("Cannot clear undos while transacting");
         return;
     }
 
-    if (d->activeUndoTransaction) {
-        _commitTransaction(true);
+    if (d->activeUndoTransaction && !_commitTransaction(true)) {
+        throw RecomputeDetail::AdmissionRefusal("Cannot clear history during transaction closure");
     }
 
     mUndoMap.clear();
@@ -1075,10 +1219,12 @@ Document::Document(const char* documentName)
                       PropertyType(Prop_Hidden | Prop_ReadOnly),
                       "Link of the tip object of the document");
     Uid.touch();
+    RecomputeDetail::Coordinator::instance().registerDocument(this, myName);
 }
 
 Document::~Document()
 {
+    RecomputeDetail::Coordinator::instance().retireDocument(this);
 #ifdef FC_LOGUPDATECHAIN
     Console().log("-App::Document: {} {}\n", getName(), this);
 #endif
@@ -1176,6 +1322,8 @@ void Document::Save(Base::Writer& writer) const
 
 void Document::Restore(Base::XMLReader& reader)
 {
+    refuseClosingStructuralTransaction(*this);
+    auto atomic = RecomputeDetail::Coordinator::instance().atomic();
     d->hashers.clear();
     d->touchedObjs.clear();
     addStringHasher(d->Hasher);
@@ -1790,6 +1938,8 @@ void Document::addRecomputeObject(DocumentObject* obj) // NOLINT
 
 std::vector<DocumentObject*> Document::importObjects(Base::XMLReader& reader)
 {
+    refuseClosingStructuralTransaction(*this);
+    auto atomic = RecomputeDetail::Coordinator::instance().atomic();
     d->hashers.clear();
     Base::FlagToggler<> flag(globalIsRestoring, false);
     Base::ObjectStatusLocker<Status, Document> restoreBit(Status::Restoring, this);
@@ -2169,6 +2319,8 @@ void Document::restore(const char* filename,
                        bool delaySignal,
                        const std::vector<std::string>& objNames)
 {
+    refuseClosingStructuralTransaction(*this);
+    auto atomic = RecomputeDetail::Coordinator::instance().atomic();
     clearUndos();
     d->activeObject = nullptr;
 
@@ -2259,6 +2411,8 @@ void Document::restore(const char* filename,
 
 bool Document::afterRestore(const bool checkPartial)
 {
+    refuseClosingStructuralTransaction(*this);
+    auto atomic = RecomputeDetail::Coordinator::instance().atomic();
     Base::FlagToggler<> flag(globalIsRestoring, false);
     if (!afterRestore(d->objectArray, checkPartial)) {
         FC_WARN("Reload partial document " << getName());
@@ -2272,6 +2426,8 @@ bool Document::afterRestore(const bool checkPartial)
 
 bool Document::afterRestore(const std::vector<DocumentObject*>& objArray, bool checkPartial)
 {
+    refuseClosingStructuralTransaction(*this);
+    auto atomic = RecomputeDetail::Coordinator::instance().atomic();
     checkPartial = checkPartial && testStatus(Document::PartialDoc);
     if (checkPartial && !d->touchedObjs.empty()) {
         return false;
@@ -2634,6 +2790,7 @@ static void buildDependencyList(const std::vector<DocumentObject*>& objectArray,
         std::vector<DepEdge> outListProp = obj->getOutListProp(op);
         for (const auto& [objFrom, propFrom, objTo, propNameTo] : outListProp) {
             // Add dependencies on HEAD
+            RecomputeDetail::CaptureScope::pinCurrent(objTo);
             if (propNameTo.empty()) {
                 if (outListSet.insert(objTo).second) {
                     outList.push_back(objTo);
@@ -2657,6 +2814,7 @@ static void buildDependencyList(const std::vector<DocumentObject*>& objectArray,
         while (!objs.empty()) {
             auto objF = objs.front();
             objs.pop_front();
+            RecomputeDetail::CaptureScope::pinCurrent(objF);
             if (!objF || !objF->isAttachedToDocument()) {
                 continue;
             }
@@ -2894,6 +3052,9 @@ int Document::recompute(const std::vector<DocumentObject*>& objs,
 {
     ZoneScoped;
 
+    auto nativeClaim = RecomputeDetail::Coordinator::instance().claimDocument(this);
+    auto nativeOperation = nativeClaim.enter();
+    RecomputeDetail::Coordinator::instance().pinRoots(objs);
     RecomputeLifetimeGuard closeProtection(this);
 
     if (d->undoing || d->rollback) {
@@ -2929,8 +3090,22 @@ int Document::recompute(const std::vector<DocumentObject*>& objs,
     Base::TimeTracker tracker("Document::recompute");
     std::optional<Base::ObjectStatusLocker<Document::Status, Document>> recomputingStatus;
     recomputingStatus.emplace(Document::Recomputing, this);
+    bool stableSignaled = false;
+    Base::ScopeGuard stableCleanup([&]() {
+        if (!stableSignaled) {
+            recomputingStatus.reset();
+            try {
+                signalBecameStable(*this);
+            }
+            catch (...) {
+                std::fputs("Recompute stable notification failed\n", stderr);
+            }
+        }
+    });
 
     signalBeforeRecompute(*this);
+    App::throwIfRecomputeCanceled();
+    RecomputeDetail::Coordinator::instance().ensureRootAvailable();
 
     bool fineGrained = GetApplication().isFineGrainedRecomputeEnabled();
 
@@ -2954,8 +3129,18 @@ int Document::recompute(const std::vector<DocumentObject*>& objs,
    */
 
     // alt:
-    auto topoSortedObjects =
-        getDependencyList(objs.empty() ? d->objectArray : objs, DepSort | options);
+    std::vector<DocumentObject*> topoSortedObjects;
+    {
+        RecomputeDetail::CaptureScope capture(this);
+        topoSortedObjects = getDependencyList(objs.empty() ? d->objectArray : objs, DepSort | options);
+        capture.finish(topoSortedObjects);
+    }
+    Base::ScopeGuard pendingCleanup([&topoSortedObjects]() {
+        for (auto* object : topoSortedObjects) {
+            object->setStatus(ObjectStatus::PendingRecompute, false);
+            object->setStatus(ObjectStatus::Recompute2, false);
+        }
+    });
 
     for (auto obj : topoSortedObjects) {
         obj->setStatus(ObjectStatus::PendingRecompute, true);
@@ -2977,6 +3162,7 @@ int Document::recompute(const std::vector<DocumentObject*>& objs,
 
     tracker.checkpoint("pre-recompute & topo sort");
 
+    std::exception_ptr admissionFailure;
     try {
         std::set<DocumentObject*> filter;
         size_t idx = 0;
@@ -3070,6 +3256,9 @@ int Document::recompute(const std::vector<DocumentObject*>& objs,
             }
         }
     }
+    catch (const RecomputeDetail::AdmissionRefusal&) {
+        admissionFailure = std::current_exception();
+    }
     catch (Base::Exception& e) {
         if (!Base::isUserAbortException(e)) {
             e.reportException();
@@ -3094,6 +3283,7 @@ int Document::recompute(const std::vector<DocumentObject*>& objs,
 
     signalRecomputed(*this, topoSortedObjects);
     recomputingStatus.reset();
+    stableSignaled = true;
     signalBecameStable(*this);
 
     tracker.checkpoint("Recompute total");
@@ -3111,21 +3301,8 @@ int Document::recompute(const std::vector<DocumentObject*>& objs,
         }
     }
 
-    for (auto doc : GetApplication().getDocuments()) {
-        decltype(doc->d->pendingRemove) objects;
-        objects.swap(doc->d->pendingRemove);
-        for (auto& o : objects) {
-            try {
-                if (auto obj = o.getObject()) {
-                    obj->getDocument()->removeObject(obj->getNameInDocument());
-                }
-            }
-            catch (Base::Exception& e) {
-                e.reportException();
-                FC_ERR("error when removing object " << o.getDocumentName() << '#'
-                                                     << o.getObjectName());
-            }
-        }
+    if (admissionFailure) {
+        std::rethrow_exception(admissionFailure);
     }
     return objectCount;
 }
@@ -3316,6 +3493,7 @@ const char* Document::getErrorDescription(const DocumentObject* Obj) const
 // call the recompute of the Feature and handle the exceptions and errors.
 int Document::_recomputeFeature(DocumentObject* Feat) // NOLINT
 {
+    RecomputeDetail::Coordinator::instance().ensureFeatureAllowed(Feat);
     FC_LOG("Recomputing " << Feat->getFullName());
 
     DocumentObjectExecReturn* returnCode = nullptr;
@@ -3328,6 +3506,9 @@ int Document::_recomputeFeature(DocumentObject* Feat) // NOLINT
                     Feat->ExpressionEngine.execute(PropertyExpressionEngine::ExecuteOutput);
             }
         }
+    }
+    catch (const RecomputeDetail::AdmissionRefusal&) {
+        throw;
     }
     catch (Base::AbortException& e) {
         const bool userCanceled = Base::isUserAbortException(e);
@@ -3386,6 +3567,9 @@ int Document::_recomputeFeature(DocumentObject* Feat) // NOLINT
 
 bool Document::recomputeFeature(DocumentObject* feature, bool recursive)
 {
+    auto nativeClaim = RecomputeDetail::Coordinator::instance().claimDocument(this, feature);
+    auto nativeOperation = nativeClaim.enter();
+    RecomputeDetail::Coordinator::instance().pinRoots({feature});
     RecomputeLifetimeGuard closeProtection(this);
 
     // delete recompute log
@@ -3401,6 +3585,10 @@ bool Document::recomputeFeature(DocumentObject* feature, bool recursive)
         recompute({feature}, true, &hasError);
         return !hasError;
     }
+    {
+        RecomputeDetail::CaptureScope capture(this);
+        capture.finish({feature});
+    }
     _recomputeFeature(feature);
     signalRecomputedObject(*feature);
     return feature->isValid();
@@ -3414,6 +3602,7 @@ DocumentObject* Document::addObject(
     const bool isPartial
 )
 {
+    auto admission = RecomputeDetail::Coordinator::instance().mutation({}, {this});
     const Base::Type type =
         Base::Type::getTypeIfDerivedFrom(sType, DocumentObject::getClassTypeId(), true);
     if (type.isBad()) {
@@ -3445,6 +3634,7 @@ DocumentObject* Document::addObject(
 std::vector<DocumentObject*>
 Document::addObjects(const char* sType, const std::vector<std::string>& objectNames, bool isNew)
 {
+    auto admission = RecomputeDetail::Coordinator::instance().mutation({}, {this});
     Base::Type type =
         Base::Type::getTypeIfDerivedFrom(sType, DocumentObject::getClassTypeId(), true);
     if (type.isBad()) {
@@ -3483,6 +3673,7 @@ Document::addObjects(const char* sType, const std::vector<std::string>& objectNa
 
 void Document::addObject(DocumentObject* obj, const char* name)
 {
+    auto admission = RecomputeDetail::Coordinator::instance().mutation({obj}, {this});
     if (obj->getDocument()) {
         throw Base::RuntimeError("Document object is already added to a document");
     }
@@ -3494,6 +3685,7 @@ void Document::addObject(DocumentObject* obj, const char* name)
 
 void Document::_addObject(DocumentObject* pcObject, const char* pObjectName, AddObjectOptions options, const char* viewType)
 {
+    auto admission = RecomputeDetail::Coordinator::instance().mutation({pcObject}, {this});
     // get unique name
     string ObjectName;
     if (!Base::Tools::isNullOrEmpty(pObjectName)) {
@@ -3518,8 +3710,9 @@ void Document::_addObject(DocumentObject* pcObject, const char* pObjectName, Add
     }
     d->objectIdMap[pcObject->_Id] = pcObject;
     d->objectArray.push_back(pcObject);
+    RecomputeDetail::Coordinator::instance().registerAttachment(this, pcObject, ObjectName);
 
-     // do no transactions if we do a rollback!
+    // do no transactions if we do a rollback!
     if (!d->rollback) {
         // Undo stuff
         _checkTransaction(nullptr, nullptr, __LINE__);
@@ -3597,10 +3790,10 @@ void Document::removeObject(const char* sName)
         return;
     }
 
-    if (pos->second->testStatus(ObjectStatus::PendingRecompute)) {
+    if (RecomputeDetail::Coordinator::instance().deferRemoval(pos->second)) {
         // TODO: shall we allow removal if there is active undo transaction?
         FC_MSG("pending remove of " << sName << " after recomputing document " << getName());
-        d->pendingRemove.emplace_back(pos->second);
+        // Exact-generation removal is owned by the admission completion drain.
         return;
     }
 
@@ -3608,7 +3801,33 @@ void Document::removeObject(const char* sName)
 }
 void Document::_removeObject(DocumentObject* pcObject, RemoveObjectOptions options)
 {
-    if (!options.testFlag(RemoveObjectOption::MayRemoveWhileRecomputing) && testStatus(Document::Recomputing)) {
+    auto admission = RecomputeDetail::Coordinator::instance().mutation({pcObject}, {this}, true);
+    auto incomingProperties = PropertyLinkBase::incomingAdmissionProperties({pcObject});
+    auto incomingAdmission = RecomputeDetail::Coordinator::instance()
+                                 .snapshotProperties(incomingProperties, nullptr, pcObject);
+    std::vector<DocumentObject*> endpoints {pcObject};
+    PropertyLinkBase::collectRemovalAdmissionTargets(pcObject, endpoints);
+    std::vector<Property*> ownedProperties;
+    pcObject->getPropertyList(ownedProperties);
+    for (auto* property : ownedProperties) {
+        if (auto* link = dynamic_cast<PropertyLinkBase*>(property)) {
+            link->collectAdmissionTargets(endpoints);
+        }
+    }
+    auto out = pcObject->getOutList();
+    endpoints.insert(endpoints.end(), out.begin(), out.end());
+    auto incoming = pcObject->getInList();
+    endpoints.insert(endpoints.end(), incoming.begin(), incoming.end());
+    // Only pcObject is physically removed. Surviving backlink/source owners
+    // need topology admission while their own lexical receiver pins remain live.
+    auto endpointAdmission = RecomputeDetail::Coordinator::instance().mutation(endpoints);
+    // The unlink cohort owns the source reservations and resources throughout
+    // removal. Planning child storage must end before DocInfo reconciles its
+    // parents, after first rejecting any independently borrowed child receiver.
+    incomingAdmission.requireExclusiveStorage();
+    incomingAdmission.releaseStorage();
+    if (!options.testFlag(RemoveObjectOption::MayRemoveWhileRecomputing)
+        && testStatus(Document::Recomputing)) {
         FC_ERR("Cannot delete " << pcObject->getFullName() << " while recomputing");
         return;
     }
@@ -3650,6 +3869,7 @@ void Document::_removeObject(DocumentObject* pcObject, RemoveObjectOptions optio
         d->activeObject = nullptr;
     }
 
+    RecomputeDetail::Coordinator::instance().retireAttachment(pcObject);
     // Mark the object as about to be removed
     pcObject->setStatus(ObjectStatus::Remove, true);
     if (!d->undoing && !d->rollback) {
@@ -3858,6 +4078,8 @@ Document::importLinks(const std::vector<DocumentObject*>& objs)
 
 DocumentObject* Document::moveObject(DocumentObject* obj, const bool recursive)
 {
+    refuseClosingStructuralTransaction(*this);
+    auto atomic = RecomputeDetail::Coordinator::instance().atomic();
     if (!obj) {
         return nullptr;
     }

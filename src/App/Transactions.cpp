@@ -34,6 +34,8 @@
 #include "Document.h"
 #include "DocumentObject.h"
 #include "Property.h"
+#include "PropertyLinks.h"
+#include "private/RecomputeAdmission.h"
 
 
 FC_LOG_LEVEL_INIT("App", true, true)
@@ -41,12 +43,15 @@ FC_LOG_LEVEL_INIT("App", true, true)
 using namespace App;
 using namespace std;
 
+static std::atomic<std::uint64_t> transactionGeneration {0};
+
 TYPESYSTEM_SOURCE(App::Transaction, Base::Persistence)
 
 //**************************************************************************
 // Construction/Destruction
 
 Transaction::Transaction(int id)
+    : generation(++transactionGeneration)
 {
     if (!id) {
         id = getNewID();
@@ -186,6 +191,9 @@ void Transaction::addOrRemoveProperty(TransactionalObject* Obj, const Property* 
 
 void Transaction::apply(Document& Doc, bool forward)
 {
+    // Direct callers need the same outer admission as undo/abort. Acquire before
+    // the legacy exception handler so Busy can never be reported as applied.
+    auto admission = RecomputeDetail::Coordinator::instance().atomic();
     std::string errMsg;
     try {
         auto& index = _Objects.get<0>();
@@ -198,6 +206,9 @@ void Transaction::apply(Document& Doc, bool forward)
         for (auto& info : index) {
             info.second->applyChn(Doc, const_cast<TransactionalObject*>(info.first), forward);
         }
+    }
+    catch (const RecomputeDetail::AdmissionRefusal&) {
+        throw;
     }
     catch (Base::Exception& e) {
         e.reportException();
@@ -214,8 +225,41 @@ void Transaction::apply(Document& Doc, bool forward)
     }
 }
 
+void Transaction::collectMutationEndpoints(std::vector<DocumentObject*>& endpoints) const
+{
+    const auto collectProperty = [&endpoints](const Property* property) {
+        if (const auto* links = dynamic_cast<const PropertyLinkBase*>(property)) {
+            links->collectAdmissionTargets(endpoints);
+        }
+    };
+    for (const auto& entry : _Objects.get<0>()) {
+        if (auto* object = freecad_cast<DocumentObject*>(const_cast<TransactionalObject*>(entry.first))) {
+            endpoints.push_back(object);
+            std::vector<Property*> properties;
+            object->getPropertyList(properties);
+            for (const auto* property : properties) {
+                collectProperty(property);
+            }
+        }
+        for (const auto& change : entry.second->_PropChangeMap) {
+            const auto& data = change.second;
+            collectProperty(data.property);
+            if (auto* target = freecad_cast<DocumentObject*>(data.target)) {
+                endpoints.push_back(target);
+            }
+            if (auto* source = freecad_cast<DocumentObject*>(data.source)) {
+                endpoints.push_back(source);
+            }
+        }
+    }
+}
+
 void Transaction::addObjectNew(TransactionalObject* Obj)
 {
+    auto* object = freecad_cast<DocumentObject*>(Obj);
+    auto admission = RecomputeDetail::Coordinator::instance().mutation(
+        object ? std::vector<DocumentObject*> {object} : std::vector<DocumentObject*> {}, {}, true
+    );
     auto& index = _Objects.get<1>();
     auto pos = index.find(Obj);
     if (pos != index.end()) {
@@ -299,7 +343,7 @@ TransactionObject::~TransactionObject()
         // operation.  This operation does not interact with v.second.property,
         // so it should not be deleted in that case.
 	if (data.nameOrig.empty()) {
-	    delete v.second.property;
+	    Property::destroy(v.second.property);
 	}
     }
 }
@@ -488,7 +532,7 @@ void TransactionObject::addOrRemoveProperty(const Property* pcProp, bool add)
         return;
     }
     if (data.property) {
-        delete data.property;
+        Property::destroy(data.property);
         data.property = nullptr;
     }
     data.propertyOrig = pcProp;
@@ -545,6 +589,7 @@ void TransactionDocumentObject::applyDel(Document& Doc, TransactionalObject* pcO
 {
     if (status == Del) {
         DocumentObject* obj = static_cast<DocumentObject*>(pcObj);
+        auto admission = RecomputeDetail::Coordinator::instance().mutation({obj}, {&Doc}, true);
 
         // Make sure the backlinks of all linked objects are updated. As the links of the removed
         // object are never set to [] they also do not remove the backlink. But as they are
@@ -572,6 +617,7 @@ void TransactionDocumentObject::applyNew(Document& Doc, TransactionalObject* pcO
 {
     if (status == New) {
         DocumentObject* obj = static_cast<DocumentObject*>(pcObj);
+        auto admission = RecomputeDetail::Coordinator::instance().mutation({obj}, {&Doc}, true);
         Doc._addObject(obj, _NameInDocument.c_str());
 
         // make sure the backlinks of all linked objects are updated
