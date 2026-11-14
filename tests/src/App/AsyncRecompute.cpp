@@ -4199,3 +4199,45 @@ TEST_F(AsyncRecomputeTest, Spec012WriterReleaseWakesAcceptedRequestWithoutRescue
     EXPECT_EQ(terminal->count.load(), 1);
     EXPECT_EQ(target->ExecCount.getValue(), 1);
 }
+
+TEST_F(AsyncRecomputeTest, Spec012ModelMoveEndpointCollectionSurvivesUndoRedoCleanup)
+{
+    auto* source = _doc->addObject<App::Spec012OutcomeFeature>("MoveSource");
+    auto* destination = _doc->addObject<App::Spec012OutcomeFeature>("MoveDestination");
+    auto* target = _doc->addObject<App::Spec012OutcomeFeature>("MoveLinkTarget");
+    ASSERT_NE(source, nullptr);
+    ASSERT_NE(destination, nullptr);
+    ASSERT_NE(target, nullptr);
+    auto* link = dynamic_cast<App::PropertyLink*>(
+        source->addDynamicProperty("App::PropertyLink", "MovedLink")
+    );
+    ASSERT_NE(link, nullptr);
+    link->setValue(target);
+    _doc->setMaxUndoStackSize(10);
+    _doc->openTransaction("Move link property between model objects");
+    auto* moved = source->moveDynamicProperty(link, destination);
+    ASSERT_NE(moved, nullptr);
+    ASSERT_EQ(destination->getDynamicPropertyByName("MovedLink"), moved);
+    {
+        auto admission = App::RecomputeDetail::Coordinator::instance().mutation({}, {_doc});
+        std::vector<App::DocumentObject*> endpoints;
+        _doc->collectCommitMutationEndpoints(endpoints);
+        for (auto* expected : {source, destination, target}) {
+            EXPECT_NE(std::find(endpoints.begin(), endpoints.end(), expected), endpoints.end());
+        }
+    }
+    _doc->commitTransaction();
+    ASSERT_TRUE(_doc->undo());
+    auto* restored = dynamic_cast<App::PropertyLink*>(source->getDynamicPropertyByName("MovedLink"));
+    ASSERT_NE(restored, nullptr);
+    EXPECT_EQ(restored->getValue(), target);
+    EXPECT_EQ(destination->getDynamicPropertyByName("MovedLink"), nullptr);
+    ASSERT_TRUE(_doc->redo());
+    auto* redone = dynamic_cast<App::PropertyLink*>(destination->getDynamicPropertyByName("MovedLink"));
+    ASSERT_NE(redone, nullptr);
+    EXPECT_EQ(redone->getValue(), target);
+    _doc->clearUndos();
+    EXPECT_EQ(_doc->getAvailableUndos(), 0);
+    EXPECT_EQ(_doc->getAvailableRedos(), 0);
+    EXPECT_EQ(redone->getValue(), target);
+}

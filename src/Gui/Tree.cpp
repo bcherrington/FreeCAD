@@ -3749,6 +3749,9 @@ void TreeWidget::onUpdateStatus()
 
     updateGeometries();
     statusTimer->stop();
+    if (!ChangedObjects.empty() || !NewObjects.empty()) {
+        _updateStatus();
+    }
 
     FC_LOG("done update status");
 }

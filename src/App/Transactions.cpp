@@ -146,8 +146,10 @@ bool Transaction::hasObject(const TransactionalObject* Obj) const
 #endif
 }
 
-void Transaction::changeProperty(TransactionalObject* Obj,
-                                 std::function<void(TransactionObject* to)> changeFunc)
+void Transaction::changeProperty(
+    TransactionalObject* Obj,
+    std::function<void(TransactionObject* to)> changeFunc
+)
 {
     auto& index = _Objects.get<1>();
     auto pos = index.find(Obj);
@@ -170,8 +172,12 @@ void Transaction::renameProperty(TransactionalObject* Obj, const Property* pcPro
     });
 }
 
-void Transaction::arrangeMoveProperty(TransactionalObject* Obj, const Property* pcProp,
-                                      TransactionalObject* target, Property* newProp)
+void Transaction::arrangeMoveProperty(
+    TransactionalObject* Obj,
+    const Property* pcProp,
+    TransactionalObject* target,
+    Property* newProp
+)
 {
     changeProperty(Obj, [pcProp, target, newProp](TransactionObject* to) {
         to->arrangeMoveProperty(pcProp, target, newProp);
@@ -233,7 +239,11 @@ void Transaction::collectMutationEndpoints(std::vector<DocumentObject*>& endpoin
         }
     };
     for (const auto& entry : _Objects.get<0>()) {
-        if (auto* object = freecad_cast<DocumentObject*>(const_cast<TransactionalObject*>(entry.first))) {
+        // The payload is transaction-owned; the key may be a borrowed GUI
+        // provider already destroyed before App history cleanup. Only native
+        // model payloads guarantee an App-owned DocumentObject key here.
+        if (dynamic_cast<const TransactionDocumentObject*>(entry.second)) {
+            auto* object = static_cast<DocumentObject*>(const_cast<TransactionalObject*>(entry.first));
             endpoints.push_back(object);
             std::vector<Property*> properties;
             object->getPropertyList(properties);
@@ -243,12 +253,18 @@ void Transaction::collectMutationEndpoints(std::vector<DocumentObject*>& endpoin
         }
         for (const auto& change : entry.second->_PropChangeMap) {
             const auto& data = change.second;
-            collectProperty(data.property);
-            if (auto* target = freecad_cast<DocumentObject*>(data.target)) {
-                endpoints.push_back(target);
+            // Rename records borrow the original property. Match the payload
+            // destructor's ownership rule before inspecting any saved storage.
+            if (data.nameOrig.empty()) {
+                collectProperty(data.property);
             }
-            if (auto* source = freecad_cast<DocumentObject*>(data.source)) {
-                endpoints.push_back(source);
+            // Captured while the participants were live. Admission consumes
+            // these only as registry keys, never as receivers to dereference.
+            if (data.modelTarget) {
+                endpoints.push_back(data.modelTarget);
+            }
+            if (data.modelSource) {
+                endpoints.push_back(data.modelSource);
             }
         }
     }
@@ -258,7 +274,9 @@ void Transaction::addObjectNew(TransactionalObject* Obj)
 {
     auto* object = freecad_cast<DocumentObject*>(Obj);
     auto admission = RecomputeDetail::Coordinator::instance().mutation(
-        object ? std::vector<DocumentObject*> {object} : std::vector<DocumentObject*> {}, {}, true
+        object ? std::vector<DocumentObject*> {object} : std::vector<DocumentObject*> {},
+        {},
+        true
     );
     auto& index = _Objects.get<1>();
     auto pos = index.find(Obj);
@@ -342,9 +360,9 @@ TransactionObject::~TransactionObject()
         // If nameOrig is used, it means it is a transaction of a rename
         // operation.  This operation does not interact with v.second.property,
         // so it should not be deleted in that case.
-	if (data.nameOrig.empty()) {
-	    Property::destroy(v.second.property);
-	}
+        if (data.nameOrig.empty()) {
+            Property::destroy(v.second.property);
+        }
     }
 }
 
@@ -419,13 +437,15 @@ void TransactionObject::applyChn(Document& /*Doc*/, TransactionalObject* pcObj, 
                 prop = pcObj->getDynamicPropertyByName(data.name.c_str());
                 if (!prop) {
                     // Still not found, re-create the property
-                    prop = pcObj->addDynamicProperty(data.propertyType.getName(),
-                                                     data.name.c_str(),
-                                                     data.group.c_str(),
-                                                     data.doc.c_str(),
-                                                     data.attr,
-                                                     data.readonly,
-                                                     data.hidden);
+                    prop = pcObj->addDynamicProperty(
+                        data.propertyType.getName(),
+                        data.name.c_str(),
+                        data.group.c_str(),
+                        data.doc.c_str(),
+                        data.attr,
+                        data.readonly,
+                        data.hidden
+                    );
                     if (!prop) {
                         continue;
                     }
@@ -466,8 +486,9 @@ void TransactionObject::setProperty(const Property* pcProp)
 {
     auto& data = _PropChangeMap[pcProp->getID()];
     if (!data.property && data.name.empty()) {
-        static_cast<DynamicProperty::PropData&>(data) =
-            pcProp->getContainer()->getDynamicPropertyData(pcProp);
+        static_cast<DynamicProperty::PropData&>(
+            data
+        ) = pcProp->getContainer()->getDynamicPropertyData(pcProp);
         data.propertyOrig = pcProp;
         data.property = pcProp->Copy();
         data.propertyType = pcProp->getTypeId();
@@ -484,15 +505,18 @@ void TransactionObject::renameProperty(const Property* pcProp, const char* oldNa
     auto& data = _PropChangeMap[pcProp->getID()];
 
     if (data.name.empty()) {
-        static_cast<DynamicProperty::PropData&>(data) =
-            pcProp->getContainer()->getDynamicPropertyData(pcProp);
+        static_cast<DynamicProperty::PropData&>(
+            data
+        ) = pcProp->getContainer()->getDynamicPropertyData(pcProp);
     }
     data.nameOrig = oldName;
 }
 
-void TransactionObject::arrangeMoveProperty(const Property* pcProp,
-                                            TransactionalObject* target,
-                                            Property* newProp)
+void TransactionObject::arrangeMoveProperty(
+    const Property* pcProp,
+    TransactionalObject* target,
+    Property* newProp
+)
 {
     if (!pcProp || !pcProp->getContainer() || !target) {
         return;
@@ -500,8 +524,9 @@ void TransactionObject::arrangeMoveProperty(const Property* pcProp,
 
     auto& data = _PropChangeMap[pcProp->getID()];
     if (data.name.empty()) {
-        static_cast<DynamicProperty::PropData&>(data) =
-            pcProp->getContainer()->getDynamicPropertyData(pcProp);
+        static_cast<DynamicProperty::PropData&>(
+            data
+        ) = pcProp->getContainer()->getDynamicPropertyData(pcProp);
     }
 
     // the source information
@@ -509,9 +534,11 @@ void TransactionObject::arrangeMoveProperty(const Property* pcProp,
     data.propertyType = pcProp->getTypeId();
     data.property->setStatusValue(pcProp->getStatus());
     data.source = pcProp->getContainer();
+    data.modelSource = freecad_cast<DocumentObject*>(data.source);
 
     // the target information
     data.target = target;
+    data.modelTarget = freecad_cast<DocumentObject*>(target);
     data.propertyTarget = newProp;
 }
 
@@ -536,8 +563,9 @@ void TransactionObject::addOrRemoveProperty(const Property* pcProp, bool add)
         data.property = nullptr;
     }
     data.propertyOrig = pcProp;
-    static_cast<DynamicProperty::PropData&>(data) =
-        pcProp->getContainer()->getDynamicPropertyData(pcProp);
+    static_cast<DynamicProperty::PropData&>(data) = pcProp->getContainer()->getDynamicPropertyData(
+        pcProp
+    );
     if (add) {
         data.property = nullptr;
     }
