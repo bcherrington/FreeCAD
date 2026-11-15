@@ -84,10 +84,15 @@ PyObject* AssemblyObjectPy::generateSimulation(PyObject* args) const
 {
     PyObject* pyobj;
 
-    if (!PyArg_ParseTuple(args, "O", &pyobj)) {
+    if (!PyArg_ParseTuple(args, "O!", &App::DocumentObjectPy::Type, &pyobj)) {
         return nullptr;
     }
-    auto* obj = static_cast<App::DocumentObjectPy*>(pyobj)->getDocumentObjectPtr();
+    auto* simulation = static_cast<App::DocumentObjectPy*>(pyobj);
+    if (!simulation->Base::PyObjectBase::isValid()) {
+        PyErr_SetString(PyExc_ReferenceError, "The simulation object has been deleted");
+        return nullptr;
+    }
+    auto* obj = simulation->getDocumentObjectPtr();
     int ret = this->getAssemblyObjectPtr()->generateSimulation(obj);
     return Py_BuildValue("i", ret);
 }

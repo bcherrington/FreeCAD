@@ -59,7 +59,11 @@ class AssemblyObject(Part):
         While automatic motion is suspended, return -7 without generating frames.
 
         Args:
-        simulationObject: The simulation Object.
+        simulationObject: A live FreeCAD document object (including subtypes).
+
+        Raises:
+        TypeError: If the argument is not a FreeCAD document object.
+        ReferenceError: If the argument's native object has been deleted.
 
         Returns:
         0 in case of success, otherwise the following codes in this order of
