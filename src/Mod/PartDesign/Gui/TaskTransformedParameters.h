@@ -25,6 +25,7 @@
 
 #pragma once
 
+#include <cstdint>
 #include <memory>
 #include <string>
 
@@ -92,6 +93,7 @@ public:
 
     /// Apply changes for python console
     virtual void apply() = 0;
+    bool applyAcceptedParameters();
 
     /*!
      * \brief setEnabledTransaction
@@ -106,6 +108,7 @@ public:
 
     virtual void flushPendingRecompute();
     void stopPendingRecompute();
+    bool stopPendingRecomputeAndWait();
     void cancelPendingRecompute();
     bool hasOutstandingRecompute() const;
     bool canReuseAcceptedPreviewResult() const;
@@ -237,8 +240,14 @@ private:
     App::DocumentObject* getBaseObject() const;
 
     void changeEvent(QEvent* event) override;
+    bool isApplyingAcceptedParameters() const
+    {
+        return applyingAcceptedParameters;
+    }
 
 protected:
+    bool hasUnpublishedPreviewInput() const;
+    void beginPreviewTeardown();
     enum class SelectionMode
     {
         None,
@@ -261,6 +270,8 @@ protected:
     PartDesignGui::ViewProviderTransformed* getTopTransformedView() const;
 
 private:
+    // The parent owns embedded sub-task identity and accepted-apply coordination.
+    friend class TaskMultiTransformParameters;
     int transactionID = 0;
     bool enableTransaction = true;
     /// The MultiTransform parent task of this task
@@ -271,6 +282,9 @@ private:
     QWidget* proxy = nullptr;
     std::unique_ptr<Ui_TaskTransformedParameters> ui;
     std::unique_ptr<Gui::AsyncPreviewSession> asyncPreviewSession;
+    std::uint64_t stagedPreviewActivitySerial {0};
+    bool applyingAcceptedParameters {false};
+    bool previewTeardownStarted {false};
     bool pendingStagedPreviewUpdate = false;
     bool flushingStagedPreviewUpdate = false;
 };

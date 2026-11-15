@@ -33,6 +33,7 @@
 #include <App/DocumentObject.h>
 #include <Base/Converter.h>
 #include <Gui/Command.h>
+#include <Gui/Control.h>
 #include <Base/Interpreter.h>
 #include <Gui/Selection/Selection.h>
 #include <Gui/ViewProvider.h>
@@ -407,7 +408,21 @@ TaskDlgDraftParameters::~TaskDlgDraftParameters() = default;
 
 bool TaskDlgDraftParameters::accept()
 {
-    auto tobj = getObject();
+    if (!parameter || hasDeferredRejectPending()) {
+        return false;
+    }
+    auto* original = getObject();
+    QPointer<TaskDlgDraftParameters> dialogGuard(this);
+    QPointer<TaskDressUpParameters> parameterGuard(parameter);
+    PreviewRecomputeGuard originalGuard(original, parameter, getViewObject());
+    auto* editOwner = original ? Gui::Control().activeDialog(original->getDocument()) : nullptr;
+    // Draft serializes its own topology before the DressUp base accept path.
+    if (!parameter->stopPendingRecomputeAndWait() || !dialogGuard || !parameterGuard
+        || parameter != parameterGuard.data() || !originalGuard.isLive() || getObject() != original
+        || Gui::Control().activeDialog(original->getDocument()) != editOwner) {
+        return false;
+    }
+    auto tobj = original;
     if (!tobj->isError()) {
         getViewObject()->showPreviousFeature(false);
     }

@@ -71,6 +71,7 @@ public:
     int getType() const;
     void flushPendingRecompute();
     void stopPendingRecompute();
+    bool stopPendingRecomputeAndWait();
     bool hasOutstandingRecompute() const;
     bool canReuseAcceptedPreviewResult() const;
     void setDeferredClosePending(bool pending);

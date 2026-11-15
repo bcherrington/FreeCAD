@@ -117,6 +117,24 @@ public:
         std::function<App::RecomputeResult()> runSyncWithResult;
     };
 
+    /// Non-owning readiness fence; fresh work remains observable after stopping
+    /// or completion, and replacement controllers have distinct identities.
+    struct ActivityToken
+    {
+        std::uint64_t controllerIdentity {};
+        std::uint64_t activitySerial {};
+        bool operator==(const ActivityToken& other) const noexcept
+        {
+            return controllerIdentity == other.controllerIdentity
+                && activitySerial == other.activitySerial;
+        }
+        bool operator!=(const ActivityToken& other) const noexcept
+        {
+            return !(*this == other);
+        }
+    };
+    ActivityToken recomputeActivityToken() const noexcept;
+
     explicit AsyncPreviewController(Callbacks callbacks, QObject* parent = nullptr);
     ~AsyncPreviewController() override;
 
@@ -141,6 +159,14 @@ public:
     void flushPendingRecompute();
     /// Cancel the active request and remove queued matching preview requests.
     void stopPendingRecompute();
+    /**
+     * Cancel current previews and wait for their exact native retirement.
+     * Returns false before cancellation for a cyclic wait, or after reentry if
+     * this controller was deleted or fresh preview work was accepted/scheduled.
+     * Does not launch or rerun recomputation. Callers must revalidate their own
+     * original model/task ownership before performing acceptance effects.
+     */
+    bool stopPendingRecomputeAndWait();
 
     bool hasOutstandingRecompute() const;
     bool isInProgress() const;
@@ -188,6 +214,8 @@ private:
     std::shared_ptr<App::RecomputeProgressHandle> recomputeProgress;
     std::uint64_t recomputeGeneration = 0;
     std::uint64_t nextRecomputeGeneration = 0;
+    const std::uint64_t activityIdentity;
+    std::uint64_t activitySerial = 0;
     std::uint64_t applyEligibleGeneration = 0;
     std::uint64_t settledRecomputeGeneration = 0;
     std::map<std::uint64_t, std::shared_ptr<Registration>> registrations;

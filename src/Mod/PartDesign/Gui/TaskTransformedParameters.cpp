@@ -92,6 +92,7 @@ TaskTransformedParameters::TaskTransformedParameters(TaskMultiTransformParameter
 
 TaskTransformedParameters::~TaskTransformedParameters()
 {
+    beginPreviewTeardown();
     // make sure to remove selection gate in all cases
     Gui::Selection().rmvSelectionGate();
     stopPendingRecompute();
@@ -99,10 +100,31 @@ TaskTransformedParameters::~TaskTransformedParameters()
     delete proxy;
 }
 
+void TaskTransformedParameters::beginPreviewTeardown()
+{
+    if (previewTeardownStarted) {
+        return;
+    }
+    previewTeardownStarted = true;
+    if (auto* controller = getAsyncPreviewController()) {
+        // Disconnect only this receiver. A MultiTransform parent or another
+        // surviving panel may still own the shared controller's notifications.
+        QObject::disconnect(
+            controller,
+            &AsyncPreviewController::recomputeSettled,
+            this,
+            &TaskTransformedParameters::onPreviewControllerRecomputeSettled
+        );
+    }
+}
+
 void TaskTransformedParameters::setupAsyncPreviewController()
 {
     AsyncPreviewController::Callbacks callbacks;
     callbacks.makeRequest = [this]() {
+        if (previewTeardownStarted) {
+            return App::RecomputeRequest {};
+        }
         auto* object = getTopTransformedObject();
         return object ? App::RecomputeRequest::fromDocumentObject(
                             *object,
@@ -112,13 +134,16 @@ void TaskTransformedParameters::setupAsyncPreviewController()
                       : App::RecomputeRequest {};
     };
     callbacks.runSyncWithResult = [this]() -> App::RecomputeResult {
+        if (previewTeardownStarted) {
+            return Gui::recomputeDocumentObjectWithResult(nullptr);
+        }
         if (auto* view = getTopTransformedView()) {
             return view->recomputeFeatureWithResult(true, this);
         }
         return Gui::recomputeDocumentObjectWithResult(nullptr);
     };
     callbacks.onAppliedResult = [this](bool, bool canceled) {
-        if (!canceled) {
+        if (!previewTeardownStarted && !canceled) {
             if (auto* view = getTopTransformedView()) {
                 view->refreshPreviewResult();
             }
@@ -450,6 +475,62 @@ void TaskTransformedParameters::flushPendingRecompute()
     applyStagedPreviewStateToObject();
     setupTransaction();
     requestImmediateRecompute(/*waitForCompletion=*/true);
+}
+
+bool TaskTransformedParameters::applyAcceptedParameters()
+{
+    QPointer<TaskTransformedParameters> self(this);
+    PreviewRecomputeGuard guard(getObject(), this, getTopTransformedView());
+    const bool previous = applyingAcceptedParameters;
+    applyingAcceptedParameters = true;
+    try {
+        apply();
+    }
+    catch (...) {
+        if (self) {
+            self->applyingAcceptedParameters = previous;
+        }
+        throw;
+    }
+    if (!self) {
+        return false;
+    }
+    self->applyingAcceptedParameters = previous;
+    return guard.isLive();
+}
+
+bool TaskTransformedParameters::stopPendingRecomputeAndWait()
+{
+    PreviewRecomputeGuard guard(getObject(), this, getTopTransformedView());
+    if (!guard.isLive()) {
+        return false;
+    }
+    QPointer<TaskTransformedParameters> self(this);
+    QPointer<TaskTransformedParameters> activityOwner(insideMultiTransform ? parentTask : this);
+    const auto originalActivity = activityOwner->stagedPreviewActivitySerial;
+    const bool previousFlushing = flushingStagedPreviewUpdate;
+    // These already-staged controls will be serialized by final apply. Do not
+    // submit our automatic preview replay from the canceled run's settled signal.
+    // Independent callback/user scheduling still changes the session token and
+    // makes stopPendingRecomputeAndWait refuse acceptance.
+    flushingStagedPreviewUpdate = true;
+    bool settled = false;
+    try {
+        auto* session = getAsyncPreviewSession();
+        settled = !session || session->stopPendingRecomputeAndWait();
+    }
+    catch (...) {
+        if (self) {
+            self->flushingStagedPreviewUpdate = previousFlushing;
+        }
+        throw;
+    }
+    if (!self) {
+        return false;
+    }
+    self->flushingStagedPreviewUpdate = previousFlushing;
+    return settled && activityOwner && guard.isLive()
+        && activityOwner->stagedPreviewActivitySerial == originalActivity;
 }
 
 void TaskTransformedParameters::stopPendingRecompute()
@@ -805,6 +886,8 @@ void TaskTransformedParameters::requestImmediateRecompute(bool waitForCompletion
 
 void TaskTransformedParameters::requestStagedPreviewUpdate()
 {
+    auto* activityOwner = insideMultiTransform ? parentTask : this;
+    ++activityOwner->stagedPreviewActivitySerial;
     if (blockUpdate) {
         return;
     }
@@ -823,9 +906,22 @@ void TaskTransformedParameters::requestStagedPreviewUpdate()
 void TaskTransformedParameters::applyStagedPreviewStateToObject()
 {}
 
+bool TaskTransformedParameters::hasUnpublishedPreviewInput() const
+{
+    return pendingStagedPreviewUpdate || flushingStagedPreviewUpdate
+        || (insideMultiTransform && parentTask && parentTask->flushingStagedPreviewUpdate);
+}
+
 void TaskTransformedParameters::onPreviewControllerRecomputeSettled()
 {
-    if (!blockUpdate && !flushingStagedPreviewUpdate && pendingStagedPreviewUpdate) {
+    if (previewTeardownStarted
+        || (insideMultiTransform && parentTask && parentTask->previewTeardownStarted)) {
+        return;
+    }
+    const bool parentFlushing = insideMultiTransform && parentTask
+        && parentTask->flushingStagedPreviewUpdate;
+    if (!blockUpdate && !flushingStagedPreviewUpdate && !parentFlushing
+        && pendingStagedPreviewUpdate) {
         pendingStagedPreviewUpdate = false;
         applyStagedPreviewStateToObject();
         setupTransaction();
@@ -1010,13 +1106,16 @@ bool TaskDlgTransformedParameters::accept()
     prepareDeferredReject(parameter, &TaskTransformedParameters::recomputeSettled, [this]() {
         return TaskDlgFeatureParameters::reject();
     });
-    parameter->exitSelectionMode();
 
     auto* feature = getObject();
     if (!feature) {
         return false;
     }
 
+    QPointer<TaskDlgTransformedParameters> dialogGuard(this);
+    QPointer<TaskTransformedParameters> parameterGuard(parameter);
+    PreviewRecomputeGuard originalGuard(feature, parameter, getViewObject());
+    auto* editOwner = feature ? Gui::Control().activeDialog(feature->getDocument()) : nullptr;
     App::DocumentObjectWeakPtrT featureGuard(feature);
     bool isUpdateBlocked = false;
     try {
@@ -1030,14 +1129,25 @@ bool TaskDlgTransformedParameters::accept()
             // was canceled, do not replay preview work on the GUI thread. Stop the
             // preview path, serialize the final UI state, and let the accepted
             // document recompute produce the final feature result.
-            parameter->stopPendingRecompute();
+            if (!parameter->stopPendingRecomputeAndWait()) {
+                return false;
+            }
         }
-        parameter->apply();
-        isUpdateBlocked = parameter->isUpdateBlocked();
-
-        if (featureGuard.expired() || !feature->isAttachedToDocument()) {
+        if (!dialogGuard || !parameterGuard || parameter != parameterGuard.data()
+            || !originalGuard.isLive() || getObject() != feature
+            || Gui::Control().activeDialog(feature->getDocument()) != editOwner) {
             return false;
         }
+        parameter->exitSelectionMode();
+        if (!parameter->applyAcceptedParameters()) {
+            return false;
+        }
+        if (!dialogGuard || !parameterGuard || parameter != parameterGuard.data()
+            || !originalGuard.isLive() || getObject() != feature
+            || Gui::Control().activeDialog(feature->getDocument()) != editOwner) {
+            return false;
+        }
+        isUpdateBlocked = parameter->isUpdateBlocked();
         if (!feature->isDerivedFrom<PartDesign::Feature>()) {
             throw Base::TypeError("Bad object processed in the feature dialog.");
         }
@@ -1059,13 +1169,16 @@ bool TaskDlgTransformedParameters::accept()
             return false;
         }
 
-        if (featureGuard.expired() || !feature->isAttachedToDocument()) {
+        if (!dialogGuard || !parameterGuard || parameter != parameterGuard.data()
+            || !originalGuard.isLive() || getObject() != feature
+            || Gui::Control().activeDialog(feature->getDocument()) != editOwner) {
             return false;
         }
         finalizeAcceptedFeature(feature);
     }
     catch (const Base::Exception& e) {
-        if (featureGuard.expired()) {
+        if (!dialogGuard || !parameterGuard || parameter != parameterGuard.data()
+            || !originalGuard.isLive()) {
             e.reportException();
             return false;
         }

@@ -988,6 +988,16 @@ bool TaskDlgDressUpParameters::accept()
         return false;
     }
 
+    QPointer<TaskDlgDressUpParameters> dialogGuard(this);
+    QPointer<TaskDressUpParameters> parameterGuard(parameter);
+    auto* original = getObject();
+    PreviewRecomputeGuard originalGuard(original, parameter, getViewObject());
+    auto* editOwner = original ? Gui::Control().activeDialog(original->getDocument()) : nullptr;
+    if (!parameter->stopPendingRecomputeAndWait() || !dialogGuard || !parameterGuard
+        || parameter != parameterGuard.data() || !originalGuard.isLive() || getObject() != original
+        || Gui::Control().activeDialog(original->getDocument()) != editOwner) {
+        return false;
+    }
     prepareDeferredReject(parameter, &TaskDressUpParameters::recomputeSettled, [this]() {
         return TaskDlgFeatureParameters::reject();
     });

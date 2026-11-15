@@ -440,6 +440,13 @@ void TaskBooleanParameters::flushPendingRecompute()
     }
 }
 
+bool TaskBooleanParameters::stopPendingRecomputeAndWait()
+{
+    PreviewRecomputeGuard guard(BooleanView ? BooleanView->getObject() : nullptr, this, BooleanView);
+    auto* session = asyncPreviewSession.get();
+    return guard.isLive() && (!session || session->stopPendingRecomputeAndWait()) && guard.isLive();
+}
+
 void TaskBooleanParameters::stopPendingRecompute()
 {
     if (asyncPreviewSession) {
@@ -540,23 +547,36 @@ bool TaskDlgBooleanParameters::accept()
     }
     App::DocumentObjectWeakPtrT objectGuard(obj);
     App::DocumentWeakPtrT documentGuard(document);
-    BooleanView->Visibility.setValue(true);
+    QPointer<TaskDlgBooleanParameters> dialogGuard(this);
+    QPointer<TaskBooleanParameters> parameterGuard(parameter);
+    PreviewRecomputeGuard originalGuard(obj, parameter, BooleanView);
+    auto* editOwner = obj ? Gui::Control().activeDialog(obj->getDocument()) : nullptr;
 
     try {
+        const bool previewSettled = !parameter->hasOutstandingRecompute()
+            && parameter->canReuseAcceptedPreviewResult();
+        if (!previewSettled) {
+            if (!parameter->stopPendingRecomputeAndWait()) {
+                return false;
+            }
+        }
+        else {
+            parameter->flushPendingRecompute();
+        }
+        if (!dialogGuard || !parameterGuard || parameter != parameterGuard.data()
+            || !originalGuard.isLive() || BooleanView->getObject() != obj
+            || Gui::Control().activeDialog(obj->getDocument()) != editOwner) {
+            return false;
+        }
+        BooleanView->Visibility.setValue(true);
         std::vector<std::string> bodies = parameter->getBodies();
         if (bodies.empty()) {
             QMessageBox::warning(parameter, tr("Empty body list"), tr("The body list cannot be empty"));
             return false;
         }
-        const bool previewSettled = !parameter->hasOutstandingRecompute()
-            && parameter->canReuseAcceptedPreviewResult();
-        if (!previewSettled) {
-            parameter->stopPendingRecompute();
-        }
-        else {
-            parameter->flushPendingRecompute();
-        }
-        if (objectGuard.expired() || !obj->isAttachedToDocument()) {
+        if (!dialogGuard || !parameterGuard || parameter != parameterGuard.data()
+            || !originalGuard.isLive() || BooleanView->getObject() != obj
+            || Gui::Control().activeDialog(obj->getDocument()) != editOwner) {
             return false;
         }
         std::stringstream str;
@@ -589,7 +609,9 @@ bool TaskDlgBooleanParameters::accept()
         if (!runAsyncAcceptDocumentRecompute(document, options)) {
             return false;
         }
-        if (objectGuard.expired() || !obj->isAttachedToDocument()) {
+        if (!dialogGuard || !parameterGuard || parameter != parameterGuard.data()
+            || !originalGuard.isLive() || BooleanView->getObject() != obj
+            || Gui::Control().activeDialog(obj->getDocument()) != editOwner) {
             return false;
         }
         if (!obj->isValid()) {
@@ -602,7 +624,8 @@ bool TaskDlgBooleanParameters::accept()
         }
     }
     catch (const Base::Exception& e) {
-        if (documentGuard.expired() || objectGuard.expired()) {
+        if (!dialogGuard || !parameterGuard || parameter != parameterGuard.data()
+            || documentGuard.expired() || objectGuard.expired()) {
             return false;
         }
         if (!document->tryAbortTransaction()) {

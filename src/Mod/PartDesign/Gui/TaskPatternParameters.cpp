@@ -234,7 +234,11 @@ void TaskPatternParameters::setupParameterUI(QWidget* widget)
     connect(this, &TaskTransformedParameters::recomputeSettled, this, [this]() {
         if (!hasOutstandingRecompute() && !isUpdateBlocked()) {
             updatePatternSpacingLabels();
-            updatePatternParameterUI();
+            // A retired older preview must not overwrite controls still holding
+            // newer unpublished intent, including during accepted settlement.
+            if (!hasUnpublishedPreviewInput()) {
+                updatePatternParameterUI();
+            }
             updateInstanceControls();
         }
     });
@@ -633,6 +637,7 @@ void TaskPatternParameters::onSelectionChanged(const Gui::SelectionChanges& msg)
 
 TaskPatternParameters::~TaskPatternParameters()
 {
+    beginPreviewTeardown();
     cancelPendingUpdate();
     instanceControls.reset();
     showOriginAxes(false);         // Clean up temporary visibility

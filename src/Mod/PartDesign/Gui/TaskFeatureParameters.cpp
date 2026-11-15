@@ -35,6 +35,7 @@
 #include <Gui/AsyncRecomputeProgressDialog.h>
 #include <Gui/BitmapFactory.h>
 #include <Gui/CommandT.h>
+#include <Gui/Control.h>
 #include <Gui/Document.h>
 #include <Gui/InputHint.h>
 #include <Gui/Inventor/Draggers/Gizmo.h>
@@ -276,6 +277,24 @@ App::RecomputeResult TaskFeatureParameters::recomputeFeatureWithResult()
     return result;
 }
 
+bool TaskFeatureParameters::stopPendingRecomputeAndWait()
+{
+    PreviewRecomputeGuard guard(getObject(), this, getViewObject());
+    if (!guard.isLive()) {
+        return false;
+    }
+    auto* session = getAcceptedRecomputeProgressSession();
+    if (session && !session->stopPendingRecomputeAndWait()) {
+        return false;
+    }
+    if (!guard.isLive()) {
+        return false;
+    }
+    // Derived panels may also own delayed UI schedulers (for example Hole).
+    stopPendingRecompute();
+    return guard.isLive();
+}
+
 Gui::AsyncPreviewSession* TaskFeatureParameters::getAcceptedRecomputeProgressSession()
 {
     return nullptr;
@@ -419,25 +438,125 @@ bool TaskDlgFeatureParameters::applyAcceptedFeatureParameters(
 {
     isUpdateBlocked = false;
 
-    // Iterate over parameter dialogs and apply all parameters from them.
-    for (QWidget* wgt : Content) {
-        TaskFeatureParameters* param = qobject_cast<TaskFeatureParameters*>(wgt);
-        if (!param) {
-            continue;
+    QPointer<TaskDlgFeatureParameters> dialogGuard(this);
+    auto* originalFeature = getObject();
+    PreviewRecomputeGuard featureGuard(originalFeature, this, getViewObject());
+    auto* editOwner = originalFeature ? Gui::Control().activeDialog(originalFeature->getDocument())
+                                      : nullptr;
+    struct ParameterState
+    {
+        QPointer<TaskFeatureParameters> parameter;
+        App::DocumentObject* object;
+        std::unique_ptr<PreviewRecomputeGuard> guard;
+        Gui::AsyncPreviewSession* session {};
+        Gui::AsyncPreviewSession::ActivityToken activity {};
+        bool settled {false};
+    };
+    std::vector<ParameterState> parameters;
+    for (QWidget* widget : Content) {
+        if (auto* parameter = qobject_cast<TaskFeatureParameters*>(widget)) {
+            parameters.push_back(
+                {parameter,
+                 parameter->getObject(),
+                 std::make_unique<PreviewRecomputeGuard>(
+                     parameter->getObject(),
+                     parameter,
+                     parameter->getViewObject()
+                 )}
+            );
         }
-
+    }
+    const auto originalReceiversLive = [&]() {
+        if (!dialogGuard || !featureGuard.isLive() || getObject() != originalFeature
+            || Gui::Control().activeDialog(originalFeature->getDocument()) != editOwner) {
+            return false;
+        }
+        for (const auto& state : parameters) {
+            if (!state.parameter || !state.guard->isLive()
+                || state.parameter->getObject() != state.object) {
+                return false;
+            }
+        }
+        // QPointer liveness alone does not prove that retained panels still
+        // belong to this dialog after another panel's settlement pumps events.
+        std::size_t index = 0;
+        for (QWidget* widget : Content) {
+            if (auto* parameter = qobject_cast<TaskFeatureParameters*>(widget)) {
+                if (index == parameters.size() || parameter != parameters[index].parameter.data()) {
+                    return false;
+                }
+                ++index;
+            }
+        }
+        return index == parameters.size();
+    };
+    const auto settledActivityUnchanged = [&]() {
+        if (!originalReceiversLive()) {
+            return false;
+        }
+        for (const auto& state : parameters) {
+            if (!state.settled) {
+                continue;
+            }
+            auto* session = state.parameter->getAcceptedRecomputeProgressSession();
+            if (session != state.session
+                || (session && session->recomputeActivityToken() != state.activity)) {
+                return false;
+            }
+        }
+        return true;
+    };
+    // Settle every panel before any panel writes accepted state. Another panel
+    // may own a preview lease over the same feature or document.
+    for (auto& state : parameters) {
+        if (!settledActivityUnchanged()) {
+            return false;
+        }
         switch (pendingRecomputeAction) {
             case AcceptPendingRecomputeAction::Flush:
-                param->flushPendingRecompute();
+                state.parameter->flushPendingRecompute();
                 break;
             case AcceptPendingRecomputeAction::Stop:
-                param->stopPendingRecompute();
+                if (!state.parameter->stopPendingRecomputeAndWait()) {
+                    return false;
+                }
                 break;
         }
-
-        param->saveHistory();
-        param->apply();
-        isUpdateBlocked |= param->isUpdateBlocked();
+        if (!settledActivityUnchanged()) {
+            return false;
+        }
+        state.session = state.parameter->getAcceptedRecomputeProgressSession();
+        if (state.session) {
+            state.activity = state.session->recomputeActivityToken();
+        }
+        state.settled = true;
+    }
+    const auto readyToApply = [&]() {
+        if (!settledActivityUnchanged()) {
+            return false;
+        }
+        for (const auto& state : parameters) {
+            if (state.parameter->hasOutstandingRecompute()) {
+                return false;
+            }
+        }
+        return true;
+    };
+    // Pumping may delete panels or change edit ownership. The stable snapshot
+    // avoids retaining Content iterators, and every mutation rechecks it.
+    for (const auto& state : parameters) {
+        if (!readyToApply()) {
+            return false;
+        }
+        state.parameter->saveHistory();
+        if (!readyToApply()) {
+            return false;
+        }
+        state.parameter->apply();
+        if (!readyToApply()) {
+            return false;
+        }
+        isUpdateBlocked |= state.parameter->isUpdateBlocked();
     }
 
     return true;
@@ -540,6 +659,9 @@ bool TaskDlgFeatureParameters::accept()
     if (!feature || !feature->isAttachedToDocument()) {
         return false;
     }
+    QPointer<TaskDlgFeatureParameters> dialogGuard(this);
+    PreviewRecomputeGuard originalGuard(feature, this, getViewObject());
+    auto* editOwner = Gui::Control().activeDialog(feature->getDocument());
     App::DocumentObjectWeakPtrT featureGuard(feature);
     bool isUpdateBlocked = false;
     auto pendingRecomputeAction = acceptPendingRecomputeAction();
@@ -557,8 +679,10 @@ bool TaskDlgFeatureParameters::accept()
         }
     }
     try {
-        applyAcceptedFeatureParameters(pendingRecomputeAction, isUpdateBlocked);
-        if (featureGuard.expired() || !feature->isAttachedToDocument()) {
+        if (!applyAcceptedFeatureParameters(pendingRecomputeAction, isUpdateBlocked)) {
+            return false;
+        }
+        if (!dialogGuard || featureGuard.expired() || !feature->isAttachedToDocument()) {
             return false;
         }
         // Make sure the feature is what we are expecting
@@ -596,13 +720,14 @@ bool TaskDlgFeatureParameters::accept()
             return false;
         }
 
-        if (featureGuard.expired() || !feature->isAttachedToDocument()) {
+        if (!dialogGuard || !originalGuard.isLive() || getObject() != feature
+            || Gui::Control().activeDialog(feature->getDocument()) != editOwner) {
             return false;
         }
         finalizeAcceptedFeature(feature);
     }
     catch (const Base::Exception& e) {
-        if (featureGuard.expired()) {
+        if (!dialogGuard || featureGuard.expired()) {
             e.reportException();
             return false;
         }

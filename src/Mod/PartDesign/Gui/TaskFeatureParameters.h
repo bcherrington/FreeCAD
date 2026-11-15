@@ -140,6 +140,8 @@ public:
     {}
     virtual void stopPendingRecompute()
     {}
+    /// Cancel accepted preview work and wait for its exact native retirement.
+    bool stopPendingRecomputeAndWait();
     virtual bool hasOutstandingRecompute() const
     {
         return false;
@@ -173,6 +175,7 @@ protected Q_SLOTS:
     void onUpdateView(bool on);
 
 private:
+    friend class TaskDlgFeatureParameters;
     /** Notifies when the object is about to be removed. */
     void slotDeletedObject(const Gui::ViewProviderDocumentObject& Obj) override;
 

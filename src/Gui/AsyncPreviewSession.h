@@ -5,6 +5,7 @@
 #pragma once
 
 #include <algorithm>
+#include <atomic>
 #include <cstdint>
 #include <functional>
 #include <memory>
@@ -46,11 +47,14 @@ public:
         : owner(owner)
     {
         auto onStateChanged = std::move(callbacks.onStateChanged);
-        callbacks.onStateChanged = [this, onStateChanged = std::move(onStateChanged)]() mutable {
+        const auto alive = sessionAlive;
+        callbacks.onStateChanged = [this, alive, onStateChanged = std::move(onStateChanged)]() mutable {
             if (onStateChanged) {
                 onStateChanged();
             }
-            updateUi();
+            if (alive->load()) {
+                updateUi();
+            }
         };
         previewController = std::make_unique<AsyncPreviewController>(std::move(callbacks), owner);
         progressUiDelayTimer = std::make_unique<QTimer>();
@@ -69,6 +73,7 @@ public:
 
     ~AsyncPreviewSession()
     {
+        sessionAlive->store(false);
         QObject::disconnect(cancelConnection);
     }
 
@@ -97,6 +102,17 @@ public:
         QWidget* deferredCloseTarget = nullptr
     )
     {
+        bindWidgetsWithCancelAction(widgets, std::move(translate), deferredCloseTarget, {});
+    }
+
+    /// Bind the same presentation while routing Cancel through panel-owned state.
+    void bindWidgetsWithCancelAction(
+        const AsyncPreviewWidgetSet& widgets,
+        std::function<QString(const char*)> translate,
+        QWidget* deferredCloseTarget,
+        std::function<void()> cancelAction
+    )
+    {
         previewWidgets = widgets;
         translateCallback = std::move(translate);
         this->deferredCloseTarget = deferredCloseTarget;
@@ -109,7 +125,13 @@ public:
                 previewWidgets.cancelButton,
                 &QPushButton::clicked,
                 owner,
-                [this]() { stopPendingRecompute(); }
+                [this, cancelAction = std::move(cancelAction)]() mutable {
+                    if (cancelAction) {
+                        cancelAction();
+                        return;
+                    }
+                    stopPendingRecompute();
+                }
             );
         }
 
@@ -174,6 +196,19 @@ public:
         if (previewController) {
             previewController->stopPendingRecompute();
         }
+    }
+
+    using ActivityToken = AsyncPreviewController::ActivityToken;
+    ActivityToken recomputeActivityToken() const noexcept
+    {
+        return previewController ? previewController->recomputeActivityToken() : ActivityToken {};
+    }
+
+    bool stopPendingRecomputeAndWait()
+    {
+        // No session member access after the controller may pump owner deletion.
+        auto* controller = previewController.get();
+        return !controller || controller->stopPendingRecomputeAndWait();
     }
 
     bool hasOutstandingRecompute() const
@@ -316,6 +351,7 @@ private:
     }
 
 private:
+    std::shared_ptr<std::atomic<bool>> sessionAlive = std::make_shared<std::atomic<bool>>(true);
     QObject* owner = nullptr;
     std::unique_ptr<AsyncPreviewController> previewController;
     AsyncPreviewWidgetSet previewWidgets {};

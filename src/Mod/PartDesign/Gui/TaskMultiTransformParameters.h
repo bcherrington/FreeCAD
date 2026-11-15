@@ -97,7 +97,7 @@ private:
     void slotDeletedObject(const Gui::ViewProviderDocumentObject& Obj) override;
 
     void updateUI();
-    void commitSubTaskEdits();
+    void commitSubTaskEdits(bool recomputePreview = true);
     void closeSubTask(bool shuttingDown = false);
     void moveTransformFeature(int increment);
     void finishAdd(std::string& newFeatName);

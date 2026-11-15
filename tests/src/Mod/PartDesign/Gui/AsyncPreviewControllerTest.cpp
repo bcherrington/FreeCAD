@@ -1213,6 +1213,266 @@ private Q_SLOTS:
         QVERIFY(!controller->hasOutstandingRecompute());
     }
 
+    void cancelAndSettleRetiresRunningAndCoalescedPreviewWithoutRerun()  // NOLINT
+    {
+        blocker->touch();
+        controller->requestRecompute(false);
+        QVERIFY(App::FeatureTestAsyncBlocker::waitUntilStarted(2s));
+        controller->requestRecompute(false);
+        QVERIFY(controller->isQueued());
+        QMetaObject::invokeMethod(
+            QCoreApplication::instance(),
+            [] { App::FeatureTestAsyncBlocker::releaseBlocker(); },
+            Qt::QueuedConnection
+        );
+        QVERIFY(controller->stopPendingRecomputeAndWait());
+        QVERIFY(!controller->hasOutstandingRecompute());
+        QVERIFY(!controller->hasScheduledRecompute());
+        QCOMPARE(App::FeatureTestAsyncBlocker::getExecutionCount(), 1);
+        // This actual destructive admission would refuse a still-live receiver
+        // pin even after a callback promise had been published.
+        {
+            auto writer
+                = App::RecomputeDetail::Coordinator::instance().mutation({blocker}, {doc}, true);
+            QVERIFY(static_cast<bool>(writer));
+        }
+        QCOMPARE(callbackState.completedCount, 1);
+        QVERIFY(callbackState.canceled);
+    }
+
+    void cancelAndSettleQueuedPreviewDoesNotLaunchNativeWork()  // NOLINT
+    {
+        auto* feature = doc->addObject<PartDesign::PreviewOutcomeFeature>("SettleQueued");
+        feature->Bool.setValue(true);
+        Gui::AsyncPreviewController::Callbacks hooks;
+        hooks.makeRequest = [feature] {
+            return App::RecomputeRequest::fromDocumentObject(*feature);
+        };
+        hooks.runSyncWithResult = [feature] {
+            return Gui::recomputeDocumentObjectWithResult(feature);
+        };
+        Gui::AsyncPreviewController observed(std::move(hooks));
+        blocker->touch();
+        App::GetApplication().queueRecomputeRequest(
+            App::RecomputeRequest::fromDocumentObject(*blocker)
+        );
+        QVERIFY(App::FeatureTestAsyncBlocker::waitUntilStarted(2s));
+        observed.requestRecompute(false);
+        QVERIFY(observed.stopPendingRecomputeAndWait());
+        QVERIFY(!observed.hasOutstandingRecompute());
+        QCOMPARE(feature->executionCount.load(), 0);
+        App::FeatureTestAsyncBlocker::releaseBlocker();
+    }
+
+    void cancelAndSettleBorrowedWaitRefusesBeforeCancellation()  // NOLINT
+    {
+        resetFakeMainThreadHooks();
+        App::MainThreadSignalConfig::setHooks(
+            &fakeIsMainThread,
+            &fakeInvokeOnMainThread,
+            &fakePumpMainThreadEvents
+        );
+        auto* feature = doc->addObject<PartDesign::PreviewOutcomeFeature>("SettleBorrowed");
+        feature->Bool.setValue(true);
+        Gui::AsyncPreviewController::Callbacks hooks;
+        hooks.makeRequest = [feature] {
+            return App::RecomputeRequest::fromDocumentObject(*feature, true);
+        };
+        hooks.runSyncWithResult = [feature] {
+            return Gui::recomputeDocumentObjectWithResult(feature, true);
+        };
+        Gui::AsyncPreviewController observed(std::move(hooks));
+        observed.setSchedulerInterval(60000);
+        bool attempted = false;
+        bool settled = true;
+        bool stillScheduled = false;
+        bool canceled = true;
+        fastsignals::scoped_connection before(
+            doc->signalBeforeRecompute.connect([&](const App::Document&) {
+                App::MainThreadSignalConfig::callOnMainThreadSync([&] {
+                    attempted = true;
+                    observed.scheduleRecompute();
+                    settled = observed.stopPendingRecomputeAndWait();
+                    stillScheduled = observed.hasScheduledRecompute();
+                    canceled = observed.isCancelRequested();
+                    observed.stopScheduledRecompute();
+                });
+            })
+        );
+        observed.requestRecompute(true);
+        QVERIFY(attempted);
+        QVERIFY(!settled);
+        QVERIFY(stillScheduled);
+        QVERIFY(!canceled);
+        QCOMPARE(feature->executionCount.load(), 1);
+        QVERIFY(observed.didLastRecomputeSucceed());
+    }
+
+    void cancelAndSettleSurvivesControllerDeletionInCompletion()  // NOLINT
+    {
+        auto* feature = doc->addObject<PartDesign::PreviewOutcomeFeature>("SettleDeleted");
+        feature->Bool.setValue(true);
+        std::unique_ptr<Gui::AsyncPreviewController> observed;
+        Gui::AsyncPreviewController::Callbacks hooks;
+        hooks.makeRequest = [feature] {
+            return App::RecomputeRequest::fromDocumentObject(*feature);
+        };
+        hooks.runSyncWithResult = [feature] {
+            return Gui::recomputeDocumentObjectWithResult(feature);
+        };
+        hooks.onCompleted = [&](bool, bool, App::RecomputeFailure, const std::string&) {
+            observed.reset();
+        };
+        observed = std::make_unique<Gui::AsyncPreviewController>(std::move(hooks));
+        blocker->touch();
+        App::GetApplication().queueRecomputeRequest(
+            App::RecomputeRequest::fromDocumentObject(*blocker)
+        );
+        QVERIFY(App::FeatureTestAsyncBlocker::waitUntilStarted(2s));
+        observed->requestRecompute(false);
+        QVERIFY(!observed->stopPendingRecomputeAndWait());
+        QVERIFY(!observed);
+        QCOMPARE(feature->executionCount.load(), 0);
+        App::FeatureTestAsyncBlocker::releaseBlocker();
+    }
+
+    void cancelAndSettleSessionCallbackCanDeleteItsOwnerWithoutUiTail()  // NOLINT
+    {
+        auto* feature = doc->addObject<PartDesign::PreviewOutcomeFeature>("SettleSessionDeleted");
+        feature->Bool.setValue(true);
+        QWidget owner;
+        QWidget status(&owner);
+        QProgressBar progress(&owner);
+        QLabel label(&owner);
+        QPushButton cancel(&owner);
+        std::unique_ptr<Gui::AsyncPreviewSession> session;
+        bool armed = false;
+        bool deleted = false;
+        unsigned translationsAfterDelete = 0;
+        Gui::AsyncPreviewController::Callbacks hooks;
+        hooks.makeRequest = [feature] {
+            return App::RecomputeRequest::fromDocumentObject(*feature);
+        };
+        hooks.runSyncWithResult = [feature] {
+            return Gui::recomputeDocumentObjectWithResult(feature);
+        };
+        hooks.onStateChanged = [&] {
+            if (armed) {
+                armed = false;
+                session.reset();
+                deleted = true;
+                label.setText(QStringLiteral("retired session"));
+            }
+        };
+        session = std::make_unique<Gui::AsyncPreviewSession>(std::move(hooks), &owner);
+        session->bindWidgets({&status, &progress, &label, &cancel}, [&](const char* text) {
+            if (deleted) {
+                ++translationsAfterDelete;
+            }
+            return QString::fromUtf8(text);
+        });
+        session->setForcedBusy(true);
+        blocker->touch();
+        App::GetApplication().queueRecomputeRequest(
+            App::RecomputeRequest::fromDocumentObject(*blocker)
+        );
+        QVERIFY(App::FeatureTestAsyncBlocker::waitUntilStarted(2s));
+        session->controller()->requestRecompute(false);
+        armed = true;
+        QVERIFY(!session->stopPendingRecomputeAndWait());
+        QVERIFY(deleted);
+        QVERIFY(!session);
+        QCOMPARE(translationsAfterDelete, 0U);
+        QCOMPARE(label.text(), QStringLiteral("retired session"));
+        QCOMPARE(feature->executionCount.load(), 0);
+        App::FeatureTestAsyncBlocker::releaseBlocker();
+    }
+
+    void activityFenceDetectsLaterPanelReentryAfterQuiescence_data()  // NOLINT
+    {
+        QTest::addColumn<bool>("scheduleOnly");
+        QTest::newRow("new-schedule-stopped") << true;
+        QTest::newRow("new-registration-canceled-and-retired") << false;
+    }
+
+    void activityFenceDetectsLaterPanelReentryAfterQuiescence()  // NOLINT
+    {
+        QFETCH(bool, scheduleOnly);
+        auto* feature = doc->addObject<PartDesign::PreviewOutcomeFeature>("SettlePanelFence");
+        feature->Bool.setValue(true);
+        Gui::AsyncPreviewController::Callbacks firstHooks;
+        firstHooks.makeRequest = [feature] {
+            return App::RecomputeRequest::fromDocumentObject(*feature);
+        };
+        firstHooks.runSyncWithResult = [feature] {
+            return Gui::recomputeDocumentObjectWithResult(feature);
+        };
+        Gui::AsyncPreviewSession first(std::move(firstHooks));
+        first.setSchedulerInterval(60000);
+        Gui::AsyncPreviewController::Callbacks secondHooks;
+        secondHooks.makeRequest = [feature] {
+            return App::RecomputeRequest::fromDocumentObject(*feature);
+        };
+        secondHooks.runSyncWithResult = [feature] {
+            return Gui::recomputeDocumentObjectWithResult(feature);
+        };
+        secondHooks.onCompleted = [&](bool, bool, App::RecomputeFailure, const std::string&) {
+            if (scheduleOnly) {
+                first.scheduleRecompute();
+                first.stopScheduledRecompute();
+            }
+            else {
+                first.controller()->requestRecompute(false);
+                first.stopPendingRecompute();
+            }
+        };
+        Gui::AsyncPreviewSession second(std::move(secondHooks));
+        blocker->touch();
+        App::GetApplication().queueRecomputeRequest(
+            App::RecomputeRequest::fromDocumentObject(*blocker)
+        );
+        QVERIFY(App::FeatureTestAsyncBlocker::waitUntilStarted(2s));
+        QVERIFY(first.stopPendingRecomputeAndWait());
+        const auto firstFence = first.recomputeActivityToken();
+        second.controller()->requestRecompute(false);
+        QVERIFY(second.stopPendingRecomputeAndWait());
+        QVERIFY(!first.hasOutstandingRecompute());
+        QVERIFY(!first.controller()->hasScheduledRecompute());
+        QVERIFY(first.recomputeActivityToken() != firstFence);
+        QCOMPARE(feature->executionCount.load(), 0);
+        App::FeatureTestAsyncBlocker::releaseBlocker();
+    }
+
+    void cancelAndSettlePreservesReentrantScheduledWork()  // NOLINT
+    {
+        auto* feature = doc->addObject<PartDesign::PreviewOutcomeFeature>("SettleReentry");
+        feature->Bool.setValue(true);
+        std::unique_ptr<Gui::AsyncPreviewController> observed;
+        Gui::AsyncPreviewController::Callbacks hooks;
+        hooks.makeRequest = [feature] {
+            return App::RecomputeRequest::fromDocumentObject(*feature);
+        };
+        hooks.runSyncWithResult = [feature] {
+            return Gui::recomputeDocumentObjectWithResult(feature);
+        };
+        hooks.onCompleted = [&](bool, bool, App::RecomputeFailure, const std::string&) {
+            observed->scheduleRecompute();
+        };
+        observed = std::make_unique<Gui::AsyncPreviewController>(std::move(hooks));
+        observed->setSchedulerInterval(60000);
+        blocker->touch();
+        App::GetApplication().queueRecomputeRequest(
+            App::RecomputeRequest::fromDocumentObject(*blocker)
+        );
+        QVERIFY(App::FeatureTestAsyncBlocker::waitUntilStarted(2s));
+        observed->requestRecompute(false);
+        QVERIFY(!observed->stopPendingRecomputeAndWait());
+        QVERIFY(observed->hasScheduledRecompute());
+        QCOMPARE(feature->executionCount.load(), 0);
+        observed->stopScheduledRecompute();
+        App::FeatureTestAsyncBlocker::releaseBlocker();
+    }
+
     void stopPendingRecomputeCancelsInFlightAndClearsQueuedRerun()  // NOLINT
     {
         QSignalSpy settledSpy(controller.get(), &Gui::AsyncPreviewController::recomputeSettled);

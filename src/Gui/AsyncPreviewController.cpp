@@ -51,6 +51,8 @@ namespace Gui
 {
 namespace
 {
+std::atomic<std::uint64_t> nextControllerActivityIdentity {1};
+
 bool recomputeResultWasCanceled(const App::RecomputeResult& result)
 {
     return result.failure == App::RecomputeFailure::Canceled;
@@ -137,6 +139,7 @@ struct AsyncPreviewController::Registration
 AsyncPreviewController::AsyncPreviewController(Callbacks callbacks, QObject* parent)
     : QObject(parent)
     , callbacks(std::move(callbacks))
+    , activityIdentity(nextControllerActivityIdentity.fetch_add(1, std::memory_order_relaxed))
 {}
 
 AsyncPreviewController::~AsyncPreviewController()
@@ -183,6 +186,7 @@ bool AsyncPreviewController::triggerScheduledRecomputeNow()
 
 void AsyncPreviewController::scheduleRecompute()
 {
+    ++activitySerial;
     if (recomputeScheduler) {
         recomputeScheduler->setInterval(effectiveSchedulerIntervalMs());
         recomputeScheduler->start();
@@ -282,8 +286,55 @@ void AsyncPreviewController::stopPendingRecompute()
     }
 }
 
+AsyncPreviewController::ActivityToken AsyncPreviewController::recomputeActivityToken() const noexcept
+{
+    return {activityIdentity, activitySerial};
+}
+
+bool AsyncPreviewController::stopPendingRecomputeAndWait()
+{
+    const auto alive = controllerAlive;
+    QPointer<AsyncPreviewController> guard(this);
+    const auto entryActivity = recomputeActivityToken();
+    std::vector<std::shared_ptr<Registration>> accepted;
+    bool needsNativeWait = false;
+    for (const auto& [generation, registration] : registrations) {
+        accepted.push_back(registration);
+        needsNativeWait = needsNativeWait
+            || (registration->submitted && !registration->retirement->retired());
+    }
+    if (needsNativeWait) {
+        try {
+            App::RecomputeDetail::throwIfBlockingRecomputeWaitIsCyclic();
+        }
+        catch (const App::RecomputeDetail::AdmissionRefusal& exception) {
+            appendPreviewControllerDebugLog(this, "settle-wait-refused", exception.what());
+            return false;
+        }
+    }
+    // Cancellation and debounce stop happen only after wait admission succeeds.
+    // The existing stop snapshots its registrations before invoking callbacks.
+    stopPendingRecompute();
+    if (!alive->load() || !guard) {
+        return false;
+    }
+    for (const auto& registration : accepted) {
+        if (!registration->retirement->retired()) {
+            waitForRegistration(registration);
+            if (!alive->load() || !guard) {
+                return false;
+            }
+        }
+    }
+    // Pumped completion callbacks may accept a fresh preview or schedule one.
+    // Preserve that work and decline acceptance rather than cancel/rerun it.
+    return recomputeActivityToken() == entryActivity && !hasScheduledRecompute()
+        && registrations.empty();
+}
+
 void AsyncPreviewController::requestRecompute(bool waitForCompletion)
 {
+    ++activitySerial;
     if (!callbacks.makeRequest || (!callbacks.runSync && !callbacks.runSyncWithResult)) {
         return;
     }

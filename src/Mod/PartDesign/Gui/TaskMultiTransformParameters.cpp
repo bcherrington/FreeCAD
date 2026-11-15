@@ -181,7 +181,7 @@ void TaskMultiTransformParameters::slotDeletedObject(const Gui::ViewProviderDocu
     TaskTransformedParameters::slotDeletedObject(Obj);
 }
 
-void TaskMultiTransformParameters::commitSubTaskEdits()
+void TaskMultiTransformParameters::commitSubTaskEdits(bool recomputePreview)
 {
     if (!subTask) {
         return;
@@ -194,18 +194,35 @@ void TaskMultiTransformParameters::commitSubTaskEdits()
         return;
     }
 
-    subTask->flushPendingRecompute();
-    subTask->apply();
+    QPointer<TaskMultiTransformParameters> self(this);
+    QPointer<TaskTransformedParameters> child(subTask);
+    auto* originalTop = getTopTransformedObject();
+    auto* originalChild = subTask->getObject();
+    PreviewRecomputeGuard topGuard(originalTop, this, TransformedView);
+    PreviewRecomputeGuard childGuard(originalChild, subTask, TransformedView);
+    if (recomputePreview) {
+        subTask->flushPendingRecompute();
+    }
+    if (!self || !child || !topGuard.isLive() || !childGuard.isLive()
+        || getTopTransformedObject() != originalTop || child->getObject() != originalChild) {
+        return;
+    }
+    child->apply();
 }
 
 void TaskMultiTransformParameters::closeSubTask(bool shuttingDown)
 {
+    QPointer<TaskMultiTransformParameters> self(this);
     if (subTask) {
         ui->buttonOK->hide();
         if (!shuttingDown) {
             commitSubTaskEdits();
+            if (!self) {
+                return;
+            }
         }
         else {
+            subTask->beginPreviewTeardown();
             subTask->exitSelectionMode();
             subTask->stopPendingRecompute();
         }
@@ -683,7 +700,14 @@ void TaskMultiTransformParameters::flushPendingRecompute()
 
 void TaskMultiTransformParameters::apply()
 {
-    commitSubTaskEdits();
+    QPointer<TaskMultiTransformParameters> self(this);
+    auto* original = getObject();
+    PreviewRecomputeGuard guard(original, this, TransformedView);
+    commitSubTaskEdits(!isApplyingAcceptedParameters());
+    if (!self || !guard.isLive() || getObject() != original || !TransformedView
+        || TransformedView->getObject() != original) {
+        return;
+    }
 
     auto pcMultiTransform = getObject<PartDesign::MultiTransform>();
     std::vector<App::DocumentObject*> transformFeatures = pcMultiTransform->Transformations.getValues();
@@ -700,6 +724,7 @@ void TaskMultiTransformParameters::apply()
 
 TaskMultiTransformParameters::~TaskMultiTransformParameters()
 {
+    beginPreviewTeardown();
     try {
         closeSubTask(/*shuttingDown=*/true);
     }
