@@ -117,7 +117,8 @@ void LoftWidget::findShapes()
             continue;
         }
 
-        bool viable = false;
+        // A single edge is a valid open loft profile.
+        bool viable = shape.ShapeType() == TopAbs_EDGE && !shape.Infinite();
         TopExp_Explorer xp(shape, TopAbs_WIRE);
         int wireCount = 0;
         bool allClosed = true;
