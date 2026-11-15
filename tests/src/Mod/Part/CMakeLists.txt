@@ -6,6 +6,7 @@ if(BUILD_GUI)
     add_subdirectory(Gui)
     target_sources(Part_tests_run PRIVATE
         Gui/SoBrepEdgeSet.cpp
+        Gui/ViewProviderPartExt.cpp
     )
     target_link_libraries(Part_tests_run PartGui)
 endif()

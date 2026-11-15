@@ -26,6 +26,7 @@
 #include <BRep_Tool.hxx>
 #include <BRepTools.hxx>
 #include <BRepBndLib.hxx>
+#include <BRepBuilderAPI_Copy.hxx>
 #include <BRepBuilderAPI_MakeVertex.hxx>
 #include <BRepExtrema_DistShapeShape.hxx>
 #include <BRepMesh_IncrementalMesh.hxx>
@@ -1073,6 +1074,13 @@ void ViewProviderPartExt::setupCoinGeometry(
 
     // time measurement and book keeping
     Base::TimeElapsed startTime;
+
+    // Meshing writes to faces and edges even when the TopoDS_Shape was passed
+    // by value. Keep those writes off the model topology, which a recompute
+    // worker may be reading (notably when scaling an async preview). Geometry
+    // can remain shared; Clean below removes the copy's mesh references before
+    // the new display triangulation is built.
+    shape = BRepBuilderAPI_Copy(shape, Standard_False, Standard_False).Shape();
 
     [[maybe_unused]]
     int numTriangles = 0,

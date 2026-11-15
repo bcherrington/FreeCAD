@@ -179,7 +179,7 @@ public:
     /// Get the python wrapper for that ViewProvider
     PyObject* getPyObject() override;
 
-    /// configures Coin nodes so they render given toposhape
+    /// Configure Coin nodes without modifying the input shape triangulation.
     static void setupCoinGeometry(
         TopoDS_Shape shape,
         SoCoordinate3* coords,
