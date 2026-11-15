@@ -29,6 +29,7 @@ add_executable(Part_tests_run
         Tools.cpp
         TopoDS_Shape.cpp
         TopoShape.cpp
+        TopoShapeNames.cpp
         TopoShapeCache.cpp
         TopoShapeExpansion.cpp
         TopoShapeMakeElementRefine.cpp

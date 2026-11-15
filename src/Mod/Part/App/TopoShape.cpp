@@ -413,20 +413,23 @@ static inline std::vector<T> _getSubShapes(const TopoDS_Shape& s, TopAbs_ShapeEn
     return shapes;
 }
 
-static std::array<std::string, TopAbs_SHAPE> _ShapeNames;
-
-static void initShapeNameMap()
+static const std::array<std::string, TopAbs_SHAPE>& getShapeNameMap()
 {
-    if (_ShapeNames[TopAbs_VERTEX].empty()) {
-        _ShapeNames[TopAbs_VERTEX] = "Vertex";
-        _ShapeNames[TopAbs_EDGE] = "Edge";
-        _ShapeNames[TopAbs_FACE] = "Face";
-        _ShapeNames[TopAbs_WIRE] = "Wire";
-        _ShapeNames[TopAbs_SHELL] = "Shell";
-        _ShapeNames[TopAbs_SOLID] = "Solid";
-        _ShapeNames[TopAbs_COMPOUND] = "Compound";
-        _ShapeNames[TopAbs_COMPSOLID] = "CompSolid";
-    }
+    // Publish the complete table once, including when independent shapes first
+    // resolve their element names concurrently.
+    static const auto names = [] {
+        std::array<std::string, TopAbs_SHAPE> result;
+        result[TopAbs_VERTEX] = "Vertex";
+        result[TopAbs_EDGE] = "Edge";
+        result[TopAbs_FACE] = "Face";
+        result[TopAbs_WIRE] = "Wire";
+        result[TopAbs_SHELL] = "Shell";
+        result[TopAbs_SOLID] = "Solid";
+        result[TopAbs_COMPOUND] = "Compound";
+        result[TopAbs_COMPSOLID] = "CompSolid";
+        return result;
+    }();
+    return names;
 }
 
 std::pair<TopAbs_ShapeEnum, int> TopoShape::shapeTypeAndIndex(const char* name)
@@ -474,9 +477,9 @@ std::pair<TopAbs_ShapeEnum, int> TopoShape::shapeTypeAndIndex(const Data::Indexe
 TopAbs_ShapeEnum TopoShape::shapeType(const char* type, bool silent)
 {
     if (type) {
-        initShapeNameMap();
-        for (size_t idx = 0; idx < _ShapeNames.size(); ++idx) {
-            if (!_ShapeNames[idx].empty() && boost::starts_with(type, _ShapeNames[idx])) {
+        const auto& shapeNames = getShapeNameMap();
+        for (size_t idx = 0; idx < shapeNames.size(); ++idx) {
+            if (!shapeNames[idx].empty() && boost::starts_with(type, shapeNames[idx])) {
                 return static_cast<TopAbs_ShapeEnum>(idx);
             }
         }
@@ -520,9 +523,9 @@ TopAbs_ShapeEnum TopoShape::shapeType(bool silent) const
 
 const std::string& TopoShape::shapeName(TopAbs_ShapeEnum type, bool silent)
 {
-    initShapeNameMap();
-    if (type >= 0 && type < _ShapeNames.size() && !_ShapeNames[type].empty()) {
-        return _ShapeNames[type];
+    const auto& shapeNames = getShapeNameMap();
+    if (type >= 0 && type < shapeNames.size() && !shapeNames[type].empty()) {
+        return shapeNames[type];
     }
     if (!silent) {
         FC_THROWM(Base::CADKernelError, "invalid shape type '" << type << "'");
