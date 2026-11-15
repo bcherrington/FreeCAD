@@ -2244,6 +2244,11 @@ bool Document::saveToFile(const char* filename) const
         Base::ofstream file(tmp, std::ios::out | std::ios::binary);
 
         Base::ZipWriter writer(file);
+        if (FileName.getStrValue() != filename) {
+            // saveCopy keeps the live document's identity and location. Relative
+            // XLinks based on that location would not resolve from the copy.
+            writer.setMode("SaveCopy");
+        }
         if (!file.is_open()) {
             throw Base::FileException("Failed to open file", tmp);
         }

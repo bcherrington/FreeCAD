@@ -26,6 +26,7 @@ add_executable(App_tests_run
         PropertyFile.cpp
         Property.h
         Property.cpp
+        PropertyXLink.cpp
         PropertyExpressionEngine.cpp
         StringHasher.cpp
         VarSet.cpp

@@ -4228,7 +4228,9 @@ public:
         }
 
         QFileInfo docFileInfo {QString::fromUtf8(docPath)};
-        QDir docDir(docFileInfo.canonicalPath());
+        // A first save or Save As may not have created the destination file
+        // yet. canonicalPath() cannot supply its parent in that case.
+        QDir docDir(docFileInfo.exists() ? docFileInfo.canonicalPath() : docFileInfo.absolutePath());
         if (!absolute) {
             path = QDir::cleanPath(docDir.absoluteFilePath(path));
             if (fullPath) {
@@ -5568,6 +5570,12 @@ void PropertyXLink::Save(Base::Writer& writer) const
             if (!_path.empty()) {
                 path = _path.c_str();
             }
+        }
+        else if (docInfo && !writer.getMode("SaveCopy")) {
+            // DocInfo identifies the dependency by its absolute path. Serialize
+            // relative to this owner, whose location may have changed on Save As.
+            _path = DocInfo::getDocPath(path, owner->getDocument(), true);
+            path = _path.c_str();
         }
         writer.Stream() << writer.ind() << "<XLink file=\"" << encodeAttribute(path) << "\" stamp=\""
                         << (docInfo && docInfo->pcDoc ? docInfo->pcDoc->LastModifiedDate.getValue()
