@@ -1473,6 +1473,10 @@ protected:
     void _abortTransaction();
 
 private:
+    struct ImportRestoreContext;
+    std::vector<DocumentObject*> readObjectsImpl(Base::XMLReader&, ImportRestoreContext*);
+    bool afterRestoreImpl(const std::vector<DocumentObject*>&, bool checkPartial, ImportRestoreContext*);
+
     /// Whether this thread still has an active recompute call for this document.
     bool isRecomputingOnCurrentThread() const;
 

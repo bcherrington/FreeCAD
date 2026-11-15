@@ -17,8 +17,10 @@
 namespace App
 {
 class Document;
+class DocInfo;
 class DocumentObject;
 class Property;
+class PropertyContainer;
 class RecomputeProgressHandle;
 namespace RecomputeDetail
 {
@@ -284,6 +286,11 @@ public:
     MutationScope mutation(const Property&, const std::vector<DocumentObject*>& proposed = {});
     std::optional<MutationScope> tryAtomic();
     MutationScope atomic();
+    // Import creates new objects and may run inside a synchronous owner execute.
+    // This does not relax native exclusion for opaque undo/abort/restore phases.
+    MutationScope atomicForImport();
+    MutationScope atomicForRestore(const PropertyContainer&);
+    MutationScope atomicForRestore(const Property&);
     void retainMutationResource(std::shared_ptr<void>);
     bool hasAuthority() const;
     bool onWorker() const;
@@ -327,6 +334,11 @@ public:
     void drainClosures(const std::function<bool(const ClosureToken&, bool abort)>&);
 
 private:
+    std::optional<MutationScope> tryAtomicImpl(bool ownerNativeImport);
+    MutationScope restoreImportedObject(const BindingPtr&, const MutationScope& importPreparation);
+    bool matchesImportedRestore(const PropertyContainer*, const Property*) const;
+    friend class App::Document;
+    friend class App::DocInfo;
     Coordinator();
     ~Coordinator();
     struct Impl;

@@ -108,6 +108,17 @@ using namespace zipios;
 
 namespace fs = std::filesystem;
 
+struct App::Document::ImportRestoreContext
+{
+    explicit ImportRestoreContext(const RecomputeDetail::MutationScope& phase)
+        : phase(phase)
+        , frames(RecomputeDetail::Coordinator::instance().mutation(std::vector<DocumentObject*> {}, {}))
+    {}
+    const RecomputeDetail::MutationScope& phase;
+    RecomputeDetail::MutationScope frames;
+    std::unordered_map<DocumentObject*, RecomputeDetail::BindingPtr> created;
+};
+
 namespace
 {
 
@@ -1731,6 +1742,14 @@ static void loadDeps(const std::string& name,
 
 std::vector<DocumentObject*> Document::readObjects(Base::XMLReader& reader)
 {
+    return readObjectsImpl(reader, nullptr);
+}
+
+std::vector<DocumentObject*> Document::readObjectsImpl(
+    Base::XMLReader& reader,
+    ImportRestoreContext* imported
+)
+{
     d->touchedObjs.clear();
     bool keepDigits = testStatus(Document::KeepTrailingDigits);
     setStatus(Document::KeepTrailingDigits, !reader.doNameMapping());
@@ -1839,6 +1858,11 @@ std::vector<DocumentObject*> Document::readObjects(Base::XMLReader& reader)
             DocumentObject* obj =
                 addObject(type.c_str(), obj_name, /*isNew=*/false, viewType.c_str(), partial);
             if (obj) {
+                if (imported) {
+                    auto binding = RecomputeDetail::Coordinator::instance().bindObject(obj);
+                    imported->frames.pinBindings({binding});
+                    imported->created.emplace(obj, std::move(binding));
+                }
                 if (lastId < obj->_Id) {
                     lastId = obj->_Id;
                 }
@@ -1888,13 +1912,24 @@ std::vector<DocumentObject*> Document::readObjects(Base::XMLReader& reader)
         if (DocumentObject* pObj = getObject(name.c_str()); pObj
             && !pObj->testStatus(
                 PartialObject)) {  // check if this feature has been registered
+            // Only bindings captured from addObject above can mint this scope.
+            auto receiver = imported
+                ? RecomputeDetail::Coordinator::instance().restoreImportedObject(
+                      imported->created.at(pObj),
+                      imported->phase
+                  )
+                : RecomputeDetail::MutationScope {};
             pObj->setStatus(ObjectStatus::Restore, true);
+            Base::ScopeGuard restored([pObj] { pObj->setStatus(ObjectStatus::Restore, false); });
             try {
                 FC_TRACE("restoring " << pObj->getFullName());
                 pObj->Restore(reader);
             }
             // Try to continue only for certain exception types if not handled
             // by the feature type. For all other exception types abort the process.
+            catch (const RecomputeDetail::AdmissionRefusal&) {
+                throw;
+            }
             catch (const Base::UnicodeError& e) {
                 e.reportException();
             }
@@ -1911,7 +1946,6 @@ std::vector<DocumentObject*> Document::readObjects(Base::XMLReader& reader)
                 e.reportException();
             }
 
-            pObj->setStatus(ObjectStatus::Restore, false);
 
             if (reader.testStatus(Base::XMLReader::ReaderStatus::PartialRestoreInDocumentObject)) {
                 Base::Console().error("Object \"{}\" was subject to a partial restore. As a result "
@@ -1939,7 +1973,9 @@ void Document::addRecomputeObject(DocumentObject* obj) // NOLINT
 std::vector<DocumentObject*> Document::importObjects(Base::XMLReader& reader)
 {
     refuseClosingStructuralTransaction(*this);
-    auto atomic = RecomputeDetail::Coordinator::instance().atomic();
+    auto atomic = RecomputeDetail::Coordinator::instance().atomicForImport();
+    auto destination = RecomputeDetail::Coordinator::instance().mutation({}, {this});
+    ImportRestoreContext imported(atomic);
     d->hashers.clear();
     Base::FlagToggler<> flag(globalIsRestoring, false);
     Base::ObjectStatusLocker<Status, Document> restoreBit(Status::Restoring, this);
@@ -1972,7 +2008,7 @@ std::vector<DocumentObject*> Document::importObjects(Base::XMLReader& reader)
         addStringHasher(sourceHasher);
     }
 
-    std::vector<DocumentObject*> objs = readObjects(reader);
+    std::vector<DocumentObject*> objs = readObjectsImpl(reader, &imported);
     for (const auto o : objs) {
         if (o && o->isAttachedToDocument()) {
             o->setStatus(ObjImporting, true);
@@ -2001,7 +2037,7 @@ std::vector<DocumentObject*> Document::importObjects(Base::XMLReader& reader)
 
     signalImportObjects(objs, reader);
     DocumentP::checkStringHasher(reader);
-    afterRestore(objs, true);
+    afterRestoreImpl(objs, true, &imported);
 
     signalFinishImportObjects(objs);
 
@@ -2426,8 +2462,18 @@ bool Document::afterRestore(const bool checkPartial)
 
 bool Document::afterRestore(const std::vector<DocumentObject*>& objArray, bool checkPartial)
 {
+    return afterRestoreImpl(objArray, checkPartial, nullptr);
+}
+
+bool Document::afterRestoreImpl(
+    const std::vector<DocumentObject*>& objArray,
+    bool checkPartial,
+    ImportRestoreContext* imported
+)
+{
     refuseClosingStructuralTransaction(*this);
-    auto atomic = RecomputeDetail::Coordinator::instance().atomic();
+    auto atomic = imported ? RecomputeDetail::Coordinator::instance().atomicForImport()
+                           : RecomputeDetail::Coordinator::instance().atomic();
     checkPartial = checkPartial && testStatus(Document::PartialDoc);
     if (checkPartial && !d->touchedObjs.empty()) {
         return false;
@@ -2441,11 +2487,19 @@ bool Document::afterRestore(const std::vector<DocumentObject*>& objArray, bool c
     // information is not ready yet.
     std::map<DocumentObject*, std::vector<Property*>> propMap;
     for (auto obj : objArray) {
+        auto receiver = imported ? RecomputeDetail::Coordinator::instance().restoreImportedObject(
+                                       imported->created.at(obj),
+                                       imported->phase
+                                   )
+                                 : RecomputeDetail::MutationScope {};
         auto& props = propMap[obj];
         obj->getPropertyList(props);
         for (auto prop : props) {
             try {
                 prop->afterRestore();
+            }
+            catch (const RecomputeDetail::AdmissionRefusal&) {
+                throw;
             }
             catch (const Base::Exception& e) {
                 FC_ERR("Failed to restore " << obj->getFullName() << '.' << prop->getName() << ": "
@@ -2465,6 +2519,11 @@ bool Document::afterRestore(const std::vector<DocumentObject*>& objArray, bool c
         if (objSet.find(obj) == objSet.end()) {
             continue;
         }
+        auto receiver = imported ? RecomputeDetail::Coordinator::instance().restoreImportedObject(
+                                       imported->created.at(obj),
+                                       imported->phase
+                                   )
+                                 : RecomputeDetail::MutationScope {};
         try {
             for (auto prop : propMap[obj]) {
                 prop->onContainerRestored();
@@ -2481,6 +2540,9 @@ bool Document::afterRestore(const std::vector<DocumentObject*>& objArray, bool c
             if (touched) {
                 d->touchedObjs.insert(obj);
             }
+        }
+        catch (const RecomputeDetail::AdmissionRefusal&) {
+            throw;
         }
         catch (const Base::Exception& e) {
             d->addRecomputeLog(e.what(), obj);
@@ -3934,12 +3996,25 @@ void Document::breakDependency(DocumentObject* pcObject, const bool clear) // NO
 std::vector<DocumentObject*>
 Document::copyObject(const std::vector<DocumentObject*>& objs, bool recursive, bool returnAll)
 {
-    std::vector<DocumentObject*> deps;
-    if (!recursive) {
-        deps = objs;
+    // Qualify the owner import before source traversal/export can invoke code,
+    // not only later when importObjects first mutates the destination.
+    auto& admission = RecomputeDetail::Coordinator::instance();
+    auto importPreparation = admission.atomicForImport();
+    auto sourceLifetime = admission.mutation({}, {this});
+    std::vector<RecomputeDetail::BindingPtr> bindings;
+    bindings.reserve(objs.size());
+    for (auto* object : objs) {
+        bindings.push_back(admission.bindObject(object));
     }
-    else {
-        deps = getDependencyList(objs, DepNoXLinked | DepSort);
+    // Metadata binding-to-pin is atomic before the first source dereference.
+    auto sources = sourceLifetime.pinBindings(bindings);
+    std::vector<DocumentObject*> deps;
+    {
+        RecomputeDetail::CaptureScope graph(this, true);
+        deps = recursive ? getDependencyList(sources, DepNoXLinked | DepSort) : sources;
+        // Planning pins belong to sourceLifetime, not the native execution
+        // vector, and survive every export/import callback until copy returns.
+        graph.finish(deps);
     }
 
     if (!testStatus(TempDoc) && !isSaved() && PropertyXLink::hasXLink(deps)) {

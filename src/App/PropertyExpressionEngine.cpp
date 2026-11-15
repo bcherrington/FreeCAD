@@ -54,7 +54,7 @@ namespace
 {
 struct ExpressionAdmissionRecord
 {
-    std::set<const Document*> documents;
+    std::set<RecomputeDetail::Generation> documents;
     std::set<const DocumentObject*> objects;
 };
 std::map<PropertyExpressionContainer*, ExpressionAdmissionRecord> expressionContainers;
@@ -85,16 +85,45 @@ PropertyExpressionContainer::~PropertyExpressionContainer()
 void PropertyExpressionContainer::publishAdmissionTargets(const std::vector<DocumentObject*>& targets)
 {
     ExpressionAdmissionRecord record;
-    // All native inspection happens under the caller's owner/endpoint scope,
-    // before entering the short shared-index metadata phase.
+    // Registry-only identity lookup: publication adds no admission or native read.
+    // The caller supplies dependencies already computed by its graph update.
     for (auto* target : targets) {
         if (target) {
             record.objects.insert(target);
-            record.documents.insert(target->getDocument());
+            const auto binding = RecomputeDetail::Coordinator::instance().bindObject(target);
+            if (binding->documentGeneration) {
+                record.documents.insert(binding->documentGeneration);
+            }
         }
     }
     RecomputeDetail::IndexLock lock;
     expressionContainers[this] = std::move(record);
+}
+
+void PropertyExpressionContainer::copyAdmissionMetadata(const PropertyExpressionContainer& source)
+{
+    RecomputeDetail::IndexLock lock;
+    expressionContainers[this] = expressionContainers.at(
+        const_cast<PropertyExpressionContainer*>(&source)
+    );
+}
+
+std::vector<DocumentObject*> PropertyExpressionContainer::admissionMetadataTargets() const
+{
+    RecomputeDetail::IndexLock lock;
+    const auto& record = expressionContainers.at(const_cast<PropertyExpressionContainer*>(this));
+    std::vector<DocumentObject*> result;
+    for (auto* target : record.objects) {
+        result.push_back(const_cast<DocumentObject*>(target));
+    }
+    return result;
+}
+
+void PropertyExpressionContainer::collectAdmissionTargets(std::vector<DocumentObject*>& targets) const
+{
+    PropertyXLinkContainer::collectAdmissionTargets(targets);
+    const auto indexed = admissionMetadataTargets();
+    targets.insert(targets.end(), indexed.begin(), indexed.end());
 }
 
 RecomputeDetail::PropertySnapshot PropertyExpressionContainer::snapshotForAdmission(
@@ -103,10 +132,12 @@ RecomputeDetail::PropertySnapshot PropertyExpressionContainer::snapshotForAdmiss
 )
 {
     std::vector<Property*> interested;
+    const auto binding = document ? RecomputeDetail::Coordinator::instance().bindDocument(document)
+                                  : RecomputeDetail::BindingPtr {};
     {
         RecomputeDetail::IndexLock lock;
         for (const auto& entry : expressionContainers) {
-            if ((document && entry.second.documents.contains(document))
+            if ((document && entry.second.documents.contains(binding->documentGeneration))
                 || (object && entry.second.objects.contains(object))) {
                 interested.push_back(entry.first);
             }
@@ -342,10 +373,12 @@ std::vector<DocumentObject*> PropertyExpressionEngine::admissionTargets(const Ex
 {
     std::vector<DocumentObject*> targets;
     for (const auto& entry : values) {
+        targets.push_back(entry.first.getOwner());
         if (auto* owner = entry.first.getDocumentObject()) {
             targets.push_back(owner);
         }
         if (entry.second.expression) {
+            targets.push_back(entry.second.expression->getOwner());
             std::map<DocumentObject*, bool> dependencies;
             std::map<std::pair<std::string, DocumentObject*>, bool> properties;
             entry.second.expression->getDepObjects(dependencies, nullptr, &properties);
@@ -362,6 +395,15 @@ std::vector<DocumentObject*> PropertyExpressionEngine::admissionTargets(const Ex
 
 void PropertyExpressionEngine::commitExpressions(ExpressionMap&& proposed, bool notify)
 {
+    commitExpressions(std::move(proposed), notify, {});
+}
+
+void PropertyExpressionEngine::commitExpressions(
+    ExpressionMap&& proposed,
+    bool notify,
+    const std::set<ObjectIdentifier>& changedPaths
+)
+{
     auto mutation = RecomputeDetail::Coordinator::instance().mutation(*this);
     auto targets = admissionTargets(expressions);
     auto next = admissionTargets(proposed);
@@ -372,7 +414,7 @@ void PropertyExpressionEngine::commitExpressions(ExpressionMap&& proposed, bool 
         refreshAdmissionMetadata();
         return;
     }
-    std::set<ObjectIdentifier> paths;
+    std::set<ObjectIdentifier> paths = changedPaths;
     for (const auto& entry : expressions) {
         if (!proposed.contains(entry.first)) {
             paths.insert(entry.first);
@@ -406,6 +448,15 @@ void PropertyExpressionEngine::commitExpressions(ExpressionMap&& proposed, bool 
 void PropertyExpressionEngine::collectAdmissionTargets(std::vector<DocumentObject*>& targets) const
 {
     PropertyExpressionContainer::collectAdmissionTargets(targets);
+    const auto* owner = freecad_cast<DocumentObject*>(getContainer());
+    if (!admissionStaging && (!owner || !owner->isAttachedToDocument())) {
+        // Copy factories publish their committed footprint. A history-owned
+        // model also retains its embedded engine after detachment, while its
+        // native name is null. Both consume only the indexed identities.
+        return;
+    }
+    // Live receivers and unpublished staging engines still discover their
+    // current/prospective AST footprint under their caller's native scope.
     auto own = admissionTargets(expressions);
     targets.insert(targets.end(), own.begin(), own.end());
 }
@@ -625,7 +676,7 @@ void PropertyExpressionEngine::Save(Base::Writer& writer) const
 
 void PropertyExpressionEngine::Restore(Base::XMLReader& reader)
 {
-    auto restoration = RecomputeDetail::Coordinator::instance().atomic();
+    auto restoration = RecomputeDetail::Coordinator::instance().atomicForRestore(*this);
     auto mutation = RecomputeDetail::Coordinator::instance().mutation(*this);
     reader.readElement("ExpressionEngine");
     int count = reader.getAttribute<double>("count");
@@ -688,7 +739,7 @@ size_t PropertyExpressionEngine::numExpressions() const
 
 void PropertyExpressionEngine::afterRestore()
 {
-    auto restoration = RecomputeDetail::Coordinator::instance().atomic();
+    auto restoration = RecomputeDetail::Coordinator::instance().atomicForRestore(*this);
     auto mutation = RecomputeDetail::Coordinator::instance().mutation(*this);
     DocumentObject* docObj = freecad_cast<DocumentObject*>(getContainer());
     if (restoredExpressions && docObj) {
@@ -1135,17 +1186,29 @@ void PropertyExpressionEngine::renameObjectIdentifiers(
             renameObjectIdentifier(node, paths, owner);
         }
 
+        void aboutToChange() override
+        {
+            modified = true;
+        }
+        bool modified = false;
+
     private:
         const std::map<ObjectIdentifier, ObjectIdentifier>& paths;
         const ObjectIdentifier& owner;
     };
+    std::set<ObjectIdentifier> changedPaths;
     for (auto& entry : proposed) {
         if (entry.second.expression) {
             RenamePlan visitor(paths, entry.first);
             entry.second.expression->visit(visitor);
+            if (visitor.modified) {
+                changedPaths.insert(entry.first);
+            }
         }
     }
-    commitExpressions(std::move(proposed));
+    // A rewrite can change identifier owner while preserving its serialized
+    // text. The visitor's actual edit, not text equality, decides publication.
+    commitExpressions(std::move(proposed), true, changedPaths);
 }
 
 PyObject* PropertyExpressionEngine::getPyObject()

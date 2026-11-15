@@ -57,6 +57,7 @@ class AppExport PropertyExpressionContainer: public App::PropertyXLinkContainer
     TYPESYSTEM_HEADER_WITH_OVERRIDE();
 
 public:
+    void collectAdmissionTargets(std::vector<DocumentObject*>&) const override;
     PropertyExpressionContainer();
     ~PropertyExpressionContainer() override;
 
@@ -84,6 +85,9 @@ public:
 
 protected:
     void publishAdmissionTargets(const std::vector<DocumentObject*>&);
+    void copyAdmissionMetadata(const PropertyExpressionContainer&);
+    std::vector<DocumentObject*> admissionMetadataTargets() const;
+
     /**
      * @brief Handle document relabeling.
      *
@@ -373,6 +377,7 @@ private:
     ExpressionMap copyExpressions() const;
     static std::vector<DocumentObject*> admissionTargets(const ExpressionMap&);
     void commitExpressions(ExpressionMap&&, bool notify = true);
+    void commitExpressions(ExpressionMap&&, bool notify, const std::set<ObjectIdentifier>& changedPaths);
     void refreshAdmissionMetadata();
     std::string validateExpressionPlan(const ObjectIdentifier&,
         std::shared_ptr<const Expression>, const ExpressionMap&) const;

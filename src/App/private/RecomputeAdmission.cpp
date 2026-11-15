@@ -218,6 +218,8 @@ struct CurrentContext
     std::shared_ptr<const ContextLink> previous;
     std::weak_ptr<ScopeState> mutation;
     bool borrowed {false};
+    BindingPtr importedRestore;
+    std::weak_ptr<ScopeState> importPreparation;
 };
 struct ContextLink
 {
@@ -325,6 +327,7 @@ struct ScopeState
     std::vector<std::shared_ptr<DocumentRecord>> ownerDocuments;
     std::vector<std::shared_ptr<void>> resources;
     bool atomic {false};
+    bool importPreparation {false};
     bool destructive {false};
     ~ScopeState()
     {
@@ -431,7 +434,7 @@ OperationScope::OperationScope(std::shared_ptr<OperationState> state, bool autho
 {
     auto previous = std::make_shared<ContextLink>(ContextLink {current});
     const bool borrowed = !authority && !dispatch && static_cast<bool>(state);
-    current = {std::move(state), authority, std::move(previous), {}, borrowed};
+    current = {std::move(state), authority, std::move(previous), {}, borrowed, {}, {}};
     if (dispatch) {
         workerDispatcher = true;
     }
@@ -1153,17 +1156,32 @@ MutationScope Coordinator::mutation(const Property& property, const std::vector<
 }
 std::optional<MutationScope> Coordinator::tryAtomic()
 {
+    return tryAtomicImpl(false);
+}
+std::optional<MutationScope> Coordinator::tryAtomicImpl(bool ownerNativeImport)
+{
     MutationScope result;
     result.state = std::make_shared<ScopeState>();
     result.state->registry = impl->registry;
     result.state->operation = current.authority && current.operation ? current.operation
                                                                      : newOperation(impl->registry);
     result.state->atomic = true;
+    result.state->importPreparation = ownerNativeImport;
     auto registry = impl->registry;
     {
         std::lock_guard lock(registry->mutex);
         const auto id = result.state->operation->id;
-        if ((registry->atomicOwner && registry->atomicOwner != id) || !registry->native.empty()
+        const bool ownOwnerNative = ownerNativeImport && current.authority && current.operation
+            && current.operation->native && !current.operation->worker && !borrowedContext()
+            && !activeCapture;
+        const bool nativeConflict = ownOwnerNative
+            ? std::any_of(
+                  registry->native.begin(),
+                  registry->native.end(),
+                  [id](const auto& permit) { return permit.first != id && permit.second; }
+              )
+            : !registry->native.empty();
+        if (activeCapture || (registry->atomicOwner && registry->atomicOwner != id) || nativeConflict
             || std::any_of(
                 registry->resourceWriters.begin(),
                 registry->resourceWriters.end(),
@@ -1193,6 +1211,81 @@ MutationScope Coordinator::atomic()
         throw AdmissionRefusal("Atomic structural operation is busy with recompute");
     }
     return std::move(*scope);
+}
+MutationScope Coordinator::atomicForImport()
+{
+    auto scope = tryAtomicImpl(true);
+    if (!scope) {
+        throw AdmissionRefusal("Import preparation is busy with foreign native or topology work");
+    }
+    return std::move(*scope);
+}
+MutationScope Coordinator::restoreImportedObject(
+    const BindingPtr& binding,
+    const MutationScope& importPreparation
+)
+{
+    if (!current.authority || !current.operation || onWorker() || borrowedContext() || activeCapture
+        || !importPreparation.state || !importPreparation.state->importPreparation
+        || importPreparation.state->registry != impl->registry
+        || importPreparation.state->operation->id != currentId()) {
+        throw AdmissionRefusal("Imported receiver restore requires its exact owner import phase");
+    }
+    auto receiver = mutation(std::vector<DocumentObject*> {}, {});
+    receiver.pinBindings({binding});
+    current.importedRestore = binding;
+    current.importPreparation = importPreparation.state;
+    return receiver;
+}
+bool Coordinator::matchesImportedRestore(const PropertyContainer* container, const Property* property) const
+{
+    if (!current.authority || !current.operation || !current.operation->native || onWorker()
+        || borrowedContext() || activeCapture) {
+        return false;
+    }
+    // The nearest explicit receiver scope masks outer receiver capabilities.
+    // Promote its lexical phase outside R, including on every early return.
+    BindingPtr binding;
+    std::shared_ptr<ScopeState> phase;
+    for (const CurrentContext* context = &current; context;
+         context = context->previous ? &context->previous->context : nullptr) {
+        if (context->importedRestore) {
+            phase = context->importPreparation.lock();
+            if (context->operation && context->operation->id == currentId() && phase
+                && phase->importPreparation && phase->operation->id == currentId()) {
+                binding = context->importedRestore;
+            }
+            break;
+        }
+    }
+    if (!binding) {
+        return false;
+    }
+    std::lock_guard lock(impl->registry->mutex);
+    auto found = impl->registry->objectGenerations.find(binding->attachmentGeneration);
+    if (found == impl->registry->objectGenerations.end() || !found->second->live
+        || found->second->pendingRemoval || !found->second->document->live
+        || found->second->document->retiring
+        || found->second->document->generation != binding->documentGeneration) {
+        return false;
+    }
+    if (container && static_cast<const PropertyContainer*>(found->second->pointer) == container) {
+        return true;
+    }
+    if (property) {
+        auto registered = impl->registry->properties.find(const_cast<Property*>(property));
+        return registered != impl->registry->properties.end() && registered->second->live
+            && registered->second->object == found->second;
+    }
+    return false;
+}
+MutationScope Coordinator::atomicForRestore(const PropertyContainer& receiver)
+{
+    return matchesImportedRestore(&receiver, nullptr) ? atomicForImport() : atomic();
+}
+MutationScope Coordinator::atomicForRestore(const Property& receiver)
+{
+    return matchesImportedRestore(nullptr, &receiver) ? atomicForImport() : atomic();
 }
 bool Coordinator::hasAuthority() const
 {
@@ -1307,6 +1400,7 @@ struct CaptureScope::Impl
     std::vector<std::shared_ptr<DocumentRecord>> readers;
     CaptureScope* previous {};
     bool planning {false};
+    bool allowOwnedWriter {false};
 };
 CaptureScope::CaptureScope(Document* document, bool planning)
     : impl(std::make_unique<Impl>())
@@ -1318,6 +1412,10 @@ CaptureScope::CaptureScope(Document* document, bool planning)
         throw AdmissionRefusal("Graph capture requires a native owner operation");
     }
     auto registry = impl->registry;
+    // A synchronous hasSetValue/onChanged callback may recompute its current
+    // state before its lexical setter writer ends. Foreign work stays excluded.
+    impl->allowOwnedWriter = planning
+        || (!impl->operation->worker && !borrowedContext() && !activeCapture);
     if (planning) {
         // A setter still uses its planned endpoints after graph readers end.
         // Keep those borrows in the caller's lexical writer, never in the
@@ -1339,7 +1437,7 @@ CaptureScope::CaptureScope(Document* document, bool planning)
         if (found == registry->documents.end() || !found->second->live
             || (found->second->retiring && !found->second->pins.count(impl->operation->id))
             || (found->second->writerDepth
-                && !(planning && found->second->writer == impl->operation->id))) {
+                && !(impl->allowOwnedWriter && found->second->writer == impl->operation->id))) {
             throw AdmissionRefusal("Graph capture conflicts with a topology writer");
         }
         if (planning) {
@@ -1414,7 +1512,7 @@ void CaptureScope::pin(DocumentObject* pointer)
     }
     auto doc = object->document;
     if (std::find(impl->readers.begin(), impl->readers.end(), doc) == impl->readers.end()) {
-        if (doc->writerDepth && !(impl->planning && doc->writer == operation->id)) {
+        if (doc->writerDepth && !(impl->allowOwnedWriter && doc->writer == operation->id)) {
             throw AdmissionRefusal("Dependency topology is busy");
         }
         if (impl->planning) {
@@ -1882,18 +1980,33 @@ void CloseScope::cancelAffected()
     if (!impl) {
         return;
     }
+    // A promoted weak operation can become its last strong owner while its
+    // native thread returns. Its destructor takes R, so keep every promotion
+    // alive beyond R, including exceptional progress-snapshot unwinding.
+    std::vector<std::shared_ptr<OperationState>> promoted;
     std::vector<std::shared_ptr<ProgressRegistration>> progress;
     {
         std::lock_guard lock(impl->registry->mutex);
+        std::size_t capacity = 0;
+        for (const auto& item : impl->registry->operations) {
+            if (impl->affected.count(item.first) || impl->document->pins.count(item.first)) {
+                capacity += item.second.size();
+            }
+        }
+        // No promotion exists yet if allocation fails. The subsequent shared
+        // pointer moves cannot allocate or release the final owner under R.
+        promoted.reserve(capacity);
         for (auto& item : impl->registry->operations) {
             if (!impl->affected.count(item.first) && !impl->document->pins.count(item.first)) {
                 continue;
             }
             for (auto& weak : item.second) {
                 if (auto operation = weak.lock()) {
-                    operation->canceled.store(true, std::memory_order_release);
-                    if (operation->progress) {
-                        progress.push_back(operation->progress);
+                    promoted.push_back(std::move(operation));
+                    const auto& retained = promoted.back();
+                    retained->canceled.store(true, std::memory_order_release);
+                    if (retained->progress) {
+                        progress.push_back(retained->progress);
                     }
                 }
             }

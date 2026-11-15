@@ -241,14 +241,30 @@ void Transaction::collectMutationEndpoints(std::vector<DocumentObject*>& endpoin
     for (const auto& entry : _Objects.get<0>()) {
         // The payload is transaction-owned; the key may be a borrowed GUI
         // provider already destroyed before App history cleanup. Only native
-        // model payloads guarantee an App-owned DocumentObject key here.
+        // model payloads establish the key type; borrowed keys still need
+        // registry qualification before native inspection below.
         if (dynamic_cast<const TransactionDocumentObject*>(entry.second)) {
             auto* object = static_cast<DocumentObject*>(const_cast<TransactionalObject*>(entry.first));
             endpoints.push_back(object);
-            std::vector<Property*> properties;
-            object->getPropertyList(properties);
-            for (const auto* property : properties) {
-                collectProperty(property);
+            auto& coordinator = RecomputeDetail::Coordinator::instance();
+            auto lifetime = coordinator.mutation(std::vector<DocumentObject*> {}, {});
+            const auto binding = coordinator.bindObject(object);
+            DocumentObject* receiver = nullptr;
+            if (!binding->missing) {
+                // A historical Chn/Del key is borrowed and can already be dead.
+                // Only the registry-qualified, pinned receiver may be inspected.
+                receiver = lifetime.pinBindings({binding}).front();
+            }
+            else if (entry.second->status == TransactionObject::New) {
+                // New owns detached model storage, exactly as in ~Transaction.
+                receiver = object;
+            }
+            if (receiver) {
+                std::vector<Property*> properties;
+                receiver->getPropertyList(properties);
+                for (const auto* property : properties) {
+                    collectProperty(property);
+                }
             }
         }
         for (const auto& change : entry.second->_PropChangeMap) {

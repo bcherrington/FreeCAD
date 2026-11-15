@@ -282,7 +282,12 @@ protected:
     void onRemoveDep(App::DocumentObject* obj) override;
 
 private:
+    // Only copy factories call this constructor, under the actual source-owner scope.
     PropertySheet(const PropertySheet& other);
+    std::vector<App::DocumentObject*> expressionAdmissionTargets(
+        const std::map<App::CellAddress, std::unique_ptr<App::Expression>>* changed = nullptr
+    ) const;
+    void publishExpressionContexts();
     PropertySheet& operator=(const PropertySheet&);
 
     /* friends */

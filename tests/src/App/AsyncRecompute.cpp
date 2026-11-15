@@ -34,6 +34,7 @@
 #include <thread>
 #include <vector>
 #include <type_traits>
+#include <utility>
 
 #include <boost/scope_exit.hpp>
 #include <gtest/gtest.h>
@@ -50,6 +51,7 @@
 #include "App/GeoFeature.h"
 #include "Base/Console.h"
 #include "Base/Interpreter.h"
+#include "Base/Reader.h"
 #include "Base/Sequencer.h"
 #include <src/App/InitApplication.h>
 
@@ -4240,4 +4242,901 @@ TEST_F(AsyncRecomputeTest, Spec012ModelMoveEndpointCollectionSurvivesUndoRedoCle
     EXPECT_EQ(_doc->getAvailableUndos(), 0);
     EXPECT_EQ(_doc->getAvailableRedos(), 0);
     EXPECT_EQ(redone->getValue(), target);
+}
+
+TEST_F(AsyncRecomputeTest, Spec012OwnerXLinkChangedCallbackCanRecomputeInsideItsWriter)
+{
+    auto* feature = _doc->addObject<App::Spec012OutcomeFeature>("OwnerChanged");
+    auto* target = _doc->addObject<App::FeatureTest>("ChangedTarget");
+    auto* link = dynamic_cast<App::PropertyXLink*>(
+        feature->addDynamicProperty("App::PropertyXLink", "OwnerReference")
+    );
+    ASSERT_NE(link, nullptr);
+    unsigned callbacks = 0;
+    bool sawAssignedTarget = false;
+    bool recomputed = false;
+    fastsignals::scoped_connection changed(_doc->signalChangedObject.connect(
+        [&](const App::DocumentObject& object, const App::Property& property) {
+            if (&object == feature && &property == link) {
+                ++callbacks;
+                sawAssignedTarget = link->getValue() == target;
+                recomputed = feature->recomputeFeature(false);
+            }
+        }
+    ));
+    link->setValue(target);
+    EXPECT_EQ(callbacks, 1U);
+    EXPECT_TRUE(sawAssignedTarget);
+    EXPECT_TRUE(recomputed);
+    EXPECT_EQ(feature->ExecCount.getValue(), 1);
+}
+
+TEST_F(AsyncRecomputeTest, Spec012OwnerExecuteCanImportWithoutGrantingOpaqueUndoAuthority)
+{
+    auto* source = _doc->addObject<App::FeatureTest>("ImportSource");
+    auto* feature = _doc->addObject<App::Spec012OutcomeFeature>("OwnerImporter");
+    source->Float.setValue(17.0);
+    feature->mode = 6;
+    App::DocumentObject* imported = nullptr;
+    bool opaqueRefused = false;
+    bool generalRestoreRefused = false;
+    bool importCallbackUndoRefused = false;
+    bool importCallbackAbortRefused = false;
+    unsigned importCallbacks = 0;
+    _doc->setMaxUndoStackSize(10);
+    _doc->openTransaction("Owner native import must not authorize undo or abort");
+    source->Float.setValue(18.0);
+    fastsignals::scoped_connection importedCallback(_doc->signalImportObjects.connect(
+        [&](const std::vector<App::DocumentObject*>&, Base::XMLReader&) {
+            ++importCallbacks;
+            const auto beforeObjects = _doc->getObjects().size();
+            const auto beforeUndos = _doc->getAvailableUndos();
+            importCallbackUndoRefused = !_doc->undo();
+            importCallbackAbortRefused = !_doc->tryAbortTransaction();
+            EXPECT_EQ(_doc->getObjects().size(), beforeObjects);
+            EXPECT_EQ(_doc->getAvailableUndos(), beforeUndos);
+            EXPECT_TRUE(_doc->hasPendingTransaction());
+        }
+    ));
+    feature->duringExecute = [&] {
+        opaqueRefused = !App::RecomputeDetail::Coordinator::instance().tryAtomic().has_value();
+        try {
+            _doc->afterRestore(std::vector<App::DocumentObject*> {source}, false);
+        }
+        catch (const App::RecomputeDetail::AdmissionRefusal&) {
+            generalRestoreRefused = true;
+        }
+        auto copies = _doc->copyObject({source}, false);
+        ASSERT_EQ(copies.size(), 1U);
+        imported = copies.front();
+    };
+    auto outcome = App::GetApplication().recomputeRequestSynchronously(
+        App::RecomputeRequest::fromDocumentObject(*feature)
+    );
+    EXPECT_TRUE(outcome.success);
+    EXPECT_TRUE(opaqueRefused);
+    EXPECT_TRUE(generalRestoreRefused);
+    EXPECT_EQ(importCallbacks, 1U);
+    EXPECT_TRUE(importCallbackUndoRefused);
+    EXPECT_TRUE(importCallbackAbortRefused);
+    _doc->commitTransaction();
+    ASSERT_NE(imported, nullptr);
+    EXPECT_NE(imported, source);
+    EXPECT_STRNE(imported->getNameInDocument(), source->getNameInDocument());
+    auto* importedFeature = dynamic_cast<App::FeatureTest*>(imported);
+    ASSERT_NE(importedFeature, nullptr);
+    EXPECT_EQ(importedFeature->Float.getValue(), 18.0);
+    EXPECT_EQ(feature->ExecCount.getValue(), 1);
+    EXPECT_EQ(_doc->getObjects().size(), 3U);
+}
+
+TEST_F(AsyncRecomputeTest, Spec012OwnerImportStillRefusesForeignNativePermitBeforeDestinationEffects)
+{
+    const auto blockerName = App::GetApplication().getUniqueDocumentName("ForeignImportNative");
+    auto* blockerDoc = App::GetApplication().newDocument(blockerName.c_str());
+    auto* blocker = blockerDoc->addObject<App::FeatureTestAsyncBlocker>("ForeignNative");
+    App::FeatureTestAsyncBlocker::resetBlocker();
+    BOOST_SCOPE_EXIT_ALL(&)
+    {
+        App::FeatureTestAsyncBlocker::releaseBlocker();
+        App::GetApplication().closeDocument(blockerName.c_str());
+    };
+    App::GetApplication().queueRecomputeRequest(App::RecomputeRequest::fromDocumentObject(*blocker));
+    ASSERT_TRUE(App::FeatureTestAsyncBlocker::waitUntilStarted(2s));
+    auto* source = _doc->addObject<App::FeatureTest>("ImportSource");
+    auto* feature = _doc->addObject<App::Spec012OutcomeFeature>("RefusedImporter");
+    feature->mode = 6;
+    feature->duringExecute = [&] {
+        _doc->copyObject({source}, false);
+    };
+    const auto objectCount = _doc->getObjects().size();
+    auto outcome = App::GetApplication().recomputeRequestSynchronously(
+        App::RecomputeRequest::fromDocumentObject(*feature)
+    );
+    EXPECT_FALSE(outcome.success);
+    EXPECT_EQ(outcome.failure, App::RecomputeFailure::Exception);
+    EXPECT_EQ(_doc->getObjects().size(), objectCount);
+    EXPECT_EQ(feature->ExecCount.getValue(), 0);
+}
+
+TEST_F(AsyncRecomputeTest, Spec012WorkerAndBorrowedOwnerImportRefuseBeforeDestinationEffects)
+{
+    auto* source = _doc->addObject<App::FeatureTest>("ImportSource");
+    auto* feature = _doc->addObject<App::Spec012OutcomeFeature>("WorkerImporter");
+    feature->mode = 6;
+    feature->duringExecute = [&] {
+        _doc->copyObject({source}, false);
+    };
+    const auto objectCount = _doc->getObjects().size();
+    auto ticket = std::make_shared<App::RecomputeDetail::Retirement>();
+    std::promise<std::pair<bool, App::RecomputeFailure>> finished;
+    auto done = finished.get_future();
+    auto request = App::RecomputeRequest::fromDocumentObject(*feature);
+    request.callback = [&](App::RecomputeRequest&, App::RecomputeResult& result) {
+        finished.set_value({result.success, result.failure});
+    };
+    App::GetApplication().queueRecomputeRequestWithRetirement(std::move(request), ticket);
+    ASSERT_EQ(done.wait_for(10s), std::future_status::ready);
+    const auto workerOutcome = done.get();
+    ASSERT_TRUE(spec012WaitRetired(ticket));
+    EXPECT_FALSE(workerOutcome.first);
+    EXPECT_EQ(workerOutcome.second, App::RecomputeFailure::Exception);
+    EXPECT_EQ(_doc->getObjects().size(), objectCount);
+    EXPECT_EQ(feature->ExecCount.getValue(), 0);
+    // Exercise the exact observation primitive installed by synchronous GUI
+    // dispatch, without claiming this App-only test qualifies the Qt bridge.
+    bool borrowedRefused = false;
+    feature->duringExecute = [&] {
+        App::RecomputeDetail::ObservationScope borrowed(
+            App::RecomputeDetail::Coordinator::instance().observation()
+        );
+        try {
+            _doc->copyObject({source}, false);
+        }
+        catch (const App::RecomputeDetail::AdmissionRefusal&) {
+            borrowedRefused = true;
+        }
+    };
+    const auto ownerOutcome = App::GetApplication().recomputeRequestSynchronously(
+        App::RecomputeRequest::fromDocumentObject(*feature)
+    );
+    EXPECT_TRUE(ownerOutcome.success);
+    EXPECT_TRUE(borrowedRefused);
+    EXPECT_EQ(_doc->getObjects().size(), objectCount);
+}
+
+TEST_F(AsyncRecomputeTest, Spec012OwnerCaptureStillRefusesForeignWriterAndGraphCaptureReentry)
+{
+    auto* feature = _doc->addObject<App::Spec012OutcomeFeature>("WriterExcluded");
+    std::promise<void> writerEntered;
+    auto entered = writerEntered.get_future();
+    std::promise<void> releaseWriter;
+    auto proceed = releaseWriter.get_future();
+    std::thread foreign([&] {
+        auto writer = App::RecomputeDetail::Coordinator::instance().mutation({feature}, {_doc});
+        writerEntered.set_value();
+        proceed.wait();
+    });
+    entered.wait();
+    EXPECT_THROW(feature->recomputeFeature(false), App::RecomputeDetail::AdmissionRefusal);
+    releaseWriter.set_value();
+    foreign.join();
+    EXPECT_EQ(feature->ExecCount.getValue(), 0);
+    auto writer = App::RecomputeDetail::Coordinator::instance().mutation({feature}, {_doc});
+    {
+        App::RecomputeDetail::CaptureScope graph(_doc, true);
+        graph.pin(feature);
+        EXPECT_THROW(feature->recomputeFeature(false), App::RecomputeDetail::AdmissionRefusal);
+    }
+    EXPECT_TRUE(feature->recomputeFeature(false));
+    EXPECT_EQ(feature->ExecCount.getValue(), 1);
+}
+
+TEST_F(AsyncRecomputeTest, Spec012ImportStillRefusesForeignWriterBeforeDestinationEffects)
+{
+    const auto otherName = App::GetApplication().getUniqueDocumentName("ForeignImportWriter");
+    auto* otherDoc = App::GetApplication().newDocument(otherName.c_str());
+    auto* other = otherDoc->addObject<App::FeatureTest>("WriterOwner");
+    BOOST_SCOPE_EXIT_ALL(&)
+    {
+        App::GetApplication().closeDocument(otherName.c_str());
+    };
+    auto* source = _doc->addObject<App::FeatureTest>("ImportSource");
+    auto* feature = _doc->addObject<App::Spec012OutcomeFeature>("WriterRefusedImporter");
+    feature->mode = 6;
+    feature->duringExecute = [&] {
+        _doc->copyObject({source}, false);
+    };
+    std::promise<void> writerEntered;
+    auto entered = writerEntered.get_future();
+    std::promise<void> releaseWriter;
+    auto proceed = releaseWriter.get_future();
+    std::thread foreign([&] {
+        auto writer = App::RecomputeDetail::Coordinator::instance().mutation({other}, {otherDoc});
+        writerEntered.set_value();
+        proceed.wait();
+    });
+    entered.wait();
+    const auto objectCount = _doc->getObjects().size();
+    const auto outcome = App::GetApplication().recomputeRequestSynchronously(
+        App::RecomputeRequest::fromDocumentObject(*feature)
+    );
+    releaseWriter.set_value();
+    foreign.join();
+    EXPECT_FALSE(outcome.success);
+    EXPECT_EQ(outcome.failure, App::RecomputeFailure::Exception);
+    EXPECT_EQ(_doc->getObjects().size(), objectCount);
+    EXPECT_EQ(feature->ExecCount.getValue(), 0);
+}
+
+TEST_F(AsyncRecomputeTest, Spec012OwnerCopyPinsInputsOutsideExecutionGraphThroughExportCallbacks)
+{
+    auto* dependency = _doc->addObject<App::FeatureTest>("CopiedDependency");
+    auto* source = _doc->addObject<App::FeatureTest>("CopiedSource");
+    auto* importer = _doc->addObject<App::Spec012OutcomeFeature>("OwnerImporter");
+    dependency->Float.setValue(11.0);
+    source->Source1.setValue(dependency);
+    source->Float.setValue(37.0);
+    importer->mode = 6;
+    auto& admission = App::RecomputeDetail::Coordinator::instance();
+    const auto sourceBinding = admission.bindObject(source);
+    const auto dependencyBinding = admission.bindObject(dependency);
+    unsigned exportCallbacks = 0;
+    fastsignals::scoped_connection exportCallback(_doc->signalExportObjects.connect(
+        [&](const std::vector<App::DocumentObject*>& exported, Base::Writer&) {
+            ++exportCallbacks;
+            EXPECT_NE(std::find(exported.begin(), exported.end(), source), exported.end());
+            EXPECT_NE(std::find(exported.begin(), exported.end(), dependency), exported.end());
+            EXPECT_THROW(
+                admission.mutation({source}, {_doc}, true),
+                App::RecomputeDetail::AdmissionRefusal
+            );
+            EXPECT_THROW(
+                admission.mutation({dependency}, {_doc}, true),
+                App::RecomputeDetail::AdmissionRefusal
+            );
+            EXPECT_EQ(admission.resolveObject(sourceBinding), source);
+            EXPECT_EQ(admission.resolveObject(dependencyBinding), dependency);
+            EXPECT_EQ(source->Source1.getValue(), dependency);
+            EXPECT_EQ(source->Float.getValue(), 37.0);
+        }
+    ));
+    App::DocumentObject* copied = nullptr;
+    importer->duringExecute = [&] {
+        // Nonrecursive native execution approves only importer. These inputs
+        // have no original execution-vector pin before the copy-source scope.
+        EXPECT_NO_THROW(admission.mutation({source, dependency}, {_doc}, true));
+        auto copies = _doc->copyObject({source}, true);
+        ASSERT_EQ(copies.size(), 1U);
+        copied = copies.front();
+    };
+    const auto outcome = App::GetApplication().recomputeRequestSynchronously(
+        App::RecomputeRequest::fromDocumentObject(*importer, false)
+    );
+    EXPECT_TRUE(outcome.success);
+    EXPECT_EQ(exportCallbacks, 1U);
+    ASSERT_NE(copied, nullptr);
+    auto* copiedFeature = dynamic_cast<App::FeatureTest*>(copied);
+    ASSERT_NE(copiedFeature, nullptr);
+    EXPECT_EQ(copiedFeature->Float.getValue(), 37.0);
+    auto* copiedDependency = dynamic_cast<App::FeatureTest*>(copiedFeature->Source1.getValue());
+    ASSERT_NE(copiedDependency, nullptr);
+    EXPECT_NE(copiedDependency, dependency);
+    EXPECT_EQ(copiedDependency->Float.getValue(), 11.0);
+    EXPECT_EQ(_doc->getObject(copiedDependency->getNameInDocument()), copiedDependency);
+    EXPECT_EQ(admission.resolveObject(sourceBinding), source);
+    EXPECT_EQ(admission.resolveObject(dependencyBinding), dependency);
+    EXPECT_EQ(_doc->getObjects().size(), 5U);
+}
+
+namespace
+{
+// Stable test-only debugger seam: reached after the native thread has released
+// its scope and claim. The actual scanner must now keep its promotion alive.
+void spec012CloseNativeOwnerReleased(std::atomic<bool>& released)
+{
+    released.store(true, std::memory_order_release);
+}
+}  // namespace
+
+TEST_F(AsyncRecomputeTest, Spec012CloseCancellationReleasesLastPromotedOwnerOutsideRegistryLock)
+{
+    auto* feature = _doc->addObject<App::Spec012OutcomeFeature>("ClosingNativeOwner");
+    std::promise<void> nativeEntered;
+    auto entered = nativeEntered.get_future();
+    std::atomic<bool> forceRelease {false};
+    std::atomic<bool> ownerReleased {false};
+    std::thread owner([&] {
+        {
+            auto claim = App::RecomputeDetail::Coordinator::instance().claimDocument(_doc, feature);
+            auto scope = claim.enter();
+            nativeEntered.set_value();
+            while (!claim.cancellationRequested() && !forceRelease.load(std::memory_order_acquire)) {
+                std::this_thread::yield();
+            }
+        }
+        spec012CloseNativeOwnerReleased(ownerReleased);
+    });
+    BOOST_SCOPE_EXIT_ALL(&)
+    {
+        forceRelease.store(true, std::memory_order_release);
+        if (owner.joinable()) {
+            owner.join();
+        }
+    };
+    ASSERT_EQ(entered.wait_for(10s), std::future_status::ready);
+    EXPECT_TRUE(App::GetApplication().closeDocument(_docName.c_str()));
+    owner.join();
+    EXPECT_TRUE(ownerReleased.load(std::memory_order_acquire));
+    EXPECT_EQ(App::GetApplication().getDocument(_docName.c_str()), nullptr);
+}
+
+TEST_F(AsyncRecomputeTest, Spec012RedoOnlyRenameHistorySurvivesRemovedBorrowedModel)
+{
+    auto* object = _doc->addObject<App::Spec012OutcomeFeature>("RedoOnlyModel");
+    ASSERT_NE(object, nullptr);
+    auto* property = object->addDynamicProperty("App::PropertyInteger", "Original");
+    ASSERT_NE(property, nullptr);
+    _doc->setMaxUndoStackSize(10);
+    _doc->openTransaction("Rename property of borrowed model");
+    ASSERT_TRUE(object->renameDynamicProperty(property, "Renamed"));
+    _doc->commitTransaction();
+    ASSERT_TRUE(_doc->undo());
+    ASSERT_EQ(object->getDynamicPropertyByName("Original"), property);
+    ASSERT_EQ(_doc->getAvailableUndos(), 0);
+    ASSERT_EQ(_doc->getAvailableRedos(), 1);
+
+    _doc->removeObject("RedoOnlyModel");
+    ASSERT_EQ(_doc->getObject("RedoOnlyModel"), nullptr);
+    ASSERT_EQ(_doc->getAvailableRedos(), 1);
+    {
+        auto admission = App::RecomputeDetail::Coordinator::instance().mutation({}, {_doc});
+        std::vector<App::DocumentObject*> endpoints;
+        EXPECT_NO_THROW(_doc->collectCommitMutationEndpoints(endpoints));
+        // Collected historical model identities are registry-only keys. A dead
+        // borrowed receiver must not be dereferenced during history preflight.
+        EXPECT_NO_THROW(admission.include(endpoints));
+    }
+    EXPECT_NO_THROW(_doc->clearUndos());
+    EXPECT_EQ(_doc->getAvailableUndos(), 0);
+    EXPECT_EQ(_doc->getAvailableRedos(), 0);
+}
+
+TEST_F(AsyncRecomputeTest, Spec012RedoOnlyExpressionCopySurvivesRemovedAstOwner)
+{
+    auto* object = _doc->addObject<App::Spec012OutcomeFeature>("ExpressionHistoryOwner");
+    ASSERT_NE(object, nullptr);
+    ASSERT_NE(object->addDynamicProperty("App::PropertyInteger", "InputValue"), nullptr);
+    ASSERT_NE(object->addDynamicProperty("App::PropertyInteger", "ResultValue"), nullptr);
+    const auto path = App::ObjectIdentifier::parse(object, "ResultValue");
+    object->setExpression(
+        path,
+        std::shared_ptr<App::Expression>(App::Expression::parse(object, "InputValue"))
+    );
+    _doc->setMaxUndoStackSize(10);
+    _doc->openTransaction("Change expression before removing its AST owner");
+    object->setExpression(
+        path,
+        std::shared_ptr<App::Expression>(App::Expression::parse(object, "InputValue + 1"))
+    );
+    _doc->commitTransaction();
+    ASSERT_TRUE(_doc->undo());
+    ASSERT_EQ(_doc->getAvailableUndos(), 0);
+    ASSERT_EQ(_doc->getAvailableRedos(), 1);
+
+    // Redo owns an ExpressionEngine copy with null getContainer(), but its AST
+    // owner/ObjectIdentifier owner remains this model receiver's raw pointer.
+    _doc->removeObject("ExpressionHistoryOwner");
+    ASSERT_EQ(_doc->getObject("ExpressionHistoryOwner"), nullptr);
+    ASSERT_EQ(_doc->getAvailableRedos(), 1);
+    {
+        auto admission = App::RecomputeDetail::Coordinator::instance().mutation({}, {_doc});
+        std::vector<App::DocumentObject*> endpoints;
+        EXPECT_NO_THROW(_doc->collectCommitMutationEndpoints(endpoints));
+        EXPECT_NO_THROW(admission.include(endpoints));
+    }
+    EXPECT_NO_THROW(_doc->clearUndos());
+    EXPECT_EQ(_doc->getAvailableUndos(), 0);
+    EXPECT_EQ(_doc->getAvailableRedos(), 0);
+}
+
+TEST_F(
+    AsyncRecomputeTest,
+    Spec012ImportedReceiverCapabilityCannotRestoreExistingObjectDuringPropertyCallback
+)
+{
+    auto* source = _doc->addObject<App::FeatureTest>("NewRestoreSource");
+    auto* existing = _doc->addObject<App::FeatureTest>("ExistingRestoreTarget");
+    auto* oldLink = _doc->addObject<App::FeatureTest>("ExistingLinkTarget");
+    auto* importer = _doc->addObject<App::Spec012OutcomeFeature>("RestoreImporter");
+    source->Float.setValue(29.0);
+    existing->Float.setValue(91.0);
+    existing->Source1.setValue(oldLink);
+    importer->mode = 6;
+    unsigned attempts = 0;
+    unsigned refused = 0;
+    unsigned expiredAttempts = 0;
+    unsigned expiredRefusals = 0;
+    unsigned afterCopyAttempts = 0;
+    unsigned afterCopyRefusals = 0;
+    bool copying = false;
+    fastsignals::scoped_connection changed(_doc->signalChangedObject.connect(
+        [&](const App::DocumentObject& object, const App::Property& property) {
+            const char* name = property.getName();
+            if (!copying || &object == source || &object == existing || &object == oldLink
+                || &object == importer || !name || std::string(name) != "Float") {
+                return;
+            }
+            // This callback is reached by the NEW object's real Float::Restore
+            // setter, while that exact receiver capability is still active.
+            ++attempts;
+            auto* restored = dynamic_cast<const App::FeatureTest*>(&object);
+            ASSERT_NE(restored, nullptr);
+            EXPECT_EQ(restored->Float.getValue(), 29.0);
+            const auto beforeUndos = _doc->getAvailableUndos();
+            const auto beforeRedos = _doc->getAvailableRedos();
+            std::stringstream xml(
+                "<?xml version='1.0'?><Object><Properties Count='2'>"
+                "<Property name='Float' type='App::PropertyFloat'><Float value='999'/></Property>"
+                "<Property name='Source1' type='App::PropertyLink'><Link "
+                "value='NewRestoreSource'/></Property>"
+                "</Properties></Object>"
+            );
+            Base::XMLReader reader("ExistingRestore.xml", xml);
+            reader.readElement("Object");
+            try {
+                existing->Restore(reader);
+            }
+            catch (const App::RecomputeDetail::AdmissionRefusal&) {
+                ++refused;
+            }
+            EXPECT_EQ(existing->Float.getValue(), 91.0);
+            EXPECT_EQ(existing->Source1.getValue(), oldLink);
+            EXPECT_EQ(_doc->getAvailableUndos(), beforeUndos);
+            EXPECT_EQ(_doc->getAvailableRedos(), beforeRedos);
+        }
+    ));
+    fastsignals::scoped_connection finished(
+        _doc->signalFinishImportObjects.connect([&](const std::vector<App::DocumentObject*>& objects) {
+            ASSERT_EQ(objects.size(), 1U);
+            auto* restored = dynamic_cast<App::FeatureTest*>(objects.front());
+            ASSERT_NE(restored, nullptr);
+            ++expiredAttempts;
+            std::stringstream xml(
+                "<?xml version='1.0'?><Object><Properties Count='1'>"
+                "<Property name='Float' type='App::PropertyFloat'><Float value='888'/></Property>"
+                "</Properties></Object>"
+            );
+            Base::XMLReader reader("ExpiredRestore.xml", xml);
+            reader.readElement("Object");
+            try {
+                restored->Restore(reader);
+            }
+            catch (const App::RecomputeDetail::AdmissionRefusal&) {
+                ++expiredRefusals;
+            }
+            EXPECT_EQ(restored->Float.getValue(), 29.0);
+        })
+    );
+    App::DocumentObject* copied = nullptr;
+    importer->duringExecute = [&] {
+        copying = true;
+        auto objects = _doc->copyObject({source}, false);
+        copying = false;
+        ASSERT_EQ(objects.size(), 1U);
+        copied = objects.front();
+        ++afterCopyAttempts;
+        std::stringstream xml(
+            "<?xml version='1.0'?><Object><Properties Count='1'>"
+            "<Property name='Float' type='App::PropertyFloat'><Float value='777'/></Property>"
+            "</Properties></Object>"
+        );
+        Base::XMLReader reader("AfterCopyRestore.xml", xml);
+        reader.readElement("Object");
+        try {
+            copied->Restore(reader);
+        }
+        catch (const App::RecomputeDetail::AdmissionRefusal&) {
+            ++afterCopyRefusals;
+        }
+        auto* restored = dynamic_cast<App::FeatureTest*>(copied);
+        ASSERT_NE(restored, nullptr);
+        EXPECT_EQ(restored->Float.getValue(), 29.0);
+    };
+    const auto outcome = App::GetApplication().recomputeRequestSynchronously(
+        App::RecomputeRequest::fromDocumentObject(*importer)
+    );
+    EXPECT_TRUE(outcome.success);
+    EXPECT_GT(attempts, 0U);
+    EXPECT_EQ(refused, attempts);
+    EXPECT_EQ(expiredAttempts, 1U);
+    EXPECT_EQ(expiredRefusals, expiredAttempts);
+    EXPECT_EQ(afterCopyAttempts, 1U);
+    EXPECT_EQ(afterCopyRefusals, afterCopyAttempts);
+    ASSERT_NE(copied, nullptr);
+    auto* restored = dynamic_cast<App::FeatureTest*>(copied);
+    ASSERT_NE(restored, nullptr);
+    EXPECT_EQ(restored->Float.getValue(), 29.0);
+    EXPECT_EQ(existing->Float.getValue(), 91.0);
+    EXPECT_EQ(existing->Source1.getValue(), oldLink);
+    // General restore becomes independently admissible after native retirement.
+    std::stringstream xml(
+        "<?xml version='1.0'?><Object><Properties Count='1'>"
+        "<Property name='Float' type='App::PropertyFloat'><Float value='43'/></Property>"
+        "</Properties></Object>"
+    );
+    Base::XMLReader reader("StableOwnerRestore.xml", xml);
+    reader.readElement("Object");
+    EXPECT_NO_THROW(copied->Restore(reader));
+    EXPECT_EQ(restored->Float.getValue(), 43.0);
+}
+
+namespace
+{
+struct Spec012LoadedXLinkModel
+{
+    explicit Spec012LoadedXLinkModel(App::Document& owner)
+        : owner(owner)
+    {
+        auto& app = App::GetApplication();
+        directory = std::filesystem::temp_directory_path()
+            / ("spec012-loaded-xlink-"
+               + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
+        std::filesystem::create_directory(directory);
+        sourceName = app.getUniqueDocumentName("LoadedRestoreSource");
+        sourceDocument = app.newDocument(sourceName.c_str());
+        target = sourceDocument->addObject<App::FeatureTest>("ExternalTarget");
+        target->Float.setValue(73.0);
+        sourcePath = (directory / "Source.FCStd").string();
+        if (!sourceDocument->saveAs(sourcePath.c_str())) {
+            throw std::runtime_error("Cannot save XLink source");
+        }
+        original = owner.addObject<App::FeatureTest>("ExternalCopySource");
+        original->Float.setValue(41.0);
+        if (!owner.saveAs((directory / "Destination.FCStd").string().c_str())) {
+            throw std::runtime_error("Cannot save XLink owner");
+        }
+        external = dynamic_cast<App::PropertyXLink*>(
+            original->addDynamicProperty("App::PropertyXLink", "External")
+        );
+        if (!external) {
+            throw std::runtime_error("Cannot create XLink source property");
+        }
+        // The ordinary typed route warms a genuinely attached DocInfo record.
+        external->setValue(target);
+        importer = owner.addObject<App::Spec012OutcomeFeature>("LoadedRestoreImporter");
+        importer->mode = 6;
+    }
+    ~Spec012LoadedXLinkModel()
+    {
+        try {
+            if (auto* doc = App::GetApplication().getDocument(sourceName.c_str())) {
+                doc->setStatus(App::Document::PartialDoc, false);
+                doc->setStatus(App::Document::Restoring, false);
+                if (!App::GetApplication().closeDocument(sourceName.c_str())) {
+                    ADD_FAILURE() << "Cannot close test XLink source";
+                }
+            }
+            std::error_code error;
+            std::filesystem::remove_all(directory, error);
+        }
+        catch (const std::exception& error) {
+            ADD_FAILURE() << error.what();
+        }
+        catch (...) {
+            ADD_FAILURE() << "Native XLink fixture cleanup failed";
+        }
+    }
+    App::Document& owner;
+    std::filesystem::path directory;
+    std::string sourceName;
+    std::string sourcePath;
+    App::Document* sourceDocument {};
+    App::FeatureTest* target {};
+    App::FeatureTest* original {};
+    App::PropertyXLink* external {};
+    App::Spec012OutcomeFeature* importer {};
+};
+
+class Spec012FindingDocLogger final: public Base::ILogger
+{
+public:
+    std::function<void(const std::string&, const std::string&)> callback;
+    void sendLog(
+        const std::string& notifier,
+        const std::string& message,
+        Base::LogStyle,
+        Base::IntendedRecipient,
+        Base::ContentType
+    ) override
+    {
+        callback(notifier, message);
+    }
+    const char* name() override
+    {
+        return "Spec012FindingDocLogger";
+    }
+};
+}  // namespace
+
+TEST_F(AsyncRecomputeTest, Spec012NativeImportReusesLoadedXLinkAndRetiresExactSourceLeases)
+{
+    Spec012LoadedXLinkModel model(*_doc);
+    auto& app = App::GetApplication();
+    auto& admission = App::RecomputeDetail::Coordinator::instance();
+    const auto targetBinding = admission.bindObject(model.target);
+    const auto documentBinding = admission.bindDocument(model.sourceDocument);
+    const auto documentsBefore = app.getDocuments().size();
+    unsigned restoredLinks = 0;
+    bool nativeCopy = false;
+    fastsignals::scoped_connection changed(_doc->signalChangedObject.connect(
+        [&](const App::DocumentObject& object, const App::Property& property) {
+            const char* name = property.getName();
+            if (!nativeCopy || &object == model.original || !name || std::string(name) != "External") {
+                return;
+            }
+            auto* link = dynamic_cast<const App::PropertyXLink*>(&property);
+            if (link && link->getValue() == model.target) {
+                ++restoredLinks;
+                EXPECT_THROW(
+                    admission.mutation({model.target}, {model.sourceDocument}, true),
+                    App::RecomputeDetail::AdmissionRefusal
+                );
+            }
+        }
+    ));
+    App::DocumentObject* copied = nullptr;
+    model.importer->duringExecute = [&] {
+        EXPECT_NO_THROW(admission.mutation({model.target}, {model.sourceDocument}, true));
+        nativeCopy = true;
+        auto copies = _doc->copyObject({model.original}, false);
+        nativeCopy = false;
+        ASSERT_EQ(copies.size(), 1U);
+        copied = copies.front();
+    };
+    const auto outcome = app.recomputeRequestSynchronously(
+        App::RecomputeRequest::fromDocumentObject(*model.importer)
+    );
+    ASSERT_TRUE(outcome.success);
+    ASSERT_NE(copied, nullptr);
+    EXPECT_GT(restoredLinks, 0U);
+    auto* copiedFeature = dynamic_cast<App::FeatureTest*>(copied);
+    ASSERT_NE(copiedFeature, nullptr);
+    EXPECT_EQ(copiedFeature->Float.getValue(), 41.0);
+    auto* copiedLink = dynamic_cast<App::PropertyXLink*>(copied->getPropertyByName("External"));
+    ASSERT_NE(copiedLink, nullptr);
+    EXPECT_EQ(copiedLink->getValue(), model.target);
+    EXPECT_EQ(model.target->Float.getValue(), 73.0);
+    EXPECT_EQ(admission.resolveObject(targetBinding), model.target);
+    EXPECT_EQ(admission.resolveDocument(documentBinding), model.sourceDocument);
+    EXPECT_EQ(app.getDocuments().size(), documentsBefore);
+    EXPECT_NO_THROW(admission.mutation({model.target}, {model.sourceDocument}, true));
+    // A normal non-native filename restore/copy still uses the original policy.
+    auto ordinaryCopies = _doc->copyObject({model.original}, false);
+    ASSERT_EQ(ordinaryCopies.size(), 1U);
+    auto* ordinaryLink = dynamic_cast<App::PropertyXLink*>(
+        ordinaryCopies.front()->getPropertyByName("External")
+    );
+    ASSERT_NE(ordinaryLink, nullptr);
+    EXPECT_EQ(ordinaryLink->getValue(), model.target);
+    EXPECT_EQ(app.getDocuments().size(), documentsBefore);
+}
+
+TEST_F(AsyncRecomputeTest, Spec012ImportedXLinkStillRefusesColdDetachedPartialRestoringAndMissingSources)
+{
+    Spec012LoadedXLinkModel model(*_doc);
+    auto& app = App::GetApplication();
+    const auto detachedName = app.getUniqueDocumentName("DetachedRestoreSource");
+    auto* detachedDocument = app.newDocument(detachedName.c_str());
+    BOOST_SCOPE_EXIT_ALL(&)
+    {
+        try {
+            if (app.getDocument(detachedName.c_str())) {
+                EXPECT_TRUE(app.closeDocument(detachedName.c_str()));
+            }
+        }
+        catch (...) {
+            ADD_FAILURE() << "Detached source cleanup failed";
+        }
+    };
+    auto* detachedTarget = detachedDocument->addObject<App::FeatureTest>("ExternalTarget");
+    const auto detachedPath = (model.directory / "Detached.FCStd").string();
+    ASSERT_TRUE(detachedDocument->saveAs(detachedPath.c_str()));
+    auto* detachedHolder = _doc->addObject<App::FeatureTest>("DetachedCacheHolder");
+    auto* detached = dynamic_cast<App::PropertyXLink*>(
+        detachedHolder->addDynamicProperty("App::PropertyXLink", "Detached")
+    );
+    ASSERT_NE(detached, nullptr);
+    detached->setValue(detachedTarget);
+    ASSERT_TRUE(app.closeDocument(detachedName.c_str()));
+    ASSERT_EQ(detached->getValue(), nullptr);
+    const auto documentsBefore = app.getDocuments().size();
+    unsigned attempts = 0;
+    unsigned refused = 0;
+    fastsignals::scoped_connection finish(
+        _doc->signalFinishRestoreObject.connect([&](const App::DocumentObject& object) {
+            if (&object == model.original || &object == model.importer || &object == detachedHolder) {
+                return;
+            }
+            auto* restored = dynamic_cast<const App::FeatureTest*>(&object);
+            if (!restored) {
+                return;
+            }
+            auto* link = dynamic_cast<App::PropertyXLink*>(object.getPropertyByName("External"));
+            ASSERT_NE(link, nullptr);
+            ASSERT_EQ(link->getValue(), model.target);
+            for (const std::string mode : {"cold", "detached", "partial", "restoring", "missing"}) {
+                ++attempts;
+                const auto filename = mode == "cold"
+                    ? (model.directory / "NeverOpened.FCStd").string()
+                    : mode == "detached" ? detachedPath
+                                         : model.sourcePath;
+                model.sourceDocument->setStatus(App::Document::PartialDoc, mode == "partial");
+                model.sourceDocument->setStatus(App::Document::Restoring, mode == "restoring");
+                const std::string target = mode == "missing" ? "AbsentTarget" : "ExternalTarget";
+                std::stringstream xml(
+                    "<?xml version='1.0'?><Property><XLink file='"
+                    + App::Property::encodeAttribute(filename) + "' name='" + target + "'/></Property>"
+                );
+                Base::XMLReader reader("RejectedLoadedRestore.xml", xml);
+                reader.readElement("Property");
+                try {
+                    link->Restore(reader);
+                }
+                catch (const App::RecomputeDetail::AdmissionRefusal&) {
+                    ++refused;
+                }
+                model.sourceDocument->setStatus(App::Document::PartialDoc, false);
+                model.sourceDocument->setStatus(App::Document::Restoring, false);
+                EXPECT_EQ(link->getValue(), model.target) << mode;
+                EXPECT_EQ(app.getDocuments().size(), documentsBefore) << mode;
+                EXPECT_EQ(app.getDocument(detachedName.c_str()), nullptr) << mode;
+                EXPECT_EQ(restored->Float.getValue(), 41.0) << mode;
+            }
+        })
+    );
+    model.importer->duringExecute = [&] {
+        auto copies = _doc->copyObject({model.original}, false);
+        ASSERT_EQ(copies.size(), 1U);
+    };
+    const auto outcome = app.recomputeRequestSynchronously(
+        App::RecomputeRequest::fromDocumentObject(*model.importer)
+    );
+    EXPECT_TRUE(outcome.success);
+    EXPECT_EQ(attempts, 5U);
+    EXPECT_EQ(refused, attempts);
+    EXPECT_EQ(model.external->getValue(), model.target);
+    EXPECT_EQ(model.target->Float.getValue(), 73.0);
+}
+
+TEST_F(AsyncRecomputeTest, Spec012LoadedXLinkLogReentryInvalidatesCacheBeforeJoin)
+{
+    Spec012LoadedXLinkModel model(*_doc);
+    auto& app = App::GetApplication();
+    auto& admission = App::RecomputeDetail::Coordinator::instance();
+    bool armed = false;
+    unsigned reentries = 0;
+    unsigned installedCopiedTargets = 0;
+    fastsignals::scoped_connection changed(_doc->signalChangedObject.connect(
+        [&](const App::DocumentObject& object, const App::Property& property) {
+            if (&object == model.original || &object == model.importer) {
+                return;
+            }
+            const char* name = property.getName();
+            const auto* link = dynamic_cast<const App::PropertyXLink*>(&property);
+            if (name && std::string(name) == "External" && link && link->getValue() == model.target) {
+                ++installedCopiedTargets;
+            }
+        }
+    ));
+    const auto targetBinding = admission.bindObject(model.target);
+    const auto documentsBefore = app.getDocuments().size();
+    Spec012FindingDocLogger logger;
+    logger.callback = [&](const std::string& notifier, const std::string& message) {
+        // FC_LOG passes an empty notifier; its tag is part of LogLevel::prefix.
+        if (!armed || !notifier.empty() || message.find("<PropertyLinks> ") == std::string::npos
+            || message.find("finding doc") == std::string::npos
+            || message.find(model.sourcePath) == std::string::npos) {
+            return;
+        }
+        armed = false;
+        ++reentries;
+        // This is before the inner typed setter. Only the outer loaded-source
+        // lease can protect this otherwise non-executing source target here.
+        EXPECT_THROW(
+            admission.mutation({model.target}, {model.sourceDocument}, true),
+            App::RecomputeDetail::AdmissionRefusal
+        );
+        model.external->setValue(nullptr);  // Changes the cached source membership/revision.
+        EXPECT_EQ(admission.resolveObject(targetBinding), model.target);
+    };
+    int* level = Base::Console().getLogLevel("PropertyLinks");
+    const int oldLevel = *level;
+    *level = FC_LOGLEVEL_LOG;
+    Base::Console().attachObserver(&logger);
+    BOOST_SCOPE_EXIT_ALL(&)
+    {
+        Base::Console().detachObserver(&logger);
+        *level = oldLevel;
+    };
+    model.importer->duringExecute = [&] {
+        EXPECT_NO_THROW(admission.mutation({model.target}, {model.sourceDocument}, true));
+        armed = true;
+        _doc->copyObject({model.original}, false);
+    };
+    const auto outcome = app.recomputeRequestSynchronously(
+        App::RecomputeRequest::fromDocumentObject(*model.importer)
+    );
+    EXPECT_FALSE(outcome.success);
+    EXPECT_EQ(outcome.failure, App::RecomputeFailure::Exception);
+    EXPECT_EQ(reentries, 1U);
+    EXPECT_EQ(installedCopiedTargets, 0U);
+    for (auto* object : _doc->getObjects()) {
+        if (object == model.original || object == model.importer) {
+            continue;
+        }
+        const auto* link = dynamic_cast<const App::PropertyXLink*>(
+            object->getPropertyByName("External")
+        );
+        if (link) {
+            EXPECT_EQ(link->getValue(), nullptr);
+        }
+    }
+    EXPECT_EQ(model.external->getValue(), nullptr);
+    EXPECT_EQ(admission.resolveObject(targetBinding), model.target);
+    EXPECT_EQ(model.target->Float.getValue(), 73.0);
+    EXPECT_EQ(app.getDocuments().size(), documentsBefore);
+    EXPECT_EQ(model.importer->ExecCount.getValue(), 0);
+    EXPECT_NO_THROW(admission.mutation({model.target}, {model.sourceDocument}, true));
+}
+
+TEST_F(AsyncRecomputeTest, Spec012HistoryOwnedDetachedExpressionOwnerUsesMetadataFootprint)
+{
+    auto* object = _doc->addObject<App::Spec012OutcomeFeature>("DetachedExpressionOwner");
+    ASSERT_NE(object, nullptr);
+    auto* input = dynamic_cast<App::PropertyInteger*>(
+        object->addDynamicProperty("App::PropertyInteger", "InputValue")
+    );
+    auto* result = dynamic_cast<App::PropertyInteger*>(
+        object->addDynamicProperty("App::PropertyInteger", "ResultValue")
+    );
+    ASSERT_NE(input, nullptr);
+    ASSERT_NE(result, nullptr);
+    input->setValue(17);
+    object->setExpression(
+        App::ObjectIdentifier::parse(object, "ResultValue"),
+        std::shared_ptr<App::Expression>(App::Expression::parse(object, "InputValue"))
+    );
+    _doc->recompute();
+    ASSERT_EQ(result->getValue(), 17);
+    _doc->setMaxUndoStackSize(10);
+    _doc->openTransaction("Remove owner of a local expression");
+    _doc->removeObject("DetachedExpressionOwner");
+    ASSERT_EQ(_doc->getObject("DetachedExpressionOwner"), nullptr);
+    // The transaction owns the original model storage. Inspect only raw owner
+    // identities here: resolving a detached local identifier is the regression.
+    ASSERT_FALSE(object->isAttachedToDocument());
+    ASSERT_EQ(object->getNameInDocument(), nullptr);
+    ASSERT_EQ(object->ExpressionEngine.getContainer(), object);
+    const auto expressions = object->ExpressionEngine.getExpressions();
+    ASSERT_EQ(expressions.size(), 1U);
+    ASSERT_NE(expressions.begin()->second, nullptr);
+    ASSERT_EQ(expressions.begin()->second->getOwner(), object);
+    EXPECT_NO_THROW(_doc->commitTransaction());
+    {
+        auto admission = App::RecomputeDetail::Coordinator::instance().mutation({}, {_doc});
+        std::vector<App::DocumentObject*> endpoints;
+        EXPECT_NO_THROW(_doc->collectCommitMutationEndpoints(endpoints));
+        EXPECT_NO_THROW(admission.include(endpoints));
+    }
+    ASSERT_TRUE(_doc->undo());
+    auto* restored = _doc->getObject("DetachedExpressionOwner");
+    ASSERT_EQ(restored, object);
+    ASSERT_EQ(restored->ExpressionEngine.numExpressions(), 1U);
+    EXPECT_NO_THROW(_doc->recompute());
+    EXPECT_EQ(input->getValue(), 17);
+    EXPECT_EQ(result->getValue(), 17);
+    ASSERT_TRUE(_doc->redo());
+    EXPECT_EQ(_doc->getObject("DetachedExpressionOwner"), nullptr);
+    EXPECT_NO_THROW(_doc->clearUndos());
 }

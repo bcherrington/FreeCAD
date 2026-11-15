@@ -1261,8 +1261,9 @@ void PropertyLink::Save(Base::Writer& writer) const
 
 void PropertyLink::Restore(Base::XMLReader& reader)
 {
-    auto structural = isAdmissionPlanning() ? RecomputeDetail::MutationScope {}
-                                            : RecomputeDetail::Coordinator::instance().atomic();
+    auto structural = isAdmissionPlanning()
+        ? RecomputeDetail::MutationScope {}
+        : RecomputeDetail::Coordinator::instance().atomicForRestore(*this);
     auto admission = isAdmissionPlanning()
         ? RecomputeDetail::MutationScope {}
         : RecomputeDetail::Coordinator::instance().mutation(*this);
@@ -1592,8 +1593,9 @@ void PropertyLinkList::Save(Base::Writer& writer) const
 
 void PropertyLinkList::Restore(Base::XMLReader& reader)
 {
-    auto structural = isAdmissionPlanning() ? RecomputeDetail::MutationScope {}
-                                            : RecomputeDetail::Coordinator::instance().atomic();
+    auto structural = isAdmissionPlanning()
+        ? RecomputeDetail::MutationScope {}
+        : RecomputeDetail::Coordinator::instance().atomicForRestore(*this);
     auto admission = isAdmissionPlanning()
         ? RecomputeDetail::MutationScope {}
         : RecomputeDetail::Coordinator::instance().mutation(*this);
@@ -2493,8 +2495,9 @@ void PropertyLinkSub::Save(Base::Writer& writer) const
 
 void PropertyLinkSub::Restore(Base::XMLReader& reader)
 {
-    auto structural = isAdmissionPlanning() ? RecomputeDetail::MutationScope {}
-                                            : RecomputeDetail::Coordinator::instance().atomic();
+    auto structural = isAdmissionPlanning()
+        ? RecomputeDetail::MutationScope {}
+        : RecomputeDetail::Coordinator::instance().atomicForRestore(*this);
     auto admission = isAdmissionPlanning()
         ? RecomputeDetail::MutationScope {}
         : RecomputeDetail::Coordinator::instance().mutation(*this);
@@ -3542,8 +3545,9 @@ void PropertyLinkSubList::Save(Base::Writer& writer) const
 
 void PropertyLinkSubList::Restore(Base::XMLReader& reader)
 {
-    auto structural = isAdmissionPlanning() ? RecomputeDetail::MutationScope {}
-                                            : RecomputeDetail::Coordinator::instance().atomic();
+    auto structural = isAdmissionPlanning()
+        ? RecomputeDetail::MutationScope {}
+        : RecomputeDetail::Coordinator::instance().atomicForRestore(*this);
     auto admission = isAdmissionPlanning()
         ? RecomputeDetail::MutationScope {}
         : RecomputeDetail::Coordinator::instance().mutation(*this);
@@ -3617,8 +3621,9 @@ void PropertyLinkSubList::Restore(Base::XMLReader& reader)
 
 bool PropertyLinkSubList::upgrade(Base::XMLReader& reader, const char* typeName)
 {
-    auto structural = isAdmissionPlanning() ? RecomputeDetail::MutationScope {}
-                                            : RecomputeDetail::Coordinator::instance().atomic();
+    auto structural = isAdmissionPlanning()
+        ? RecomputeDetail::MutationScope {}
+        : RecomputeDetail::Coordinator::instance().atomicForRestore(*this);
     auto admission = isAdmissionPlanning()
         ? RecomputeDetail::MutationScope {}
         : RecomputeDetail::Coordinator::instance().mutation(*this);
@@ -4237,15 +4242,108 @@ public:
         return std::string(path.toUtf8().constData());
     }
 
+    struct LoadedRestoreCandidate
+    {
+        DocInfoPtr info;
+        Document* document {nullptr};
+        DocumentObject* object {nullptr};
+        RecomputeDetail::BindingPtr documentBinding;
+        RecomputeDetail::BindingPtr objectBinding;
+        std::uint64_t revision {};
+        QString path;
+        std::string relativePath;
+    };
+
+    static bool sameLoadedRestoreCandidate(const LoadedRestoreCandidate& loaded)
+    {
+        auto& coordinator = RecomputeDetail::Coordinator::instance();
+        if (coordinator.resolveDocument(loaded.documentBinding) != loaded.document
+            || coordinator.resolveObject(loaded.objectBinding) != loaded.object) {
+            return false;
+        }
+        RecomputeDetail::IndexLock lock;
+        auto found = _DocInfoMap.find(loaded.path);
+        return found != _DocInfoMap.end() && found->second == loaded.info
+            && loaded.info->pcDoc == loaded.document && loaded.info->revision == loaded.revision;
+    }
+
+    static std::optional<LoadedRestoreCandidate> loadedForRestore(
+        const char* filename,
+        Document* owner,
+        PropertyXLink* link,
+        const char* objName,
+        RecomputeDetail::MutationScope& outer
+    )
+    {
+        auto& coordinator = RecomputeDetail::Coordinator::instance();
+        if (!outer || !coordinator.matchesImportedRestore(nullptr, link)) {
+            return std::nullopt;
+        }
+        LoadedRestoreCandidate loaded;
+        loaded.relativePath = getDocPath(filename, owner, true, &loaded.path);
+        {
+            RecomputeDetail::IndexLock lock;
+            auto found = _DocInfoMap.find(loaded.path);
+            if (found == _DocInfoMap.end() || !found->second->pcDoc) {
+                return std::nullopt;
+            }
+            loaded.info = found->second;
+            loaded.document = loaded.info->pcDoc;
+            loaded.revision = loaded.info->revision;
+        }
+        try {
+            // Retain the source/resource in the caller, including after get()
+            // returns and before its pcDoc/object/stamp dereferences finish.
+            outer.reserveResource(loaded.info);
+            loaded.documentBinding = coordinator.bindDocument(loaded.document);
+            outer.pinBindings({loaded.documentBinding});
+            {
+                RecomputeDetail::IndexLock lock;
+                auto found = _DocInfoMap.find(loaded.path);
+                if (found == _DocInfoMap.end() || found->second != loaded.info
+                    || loaded.info->pcDoc != loaded.document
+                    || loaded.info->revision != loaded.revision) {
+                    return std::nullopt;
+                }
+            }
+            // No native source getter runs before the exact generation is held.
+            if (loaded.document->testStatus(Document::PartialDoc)
+                || loaded.document->testStatus(Document::Restoring)
+                || getFullPath(loaded.document->getFileName()) != loaded.path) {
+                return std::nullopt;
+            }
+            loaded.object = loaded.document->getObject(objName);
+            if (!loaded.object) {
+                return std::nullopt;
+            }
+            loaded.objectBinding = coordinator.bindObject(loaded.object);
+            outer.pinBindings({loaded.objectBinding});
+            if (!sameLoadedRestoreCandidate(loaded)) {
+                return std::nullopt;
+            }
+        }
+        catch (const RecomputeDetail::AdmissionRefusal&) {
+            return std::nullopt;
+        }
+        return loaded;
+    }
+
     static DocInfoPtr get(
         const char* filename,
         App::Document* pDoc,
         PropertyXLink* link,
         const char* objName,
-        Document* candidate = nullptr
+        Document* candidate = nullptr,
+        RecomputeDetail::MutationScope* restoreAdmission = nullptr
     )
     {
         auto& coordinator = RecomputeDetail::Coordinator::instance();
+        auto loaded = !candidate && restoreAdmission
+            ? loadedForRestore(filename, pDoc, link, objName, *restoreAdmission)
+            : std::optional<LoadedRestoreCandidate> {};
+        if (loaded) {
+            candidate = loaded->document;
+        }
         // Filename discovery/reload has opaque observers. Typed callers pass the
         // already resolved, reserved candidate and retain the precise route.
         std::optional<RecomputeDetail::MutationScope> opaque;
@@ -4254,15 +4352,30 @@ public:
         }
         auto source = coordinator.mutation(std::vector<DocumentObject*> {}, {pDoc, candidate});
         QString path;
-        const std::string relativePath = getDocPath(filename, pDoc, true, &path);
-        FC_LOG("finding doc " << filename);
+        std::string relativePath;
         DocInfoPtr info;
-        {
+        if (loaded) {
+            path = loaded->path;
+            relativePath = loaded->relativePath;
+            info = loaded->info;
+            FC_LOG("finding doc " << filename);
+        }
+        else {
+            relativePath = getDocPath(filename, pDoc, true, &path);
+            FC_LOG("finding doc " << filename);
             RecomputeDetail::IndexLock lock;
             auto found = _DocInfoMap.find(path);
             if (found != _DocInfoMap.end()) {
                 info = found->second;
             }
+        }
+        if (loaded && !sameLoadedRestoreCandidate(*loaded)) {
+            // A reentrant observer may have changed the cache after preflight.
+            // Re-enter the original exclusion policy before any cache/join effect.
+            auto excluded = coordinator.atomic();
+            throw RecomputeDetail::AdmissionRefusal(
+                "Loaded XLink source changed during restore preflight"
+            );
         }
         const bool existing = static_cast<bool>(info);
         if (!info) {
@@ -4924,7 +5037,9 @@ void PropertyLinkBase::breakLinks(
         selected.swap(parents);
     }
     const std::vector<Property*> receivers(selected.begin(), selected.end());
-    auto storage = coordinator.snapshotProperties(receivers);
+    // The outer remove frame owns link's physical lifetime, even after its
+    // attachment retires. Keep its own link properties as cleanup receivers.
+    auto storage = coordinator.snapshotProperties(receivers, nullptr, link);
     for (auto* property : storage.properties()) {
         auto* receiver = freecad_cast<PropertyLinkBase*>(property);
         if (receiver) {
@@ -5193,8 +5308,9 @@ void PropertyXLink::setValue(
     std::vector<ShadowSub>&& shadows
 )
 {
-    auto structural = isAdmissionPlanning() ? RecomputeDetail::MutationScope {}
-                                            : RecomputeDetail::Coordinator::instance().atomic();
+    auto structural = isAdmissionPlanning()
+        ? RecomputeDetail::MutationScope {}
+        : RecomputeDetail::Coordinator::instance().atomicForRestore(*this);
     auto admission = isAdmissionPlanning()
         ? RecomputeDetail::MutationScope {}
         : RecomputeDetail::Coordinator::instance().mutation(*this);
@@ -5211,7 +5327,7 @@ void PropertyXLink::setValue(
     DocInfoPtr info;
     if (!filename.empty()) {
         owner->getDocument()->signalLinkXsetValue(filename);
-        info = DocInfo::get(filename.c_str(), owner->getDocument(), this, name.c_str());
+        info = DocInfo::get(filename.c_str(), owner->getDocument(), this, name.c_str(), nullptr, &admission);
         if (info->pcDoc) {
             pObject = info->pcDoc->getObject(name.c_str());
         }
@@ -5289,8 +5405,9 @@ const char* PropertyXLink::getObjectName() const
 
 bool PropertyXLink::upgrade(Base::XMLReader& reader, const char* typeName)
 {
-    auto structural = isAdmissionPlanning() ? RecomputeDetail::MutationScope {}
-                                            : RecomputeDetail::Coordinator::instance().atomic();
+    auto structural = isAdmissionPlanning()
+        ? RecomputeDetail::MutationScope {}
+        : RecomputeDetail::Coordinator::instance().atomicForRestore(*this);
     auto admission = isAdmissionPlanning()
         ? RecomputeDetail::MutationScope {}
         : RecomputeDetail::Coordinator::instance().mutation(*this);
@@ -5527,8 +5644,9 @@ void PropertyXLink::Save(Base::Writer& writer) const
 
 void PropertyXLink::Restore(Base::XMLReader& reader)
 {
-    auto structural = isAdmissionPlanning() ? RecomputeDetail::MutationScope {}
-                                            : RecomputeDetail::Coordinator::instance().atomic();
+    auto structural = isAdmissionPlanning()
+        ? RecomputeDetail::MutationScope {}
+        : RecomputeDetail::Coordinator::instance().atomicForRestore(*this);
     auto admission = isAdmissionPlanning()
         ? RecomputeDetail::MutationScope {}
         : RecomputeDetail::Coordinator::instance().mutation(*this);
@@ -5753,7 +5871,7 @@ void PropertyXLink::Paste(const Property& from)
     std::optional<RecomputeDetail::MutationScope> structural;
     if (other.docName.empty() && !other.filePath.empty() && !other.objectName.empty()) {
         // Unresolved filename discovery/reload is the selected opaque route.
-        structural.emplace(coordinator.atomic());
+        structural.emplace(coordinator.atomicForRestore(*this));
         setValue(
             std::string(other.filePath),
             std::string(other.objectName),
@@ -6074,7 +6192,7 @@ void PropertyXLink::setAllowPartial(bool enable)
         && !_pcLink && docInfo && !filePath.empty() && !objectName.empty()
         && (!docInfo->pcDoc || docInfo->pcDoc->testStatus(Document::PartialDoc));
     auto structural = reload && !isAdmissionPlanning()
-        ? RecomputeDetail::Coordinator::instance().atomic()
+        ? RecomputeDetail::Coordinator::instance().atomicForRestore(*this)
         : RecomputeDetail::MutationScope {};
     setFlag(LinkAllowPartial, enable);
     if (reload) {
@@ -6100,8 +6218,9 @@ PropertyXLinkSub::~PropertyXLinkSub() = default;
 
 bool PropertyXLinkSub::upgrade(Base::XMLReader& reader, const char* typeName)
 {
-    auto structural = isAdmissionPlanning() ? RecomputeDetail::MutationScope {}
-                                            : RecomputeDetail::Coordinator::instance().atomic();
+    auto structural = isAdmissionPlanning()
+        ? RecomputeDetail::MutationScope {}
+        : RecomputeDetail::Coordinator::instance().atomicForRestore(*this);
     auto admission = isAdmissionPlanning()
         ? RecomputeDetail::MutationScope {}
         : RecomputeDetail::Coordinator::instance().mutation(*this);
@@ -6613,8 +6732,9 @@ void PropertyXLinkSubList::Save(Base::Writer& writer) const
 
 void PropertyXLinkSubList::Restore(Base::XMLReader& reader)
 {
-    auto structural = isAdmissionPlanning() ? RecomputeDetail::MutationScope {}
-                                            : RecomputeDetail::Coordinator::instance().atomic();
+    auto structural = isAdmissionPlanning()
+        ? RecomputeDetail::MutationScope {}
+        : RecomputeDetail::Coordinator::instance().atomicForRestore(*this);
     auto admission = isAdmissionPlanning()
         ? RecomputeDetail::MutationScope {}
         : RecomputeDetail::Coordinator::instance().mutation(*this);
@@ -6807,7 +6927,7 @@ void PropertyXLinkSubList::Paste(const Property& from)
     });
     std::optional<RecomputeDetail::MutationScope> structural;
     if (discovery) {
-        structural.emplace(coordinator.atomic());
+        structural.emplace(coordinator.atomicForRestore(*this));
     }
     std::vector<RecomputeDetail::BindingPtr> bindings;
     auto* owner = freecad_cast<DocumentObject*>(getContainer());
@@ -7097,8 +7217,9 @@ int PropertyXLinkSubList::checkRestore(std::string* msg) const
 
 bool PropertyXLinkSubList::upgrade(Base::XMLReader& reader, const char* typeName)
 {
-    auto structural = isAdmissionPlanning() ? RecomputeDetail::MutationScope {}
-                                            : RecomputeDetail::Coordinator::instance().atomic();
+    auto structural = isAdmissionPlanning()
+        ? RecomputeDetail::MutationScope {}
+        : RecomputeDetail::Coordinator::instance().atomicForRestore(*this);
     auto admission = isAdmissionPlanning()
         ? RecomputeDetail::MutationScope {}
         : RecomputeDetail::Coordinator::instance().mutation(*this);
@@ -7156,7 +7277,7 @@ void PropertyXLinkSubList::setAllowPartial(bool enable)
         }
     }
     auto structural = reload && !isAdmissionPlanning()
-        ? RecomputeDetail::Coordinator::instance().atomic()
+        ? RecomputeDetail::Coordinator::instance().atomicForRestore(*this)
         : RecomputeDetail::MutationScope {};
     setFlag(LinkAllowPartial, enable);
     for (auto& child : _Links) {
@@ -7257,8 +7378,9 @@ PropertyXLinkContainer::~PropertyXLinkContainer() = default;
 
 void PropertyXLinkContainer::afterRestore()
 {
-    auto structural = isAdmissionPlanning() ? RecomputeDetail::MutationScope {}
-                                            : RecomputeDetail::Coordinator::instance().atomic();
+    auto structural = isAdmissionPlanning()
+        ? RecomputeDetail::MutationScope {}
+        : RecomputeDetail::Coordinator::instance().atomicForRestore(*this);
     auto admission = isAdmissionPlanning()
         ? RecomputeDetail::MutationScope {}
         : RecomputeDetail::Coordinator::instance().mutation(*this);
@@ -7418,8 +7540,9 @@ void PropertyXLinkContainer::Save(Base::Writer& writer) const
 
 void PropertyXLinkContainer::Restore(Base::XMLReader& reader)
 {
-    auto structural = isAdmissionPlanning() ? RecomputeDetail::MutationScope {}
-                                            : RecomputeDetail::Coordinator::instance().atomic();
+    auto structural = isAdmissionPlanning()
+        ? RecomputeDetail::MutationScope {}
+        : RecomputeDetail::Coordinator::instance().atomicForRestore(*this);
     auto admission = isAdmissionPlanning()
         ? RecomputeDetail::MutationScope {}
         : RecomputeDetail::Coordinator::instance().mutation(*this);

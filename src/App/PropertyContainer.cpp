@@ -324,7 +324,7 @@ void PropertyContainer::Save (Base::Writer &writer) const
 
 void PropertyContainer::Restore(Base::XMLReader &reader)
 {
-    auto restoration = RecomputeDetail::Coordinator::instance().atomic();
+    auto restoration = RecomputeDetail::Coordinator::instance().atomicForRestore(*this);
     reader.clearPartialRestoreProperty();
     reader.readElement("Properties");
     int Cnt = reader.getAttribute<long>("Count");
