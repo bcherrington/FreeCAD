@@ -1,7 +1,5 @@
 # SPDX-License-Identifier: LGPL-2.1-or-later
 
-from __future__ import annotations
-
 from typing import Any, Final
 
 from Base.Metadata import constmethod, export
@@ -32,6 +30,7 @@ class AssemblyObject(Part):
         Returns:
         0 in case of success, otherwise the following codes in this order of
         priority:
+        -7 if automatic motion is suspended,
         -6 if no parts are fixed.
         -4 if over-constrained,
         -3 if conflicting constraints,
@@ -39,12 +38,25 @@ class AssemblyObject(Part):
         -1 if solver error,
         -2 if redundant constraints.
         """
-        ...
+
+    @constmethod
+    def solveValidated(self, enableUndo: bool = False, /) -> int:
+        """
+        Validate local component, joint, ground, rigid-group and motion ownership,
+        then explicitly solve without releasing automatic-motion suspension.
+
+        Return -8 for an incomplete, escaped or unsupported graph, before changing
+        placements, property status or undo state. Otherwise return solve()'s status.
+        Local links to external source geometry are supported. This operation does
+        not authorize automatic callbacks or replay work when a suspension exits.
+        """
 
     @constmethod
     def generateSimulation(self, simulationObject: DocumentObject, /) -> int:
         """
         Generate the simulation.
+
+        While automatic motion is suspended, return -7 without generating frames.
 
         Args:
         simulationObject: The simulation Object.
@@ -59,33 +71,34 @@ class AssemblyObject(Part):
         -1 if solver error,
         -2 if redundant constraints.
         """
-        ...
 
     @constmethod
     def updateForFrame(self, index: int, /) -> None:
         """
         Update entire assembly to frame number specified.
 
+        While automatic motion is suspended, leave placements unchanged.
+
         Args:
             index: index of frame.
 
         Returns: None
         """
-        ...
 
     @constmethod
     def numberOfFrames(self) -> int:
         """Return Number of frames"""
-        ...
 
     @constmethod
     def updateSolveStatus(self) -> Any:
         """updateSolveStatus()
 
+        While automatic motion is suspended, preserve cached diagnostics without
+        solving. The cached values may describe an earlier graph.
+
         Args: None
 
         Returns: None"""
-        ...
 
     @constmethod
     def undoSolve(self) -> Any:
@@ -94,21 +107,18 @@ class AssemblyObject(Part):
         undoSolve()
 
         Returns: None"""
-        ...
 
     @constmethod
     def ensureIdentityPlacements(self) -> None:
         """
         Makes sure that LinkGroups or sub-assemblies have identity placements.
         """
-        ...
 
     @constmethod
     def clearUndo(self) -> None:
         """
         Clear the registered undo positions.
         """
-        ...
 
     @constmethod
     def isPartConnected(self, obj: DocumentObject, /) -> bool:
@@ -116,7 +126,6 @@ class AssemblyObject(Part):
         Check if a part is connected to the ground through joints.
         Returns: True if part is connected to ground.
         """
-        ...
 
     @constmethod
     def isJointConnectingPartToGround(self, joint: DocumentObject, prop_name: str, /) -> Any:
@@ -129,7 +138,6 @@ class AssemblyObject(Part):
 
         Returns: True if part is connected to ground.
         """
-        ...
 
     @constmethod
     def isPartGrounded(self, obj: DocumentObject, /) -> Any:
@@ -141,7 +149,6 @@ class AssemblyObject(Part):
 
         Returns: True if part has grounded joint.
         """
-        ...
 
     @constmethod
     def exportAsASMT(self, file_name: str, /) -> None:
@@ -151,7 +158,6 @@ class AssemblyObject(Part):
         Args:
         - fileName: The name of the file where the ASMT will be exported.
         """
-        ...
 
     @constmethod
     def getDownstreamParts(
@@ -172,6 +178,5 @@ class AssemblyObject(Part):
         Returns:
             A list of App.DocumentObject instances representing the downstream parts.
         """
-        ...
     Joints: Final[list]
     """A list of all joints this assembly has."""

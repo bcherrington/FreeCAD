@@ -203,11 +203,16 @@ TaskPipeParameters::TaskPipeParameters(ViewProviderPipe* PipeView, bool /*newObj
         auto* object = getObject<PartDesign::Pipe>();
         return object ? App::RecomputeRequest::fromDocumentObject(*object) : App::RecomputeRequest {};
     };
-    callbacks.runSync = [this]() {
+    callbacks.runSyncWithResult = [this]() -> App::RecomputeResult {
         if (auto* pipe = getObject<PartDesign::Pipe>()) {
-            pipe->recomputeFeature();
-            pipe->recomputePreview();
+            PreviewRecomputeGuard guard(pipe, this, getViewObject());
+            auto result = Gui::recomputeDocumentObjectWithResult(pipe);
+            if (guard.isLive()) {
+                pipe->recomputePreview();
+            }
+            return result;
         }
+        return Gui::recomputeDocumentObjectWithResult(nullptr);
     };
     callbacks.onAppliedResult = [](bool, bool) {
     };
@@ -381,7 +386,7 @@ void TaskPipeParameters::onSelectionChanged(const Gui::SelectionChanges& msg)
                 stateHandler->getSelectionMode()
                 == StateHandlerTaskPipe::SelectionModes::refSpineEdgeRemove
             ) {
-                QString sub = QString::fromLatin1(msg.pSubName);
+                QString sub = QString::fromUtf8(msg.pSubName);
                 if (!sub.isEmpty()) {
                     removeFromListWidget(ui->listWidgetReferences, sub);
                 }
@@ -624,6 +629,9 @@ bool TaskPipeParameters::accept(
     // check the prerequisites for the selected objects
     // the user has to decide which option we should take if external references are used
     auto pipe = getObject<PartDesign::Pipe>();
+    QPointer<TaskPipeParameters> parameterGuard(this);
+    PreviewRecomputeGuard originalGuard(pipe, this, getViewObject());
+    auto* editOwner = pipe ? Gui::Control().activeDialog(pipe->getDocument()) : nullptr;
     auto pcActiveBody = PartDesignGui::getBodyFor(pipe, false);
     if (!pcActiveBody) {
         QMessageBox::warning(this, tr("Input Error"), tr("No active body"));
@@ -752,8 +760,12 @@ bool TaskPipeParameters::accept(
             return false;
         }
 
-        if (!getObject()->isValid()) {
-            throw Base::RuntimeError(getObject()->getStatusString());
+        if (!parameterGuard || !originalGuard.isLive() || getObject() != pipe
+            || Gui::Control().activeDialog(pipe->getDocument()) != editOwner) {
+            return false;
+        }
+        if (!pipe->isValid()) {
+            throw Base::RuntimeError(pipe->getStatusString());
         }
 
         Gui::cmdGuiDocument(pipe, "resetEdit()");
@@ -766,6 +778,10 @@ bool TaskPipeParameters::accept(
         }
     }
     catch (const Base::Exception& e) {
+        if (!parameterGuard || !originalGuard.isLive()) {
+            e.reportException();
+            return false;
+        }
         pipe->getDocument()->abortTransaction();
         QMessageBox::warning(this, tr("Input Error"), QApplication::translate("Exception", e.what()));
         return false;
@@ -951,7 +967,7 @@ void TaskPipeOrientation::onSelectionChanged(const SelectionChanges& msg)
                 stateHandler->getSelectionMode()
                 == StateHandlerTaskPipe::SelectionModes::refAuxSpineEdgeRemove
             ) {
-                QString sub = QString::fromLatin1(msg.pSubName);
+                QString sub = QString::fromUtf8(msg.pSubName);
                 if (!sub.isEmpty()) {
                     removeFromListWidget(ui->listWidgetReferences, sub);
                 }
@@ -1502,15 +1518,27 @@ bool TaskDlgPipeParameters::accept()
             }
         }
     );
-    clearInteractiveSelection();
+    QPointer<TaskDlgPipeParameters> dialogGuard(this);
+    QPointer<TaskPipeParameters> parameterGuard(parameter);
+    auto* original = getObject();
+    PreviewRecomputeGuard originalGuard(original, parameter, getViewObject());
+    auto* editOwner = original ? Gui::Control().activeDialog(original->getDocument()) : nullptr;
     const bool previewSettled = !parameter->hasOutstandingRecompute()
         && parameter->canReuseAcceptedPreviewResult();
     if (previewSettled) {
         parameter->flushPendingRecompute();
     }
     else {
-        parameter->stopPendingRecompute();
+        if (!parameter->stopPendingRecomputeAndWait()) {
+            return false;
+        }
     }
+    if (!dialogGuard || !parameterGuard || parameter != parameterGuard.data()
+        || !originalGuard.isLive() || getObject() != original
+        || Gui::Control().activeDialog(original->getDocument()) != editOwner) {
+        return false;
+    }
+    clearInteractiveSelection();
     auto progressTarget
         = parameter->makeAcceptedRecomputeProgressTarget(buttonBox, tr("Applying changes..."));
     return parameter->accept(previewSettled, progressTarget);

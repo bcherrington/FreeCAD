@@ -59,6 +59,8 @@
 #include "View3DInventorViewer.h"
 #include "ViewParams.h"
 #include "ViewProviderExtension.h"
+#include "ViewProviderDocumentObject.h"
+#include <App/private/RecomputeAdmission.h>
 #include "ViewProviderLink.h"
 #include "ViewProviderPy.h"
 
@@ -132,6 +134,7 @@ ViewProvider::ViewProvider()
 
 ViewProvider::~ViewProvider()
 {
+    updateLifetime.reset();
     if (pyViewObject) {
         Base::PyGILStateLocker lock;
         pyViewObject->setInvalid();
@@ -343,16 +346,51 @@ SoSeparator* ViewProvider::getOrCreateAnnotation()
 
 void ViewProvider::update(const App::Property* prop)
 {
-    // Hide the object temporarily to speed up the update
     if (!isUpdatesEnabled()) {
         return;
     }
-    bool vis = ViewProvider::isShow();
-    if (vis) {
+    const auto lifetime = updateLifetimeToken();
+    auto* documentProvider = dynamic_cast<ViewProviderDocumentObject*>(this);
+    const auto* model = documentProvider ? documentProvider->getObject() : nullptr;
+    auto& admission = App::RecomputeDetail::Coordinator::instance();
+    auto binding = model ? admission.bindObject(model) : nullptr;
+    if (binding && binding->missing && !binding->attachmentGeneration) {
+        binding.reset();
+    }
+    bool retired = false;
+    const auto receiverCurrent = [&] {
+        retired = retired || lifetime.expired()
+            || (binding && admission.resolveObject(binding) != model);
+        return !retired;
+    };
+    if (!receiverCurrent()) {
+        return;
+    }
+    bool propertyRetired = false;
+    fastsignals::scoped_connection removed(
+        App::GetApplication().signalRemoveDynamicProperty.connect([&](const App::Property& property) {
+            propertyRetired = propertyRetired || &property == prop;
+        })
+    );
+    fastsignals::scoped_connection moved(
+        App::GetApplication().signalMoveDynamicProperty.connect([&](const App::Property& property,
+                                                                    const App::DocumentObject&) {
+            propertyRetired = propertyRetired || &property == prop;
+        })
+    );
+    // Hide remains temporary even when a hide callback retires only the input
+    // property. Never pass that old property to updateData afterwards.
+    const bool visible = ViewProvider::isShow();
+    if (visible) {
         ViewProvider::hide();
     }
-    updateData(prop);
-    if (vis) {
+    if (!receiverCurrent()) {
+        return;
+    }
+    if (!propertyRetired) {
+        updateData(prop);
+    }
+    if (receiverCurrent() && visible) {
         ViewProvider::show();
     }
 }

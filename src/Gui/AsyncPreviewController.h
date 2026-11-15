@@ -26,7 +26,9 @@
 
 #pragma once
 
+#include <atomic>
 #include <cstdint>
+#include <map>
 #include <functional>
 #include <memory>
 #include <string>
@@ -35,10 +37,37 @@
 
 #include <App/Application.h>
 
+class QTimer;
+
 namespace Gui
 {
 class DebouncedFunction;
 class Gizmo;
+
+/// Execute once on the caller's model thread and retain the native scoped outcome.
+inline App::RecomputeResult recomputeDocumentObjectWithResult(
+    App::DocumentObject* object,
+    bool recursive = false,
+    int options = App::currentRecomputeOptions()
+)
+{
+    return App::GetApplication().recomputeRequestSynchronously(
+        object ? App::RecomputeRequest::fromDocumentObject(*object, recursive, options)
+               : App::RecomputeRequest {}
+    );
+}
+
+inline App::RecomputeResult recomputeDocumentWithResult(
+    App::Document* document,
+    bool force = false,
+    int options = App::currentRecomputeOptions()
+)
+{
+    return App::GetApplication().recomputeRequestSynchronously(
+        document ? App::RecomputeRequest::fromDocument(*document, force, options)
+                 : App::RecomputeRequest {}
+    );
+}
 
 /**
  * @brief GUI-side controller for an async interactive preview recompute.
@@ -65,9 +94,15 @@ public:
      * `makeRequest()` creates the stable `App::RecomputeRequest` identity.
      * It should return an empty request when the task no longer has a valid
      * document/object target.
-     * `runSync()` is the legacy fallback used when async recompute is disabled or
-     * the request is not worker-safe. Completion callbacks are always delivered
-     * on the GUI side after the controller has accepted the result generation.
+     * `runSyncWithResult()` retains the native outcome when async recompute is
+     * disabled or the request is not worker-safe. The legacy `runSync()` hook
+     * reports completion only; it cannot infer scoped model validity. Supply
+     * the result hook for model/acceptance decisions. Only one hook executes.
+     * Completion callbacks are always delivered
+     * on the GUI side after native retirement. If the original target has
+     * retired before GUI delivery, a native success becomes a GUI
+     * TargetUnavailable result; the shared App outcome is unchanged. Model
+     * application is skipped when the original receiver is no longer live.
      */
     struct Callbacks
     {
@@ -78,7 +113,27 @@ public:
             onCompleted;
         std::function<void(bool success, bool canceled)> onAppliedResult;
         std::function<void()> onStateChanged;
+        // Appended to preserve existing source aggregate initialization.
+        std::function<App::RecomputeResult()> runSyncWithResult;
     };
+
+    /// Non-owning readiness fence; fresh work remains observable after stopping
+    /// or completion, and replacement controllers have distinct identities.
+    struct ActivityToken
+    {
+        std::uint64_t controllerIdentity {};
+        std::uint64_t activitySerial {};
+        bool operator==(const ActivityToken& other) const noexcept
+        {
+            return controllerIdentity == other.controllerIdentity
+                && activitySerial == other.activitySerial;
+        }
+        bool operator!=(const ActivityToken& other) const noexcept
+        {
+            return !(*this == other);
+        }
+    };
+    ActivityToken recomputeActivityToken() const noexcept;
 
     explicit AsyncPreviewController(Callbacks callbacks, QObject* parent = nullptr);
     ~AsyncPreviewController() override;
@@ -104,6 +159,14 @@ public:
     void flushPendingRecompute();
     /// Cancel the active request and remove queued matching preview requests.
     void stopPendingRecompute();
+    /**
+     * Cancel current previews and wait for their exact native retirement.
+     * Returns false before cancellation for a cyclic wait, or after reentry if
+     * this controller was deleted or fresh preview work was accepted/scheduled.
+     * Does not launch or rerun recomputation. Callers must revalidate their own
+     * original model/task ownership before performing acceptance effects.
+     */
+    bool stopPendingRecomputeAndWait();
 
     bool hasOutstandingRecompute() const;
     bool isInProgress() const;
@@ -118,10 +181,14 @@ public:
 Q_SIGNALS:
     /// Emitted whenever progress, queued, in-progress, or cancel state changes.
     void stateChanged();
-    /// Emitted when the latest accepted recompute generation has settled.
+    /// Emitted when accepted registrations retire and the latest application settles.
     void recomputeSettled();
 
 private:
+    struct Registration;
+    void drainRetiredRecomputes();
+    void updatePendingState();
+    void waitForRegistration(const std::shared_ptr<Registration>& registration);
     int effectiveSchedulerIntervalMs() const;
     void waitForOutstandingRecomputeToSettle();
     void finishRecompute(
@@ -146,7 +213,14 @@ private:
     int schedulerIntervalMs = 0;
     std::shared_ptr<App::RecomputeProgressHandle> recomputeProgress;
     std::uint64_t recomputeGeneration = 0;
-    std::uint64_t appliedRecomputeGeneration = 0;
+    std::uint64_t nextRecomputeGeneration = 0;
+    const std::uint64_t activityIdentity;
+    std::uint64_t activitySerial = 0;
+    std::uint64_t applyEligibleGeneration = 0;
+    std::uint64_t settledRecomputeGeneration = 0;
+    std::map<std::uint64_t, std::shared_ptr<Registration>> registrations;
+    std::unique_ptr<QTimer> retirementTimer;
+    std::shared_ptr<std::atomic<bool>> controllerAlive = std::make_shared<std::atomic<bool>>(true);
     bool lastRecomputeSucceeded = true;
     bool recomputeInProgress = false;
     bool recomputeQueued = false;

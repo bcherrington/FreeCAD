@@ -131,10 +131,8 @@ ThicknessWidget::ThicknessWidget(Part::Thickness* thickness, QWidget* parent)
         auto* object = d->thickness;
         return object ? App::RecomputeRequest::fromDocumentObject(*object) : App::RecomputeRequest {};
     };
-    callbacks.runSync = [this]() {
-        if (d->thickness && d->thickness->getDocument()) {
-            d->thickness->getDocument()->recomputeFeature(d->thickness);
-        }
+    callbacks.runSyncWithResult = [this]() {
+        return Gui::recomputeDocumentObjectWithResult(d->thickness, false);
     };
     callbacks.onAppliedResult = [this](bool success, bool canceled) {
         if (success && !canceled && gizmoContainer) {
@@ -405,11 +403,7 @@ bool ThicknessWidget::accept(QDialogButtonBox* dialogButtonBox)
             document,
             /*force=*/false,
             recomputeOptions,
-            [document]() {
-                if (document) {
-                    document->recompute();
-                }
-            }
+            [document]() { return Gui::recomputeDocumentWithResult(document, false); }
         );
         if (!outcome.success) {
             if (outcome.canceled) {

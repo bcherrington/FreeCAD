@@ -42,6 +42,9 @@
 #include "Property.h"
 #include "PropertyExpressionEngine.h"
 #include "PropertyContainer.h"
+#include "Document.h"
+#include "DocumentObject.h"
+#include "private/RecomputeAdmission.h"
 
 
 FC_LOG_LEVEL_INIT("Property", true, true)
@@ -90,8 +93,16 @@ DynamicProperty::~DynamicProperty()
 void DynamicProperty::clear()
 {
     auto& index = impl->props.get<0>();
-    for (auto& v : index) {
-        delete v.property;
+    std::vector<Property*> properties;
+    properties.reserve(index.size());
+    for (const auto& entry : index) {
+        properties.push_back(entry.property);
+    }
+    auto snapshot = RecomputeDetail::Coordinator::instance().snapshotProperties(properties);
+    // Every owner/endpoint is admitted before retiring the first property.
+    for (const auto& entry : index) {
+        Property::destroy(entry.property);
+        entry.property->myName = nullptr;
     }
     index.clear();
 }
@@ -224,6 +235,8 @@ Property* DynamicProperty::addDynamicProperty(
     bool hidden
 )
 {
+    auto mutation = RecomputeDetail::Coordinator::instance().mutation(
+        {dynamic_cast<DocumentObject*>(&pc)}, {dynamic_cast<Document*>(&pc)});
     if (type.empty()) {
         type = "<null>";
     }
@@ -301,6 +314,13 @@ bool DynamicProperty::addProperty(Property* prop)
     if (!prop || !prop->hasName()) {
         return false;
     }
+    std::optional<RecomputeDetail::MutationScope> mutation;
+    try {
+        mutation.emplace(RecomputeDetail::Coordinator::instance().mutation(*prop));
+    }
+    catch (const RecomputeDetail::AdmissionRefusal&) {
+        return false;
+    }
     auto& index = impl->props.get<0>();
 #if BOOST_VERSION < 107500
     if (index.count(prop->getName())) {
@@ -324,6 +344,16 @@ bool DynamicProperty::addProperty(Property* prop)
 
 bool DynamicProperty::removeProperty(const Property* prop)
 {
+    if (!prop) {
+        return false;
+    }
+    std::optional<RecomputeDetail::MutationScope> mutation;
+    try {
+        mutation.emplace(RecomputeDetail::Coordinator::instance().mutation(*prop));
+    }
+    catch (const RecomputeDetail::AdmissionRefusal&) {
+        return false;
+    }
     auto& index = impl->props.get<1>();
     auto it = index.find(const_cast<Property*>(prop));
     if (it != index.end()) {
@@ -345,6 +375,13 @@ bool DynamicProperty::removeDynamicProperty(const char* name)
             throw Base::RuntimeError("property is not dynamic");
         }
         Property* prop = it->property;
+        std::optional<RecomputeDetail::MutationScope> mutation;
+        try {
+            mutation.emplace(RecomputeDetail::Coordinator::instance().mutation(*prop));
+        }
+        catch (const RecomputeDetail::AdmissionRefusal&) {
+            return false;
+        }
         GetApplication().signalRemoveDynamicProperty(*prop);
 
         // Handle possible recursive calls of removeDynamicProperty
@@ -462,6 +499,16 @@ bool DynamicProperty::changeDynamicProperty(const Property* prop,
 bool DynamicProperty::renameDynamicProperty(Property* prop,
                                             const char* newName)
 {
+    std::optional<RecomputeDetail::MutationScope> mutation;
+    std::optional<RecomputeDetail::PropertySnapshot> expressions;
+    try {
+        mutation.emplace(RecomputeDetail::Coordinator::instance().mutation(*prop));
+        expressions.emplace(PropertyExpressionContainer::snapshotForAdmission(
+            nullptr, dynamic_cast<const DocumentObject*>(prop->getContainer())));
+    }
+    catch (const RecomputeDetail::AdmissionRefusal&) {
+        return false;
+    }
     auto& propIndex = impl->props.get<1>();
     auto propIt = propIndex.find(prop);
     if (propIt == propIndex.end()) {

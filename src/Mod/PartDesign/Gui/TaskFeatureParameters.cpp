@@ -26,13 +26,17 @@
 #include <QDialogButtonBox>
 #include <QMessageBox>
 
+#include <App/Document.h>
 #include <App/DocumentObserver.h>
+#include <App/private/RecomputeAdmission.h>
 #include <App/DocumentObject.h>
 #include <Gui/Application.h>
 #include <Gui/AsyncPreviewSession.h>
 #include <Gui/AsyncRecomputeProgressDialog.h>
 #include <Gui/BitmapFactory.h>
 #include <Gui/CommandT.h>
+#include <Gui/Control.h>
+#include <Gui/Document.h>
 #include <Gui/InputHint.h>
 #include <Gui/Inventor/Draggers/Gizmo.h>
 #include <Gui/MainWindow.h>
@@ -201,6 +205,53 @@ void TaskFeatureParameters::onUpdateView(bool on)
     recomputeFeature();
 }
 
+PreviewRecomputeGuard::PreviewRecomputeGuard(
+    App::DocumentObject* object,
+    QObject* task,
+    Gui::ViewProviderDocumentObject* view
+)
+    : object(object)
+    , document(object ? object->getDocument() : nullptr)
+    , task(task)
+    , hasTask(task != nullptr)
+    , retired(!object || !document)
+{
+    if (retired) {
+        return;
+    }
+    objectDeleted = document->signalDeletedObject.connect([this](const App::DocumentObject& deleted) {
+        if (&deleted == this->object) {
+            retired = true;
+        }
+    });
+    documentDeleted = App::GetApplication().signalDeleteDocument.connect(
+        [this](const App::Document& deleted) {
+            if (&deleted == document) {
+                retired = true;
+            }
+        }
+    );
+    if (view) {
+        auto* guiDocument = view->getDocument();
+        viewDeleted = guiDocument->signalDeletedObject.connect(
+            [this, view](const Gui::ViewProviderDocumentObject& deleted) {
+                if (&deleted == view) {
+                    retired = true;
+                }
+            }
+        );
+        guiDocumentDeleted = guiDocument->signalDeleteDocument.connect([this](const Gui::Document&) {
+            retired = true;
+        });
+    }
+}
+
+bool PreviewRecomputeGuard::isLive() const
+{
+    return !retired && (!hasTask || task) && object->isAttachedToDocument()
+        && object->getDocument() == document;
+}
+
 void TaskFeatureParameters::recomputeFeature()
 {
     if (!blockUpdate) {
@@ -210,6 +261,38 @@ void TaskFeatureParameters::recomputeFeature()
         feature->recomputeFeature();
         feature->recomputePreview();
     }
+}
+
+App::RecomputeResult TaskFeatureParameters::recomputeFeatureWithResult()
+{
+    if (blockUpdate) {
+        return {};
+    }
+    auto* feature = getObject<PartDesign::Feature>();
+    PreviewRecomputeGuard guard(feature, this, getViewObject());
+    auto result = Gui::recomputeDocumentObjectWithResult(feature);
+    if (guard.isLive()) {
+        feature->recomputePreview();
+    }
+    return result;
+}
+
+bool TaskFeatureParameters::stopPendingRecomputeAndWait()
+{
+    PreviewRecomputeGuard guard(getObject(), this, getViewObject());
+    if (!guard.isLive()) {
+        return false;
+    }
+    auto* session = getAcceptedRecomputeProgressSession();
+    if (session && !session->stopPendingRecomputeAndWait()) {
+        return false;
+    }
+    if (!guard.isLive()) {
+        return false;
+    }
+    // Derived panels may also own delayed UI schedulers (for example Hole).
+    stopPendingRecompute();
+    return guard.isLive();
 }
 
 Gui::AsyncPreviewSession* TaskFeatureParameters::getAcceptedRecomputeProgressSession()
@@ -327,14 +410,17 @@ bool PartDesignGui::runAsyncAcceptDocumentRecompute(
         document,
         /*force=*/false,
         options,
-        [document]() {
-            if (document) {
-                document->recompute();
-            }
-        }
+        [document]() { return Gui::recomputeDocumentWithResult(document); }
     );
     if (!outcome.success) {
         if (outcome.canceled) {
+            return false;
+        }
+        if (outcome.failure == App::RecomputeFailure::ModelError) {
+            Base::Console().error(
+                "%s\n",
+                outcome.message.empty() ? "Feature recompute failed" : outcome.message.c_str()
+            );
             return false;
         }
         throw Base::RuntimeError(
@@ -352,25 +438,125 @@ bool TaskDlgFeatureParameters::applyAcceptedFeatureParameters(
 {
     isUpdateBlocked = false;
 
-    // Iterate over parameter dialogs and apply all parameters from them.
-    for (QWidget* wgt : Content) {
-        TaskFeatureParameters* param = qobject_cast<TaskFeatureParameters*>(wgt);
-        if (!param) {
-            continue;
+    QPointer<TaskDlgFeatureParameters> dialogGuard(this);
+    auto* originalFeature = getObject();
+    PreviewRecomputeGuard featureGuard(originalFeature, this, getViewObject());
+    auto* editOwner = originalFeature ? Gui::Control().activeDialog(originalFeature->getDocument())
+                                      : nullptr;
+    struct ParameterState
+    {
+        QPointer<TaskFeatureParameters> parameter;
+        App::DocumentObject* object;
+        std::unique_ptr<PreviewRecomputeGuard> guard;
+        Gui::AsyncPreviewSession* session {};
+        Gui::AsyncPreviewSession::ActivityToken activity {};
+        bool settled {false};
+    };
+    std::vector<ParameterState> parameters;
+    for (QWidget* widget : Content) {
+        if (auto* parameter = qobject_cast<TaskFeatureParameters*>(widget)) {
+            parameters.push_back(
+                {parameter,
+                 parameter->getObject(),
+                 std::make_unique<PreviewRecomputeGuard>(
+                     parameter->getObject(),
+                     parameter,
+                     parameter->getViewObject()
+                 )}
+            );
         }
-
+    }
+    const auto originalReceiversLive = [&]() {
+        if (!dialogGuard || !featureGuard.isLive() || getObject() != originalFeature
+            || Gui::Control().activeDialog(originalFeature->getDocument()) != editOwner) {
+            return false;
+        }
+        for (const auto& state : parameters) {
+            if (!state.parameter || !state.guard->isLive()
+                || state.parameter->getObject() != state.object) {
+                return false;
+            }
+        }
+        // QPointer liveness alone does not prove that retained panels still
+        // belong to this dialog after another panel's settlement pumps events.
+        std::size_t index = 0;
+        for (QWidget* widget : Content) {
+            if (auto* parameter = qobject_cast<TaskFeatureParameters*>(widget)) {
+                if (index == parameters.size() || parameter != parameters[index].parameter.data()) {
+                    return false;
+                }
+                ++index;
+            }
+        }
+        return index == parameters.size();
+    };
+    const auto settledActivityUnchanged = [&]() {
+        if (!originalReceiversLive()) {
+            return false;
+        }
+        for (const auto& state : parameters) {
+            if (!state.settled) {
+                continue;
+            }
+            auto* session = state.parameter->getAcceptedRecomputeProgressSession();
+            if (session != state.session
+                || (session && session->recomputeActivityToken() != state.activity)) {
+                return false;
+            }
+        }
+        return true;
+    };
+    // Settle every panel before any panel writes accepted state. Another panel
+    // may own a preview lease over the same feature or document.
+    for (auto& state : parameters) {
+        if (!settledActivityUnchanged()) {
+            return false;
+        }
         switch (pendingRecomputeAction) {
             case AcceptPendingRecomputeAction::Flush:
-                param->flushPendingRecompute();
+                state.parameter->flushPendingRecompute();
                 break;
             case AcceptPendingRecomputeAction::Stop:
-                param->stopPendingRecompute();
+                if (!state.parameter->stopPendingRecomputeAndWait()) {
+                    return false;
+                }
                 break;
         }
-
-        param->saveHistory();
-        param->apply();
-        isUpdateBlocked |= param->isUpdateBlocked();
+        if (!settledActivityUnchanged()) {
+            return false;
+        }
+        state.session = state.parameter->getAcceptedRecomputeProgressSession();
+        if (state.session) {
+            state.activity = state.session->recomputeActivityToken();
+        }
+        state.settled = true;
+    }
+    const auto readyToApply = [&]() {
+        if (!settledActivityUnchanged()) {
+            return false;
+        }
+        for (const auto& state : parameters) {
+            if (state.parameter->hasOutstandingRecompute()) {
+                return false;
+            }
+        }
+        return true;
+    };
+    // Pumping may delete panels or change edit ownership. The stable snapshot
+    // avoids retaining Content iterators, and every mutation rechecks it.
+    for (const auto& state : parameters) {
+        if (!readyToApply()) {
+            return false;
+        }
+        state.parameter->saveHistory();
+        if (!readyToApply()) {
+            return false;
+        }
+        state.parameter->apply();
+        if (!readyToApply()) {
+            return false;
+        }
+        isUpdateBlocked |= state.parameter->isUpdateBlocked();
     }
 
     return true;
@@ -447,7 +633,8 @@ void TaskDlgFeatureParameters::finalizeAcceptedFeature(App::DocumentObject* feat
 bool TaskDlgFeatureParameters::reportAcceptException(const Base::Exception& e) const
 {
     QString errorText = QString::fromUtf8(e.what());
-    QString statusText = QString::fromUtf8(getObject()->getStatusString());
+    auto* object = getObject();
+    QString statusText = object ? QString::fromUtf8(object->getStatusString()) : QString();
 
     // generic, fallback error message
     if (errorText == QStringLiteral("Error") || errorText.isEmpty()) {
@@ -469,6 +656,13 @@ bool TaskDlgFeatureParameters::reportAcceptException(const Base::Exception& e) c
 bool TaskDlgFeatureParameters::accept()
 {
     App::DocumentObject* feature = getObject();
+    if (!feature || !feature->isAttachedToDocument()) {
+        return false;
+    }
+    QPointer<TaskDlgFeatureParameters> dialogGuard(this);
+    PreviewRecomputeGuard originalGuard(feature, this, getViewObject());
+    auto* editOwner = Gui::Control().activeDialog(feature->getDocument());
+    App::DocumentObjectWeakPtrT featureGuard(feature);
     bool isUpdateBlocked = false;
     auto pendingRecomputeAction = acceptPendingRecomputeAction();
     if (pendingRecomputeAction == AcceptPendingRecomputeAction::Flush) {
@@ -485,7 +679,12 @@ bool TaskDlgFeatureParameters::accept()
         }
     }
     try {
-        applyAcceptedFeatureParameters(pendingRecomputeAction, isUpdateBlocked);
+        if (!applyAcceptedFeatureParameters(pendingRecomputeAction, isUpdateBlocked)) {
+            return false;
+        }
+        if (!dialogGuard || featureGuard.expired() || !feature->isAttachedToDocument()) {
+            return false;
+        }
         // Make sure the feature is what we are expecting
         // Should be fine but you never know...
         if (!feature->isDerivedFrom<PartDesign::Feature>()) {
@@ -521,9 +720,17 @@ bool TaskDlgFeatureParameters::accept()
             return false;
         }
 
+        if (!dialogGuard || !originalGuard.isLive() || getObject() != feature
+            || Gui::Control().activeDialog(feature->getDocument()) != editOwner) {
+            return false;
+        }
         finalizeAcceptedFeature(feature);
     }
     catch (const Base::Exception& e) {
+        if (!dialogGuard || featureGuard.expired()) {
+            e.reportException();
+            return false;
+        }
         return reportAcceptException(e);
     }
     return true;
@@ -532,8 +739,21 @@ bool TaskDlgFeatureParameters::accept()
 bool TaskDlgFeatureParameters::reject()
 {
     auto feature = getObject<PartDesign::Feature>();
+    if (!feature || !feature->isAttachedToDocument()) {
+        return false;
+    }
+    auto admission = App::RecomputeDetail::Coordinator::instance().tryAtomic();
+    if (!admission) {
+        return false;
+    }
     App::DocumentObjectWeakPtrT weakptr(feature);
     App::Document* document = feature->getDocument();
+    try {
+        admission->include({}, {document});
+    }
+    catch (const App::RecomputeDetail::AdmissionRefusal&) {
+        return false;
+    }
 
     PartDesign::Body* body = PartDesign::Body::findBodyOf(feature);
 
@@ -544,9 +764,11 @@ bool TaskDlgFeatureParameters::reject()
     // detach the task panel from the selection to avoid to invoke
     // eventually onAddSelection when the selection changes
     std::vector<QWidget*> subwidgets = getDialogContent();
+    std::vector<QPointer<TaskSketchBasedParameters>> detachedSelection;
     for (auto it : subwidgets) {
         TaskSketchBasedParameters* param = qobject_cast<TaskSketchBasedParameters*>(it);
-        if (param) {
+        if (param && param->isSelectionAttached()) {
+            detachedSelection.emplace_back(param);
             param->detachSelection();
         }
 
@@ -557,7 +779,14 @@ bool TaskDlgFeatureParameters::reject()
     }
 
     // roll back the done things which may delete the feature
-    document->abortTransaction();
+    if (!document->tryAbortTransaction()) {
+        for (const auto& param : detachedSelection) {
+            if (param) {
+                param->attachSelection();
+            }
+        }
+        return false;
+    }
 
     // if abort command deleted the object make the previous feature visible again
     if (weakptr.expired()) {
@@ -574,6 +803,9 @@ bool TaskDlgFeatureParameters::reject()
         }
     }
 
+    // Rollback and its structural/UI restoration are complete. The following
+    // progress helper may wait for recompute, which must not wait on this phase.
+    admission.reset();
     if (document->mustExecute()) {
         const auto outcome = Gui::runAsyncDocumentRecomputeProgressDialog(
             Gui::getMainWindow(),
@@ -582,11 +814,7 @@ bool TaskDlgFeatureParameters::reject()
             document,
             /*force=*/false,
             rollbackRecomputeDialogOptions(),
-            [document]() {
-                if (document) {
-                    document->recompute();
-                }
-            }
+            [document]() { return Gui::recomputeDocumentWithResult(document); }
         );
         if (!outcome.success && !outcome.canceled) {
             Base::Console().error(

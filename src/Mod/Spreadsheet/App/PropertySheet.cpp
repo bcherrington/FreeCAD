@@ -35,6 +35,7 @@
 #include <App/ExpressionParser.h>
 #include <App/ExpressionVisitors.h>
 #include <App/Property.h>
+#include <App/private/RecomputeAdmission.h>
 #include <Base/Console.h>
 #include <Base/Interpreter.h>
 #include <Base/Reader.h>
@@ -76,6 +77,7 @@ void PropertySheet::clear()
     revAliasProp.clear();
 
     clearDeps();
+    publishAdmissionTargets({});
 }
 
 Cell* PropertySheet::getValue(CellAddress key)
@@ -300,6 +302,7 @@ PropertySheet::PropertySheet(const PropertySheet& other)
         data[i->first] = new Cell(this, *i->second);
         ++i;
     }
+    copyAdmissionMetadata(other);
 }
 
 PropertySheet::~PropertySheet()
@@ -309,12 +312,16 @@ PropertySheet::~PropertySheet()
 
 App::Property* PropertySheet::Copy() const
 {
+    auto admission = App::RecomputeDetail::Coordinator::instance().mutation(*this, {owner});
     return new PropertySheet(*this);
 }
 
 void PropertySheet::Paste(const Property& from)
 {
     const PropertySheet& froms = dynamic_cast<const PropertySheet&>(from);
+    auto admission = App::RecomputeDetail::Coordinator::instance().mutation(*this, {owner});
+    auto source = App::RecomputeDetail::Coordinator::instance().mutation(froms, {froms.owner});
+    admission.include(froms.admissionMetadataTargets());
 
     AtomicPropertyChange signaller(*this);
 
@@ -386,6 +393,8 @@ void PropertySheet::Paste(const Property& from)
             }
         }
     }
+    copyAdmissionMetadata(froms);
+    publishExpressionContexts();
     signaller.tryInvoke();
 }
 
@@ -923,6 +932,7 @@ void PropertySheet::clearAlias(CellAddress address)
 
 void PropertySheet::clear(CellAddress address, bool toClearAlias)
 {
+    auto admission = App::RecomputeDetail::Coordinator::instance().mutation(*this, {owner});
     std::map<CellAddress, Cell*>::iterator i = data.find(address);
 
     if (i == data.end()) {
@@ -947,6 +957,7 @@ void PropertySheet::clear(CellAddress address, bool toClearAlias)
 
     // Erase from internal struct
     data.erase(i);
+    publishAdmissionTargets(expressionAdmissionTargets());
     signaller.tryInvoke();
 }
 
@@ -1704,7 +1715,19 @@ void PropertySheet::renameObjectIdentifiers(
     const std::map<App::ObjectIdentifier, App::ObjectIdentifier>& paths
 )
 {
-    RenameObjectIdentifierExpressionVisitor<PropertySheet> v {*this, paths, *this};
+    auto admission = App::RecomputeDetail::Coordinator::instance().mutation(*this, {owner});
+    std::vector<App::DocumentObject*> proposed;
+    for (const auto& path : paths) {
+        proposed.push_back(path.first.getOwner());
+        proposed.push_back(path.second.getOwner());
+    }
+    admission.include(proposed);
+    // A saved copy has no Property container/name, but retains the Sheet in
+    // which its cell expressions are interpreted. Preserve the live-property
+    // context and use that Sheet context for the detached copy.
+    const ObjectIdentifier context = getContainer() ? ObjectIdentifier(*this)
+                                                    : ObjectIdentifier(owner, false);
+    RenameObjectIdentifierExpressionVisitor<PropertySheet> v {*this, paths, context};
     for (auto& c : data) {
         c.second->visit(v);
         if (v.changed()) {
@@ -1713,6 +1736,7 @@ void PropertySheet::renameObjectIdentifiers(
             setDirty(c.first);
         }
     }
+    publishAdmissionTargets(expressionAdmissionTargets());
 }
 
 void PropertySheet::deletedDocumentObject(const App::DocumentObject* docObj)
@@ -1772,10 +1796,49 @@ void PropertySheet::recomputeDependencies(CellAddress key)
     signaller.tryInvoke();
 }
 
+void PropertySheet::publishExpressionContexts()
+{
+    auto targets = admissionMetadataTargets();
+    for (const auto& entry : data) {
+        if (const auto* expression = entry.second->expression.get()) {
+            targets.push_back(owner);
+            targets.push_back(expression->getOwner());
+        }
+    }
+    publishAdmissionTargets(targets);
+}
+
+std::vector<App::DocumentObject*> PropertySheet::expressionAdmissionTargets(
+    const std::map<CellAddress, std::unique_ptr<Expression>>* changed
+) const
+{
+    std::vector<App::DocumentObject*> targets;
+    for (const auto& entry : data) {
+        const auto replacement = changed
+            ? changed->find(entry.first)
+            : std::map<CellAddress, std::unique_ptr<Expression>>::const_iterator {};
+        const auto* expression = changed && replacement != changed->end()
+            ? replacement->second.get()
+            : entry.second->expression.get();
+        if (!expression) {
+            continue;
+        }
+        targets.push_back(owner);
+        targets.push_back(expression->getOwner());
+        // getDep(false), unlike the property-specific graph, retains unresolved
+        // property owners and local/self references. Hidden flags do not filter.
+        for (const auto& dep : expression->getDepObjects()) {
+            targets.push_back(dep.first);
+        }
+    }
+    return targets;
+}
+
 void PropertySheet::hasSetValue()
 {
     if (updateCount == 0 || !owner || !owner->isAttachedToDocument() || owner->isRestoring()
         || this != &owner->cells || testFlag(LinkDetached)) {
+        publishExpressionContexts();
         PropertyExpressionContainer::hasSetValue();
         return;
     }
@@ -1797,6 +1860,19 @@ void PropertySheet::hasSetValue()
     }
     registerLabelReferences(std::move(labels));
 
+    // Reuse the complete dependencies already computed above, before updateDeps
+    // removes the self edge. This publication performs no new admission.
+    std::vector<App::DocumentObject*> targets;
+    for (const auto& dep : deps) {
+        targets.push_back(dep.first);
+    }
+    for (const auto& entry : data) {
+        if (const auto* expression = entry.second->expression.get()) {
+            targets.push_back(owner);
+            targets.push_back(expression->getOwner());
+        }
+    }
+    publishAdmissionTargets(targets);
     updateDeps(std::move(deps));
 
     PropertyExpressionContainer::hasSetValue();
@@ -1896,6 +1972,8 @@ void PropertySheet::onContainerRestored()
             expr->visit(v);
         }
     }
+    // Document::afterRestore holds the selected restore atomic capability.
+    publishAdmissionTargets(expressionAdmissionTargets());
 }
 
 bool PropertySheet::adjustLink(const std::set<DocumentObject*>& inList)
@@ -1968,6 +2046,7 @@ bool PropertySheet::referenceChanged() const
 
 Property* PropertySheet::CopyOnImportExternal(const std::map<std::string, std::string>& nameMap) const
 {
+    auto admission = App::RecomputeDetail::Coordinator::instance().mutation(*this, {owner});
     std::map<CellAddress, std::unique_ptr<Expression>> changed;
     for (auto& d : data) {
         auto e = d.second->expression.get();
@@ -1983,10 +2062,15 @@ Property* PropertySheet::CopyOnImportExternal(const std::map<std::string, std::s
     if (changed.empty()) {
         return nullptr;
     }
+    auto targets = expressionAdmissionTargets(&changed);
+    admission.include(targets);
     std::unique_ptr<PropertySheet> copy(new PropertySheet(*this));
     for (auto& change : changed) {
         copy->data[change.first]->setExpression(std::move(change.second));
     }
+    // Child callbacks can temporarily retain the cloned source record. Publish
+    // the exact final AST before exposing the completed transformed copy.
+    copy->publishAdmissionTargets(targets);
     return copy.release();
 }
 
@@ -1996,6 +2080,7 @@ Property* PropertySheet::CopyOnLabelChange(
     const char* newLabel
 ) const
 {
+    auto admission = App::RecomputeDetail::Coordinator::instance().mutation(*this, {owner});
     std::map<CellAddress, std::unique_ptr<Expression>> changed;
     for (auto& d : data) {
         auto e = d.second->expression.get();
@@ -2011,10 +2096,15 @@ Property* PropertySheet::CopyOnLabelChange(
     if (changed.empty()) {
         return nullptr;
     }
+    auto targets = expressionAdmissionTargets(&changed);
+    admission.include(targets);
     std::unique_ptr<PropertySheet> copy(new PropertySheet(*this));
     for (auto& change : changed) {
         copy->data[change.first]->setExpression(std::move(change.second));
     }
+    // Child callbacks can temporarily retain the cloned source record. Publish
+    // the exact final AST before exposing the completed transformed copy.
+    copy->publishAdmissionTargets(targets);
     return copy.release();
 }
 
@@ -2024,6 +2114,7 @@ Property* PropertySheet::CopyOnLinkReplace(
     App::DocumentObject* newObj
 ) const
 {
+    auto admission = App::RecomputeDetail::Coordinator::instance().mutation(*this, {owner});
     std::map<CellAddress, std::unique_ptr<Expression>> changed;
     for (auto& d : data) {
         auto e = d.second->expression.get();
@@ -2039,10 +2130,15 @@ Property* PropertySheet::CopyOnLinkReplace(
     if (changed.empty()) {
         return nullptr;
     }
+    auto targets = expressionAdmissionTargets(&changed);
+    admission.include(targets);
     std::unique_ptr<PropertySheet> copy(new PropertySheet(*this));
     for (auto& change : changed) {
         copy->data[change.first]->setExpression(std::move(change.second));
     }
+    // Child callbacks can temporarily retain the cloned source record. Publish
+    // the exact final AST before exposing the completed transformed copy.
+    copy->publishAdmissionTargets(targets);
     return copy.release();
 }
 
@@ -2059,6 +2155,18 @@ std::map<App::ObjectIdentifier, const App::Expression*> PropertySheet::getExpres
 
 void PropertySheet::setExpressions(std::map<App::ObjectIdentifier, App::ExpressionPtr>&& exprs)
 {
+    auto admission = App::RecomputeDetail::Coordinator::instance().mutation(*this, {owner});
+    std::vector<App::DocumentObject*> proposed;
+    for (const auto& entry : exprs) {
+        proposed.push_back(entry.first.getOwner());
+        if (entry.second) {
+            proposed.push_back(entry.second->getOwner());
+            for (const auto& dep : entry.second->getDepObjects()) {
+                proposed.push_back(dep.first);
+            }
+        }
+    }
+    admission.include(proposed);
     AtomicPropertyChange signaller(*this);
     for (auto& v : exprs) {
         CellAddress addr(v.first.getPropertyName().c_str());
@@ -2076,6 +2184,7 @@ void PropertySheet::setExpressions(std::map<App::ObjectIdentifier, App::Expressi
             cell->setExpression(std::move(v.second));
         }
     }
+    publishAdmissionTargets(expressionAdmissionTargets());
     signaller.tryInvoke();
 }
 

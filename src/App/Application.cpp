@@ -43,6 +43,7 @@
 #include <format>
 # include <optional>
 # include <memory>
+# include <iterator>
 # include <utility>
 # include <set>
 # include <string>
@@ -115,6 +116,8 @@
 
 #include "Annotation.h"
 #include "Application.h"
+#include "AutoTransaction.h"
+#include "private/RecomputeAdmission.h"
 #include "ApplicationDirectories.h"
 #include "ApplicationDirectoriesPy.h"
 #include "ApplicationPy.h"
@@ -223,22 +226,31 @@ thread_local int tlsCurrentRecomputeOptions = 0;
 class ScopedCurrentRecomputeProgress
 {
 public:
-    explicit ScopedCurrentRecomputeProgress(RecomputeProgressHandle* handle)
-        : _previous(tlsCurrentRecomputeProgress)
+    explicit ScopedCurrentRecomputeProgress(RecomputeProgressHandle* handle, bool resetCancellation = true)
+        : _previous(tlsCurrentRecomputeProgress), _handle(handle)
     {
-        if (handle) {
-            handle->activate();
+        try {
+            if (handle) {
+                if (resetCancellation) handle->activate();
+                else handle->activateAccepted();
+            }
+        }
+        catch (...) {
+            if (handle) handle->finishExecution();
+            throw;
         }
         tlsCurrentRecomputeProgress = handle;
     }
 
     ~ScopedCurrentRecomputeProgress()
     {
+        if (_handle) _handle->finishExecution();
         tlsCurrentRecomputeProgress = _previous;
     }
 
 private:
     RecomputeProgressHandle* _previous;
+    RecomputeProgressHandle* _handle;
 };
 
 class ScopedCurrentRecomputeOptions
@@ -270,8 +282,6 @@ bool requestTargetsDocument(const RecomputeRequest& request, const std::string& 
 {
     return request.documentName == documentName;
 }
-
-bool documentCanRecomputeOnWorker(const Document& document);
 
 bool displayStatesEqual(
     const RecomputeProgressDisplayState& lhs,
@@ -316,6 +326,10 @@ const char* recomputeFailureName(RecomputeFailure failure)
             return "dependency_cycle";
         case RecomputeFailure::Exception:
             return "exception";
+        case RecomputeFailure::ModelError:
+            return "model_error";
+        case RecomputeFailure::TargetUnavailable:
+            return "target_unavailable";
     }
 
     return "unknown";
@@ -341,22 +355,6 @@ std::string describeProgressDisplayState(const RecomputeProgressDisplayState& st
     return stream.str();
 }
 
-bool documentCanRecomputeOnWorker(const Document& document)
-{
-    try {
-        const auto& objects = document.getObjects();
-        std::vector<DocumentObject*> recomputeRoots(objects.begin(), objects.end());
-        const auto recomputeObjects = Document::getDependencyList(recomputeRoots, Document::DepSort);
-
-        return std::ranges::all_of(recomputeObjects, [](const DocumentObject* object) {
-            return object && object->canRecomputeOnWorker();
-        });
-    }
-    catch (const Base::BadGraphError&) {
-        return false;
-    }
-}
-
 void reportRecomputeException(const Base::Exception& exception)
 {
     if (App::MainThreadSignalConfig::hasHooks()) {
@@ -373,6 +371,12 @@ void reportRecomputeException(const Base::Exception& exception)
     exception.reportException();
 }
 
+void reportRecomputeExceptionNoThrow(const Base::Exception& exception) noexcept
+{
+    try { reportRecomputeException(exception); }
+    catch (...) { /* Preserve the original outcome if a diagnostic sink fails. */ }
+}
+
 void markCanceledRecomputeResult(RecomputeResult& result)
 {
     result.success = false;
@@ -382,22 +386,48 @@ void markCanceledRecomputeResult(RecomputeResult& result)
     }
 }
 
-RecomputeResult processRecomputeRequest(RecomputeRequest& request)
+RecomputeResult refusedRecomputeResult(const Base::Exception& exception);
+
+RecomputeResult processRecomputeRequest(
+    RecomputeRequest& request, RecomputeDetail::NativeClaim& claim, bool resetCancellation = true,
+    const std::function<void(RecomputeResult&)>& commit = {})
 {
     RecomputeResult result;
     ensureRecomputeProgressHandle(request);
-    ScopedCurrentRecomputeProgress progressScope(request.progress.get());
+    std::optional<ScopedCurrentRecomputeProgress> progressScope;
     ScopedCurrentRecomputeOptions optionsScope(request.options);
     appendRecomputeDebugLog("request_begin", describeRecomputeRequest(request));
 
     try {
-        if (!request.documentObjectName.empty()) {
-            if (DocumentObject* documentObject = request.resolveDocumentObject()) {
-                documentObject->recomputeFeature(request.recursive);
+        progressScope.emplace(request.progress.get(), resetCancellation);
+        // A document close may win before registration or during synchronous reset.
+        if (claim.cancellationRequested()) request.progress->cancel();
+        if (claim.cancellationRequested() || (!resetCancellation && App::currentRecomputeWasCanceled())) {
+            markCanceledRecomputeResult(result);
+        }
+        else if (!request.documentObjectName.empty()) {
+            if (DocumentObject* documentObject = claim.object()) {
+                if (!documentObject->recomputeFeature(request.recursive)) {
+                    result.success = false;
+                    result.failure = RecomputeFailure::ModelError;
+                }
+            }
+            else {
+                result.success = false;
+                result.failure = RecomputeFailure::TargetUnavailable;
             }
         }
-        else if (Document* document = request.resolveDocument()) {
-            document->recompute({}, request.force, nullptr, request.options);
+        else if (Document* document = claim.document()) {
+            bool hasError = false;
+            document->recompute({}, request.force, &hasError, request.options);
+            if (hasError) {
+                result.success = false;
+                result.failure = RecomputeFailure::ModelError;
+            }
+        }
+        else {
+            result.success = false;
+            result.failure = RecomputeFailure::TargetUnavailable;
         }
     }
     catch (Base::UserAbortException& exception) {
@@ -415,19 +445,59 @@ RecomputeResult processRecomputeRequest(RecomputeRequest& request)
         result.failure = RecomputeFailure::DependencyCycle;
         result.success = false;
     }
+    catch (const RecomputeDetail::AdmissionRefusal& exception) {
+        result = refusedRecomputeResult(exception);
+    }
     catch (Base::Exception& exception) {
         reportRecomputeException(exception);
         result.exception = std::make_unique<Base::Exception>(std::move(exception));
         result.failure = RecomputeFailure::Exception;
         result.success = false;
     }
+    catch (const std::exception& exception) {
+        result.success = false;
+        result.failure = RecomputeFailure::Exception;
+        result.exception = std::make_unique<Base::RuntimeError>(exception.what());
+        reportRecomputeException(*result.exception);
+    }
+    catch (...) {
+        result.success = false;
+        result.failure = RecomputeFailure::Exception;
+        result.exception = std::make_unique<Base::RuntimeError>("Unknown native recompute exception");
+        reportRecomputeException(*result.exception);
+    }
 
-    if (request.progress && request.progress->wasCanceled() && result.failure == RecomputeFailure::None) {
+    if (progressScope && request.progress && App::currentRecomputeWasCanceled()
+        && (result.failure == RecomputeFailure::None || result.failure == RecomputeFailure::ModelError)) {
         markCanceledRecomputeResult(result);
     }
 
+    if (commit) commit(result);
+    // This outcome is committed before the progress scope ends its launcher and
+    // emits cleanup notifications. Those notifications cannot rewrite it.
     appendRecomputeDebugLog("request_end", describeRecomputeRequest(request) + ' '
                                                + describeRecomputeResult(result));
+    return result;
+}
+
+RecomputeResult unavailableRecomputeResult()
+{
+    RecomputeResult result;
+    result.success = false;
+    result.failure = RecomputeFailure::TargetUnavailable;
+    return result;
+}
+
+RecomputeResult refusedRecomputeResult(const Base::Exception& exception)
+{
+    if (const auto* refusal = dynamic_cast<const RecomputeDetail::AdmissionRefusal*>(&exception);
+        refusal && refusal->reason() == RecomputeDetail::AdmissionRefusal::Reason::Unavailable) {
+        return unavailableRecomputeResult();
+    }
+    RecomputeResult result;
+    result.success = false;
+    result.failure = RecomputeFailure::Exception;
+    result.exception = std::make_unique<Base::Exception>(exception);
     return result;
 }
 
@@ -505,7 +575,7 @@ void App::RecomputeProgressScope::setProgress(std::size_t progress)
 
 bool App::RecomputeProgressScope::wasCanceled() const
 {
-    return _handle && _handle->wasCanceled();
+    return _handle && _handle->pollCancellation();
 }
 
 App::RecomputeProgressScope App::RecomputeProgressScope::makeScope(const char* text)
@@ -557,9 +627,21 @@ void App::RecomputeProgressHandle::ensureSequencer()
 
 void App::RecomputeProgressHandle::activate()
 {
-    // A progress handle can be reused for coalesced or rerun requests; start
-    // each execution attempt with a fresh cancellation state.
-    _canceled.store(false, std::memory_order_relaxed);
+    activateImpl(true);
+}
+
+void App::RecomputeProgressHandle::activateAccepted()
+{
+    activateImpl(false);
+}
+
+void App::RecomputeProgressHandle::activateImpl(bool resetCancellation)
+{
+    // Explicit synchronous retries reset cancellation. Accepted queued work must
+    // preserve a cancellation arriving between dequeue and progress activation.
+    if (resetCancellation) {
+        _canceled.store(false, std::memory_order_relaxed);
+    }
     resetDisplayState();
     _hasStandaloneState = false;
     _standaloneProgress = 0;
@@ -570,16 +652,51 @@ void App::RecomputeProgressHandle::activate()
     ensureSequencer();
 }
 
+void App::RecomputeProgressHandle::finishExecution() noexcept
+{
+    auto sequencer = std::move(_sequencer);
+    if (!sequencer) return;
+    try {
+        // stop() disarms even if a virtual cleanup callback throws. Resetting the
+        // now-disarmed launcher cannot repeat that callback in its destructor.
+        sequencer->stop();
+    }
+    catch (const Base::Exception& exception) {
+        try { reportRecomputeException(exception); } catch (...) {}
+    }
+    catch (const std::exception& exception) {
+        try { Base::Console().warning("Recompute progress cleanup: {}\n", exception.what()); }
+        catch (...) {}
+    }
+    catch (...) {
+        try { Base::Console().warning("Recompute progress cleanup: unknown exception\n"); }
+        catch (...) {}
+    }
+}
+
 void App::RecomputeProgressHandle::cancel()
 {
-    _canceled.store(true, std::memory_order_relaxed);
+    _canceled.store(true, std::memory_order_release);
     appendRecomputeDebugLog("progress_cancel", std::format("handle={}", static_cast<const void*>(this)));
 }
 
 bool App::RecomputeProgressHandle::wasCanceled() const
 {
-    return _canceled.load(std::memory_order_relaxed)
-        || (_sequencer && _sequencer->wasCanceled());
+    return _canceled.load(std::memory_order_acquire);
+}
+
+bool App::RecomputeProgressHandle::pollCancellation() const
+{
+    // Only the native scope owner touches the sequencer, including legacy local
+    // scopes without an App TLS progress entry. Publish its abort for observers.
+    if (wasCanceled()) {
+        return true;
+    }
+    if (_sequencer && _sequencer->wasCanceled()) {
+        _canceled.store(true, std::memory_order_release);
+        return true;
+    }
+    return false;
 }
 
 App::RecomputeProgressScope App::RecomputeProgressHandle::makeScope(const char* text)
@@ -717,6 +834,7 @@ void App::RecomputeProgressHandle::resetDisplayState()
 
 void App::RecomputeProgressHandle::syncDisplay()
 {
+    pollCancellation();
     const RecomputeProgressScope* scope = _activeScope;
     if (!scope && !_hasStandaloneState) {
         return;
@@ -820,7 +938,7 @@ App::ScopedRecomputeOptions::~ScopedRecomputeOptions()
 bool App::currentRecomputeWasCanceled()
 {
     if (auto* progress = currentRecomputeProgress()) {
-        return progress->wasCanceled();
+        return progress->pollCancellation();
     }
 
     return Base::Sequencer().wasCanceled();
@@ -829,7 +947,7 @@ bool App::currentRecomputeWasCanceled()
 void App::throwIfRecomputeCanceled()
 {
     if (auto* progress = currentRecomputeProgress()) {
-        if (progress->wasCanceled()) {
+        if (progress->pollCancellation()) {
             throw Base::UserAbortException();
         }
         return;
@@ -851,7 +969,8 @@ bool App::currentRecomputeHasOption(RecomputeOption option)
 RecomputeRequest RecomputeRequest::fromDocument(const Document& document, bool force, int options)
 {
     RecomputeRequest request;
-    request.documentName = document.getName();
+    request.targetBinding.binding = RecomputeDetail::Coordinator::instance().bindDocument(&document);
+    request.documentName = request.targetBinding.binding->documentName;
     request.force = force;
     request.options = options;
     return request;
@@ -865,11 +984,9 @@ RecomputeRequest RecomputeRequest::fromDocumentObject(
 {
     RecomputeRequest request;
 
-    if (const Document* document = documentObject.getDocument()) {
-        request.documentName = document->getName();
-    }
-
-    request.documentObjectName = documentObject.getNameInDocument();
+    request.targetBinding.binding = RecomputeDetail::Coordinator::instance().bindObject(&documentObject);
+    request.documentName = request.targetBinding.binding->documentName;
+    request.documentObjectName = request.targetBinding.binding->objectName;
     request.recursive = recursive;
     request.options = options;
     return request;
@@ -877,30 +994,54 @@ RecomputeRequest RecomputeRequest::fromDocumentObject(
 
 Document* RecomputeRequest::resolveDocument() const
 {
-    if (documentName.empty()) {
-        return nullptr;
+    auto& coordinator = RecomputeDetail::Coordinator::instance();
+    if (targetBinding.binding) {
+        if (!coordinator.coherent(targetBinding.binding, documentName, documentObjectName)) {
+            return nullptr;
+        }
+        return coordinator.resolveDocument(targetBinding.binding);
     }
-
-    return GetApplication().getDocument(documentName.c_str());
+    return coordinator.resolveDocument(coordinator.bindNames(
+        documentName, documentObjectName, !documentObjectName.empty()));
 }
 
 DocumentObject* RecomputeRequest::resolveDocumentObject() const
 {
-    if (documentObjectName.empty()) {
-        return nullptr;
+    auto& coordinator = RecomputeDetail::Coordinator::instance();
+    if (targetBinding.binding) {
+        if (!coordinator.coherent(targetBinding.binding, documentName, documentObjectName)) {
+            return nullptr;
+        }
+        return coordinator.resolveObject(targetBinding.binding);
     }
+    return coordinator.resolveObject(coordinator.bindNames(
+        documentName, documentObjectName, !documentObjectName.empty()));
+}
 
-    if (Document* document = resolveDocument()) {
-        return document->getObject(documentObjectName.c_str());
+void Application::bindRecomputeRequest(RecomputeRequest& request)
+{
+    auto& coordinator = RecomputeDetail::Coordinator::instance();
+    if (!request.targetBinding.binding) {
+        request.targetBinding.binding = coordinator.bindNames(
+            request.documentName, request.documentObjectName, !request.documentObjectName.empty());
     }
-
-    return nullptr;
+    if (!coordinator.coherent(request.targetBinding.binding,
+                              request.documentName, request.documentObjectName)) {
+        throw RecomputeDetail::AdmissionRefusal("Recompute request names disagree with its bound target");
+    }
 }
 
 bool Application::recomputeRequestsMatch(const RecomputeRequest& lhs, const RecomputeRequest& rhs)
 {
-    return lhs.documentName == rhs.documentName
-        && lhs.documentObjectName == rhs.documentObjectName
+    const auto& left = lhs.targetBinding.binding;
+    const auto& right = rhs.targetBinding.binding;
+    return left && right
+        && left->documentGeneration == right->documentGeneration
+        && left->attachmentGeneration == right->attachmentGeneration
+        && left->objectTarget == right->objectTarget
+        && left->missing == right->missing
+        && left->documentName == right->documentName
+        && left->objectName == right->objectName
         && lhs.force == rhs.force
         && lhs.options == rhs.options
         && lhs.recursive == rhs.recursive;
@@ -909,9 +1050,46 @@ bool Application::recomputeRequestsMatch(const RecomputeRequest& lhs, const Reco
 Application::RecomputeQueueEntry Application::makeRecomputeQueueEntry(RecomputeRequest request)
 {
     RecomputeQueueEntry entry;
+    entry.progressHandles.push_back(request.progress);
+    entry.terminalHandles.push_back(request.progress);
     collectRecomputeCallback(request, entry.callbacks);
     entry.request = std::move(request);
     return entry;
+}
+
+void Application::mergeRecomputeQueueEntry(RecomputeQueueEntry& destination, RecomputeQueueEntry source)
+{
+    std::ranges::move(source.callbacks, std::back_inserter(destination.callbacks));
+    std::ranges::move(source.progressHandles, std::back_inserter(destination.progressHandles));
+    std::ranges::move(source.retirements, std::back_inserter(destination.retirements));
+    std::ranges::move(source.terminalHandles, std::back_inserter(destination.terminalHandles));
+}
+
+void Application::cancelRecomputeHandles(const RecomputeQueueEntry& entry)
+{
+    for (const auto& handle : entry.progressHandles) {
+        if (handle) {
+            handle->cancel();
+        }
+    }
+}
+
+void Application::deliverCanceledRecomputeEntries(std::vector<RecomputeQueueEntry> entries)
+{
+    std::vector<std::shared_ptr<RecomputeDetail::Retirement>> retirements;
+    for (auto& entry : entries) {
+        cancelRecomputeHandles(entry);
+        RecomputeResult result;
+        result.success = false;
+        result.failure = RecomputeFailure::Canceled;
+        invokeRecomputeCallbacks(entry.callbacks, entry.request, result);
+        std::ranges::move(entry.retirements, std::back_inserter(retirements));
+    }
+    // Retired captures and display observers can reenter. Finish them first.
+    entries.clear();
+    for (const auto& retirement : retirements) {
+        retirement->markRetired();
+    }
 }
 
 void Application::collectRecomputeCallback(
@@ -934,8 +1112,22 @@ void Application::invokeRecomputeCallbacks(
 )
 {
     for (auto& callback : callbacks) {
-        if (callback) {
+        if (!callback) {
+            continue;
+        }
+        try {
             callback(request, result);
+        }
+        catch (const Base::Exception& exception) {
+            reportRecomputeExceptionNoThrow(exception);
+        }
+        catch (const std::exception& exception) {
+            try { Base::Console().error("Recompute completion callback: {}\n", exception.what()); }
+            catch (...) {}
+        }
+        catch (...) {
+            try { Base::Console().error("Recompute completion callback: unknown exception\n"); }
+            catch (...) {}
         }
     }
 }
@@ -998,6 +1190,16 @@ Application::Application(std::map<std::string,std::string> &mConfig)
     mpcPramManager["User parameter"] = _pcUserParamMngr;
 
     _stopRecomputeThread = false;
+    RecomputeDetail::Coordinator::instance().setWake([this] {
+        // R has been released. Synchronize predicate publication with CV sleep
+        // under Q so the sole epoch-change notification cannot be lost.
+        {
+            std::lock_guard<std::mutex> lock(_recomputeMutex);
+            ++_recomputeQueueRevision;
+        }
+        notifyRecomputeWorker();
+        _recomputeStateChanged.notify_all();
+    });
     _recomputeThread = std::thread(&Application::recomputeWorker, this);
 
     setupPythonTypes();
@@ -1005,13 +1207,58 @@ Application::Application(std::map<std::string,std::string> &mConfig)
 
 Application::~Application()
 {
-    // Signal the recompute worker thread to stop and join it.
-    _stopRecomputeThread = true;
-    _recomputeRequestAvailable.notify_all();
+    stopRecomputeWorker();
+    RecomputeDetail::Coordinator::instance().clearWake();
+    RecomputeDetail::Coordinator::instance().shutdown();
+}
 
-    if (_recomputeThread.joinable()) {
-        _recomputeThread.join();
+void Application::stopRecomputeWorker()
+{
+    if (!_recomputeThread.joinable()) {
+        return;
     }
+    RecomputeDetail::Coordinator::instance().ensureWaitAllowed();
+    std::vector<std::shared_ptr<RecomputeProgressHandle>> handles;
+    {
+        std::lock_guard<std::mutex> lock(_recomputeMutex);
+        _stopRecomputeThread = true;
+        ++_recomputeQueueRevision;
+        if (_recomputeRequestInProgress && !_recomputeRequestInProgress->outcomeCommitted) {
+            _recomputeRequestInProgress->cancelRequested = true;
+            handles = _recomputeRequestInProgress->progressHandles;
+        }
+        else if (_recomputeRequestInProgress) {
+            for (const auto& handle : _recomputeRequestInProgress->terminalHandles) {
+                if (auto live = handle.lock()) handles.push_back(std::move(live));
+            }
+        }
+    }
+    for (const auto& handle : handles) {
+        if (handle) {
+            handle->cancel();
+        }
+    }
+    notifyRecomputeWorker();
+    std::unique_ptr<Base::PyGILStateRelease> release;
+    if (Py_IsInitialized() && PyGILState_Check()) {
+        release = std::make_unique<Base::PyGILStateRelease>();
+    }
+    while (true) {
+        {
+            std::unique_lock<std::mutex> lock(_recomputeMutex);
+            if (_recomputeWorkerExited) {
+                break;
+            }
+            if (!App::MainThreadSignalConfig::hasHooks()
+                || !App::MainThreadSignalConfig::isMainThread()
+                || !App::MainThreadSignalConfig::canPumpEvents()) {
+                _recomputeStateChanged.wait(lock, [&] { return _recomputeWorkerExited; });
+                break;
+            }
+        }
+        App::MainThreadSignalConfig::pumpEvents();
+    }
+    _recomputeThread.join();
 }
 
 void Application::setupPythonTypes()
@@ -1266,45 +1513,80 @@ Document* Application::newDocument(const char * proposedName, const char * propo
 
 bool Application::closeDocument(const Document* doc)
 {
-    return closeDocument(doc->getName());
+    return closeBoundDocument(RecomputeDetail::Coordinator::instance().bindDocument(doc));
 }
 
 bool Application::closeDocument(const char* name)
 {
-    const std::string documentName(name);
-
-    if (const auto* doc = getDocument(documentName.c_str());
-        doc && doc->isRecomputingOnCurrentThread()) {
-        // Waiting here would deadlock a recompute on this call stack, and
-        // deleting the document would leave that recompute with dangling data.
+    if (!name) {
         return false;
     }
+    return closeBoundDocument(RecomputeDetail::Coordinator::instance().bindNames(name, {}, false));
+}
 
-    cancelRecomputeRequestsForDocument(documentName);
-
-    const auto pos = DocMap.find(documentName);
-    if (pos == DocMap.end()) // no such document
+bool Application::closeBoundDocument(const RecomputeDetail::BindingPtr& binding)
+{
+    auto& coordinator = RecomputeDetail::Coordinator::instance();
+    if (!binding || binding->missing || coordinator.isObserved(binding)) {
         return false;
-
+    }
+    auto closing = coordinator.tryClose(binding);
+    if (!closing) {
+        return false;
+    }
+    if (!closing.ready()) {
+        try {
+            closing.ensureWaitAllowed();
+        }
+        catch (const RecomputeDetail::AdmissionRefusal&) {
+            return false;
+        }
+    }
+    closing.cancelAffected();
+    cancelRecomputeRequestsForDocument(binding->documentName, &closing);
+    while (!closing.ready()) {
+        closing.ensureWaitAllowed();
+        closing.cancelAffected();
+        cancelRecomputeRequestsForDocument(binding->documentName, &closing);
+        const auto epoch = coordinator.epoch();
+        std::uint64_t revision;
+        {
+            std::lock_guard<std::mutex> lock(_recomputeMutex);
+            revision = _recomputeQueueRevision;
+        }
+        if (closing.ready()) {
+            break;
+        }
+        std::unique_ptr<Base::PyGILStateRelease> release;
+        if (Py_IsInitialized() && PyGILState_Check()) {
+            release = std::make_unique<Base::PyGILStateRelease>();
+        }
+        if (App::MainThreadSignalConfig::hasHooks() && App::MainThreadSignalConfig::isMainThread()
+            && App::MainThreadSignalConfig::canPumpEvents()) {
+            App::MainThreadSignalConfig::pumpEvents();
+        }
+        else {
+            std::unique_lock<std::mutex> lock(_recomputeMutex);
+            _recomputeStateChanged.wait(lock, [&] {
+                return coordinator.epoch() != epoch || _recomputeQueueRevision != revision;
+            });
+        }
+    }
+    const auto pos = DocMap.find(binding->documentName);
+    if (pos == DocMap.end()) {
+        return false;
+    }
     Base::ConsoleRefreshDisabler disabler;
-
-    // Trigger observers before removing the document from the internal map.
-    // Some observers might rely on this document still being there.
     signalDeleteDocument(*pos->second);
-
-    // For exception-safety use a smart pointer
     if (_pActiveDoc == pos->second) {
         setActiveDocument(static_cast<Document*>(nullptr));
     }
-    const std::unique_ptr<Document> delDoc (pos->second);
-    DocMap.erase( pos );
+    const std::unique_ptr<Document> delDoc(pos->second);
+    DocMap.erase(pos);
     DocFileMap.erase(Base::FileInfo(delDoc->FileName.getValue()).filePath());
-
     _objCount = -1;
-
-    // Trigger observers after removing the document from the internal map.
+    closing.commit();
     signalDeletedDocument();
-
     return true;
 }
 
@@ -1428,68 +1710,149 @@ bool Application::isFineGrainedRecomputeEnabled()
 
 bool Application::canRecomputeRequestOnWorker(const RecomputeRequest& req) const
 {
-    if (DocumentObject* documentObject = req.resolveDocumentObject()) {
-        return documentObject->canRecomputeOnWorker();
+    auto request = req;
+    try {
+        bindRecomputeRequest(request);
+        return RecomputeDetail::Coordinator::instance().classify(
+                   request.targetBinding.binding, request.documentObjectName.empty() || request.recursive)
+            == RecomputeDetail::RouteDisposition::WorkerEligible;
     }
+    catch (const RecomputeDetail::AdmissionRefusal&) {
+        return false;
+    }
+}
 
-    Document* document = req.resolveDocument();
-    return !document || documentCanRecomputeOnWorker(*document);
+RecomputeDetail::RouteDisposition Application::classifyRecomputeRequest(
+    RecomputeRequest& request, bool checkWorker)
+{
+    bindRecomputeRequest(request);
+    return RecomputeDetail::Coordinator::instance().classify(
+        request.targetBinding.binding, request.documentObjectName.empty() || request.recursive, checkWorker);
+}
+
+RecomputeResult Application::recomputeRequestSynchronously(RecomputeRequest request)
+{
+    auto& coordinator = RecomputeDetail::Coordinator::instance();
+    RecomputeResult result;
+    ensureRecomputeProgressHandle(request);
+    RecomputeDetail::NativeClaim claim;
+    try {
+        coordinator.ensureSynchronousAllowed();
+        bindRecomputeRequest(request);
+        auto admitted = coordinator.claim(request.targetBinding.binding,
+            coordinator.onWorker() ? RecomputeDetail::Route::Worker : RecomputeDetail::Route::Owner);
+        if (admitted.disposition == RecomputeDetail::Disposition::Parked) {
+            throw RecomputeDetail::AdmissionRefusal("Synchronous recompute is excluded by an active mutation");
+        }
+        claim = std::move(admitted.claim);
+        claim.registerProgress(request.progress);
+        {
+            auto operation = claim.enter();
+            result = admitted.disposition == RecomputeDetail::Disposition::Unavailable
+                ? unavailableRecomputeResult() : processRecomputeRequest(request, claim);
+            // Captured destructors may reenter App; keep observation and pins live.
+            request = {};
+        }
+    }
+    catch (const Base::Exception& exception) {
+        result = refusedRecomputeResult(exception);
+    }
+    claim.reset();
+    coordinator.drainDeferred();
+    drainDeferredTransactions();
+    return result;
 }
 
 void Application::queueRecomputeRequest(RecomputeRequest req)
 {
+    queueRecomputeRequestWithRetirement(std::move(req), {});
+}
+
+void Application::queueRecomputeRequestWithRetirement(
+    RecomputeRequest req, std::shared_ptr<RecomputeDetail::Retirement> retirement)
+{
+    auto& coordinator = RecomputeDetail::Coordinator::instance();
     ensureRecomputeProgressHandle(req);
-    const bool canRunOnWorker = canRecomputeRequestOnWorker(req);
-
-    if (!canRunOnWorker) {
-        RecomputeResult result;
-
-        // Requests that are not worker-safe stay on the caller thread unless a
-        // GUI main-thread hop is required. In App-only/headless mode there are
-        // no GUI hooks, so processing inline preserves the "stay off the
-        // worker" guarantee without inventing a synthetic main thread.
-        if (App::MainThreadSignalConfig::hasHooks()
-            && !App::MainThreadSignalConfig::isMainThread()) {
-            result = App::MainThreadSignalConfig::callOnMainThreadSync(
-                [&req]() { return processRecomputeRequest(req); }
-            );
+    try {
+        bindRecomputeRequest(req);
+        const auto route = coordinator.classify(req.targetBinding.binding, req.documentObjectName.empty() || req.recursive);
+        if (route == RecomputeDetail::RouteDisposition::KnownUnsafe && !coordinator.observation()) {
+            auto run = [&]() {
+                auto admitted = coordinator.claim(req.targetBinding.binding, RecomputeDetail::Route::Owner);
+                if (admitted.disposition == RecomputeDetail::Disposition::Parked) {
+                    return false;
+                }
+                {
+                    admitted.claim.registerProgress(req.progress);
+                    auto operation = admitted.claim.enter();
+                    auto entry = makeRecomputeQueueEntry(std::move(req));
+                    auto result = admitted.disposition == RecomputeDetail::Disposition::Unavailable
+                        ? unavailableRecomputeResult()
+                        : processRecomputeRequest(entry.request, admitted.claim, false);
+                    invokeRecomputeCallbacks(entry.callbacks, entry.request, result);
+                    // entry/captures are destroyed before operation and native claim.
+                }
+                admitted.claim.reset();
+                coordinator.drainDeferred();
+                drainDeferredTransactions();
+                if (retirement) retirement->markRetired();
+                return true;
+            };
+            const bool completed = App::MainThreadSignalConfig::hasHooks()
+                    && !App::MainThreadSignalConfig::isMainThread()
+                ? App::MainThreadSignalConfig::callOnMainThreadSync(run)
+                : run();
+            if (completed) {
+                return;
+            }
         }
-        else {
-            result = processRecomputeRequest(req);
-        }
-
-        if (req.callback) {
-            req.callback(req, result);
-        }
+    }
+    catch (const Base::Exception& exception) {
+        auto entry = makeRecomputeQueueEntry(std::move(req));
+        auto result = refusedRecomputeResult(exception);
+        invokeRecomputeCallbacks(entry.callbacks, entry.request, result);
+        entry = {};
+        if (retirement) retirement->markRetired();
         return;
     }
 
-    RecomputeQueueEntry queuedRequest = makeRecomputeQueueEntry(std::move(req));
+    auto queued = makeRecomputeQueueEntry(std::move(req));
+    if (retirement) {
+        queued.retirements.push_back(std::move(retirement));
+    }
+    bool stopped = false;
     {
         std::lock_guard<std::mutex> lock(_recomputeMutex);
-        if (_recomputeRequestInProgress
-            && recomputeRequestsMatch(_recomputeRequestInProgress->request, queuedRequest.request)) {
-            _recomputeRequestInProgress->rerunRequested = true;
-            for (auto& callback : queuedRequest.callbacks) {
-                if (callback) {
-                    _recomputeRequestInProgress->rerunCallbacks.push_back(std::move(callback));
+        queued.sequence = ++_nextRecomputeSequence;
+        ++_recomputeQueueRevision;
+        stopped = _stopRecomputeThread.load();
+        if (!stopped) {
+            if (_recomputeRequestInProgress
+                && recomputeRequestsMatch(_recomputeRequestInProgress->request, queued.request)) {
+                auto& rerun = _recomputeRequestInProgress->rerun;
+                if (rerun) {
+                    mergeRecomputeQueueEntry(*rerun, std::move(queued));
                 }
-            }
-            return;
-        }
-
-        auto queuedMatch = std::ranges::find_if(_recomputeRequests, [&](const RecomputeQueueEntry& request) {
-            return recomputeRequestsMatch(request.request, queuedRequest.request);
-        });
-        if (queuedMatch != _recomputeRequests.end()) {
-            for (auto& callback : queuedRequest.callbacks) {
-                if (callback) {
-                    queuedMatch->callbacks.push_back(std::move(callback));
+                else {
+                    rerun = std::make_unique<RecomputeQueueEntry>(std::move(queued));
                 }
+                return;
             }
-            return;
+            auto match = std::ranges::find_if(_recomputeRequests, [&](const auto& entry) {
+                return recomputeRequestsMatch(entry.request, queued.request);
+            });
+            if (match != _recomputeRequests.end()) {
+                mergeRecomputeQueueEntry(*match, std::move(queued));
+                return;
+            }
+            _recomputeRequests.push_back(std::move(queued));
         }
-        _recomputeRequests.push_back(std::move(queuedRequest));
+    }
+    if (stopped) {
+        std::vector<RecomputeQueueEntry> canceled;
+        canceled.push_back(std::move(queued));
+        deliverCanceledRecomputeEntries(std::move(canceled));
+        return;
     }
     notifyRecomputeWorker();
 }
@@ -1499,106 +1862,161 @@ std::size_t Application::cancelQueuedRecomputeRequestsForDocument(const std::str
     if (documentName.empty()) {
         return 0;
     }
-
-    std::vector<RecomputeQueueEntry> canceledRequests;
-
+    std::vector<RecomputeQueueEntry> canceled;
     {
         std::lock_guard<std::mutex> lock(_recomputeMutex);
-
-        auto request = _recomputeRequests.begin();
-        while (request != _recomputeRequests.end()) {
-            if (requestTargetsDocument(request->request, documentName)) {
-                canceledRequests.push_back(std::move(*request));
-                request = _recomputeRequests.erase(request);
+        ++_recomputeQueueRevision;
+        for (auto entry = _recomputeRequests.begin(); entry != _recomputeRequests.end();) {
+            if (requestTargetsDocument(entry->request, documentName)) {
+                canceled.push_back(std::move(*entry));
+                entry = _recomputeRequests.erase(entry);
             }
             else {
-                ++request;
+                ++entry;
             }
         }
     }
-
-    RecomputeResult result;
-    result.success = false;
-    result.failure = RecomputeFailure::Canceled;
-    for (auto& entry : canceledRequests) {
-        invokeRecomputeCallbacks(entry.callbacks, entry.request, result);
-    }
-
-    return canceledRequests.size();
+    const auto count = canceled.size();
+    deliverCanceledRecomputeEntries(std::move(canceled));
+    notifyRecomputeWorker();
+    return count;
 }
 
 App::RecomputeCancellationResult Application::cancelRecomputeRequest(const RecomputeRequest& req)
 {
+    auto bound = req;
+    bindRecomputeRequest(bound);
     RecomputeCancellationResult result;
-    std::lock_guard<std::mutex> lock(_recomputeMutex);
-
-    if (_recomputeRequestInProgress
-        && recomputeRequestsMatch(_recomputeRequestInProgress->request, req)) {
-        if (_recomputeRequestInProgress->request.progress) {
-            _recomputeRequestInProgress->request.progress->cancel();
+    std::vector<RecomputeQueueEntry> canceled;
+    std::vector<std::shared_ptr<RecomputeProgressHandle>> activeHandles;
+    {
+        std::lock_guard<std::mutex> lock(_recomputeMutex);
+        ++_recomputeQueueRevision;
+        if (_recomputeRequestInProgress
+            && recomputeRequestsMatch(_recomputeRequestInProgress->request, bound)) {
+            auto& active = *_recomputeRequestInProgress;
+            if (!active.outcomeCommitted) {
+                active.cancelRequested = true;
+                activeHandles = active.progressHandles;
+            }
+            else {
+                for (const auto& handle : active.terminalHandles) {
+                    if (auto live = handle.lock()) activeHandles.push_back(std::move(live));
+                }
+            }
+            result.canceledInProgress = true;
+            if (active.rerun) {
+                canceled.push_back(std::move(*active.rerun));
+                active.rerun.reset();
+            }
         }
-        _recomputeRequestInProgress->rerunRequested = false;
-        _recomputeRequestInProgress->rerunCallbacks.clear();
-        result.canceledInProgress = true;
+        for (auto entry = _recomputeRequests.begin(); entry != _recomputeRequests.end();) {
+            if (recomputeRequestsMatch(entry->request, bound)) {
+                canceled.push_back(std::move(*entry));
+                entry = _recomputeRequests.erase(entry);
+                result.removedQueued = true;
+            }
+            else {
+                ++entry;
+            }
+        }
     }
-
-    const auto erased = std::erase_if(_recomputeRequests, [&req](const RecomputeQueueEntry& request) {
-        return recomputeRequestsMatch(request.request, req);
-    });
-    result.removedQueued = erased > 0;
-    appendRecomputeDebugLog(
-        "cancel_request",
-        describeRecomputeRequest(req)
-            + std::format(
-                " canceled_in_progress={} removed_queued={}",
-                result.canceledInProgress,
-                result.removedQueued
-            )
-    );
+    for (const auto& handle : activeHandles) {
+        if (handle) {
+            handle->cancel();
+        }
+    }
+    deliverCanceledRecomputeEntries(std::move(canceled));
+    notifyRecomputeWorker();
     return result;
 }
 
-void Application::cancelRecomputeRequestsForDocument(const std::string& documentName)
+void Application::cancelRecomputeRequestsForDocument(
+    const std::string& documentName, const RecomputeDetail::CloseScope* closing)
 {
     if (documentName.empty()) {
         return;
     }
-
-    cancelQueuedRecomputeRequestsForDocument(documentName);
-
-    std::unique_lock<std::mutex> lock(_recomputeMutex);
+    auto& coordinator = RecomputeDetail::Coordinator::instance();
     while (true) {
-        if (_recomputeRequestInProgress
-            && requestTargetsDocument(_recomputeRequestInProgress->request, documentName)) {
-            if (_recomputeRequestInProgress->request.progress) {
-                _recomputeRequestInProgress->request.progress->cancel();
+        std::uint64_t activeSequence = 0;
+        std::uint64_t activeOperation = 0;
+        {
+            std::lock_guard<std::mutex> lock(_recomputeMutex);
+            if (_recomputeRequestInProgress) {
+                activeSequence = _recomputeRequestInProgress->sequence;
+                activeOperation = _recomputeRequestInProgress->operation;
             }
-            _recomputeRequestInProgress->rerunRequested = false;
-            _recomputeRequestInProgress->rerunCallbacks.clear();
         }
-
-        // Cancellation runs on document-close boundaries, so a linear scan keeps
-        // the queue simple without affecting the steady-state worker path.
-        std::erase_if(_recomputeRequests, [&documentName](const RecomputeQueueEntry& request) {
-            return requestTargetsDocument(request.request, documentName);
-        });
-
-        if (!_recomputeDocumentsInProgress.contains(documentName)) {
-            break;
+        // Registry queries never nest with the queue lock. Revalidate the exact
+        // active registration before touching cancellation/terminal ownership.
+        const bool affected = closing && closing->affects(activeOperation);
+        std::vector<RecomputeQueueEntry> canceled;
+        std::vector<std::shared_ptr<RecomputeProgressHandle>> activeHandles;
+        bool waiting;
+        {
+            std::lock_guard<std::mutex> lock(_recomputeMutex);
+            ++_recomputeQueueRevision;
+            if (_recomputeRequestInProgress
+                && (requestTargetsDocument(_recomputeRequestInProgress->request, documentName)
+                    || (affected && _recomputeRequestInProgress->sequence == activeSequence))) {
+                auto& active = *_recomputeRequestInProgress;
+                if (!active.outcomeCommitted) {
+                    active.cancelRequested = true;
+                    activeHandles = active.progressHandles;
+                }
+                else {
+                    for (const auto& handle : active.terminalHandles) {
+                        if (auto live = handle.lock()) activeHandles.push_back(std::move(live));
+                    }
+                }
+                if (active.rerun) {
+                    canceled.push_back(std::move(*active.rerun));
+                    active.rerun.reset();
+                }
+            }
+            for (auto entry = _recomputeRequests.begin(); entry != _recomputeRequests.end();) {
+                if (requestTargetsDocument(entry->request, documentName)) {
+                    canceled.push_back(std::move(*entry));
+                    entry = _recomputeRequests.erase(entry);
+                }
+                else {
+                    ++entry;
+                }
+            }
+            waiting = _recomputeDocumentsInProgress.contains(documentName)
+                || (affected && _recomputeRequestInProgress
+                    && _recomputeRequestInProgress->sequence == activeSequence);
         }
-
+        for (const auto& handle : activeHandles) {
+            if (handle) {
+                handle->cancel();
+            }
+        }
+        deliverCanceledRecomputeEntries(std::move(canceled));
+        if (!waiting) {
+            return;
+        }
+        if (closing) closing->ensureWaitAllowed();
+        else coordinator.ensureWaitAllowed();
+        // Preserve the caller's GIL during terminal delivery above, but release
+        // it for the actual wait. Q is scoped below and unlocks before reacquire.
+        std::unique_ptr<Base::PyGILStateRelease> release;
+        if (Py_IsInitialized() && PyGILState_Check()) {
+            release = std::make_unique<Base::PyGILStateRelease>();
+        }
         if (App::MainThreadSignalConfig::hasHooks() && App::MainThreadSignalConfig::isMainThread()
             && App::MainThreadSignalConfig::canPumpEvents()) {
-            // Document close runs on the GUI thread. If a worker recompute is
-            // blocked in a synchronous MainThreadSignal hop, waiting without
-            // pumping the event loop deadlocks both sides.
-            lock.unlock();
             App::MainThreadSignalConfig::pumpEvents();
-            lock.lock();
-            continue;
         }
-
-        _recomputeStateChanged.wait(lock);
+        else {
+            std::unique_lock<std::mutex> lock(_recomputeMutex);
+            _recomputeStateChanged.wait(lock, [&] {
+                return !_recomputeDocumentsInProgress.contains(documentName)
+                    && (!affected || !_recomputeRequestInProgress
+                        || _recomputeRequestInProgress->sequence != activeSequence);
+            });
+        }
     }
 }
 
@@ -2055,26 +2473,57 @@ void Application::setActiveDocument(const char* Name)
 
 static int _TransSignalCount;
 static bool _TransSignalled;
+static bool _TransCompletionSuppressed;
 Application::TransactionSignaller::TransactionSignaller(bool abort, bool signal)
     :abort(abort)
 {
     ++_TransSignalCount;
     if(signal && !_TransSignalled) {
         _TransSignalled = true;
-        GetApplication().signalBeforeCloseTransaction(abort);
+        try {
+            GetApplication().signalBeforeCloseTransaction(abort);
+        }
+        catch (...) {
+            if (--_TransSignalCount == 0) _TransCompletionSuppressed = false;
+            _TransSignalled = false;
+            throw;
+        }
     }
 }
 
+void Application::TransactionSignaller::suppressCompletion()
+{
+    _TransCompletionSuppressed = true;
+}
+
 Application::TransactionSignaller::~TransactionSignaller() {
-    if(--_TransSignalCount == 0 && _TransSignalled) {
-        _TransSignalled = false;
-        try {
-            GetApplication().signalCloseTransaction(abort);
-        }
-        catch (const boost::exception&) {
-            // reported by code analyzers
-            Base::Console().warning("~TransactionSignaller: Unexpected boost exception\n");
-        }
+    if (--_TransSignalCount != 0) {
+        return;
+    }
+    const bool completed = _TransSignalled && !_TransCompletionSuppressed;
+    _TransSignalled = false;
+    _TransCompletionSuppressed = false;
+    if (!completed) {
+        return;
+    }
+    try {
+        GetApplication().signalCloseTransaction(abort);
+    }
+    catch (const boost::exception&) {
+        // reported by code analyzers
+        try { Base::Console().warning("~TransactionSignaller: Unexpected boost exception\n"); }
+        catch (...) {}
+    }
+    catch (const Base::Exception& exception) {
+        reportRecomputeExceptionNoThrow(exception);
+    }
+    catch (const std::exception& exception) {
+        try { Base::Console().warning("~TransactionSignaller: {}\n", exception.what()); }
+        catch (...) {}
+    }
+    catch (...) {
+        try { Base::Console().warning("~TransactionSignaller: Unknown observer exception\n"); }
+        catch (...) {}
     }
 }
 
@@ -2753,6 +3202,19 @@ void Application::cleanupUnits()
 
 void Application::destruct()
 {
+    // Refuse before parameter saves, cleanup callbacks or a worker self-join.
+    if (_pcSingleton && (_pcSingleton->_recomputeThread.get_id() == std::this_thread::get_id()
+        || RecomputeDetail::Coordinator::instance().observation())) {
+        Base::Console().warning("Cannot destroy the application during a recompute callback\n");
+        return;
+    }
+    if (_pcSingleton) {
+        if (!RecomputeDetail::Coordinator::instance().tryBeginShutdown()) {
+            Base::Console().warning("Cannot destroy the application while native model work is active\n");
+            return;
+        }
+        _pcSingleton->stopRecomputeWorker();
+    }
     // saving system parameter
     if (_pcSysParamMngr->IgnoreSave()) {
         Base::Console().warning("Discard system parameter\n");
@@ -2798,6 +3260,7 @@ void Application::destruct()
     // not initialized or double destruct!
     assert(_pcSingleton);
     delete _pcSingleton;
+    _pcSingleton = nullptr;
 
     // We must detach from console and delete the observer to save our file
     destructObserver();
@@ -3993,47 +4456,147 @@ void Application::notifyRecomputeWorker()
 
 void Application::recomputeWorker()
 {
-    while (!_stopRecomputeThread) {
-        std::unique_lock<std::mutex> lock(_recomputeMutex);
-        // Wait until either stop is signaled or there is at least one pending request.
-        _recomputeRequestAvailable.wait(lock, [this] {
-            return _stopRecomputeThread || !_recomputeRequests.empty();
-        });
-        if (_stopRecomputeThread) {
-            break;
-        }
-
-        // Process all pending recompute requests.
-        while (!_recomputeRequests.empty()) {
-            _recomputeRequestInProgress = std::move(_recomputeRequests.front());
-            _recomputeRequests.pop_front();
-            auto& inProgress = *_recomputeRequestInProgress;
-            const std::string documentName = inProgress.request.documentName;
-            RecomputeRequest request = inProgress.request;
-            std::vector<RecomputeRequest::Callback> callbacks = std::move(inProgress.callbacks);
-            if (!documentName.empty()) {
-                _recomputeDocumentsInProgress.insert(documentName);
-            }
-
-            // Unlock while processing to allow other threads to add new requests.
-            lock.unlock();
-
-            RecomputeResult result = processRecomputeRequest(request);
-            invokeRecomputeCallbacks(callbacks, request, result);
-
-            lock.lock();
-            if (_recomputeRequestInProgress && _recomputeRequestInProgress->rerunRequested) {
-                RecomputeQueueEntry rerunRequest;
-                rerunRequest.request = _recomputeRequestInProgress->request;
-                rerunRequest.callbacks = std::move(_recomputeRequestInProgress->rerunCallbacks);
-                _recomputeRequests.push_back(std::move(rerunRequest));
-            }
-            if (!documentName.empty()) {
-                _recomputeDocumentsInProgress.erase(documentName);
+    auto& coordinator = RecomputeDetail::Coordinator::instance();
+    auto dispatch = coordinator.workerDispatch();
+    while (true) {
+        std::vector<RecomputeDetail::BindingPtr> bindings;
+        std::vector<std::uint64_t> sequences;
+        std::uint64_t revision;
+        {
+            std::unique_lock<std::mutex> lock(_recomputeMutex);
+            _recomputeRequestAvailable.wait(lock, [&] {
+                return _stopRecomputeThread || !_recomputeRequests.empty() || coordinator.hasDeferredWork();
+            });
+            if (_stopRecomputeThread) {
+                std::vector<RecomputeQueueEntry> canceled;
+                while (!_recomputeRequests.empty()) {
+                    canceled.push_back(std::move(_recomputeRequests.front()));
+                    _recomputeRequests.pop_front();
+                }
+                lock.unlock();
+                deliverCanceledRecomputeEntries(std::move(canceled));
+                lock.lock();
+                _recomputeWorkerExited = true;
+                lock.unlock();
                 _recomputeStateChanged.notify_all();
+                return;
             }
-            _recomputeRequestInProgress.reset();
+            revision = _recomputeQueueRevision;
+            for (const auto& entry : _recomputeRequests) {
+                bindings.push_back(entry.request.targetBinding.binding);
+                sequences.push_back(entry.sequence);
+            }
         }
+        if (coordinator.hasDeferredWork()) {
+            coordinator.drainDeferred();
+            drainDeferredTransactions();
+        }
+        if (bindings.empty()) {
+            continue;
+        }
+        auto admitted = coordinator.claimFirst(bindings, RecomputeDetail::Route::Worker);
+        if (admitted.disposition == RecomputeDetail::Disposition::Parked) {
+            std::unique_lock<std::mutex> lock(_recomputeMutex);
+            _recomputeRequestAvailable.wait(lock, [&] {
+                return _stopRecomputeThread || _recomputeQueueRevision != revision
+                    || coordinator.epoch() != admitted.epoch || coordinator.hasDeferredWork();
+            });
+            continue;
+        }
+        RecomputeRequest request;
+        std::vector<RecomputeRequest::Callback> callbacks;
+        bool selected = false;
+        {
+            std::lock_guard<std::mutex> lock(_recomputeMutex);
+            const auto match = std::ranges::find_if(_recomputeRequests, [&](const auto& entry) {
+                return entry.sequence == sequences.at(admitted.candidate);
+            });
+            if (!_stopRecomputeThread && match != _recomputeRequests.end()) {
+                _recomputeRequestInProgress = std::move(*match);
+                _recomputeRequests.erase(match);
+                auto& active = *_recomputeRequestInProgress;
+                active.operation = admitted.claim.operation();
+                request = active.request;
+                // The local execution/callback view owns this handle through its
+                // destructor phase. Active matching uses only immutable metadata.
+                active.request.progress.reset();
+                callbacks = std::move(active.callbacks);
+                _recomputeDocumentsInProgress.insert(active.request.documentName);
+                ++_recomputeQueueRevision;
+                selected = true;
+            }
+        }
+        if (!selected) {
+            admitted.claim.reset();
+            continue;
+        }
+        _recomputeStateChanged.notify_all();
+        std::optional<RecomputeDetail::OperationScope> operation;
+        RecomputeResult result;
+        std::vector<std::shared_ptr<RecomputeProgressHandle>> retiredHandles;
+        std::vector<std::shared_ptr<RecomputeDetail::Retirement>> retirements;
+        const auto commit = [&](RecomputeResult& outcome) {
+            bool canceled;
+            {
+                std::lock_guard<std::mutex> lock(_recomputeMutex);
+                auto& active = *_recomputeRequestInProgress;
+                active.outcomeCommitted = true;
+                canceled = active.cancelRequested || admitted.claim.cancellationRequested();
+                retiredHandles = std::move(active.progressHandles);
+                retirements = std::move(active.retirements);
+            }
+            if (canceled && (outcome.failure == RecomputeFailure::None
+                             || outcome.failure == RecomputeFailure::ModelError)) {
+                markCanceledRecomputeResult(outcome);
+            }
+        };
+        if (admitted.claim) {
+            std::vector<std::shared_ptr<RecomputeProgressHandle>> acceptedHandles;
+            {
+                std::lock_guard<std::mutex> lock(_recomputeMutex);
+                acceptedHandles = _recomputeRequestInProgress->progressHandles;
+            }
+            for (const auto& handle : acceptedHandles) admitted.claim.registerProgress(handle);
+            acceptedHandles.clear();
+            operation.emplace(admitted.claim.enter());
+            if (admitted.disposition == RecomputeDetail::Disposition::Unavailable) {
+                result = unavailableRecomputeResult();
+                commit(result);
+            }
+            else {
+                result = processRecomputeRequest(request, admitted.claim, false, commit);
+            }
+        }
+        else {
+            result = unavailableRecomputeResult();
+            commit(result);
+        }
+        invokeRecomputeCallbacks(callbacks, request, result);
+        // User captures and mutable views can reenter App while being destroyed.
+        // They still observe the operation and all native lifetime pins here.
+        callbacks.clear();
+        request = {};
+        result = {};
+        retiredHandles.clear();
+        {
+            std::lock_guard<std::mutex> lock(_recomputeMutex);
+            auto& active = *_recomputeRequestInProgress;
+            if (active.rerun) {
+                _recomputeRequests.push_back(std::move(*active.rerun));
+            }
+            _recomputeDocumentsInProgress.erase(active.request.documentName);
+            _recomputeRequestInProgress.reset();
+            ++_recomputeQueueRevision;
+        }
+        operation.reset();
+        admitted.claim.reset();
+        coordinator.drainDeferred();
+        drainDeferredTransactions();
+        for (const auto& retirement : retirements) {
+            retirement->markRetired();
+        }
+        _recomputeStateChanged.notify_all();
+        notifyRecomputeWorker();
     }
 }
 
@@ -4087,9 +4650,9 @@ void Application::LoadParameters()
         if (_pcUserParamMngr->LoadOrCreateDocument() && mConfig["Verbose"] != "Strict") {
             // The user parameter file doesn't exist. When an alternative parameter file is offered
             // this will be used.
-            const char* userParamPath = getUserParameterTemplatePath();
-            if (userParamPath) {
-                _pcUserParamMngr->LoadDocument(userParamPath);
+            const std::string userParamPath = getUserParameterTemplatePath();
+            if (!userParamPath.empty()) {
+                _pcUserParamMngr->LoadDocument(userParamPath.c_str());
             }
 
             // Configuration file optional when using as Python module
@@ -4110,7 +4673,7 @@ void Application::LoadParameters()
     }
 }
 
-const char* Application::getUserParameterTemplatePath()
+std::string Application::getUserParameterTemplatePath()
 {
     const auto it = mConfig.find("UserParameterTemplate");
     if (it != mConfig.end()) {
@@ -4121,11 +4684,10 @@ const char* Application::getUserParameterTemplatePath()
         }
         const QFileInfo fi(path);
         if (fi.exists()) {
-            const char* templatePath = path.toUtf8().constData();
-            return templatePath;
+            return path.toStdString();
         }
     }
-    return nullptr;
+    return {};
 }
 
 #if defined(_MSC_VER) && BOOST_VERSION < 108200

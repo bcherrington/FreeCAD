@@ -59,7 +59,10 @@ TaskScaledParameters::TaskScaledParameters(
     setupParameterUI(parameterWidget);
 }
 
-TaskScaledParameters::~TaskScaledParameters() = default;
+TaskScaledParameters::~TaskScaledParameters()
+{
+    beginPreviewTeardown();
+}
 
 void TaskScaledParameters::setupParameterUI(QWidget* widget)
 {

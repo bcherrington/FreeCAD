@@ -33,6 +33,7 @@
 
 #include "Extension.h"
 #include "ExtensionContainer.h"
+#include "private/RecomputeAdmission.h"
 
 
 using namespace App;
@@ -355,6 +356,7 @@ void ExtensionContainer::Save(Base::Writer& writer) const
 
 void ExtensionContainer::Restore(Base::XMLReader& reader)
 {
+    auto restoration = RecomputeDetail::Coordinator::instance().atomicForRestore(*this);
 
     // restore dynamic extensions.
     // Note 1: The extension element must be read first, before all other object elements. That is

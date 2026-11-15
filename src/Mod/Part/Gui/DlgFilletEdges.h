@@ -106,6 +106,8 @@ public:
     );
     ~DlgFilletEdges() override;
     bool accept();
+    bool reject();
+    bool finishEditing();
     void setSelectionGate();
 
 protected:
@@ -153,6 +155,7 @@ public:
     );
     ~FilletEdgesDialog() override;
     void accept() override;
+    void reject() override;
 
 private:
     DlgFilletEdges* widget;

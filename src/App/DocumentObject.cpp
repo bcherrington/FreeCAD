@@ -49,6 +49,7 @@
 #include "ObjectIdentifier.h"
 #include "PropertyExpressionEngine.h"
 #include "PropertyLinks.h"
+#include "private/RecomputeAdmission.h"
 
 
 FC_LOG_LEVEL_INIT("App", true, true)
@@ -197,6 +198,7 @@ App::DocumentObjectExecReturn* DocumentObject::executeExtensions()
 
 bool DocumentObject::recomputeFeature(bool recursive)
 {
+    RecomputeDetail::Coordinator::instance().ensureSynchronousAllowed();
     Document* doc = this->getDocument();
     if (doc) {
         return doc->recomputeFeature(this, recursive);
@@ -406,6 +408,8 @@ bool DocumentObject::isAttachedToDocument() const
 
 const char* DocumentObject::detachFromDocument()
 {
+    auto admission = RecomputeDetail::Coordinator::instance().mutation({this}, {_pDoc}, true);
+    RecomputeDetail::Coordinator::instance().retireAttachment(this);
     const std::string* name = pcNameInDocument;
     pcNameInDocument = nullptr;
     return name ? name->c_str() : nullptr;
@@ -823,12 +827,31 @@ void DocumentObject::setDocument(App::Document* doc)
 
 bool DocumentObject::removeDynamicProperty(const char* name)
 {
+    RecomputeDetail::PropertySnapshot expressionsAdmission;
+    RecomputeDetail::MutationScope admission;
+    try {
+        expressionsAdmission = PropertyExpressionContainer::snapshotForAdmission(nullptr, this);
+        admission = RecomputeDetail::Coordinator::instance().mutation({this}, {_pDoc});
+    }
+    catch (const RecomputeDetail::AdmissionRefusal&) {
+        return false;
+    }
     if (!_pDoc || testStatus(ObjectStatus::Destroy)) {
         return false;
     }
 
     Property* prop = getDynamicPropertyByName(name);
     if (!prop || prop->testStatus(App::Property::LockDynamic)) {
+        return false;
+    }
+    RecomputeDetail::MutationScope propertyAdmission;
+    try {
+        propertyAdmission = RecomputeDetail::Coordinator::instance().mutation(*prop);
+        if (auto* link = dynamic_cast<PropertyLinkBase*>(prop)) {
+            link->preflightAdmissionStorage();
+        }
+    }
+    catch (const RecomputeDetail::AdmissionRefusal&) {
         return false;
     }
 
@@ -856,6 +879,22 @@ bool DocumentObject::removeDynamicProperty(const char* name)
 
 bool DocumentObject::renameDynamicProperty(Property* prop, const char* name)
 {
+    RecomputeDetail::PropertySnapshot expressionsAdmission;
+    RecomputeDetail::MutationScope admission;
+    try {
+        expressionsAdmission = PropertyExpressionContainer::snapshotForAdmission(nullptr, this);
+        admission = RecomputeDetail::Coordinator::instance().mutation({this}, {_pDoc});
+    }
+    catch (const RecomputeDetail::AdmissionRefusal&) {
+        return false;
+    }
+    RecomputeDetail::MutationScope propertyAdmission;
+    try {
+        propertyAdmission = RecomputeDetail::Coordinator::instance().mutation(*prop);
+    }
+    catch (const RecomputeDetail::AdmissionRefusal&) {
+        return false;
+    }
     std::string oldName = prop->getName();
 
     auto expressions = ExpressionEngine.getExpressions();
@@ -949,6 +988,22 @@ void DocumentObject::arrangeMoveProperty(Property* toBeMovedProp,
 Property* DocumentObject::moveDynamicProperty(Property* prop,
                                               DocumentObject* targetObj)
 {
+    auto expressionsAdmission = PropertyExpressionContainer::snapshotForAdmission(nullptr, this);
+    auto targetExpressionsAdmission
+        = PropertyExpressionContainer::snapshotForAdmission(nullptr, targetObj);
+    auto admission = RecomputeDetail::Coordinator::instance().mutation({this, targetObj}, {_pDoc});
+    auto propertyAdmission = prop ? RecomputeDetail::Coordinator::instance().mutation(*prop)
+                                  : RecomputeDetail::MutationScope {};
+    if (auto* link = dynamic_cast<PropertyLinkBase*>(prop)) {
+        link->preflightAdmissionStorage();
+    }
+    if (prop) {
+        if (auto* link = dynamic_cast<PropertyLinkBase*>(prop)) {
+            std::vector<DocumentObject*> endpoints;
+            link->collectAdmissionTargets(endpoints);
+            admission.include(endpoints);
+        }
+    }
     if (prop == nullptr) {
         FC_THROWM(Base::RuntimeError, "The property does not exist");
     }
@@ -1113,9 +1168,6 @@ DocumentObject::onProposedLabelChange(std::string& newLabel)
         return {};
     }
 
-    // Remove the old label to free it up for future use.
-    doc->unregisterLabel(oldLabel);
-    
     return PropertyLinkBase::updateLabelReferences(this, newLabel.c_str());
 }
 

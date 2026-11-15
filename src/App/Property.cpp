@@ -23,6 +23,7 @@
  ***************************************************************************/
 
 #include <cassert>
+#include <algorithm>
 #include <array>
 #include <tuple>
 
@@ -34,6 +35,10 @@
 #include "Property.h"
 #include "ObjectIdentifier.h"
 #include "PropertyContainer.h"
+#include "PropertyLinks.h"
+#include "Document.h"
+#include "DocumentObject.h"
+#include "private/RecomputeAdmission.h"
 
 
 using namespace App;
@@ -54,9 +59,14 @@ static std::atomic<int64_t> _PropID;
 // Here is the implementation! Description should take place in the header file!
 Property::Property()
     : _id(++_PropID)
-{}
+{
+    RecomputeDetail::Coordinator::instance().registerProperty(this);
+}
 
-Property::~Property() = default;
+Property::~Property()
+{
+    RecomputeDetail::Coordinator::instance().retireProperty(this);
+}
 
 const char* Property::getName() const
 {
@@ -160,6 +170,11 @@ const char* Property::getDocumentation() const
 
 void Property::setContainer(PropertyContainer* father)
 {
+    auto& admission = RecomputeDetail::Coordinator::instance();
+    auto mutation = admission.mutation(
+        {dynamic_cast<DocumentObject*>(this->father), dynamic_cast<DocumentObject*>(father)},
+        {dynamic_cast<Document*>(this->father), dynamic_cast<Document*>(father)});
+    admission.registerProperty(this, dynamic_cast<DocumentObject*>(father), dynamic_cast<Document*>(father));
     this->father = father;
 }
 
@@ -205,40 +220,80 @@ namespace App
  */
 struct PropertyCleaner
 {
-    explicit PropertyCleaner(Property* p)
-        : prop(p)
+    explicit PropertyCleaner(Property* p) : prop(p)
     {
+        RecomputeDetail::IndexLock lock;
         ++_PropCleanerCounter;
     }
     ~PropertyCleaner()
     {
-        if (--_PropCleanerCounter) {
-            return;
-        }
-        bool found = false;
-        while (!_RemovedProps.empty()) {
-            auto p = _RemovedProps.back();
-            _RemovedProps.pop_back();
-            if (p != prop) {
-                p->setContainer(nullptr);
-                delete p;
-            }
-            else {
-                found = true;
+        {
+            RecomputeDetail::IndexLock lock;
+            if (--_PropCleanerCounter) {
+                return;
             }
         }
-
-        if (found) {
-            _RemovedProps.push_back(prop);
+        drain(prop);
+    }
+    static void drain(Property* excluded = nullptr)
+    {
+        std::vector<Property*> pending;
+        {
+            RecomputeDetail::IndexLock lock;
+            if (_PropCleanerCounter) {
+                return;
+            }
+            pending.swap(_RemovedProps);
+        }
+        auto& admission = RecomputeDetail::Coordinator::instance();
+        for (auto* property : pending) {
+            bool retained = property == excluded;
+            if (!retained) {
+                try {
+                    // Edges were retired under the original writer scope.
+                    // This phase releases only storage after old snapshots end;
+                    // it must not inspect AST/native owners that may be gone.
+                    retained = !admission.retireProperty(property);
+                    if (!retained) {
+                        property->father = nullptr;
+                        delete property;
+                    }
+                }
+                catch (const RecomputeDetail::AdmissionRefusal&) {
+                    retained = true;
+                }
+            }
+            if (retained) {
+                RecomputeDetail::IndexLock lock;
+                _RemovedProps.push_back(property);
+            }
+        }
+        bool remains;
+        {
+            RecomputeDetail::IndexLock lock;
+            remains = !_RemovedProps.empty();
+        }
+        if (remains) {
+            admission.requestCleanup();
         }
     }
-    static void add(Property* prop)
+    static void add(Property* property)
     {
-        _RemovedProps.push_back(prop);
+        static const bool registered = [] {
+            RecomputeDetail::Coordinator::instance().setPropertyDrain([] { drain(); });
+            return true;
+        }();
+        (void)registered;
+        {
+            RecomputeDetail::IndexLock lock;
+            if (std::find(_RemovedProps.begin(), _RemovedProps.end(), property) == _RemovedProps.end()) {
+                _RemovedProps.push_back(property);
+            }
+        }
+        RecomputeDetail::Coordinator::instance().requestCleanup();
     }
 
     Property* prop;
-
     static std::vector<Property*> _RemovedProps;
     static int _PropCleanerCounter;
 };
@@ -255,6 +310,12 @@ void Property::destroy(Property* p)
         //
         // p->setContainer(0);
 
+        auto mutation = RecomputeDetail::Coordinator::instance().mutation(*p);
+        if (auto* link = dynamic_cast<PropertyLinkBase*>(p)) {
+            link->retireAdmissionEdges();
+        }
+        // Retirement is sticky even while a previous snapshot retains storage.
+        RecomputeDetail::Coordinator::instance().retireProperty(p);
         PropertyCleaner::add(p);
     }
 }
@@ -279,6 +340,10 @@ bool Property::isNotifyEnabled() const
 
 void Property::touch()
 {
+    std::optional<RecomputeDetail::MutationScope> mutation;
+    if (dynamic_cast<const PropertyLinkBase*>(this)) {
+        mutation.emplace(RecomputeDetail::Coordinator::instance().mutation(*this));
+    }
     PropertyCleaner guard(this);
     if (father && isNotifyEnabled()) {
         father->onEarlyChange(this);

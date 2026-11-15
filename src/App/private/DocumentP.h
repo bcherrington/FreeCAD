@@ -45,6 +45,7 @@
 #include <App/DocumentObserver.h>
 #include <App/StringHasher.h>
 #include <App/ExportInfo.h>
+#include "RecomputeAdmission.h"
 #include <Base/UniqueNameManager.h>
 
 // using VertexProperty = boost::property<boost::vertex_root_t, DocumentObject* >;
@@ -151,6 +152,7 @@ struct DocumentP
         objectLabelManager.clear();
         objectArray.clear();
         for (auto& v : objectMap) {
+            RecomputeDetail::Coordinator::instance().retireAttachment(v.second);
             v.second->setStatus(ObjectStatus::Destroy, true);
             delete (v.second);
             v.second = nullptr;

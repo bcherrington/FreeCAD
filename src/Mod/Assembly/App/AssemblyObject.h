@@ -94,6 +94,8 @@ public:
     and redraw the joints Args : enableRedo : This store initial positions to enable undo while
     being in an active transaction (joint creation).*/
     int solve(bool enableRedo = false);
+    /// Validate local writable ownership before intentionally solving, even while suspended.
+    int solveValidated(bool enableRedo = false);
     int generateSimulation(App::DocumentObject* sim);
     int updateForFrame(size_t index);
     size_t numberOfFrames();
@@ -262,6 +264,11 @@ public:
     fastsignals::signal<void()> signalSolverUpdate;
 
 private:
+    int runSolve(bool enableRedo);
+    void updateSolveStatusImpl(bool allowLazySolve);
+    void setNewPlacementsImpl();
+    void ensureIdentityPlacementsImpl();
+    void syncGroundedJointsImpl();
     void rebuildRigidClusters();
     App::DocumentObject* getRigidRepresentative(App::DocumentObject* part) const;
     const std::vector<App::DocumentObject*>* getRigidMembers(App::DocumentObject* part) const;

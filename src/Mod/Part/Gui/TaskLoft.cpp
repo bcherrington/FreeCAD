@@ -143,7 +143,7 @@ void LoftWidget::findShapes()
 
         if (viable) {
             QString label = QString::fromUtf8(obj->Label.getValue());
-            QString name = QString::fromLatin1(obj->getNameInDocument());
+            QString name = QString::fromUtf8(obj->getNameInDocument());
             QTreeWidgetItem* child = new QTreeWidgetItem();
             child->setText(0, label);
             child->setToolTip(0, label);
@@ -227,11 +227,7 @@ bool LoftWidget::accept(QDialogButtonBox* dialogButtonBox)
             obj,
             /*recursive=*/true,
             recomputeOptions,
-            [obj]() {
-                if (obj && obj->getDocument()) {
-                    obj->getDocument()->recomputeFeature(obj, /*recursive=*/true);
-                }
-            }
+            [obj]() { return Gui::recomputeDocumentObjectWithResult(obj, true); }
         );
         if (!outcome.success) {
             doc->abortCommand();

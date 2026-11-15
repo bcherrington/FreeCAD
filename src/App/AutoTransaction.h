@@ -25,6 +25,7 @@
 #pragma once
 
 #include <cstddef>
+#include <cstdint>
 #include <FCGlobal.h>
 #include <string>
 
@@ -62,7 +63,7 @@ public:
      * 
      * This destructor attempts to commit the transaction it manages
      */
-    ~AutoTransaction();
+    ~AutoTransaction() noexcept;
 
     /**
      * @brief Close or abort the transaction.
@@ -71,11 +72,18 @@ public:
      * transaction,
      */
     void close(TransactionCloseMode mode = TransactionCloseMode::Commit);
+    /// On refusal retain ownership; the caller must keep its editor/transaction alive.
+    bool tryClose(TransactionCloseMode mode = TransactionCloseMode::Commit);
 
 private:
     int tid { 0 };
+    std::uint64_t generation { 0 };
+    TransactionCloseMode requestedMode { TransactionCloseMode::Commit };
 };
 
+
+// Internal stable-boundary drain; never call while holding queue locks or native pins.
+void AppExport drainDeferredTransactions();
 
 /**
  * @brief Helper class to lock a transaction from being closed or aborted.

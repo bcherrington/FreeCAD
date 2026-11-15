@@ -30,6 +30,8 @@
 
 #include <App/Application.h>
 #include <App/Document.h>
+#include <App/DocumentObserver.h>
+#include <App/private/RecomputeAdmission.h>
 #include <App/DocumentObject.h>
 #include <Gui/Application.h>
 #include <Gui/AsyncRecomputeProgressDialog.h>
@@ -130,11 +132,12 @@ TaskBooleanParameters::TaskBooleanParameters(ViewProviderBoolean* BooleanView, Q
         auto* object = this->BooleanView ? this->BooleanView->getObject() : nullptr;
         return object ? App::RecomputeRequest::fromDocumentObject(*object) : App::RecomputeRequest {};
     };
-    callbacks.runSync = [this]() {
+    callbacks.runSyncWithResult = [this]() -> App::RecomputeResult {
         if (auto* boolean = this->BooleanView ? this->BooleanView->getObject<PartDesign::Boolean>()
                                               : nullptr) {
-            boolean->getDocument()->recomputeFeature(boolean);
+            return Gui::recomputeDocumentObjectWithResult(boolean);
         }
+        return Gui::recomputeDocumentObjectWithResult(nullptr);
     };
     callbacks.onAppliedResult = [](bool, bool) {
     };
@@ -170,7 +173,7 @@ TaskBooleanParameters::TaskBooleanParameters(ViewProviderBoolean* BooleanView, Q
     for (auto body : bodies) {
         QListWidgetItem* item = new QListWidgetItem(ui->listWidgetBodies);
         item->setText(QString::fromUtf8(body->Label.getValue()));
-        item->setData(Qt::UserRole, QString::fromLatin1(body->getNameInDocument()));
+        item->setData(Qt::UserRole, QString::fromUtf8(body->getNameInDocument()));
     }
 
     // Create context menu
@@ -234,7 +237,7 @@ void TaskBooleanParameters::onSelectionChanged(const Gui::SelectionChanges& msg)
 
                 QListWidgetItem* item = new QListWidgetItem(ui->listWidgetBodies);
                 item->setText(QString::fromUtf8(pcBody->Label.getValue()));
-                item->setData(Qt::UserRole, QString::fromLatin1(pcBody->getNameInDocument()));
+                item->setData(Qt::UserRole, QString::fromUtf8(pcBody->getNameInDocument()));
 
                 requestRecompute(/*waitForCompletion=*/false);
                 ui->buttonBodyAdd->setChecked(false);
@@ -366,7 +369,7 @@ void TaskBooleanParameters::onBodyDeleted()
     App::DocumentObject* body = bodies[index];
     QString internalName = ui->listWidgetBodies->item(index)->data(Qt::UserRole).toString();
     for (auto it = bodies.begin(); it != bodies.end(); ++it) {
-        if (internalName == QLatin1String((*it)->getNameInDocument())) {
+        if (internalName == QString::fromUtf8((*it)->getNameInDocument())) {
             body = *it;
             bodies.erase(it);
             break;
@@ -435,6 +438,13 @@ void TaskBooleanParameters::flushPendingRecompute()
     if (asyncPreviewSession) {
         asyncPreviewSession->flushPendingRecompute();
     }
+}
+
+bool TaskBooleanParameters::stopPendingRecomputeAndWait()
+{
+    PreviewRecomputeGuard guard(BooleanView ? BooleanView->getObject() : nullptr, this, BooleanView);
+    auto* session = asyncPreviewSession.get();
+    return guard.isLive() && (!session || session->stopPendingRecomputeAndWait()) && guard.isLive();
 }
 
 void TaskBooleanParameters::stopPendingRecompute()
@@ -535,21 +545,39 @@ bool TaskDlgBooleanParameters::accept()
     if (!obj || !obj->isAttachedToDocument() || !document) {
         return false;
     }
-    BooleanView->Visibility.setValue(true);
+    App::DocumentObjectWeakPtrT objectGuard(obj);
+    App::DocumentWeakPtrT documentGuard(document);
+    QPointer<TaskDlgBooleanParameters> dialogGuard(this);
+    QPointer<TaskBooleanParameters> parameterGuard(parameter);
+    PreviewRecomputeGuard originalGuard(obj, parameter, BooleanView);
+    auto* editOwner = obj ? Gui::Control().activeDialog(obj->getDocument()) : nullptr;
 
     try {
+        const bool previewSettled = !parameter->hasOutstandingRecompute()
+            && parameter->canReuseAcceptedPreviewResult();
+        if (!previewSettled) {
+            if (!parameter->stopPendingRecomputeAndWait()) {
+                return false;
+            }
+        }
+        else {
+            parameter->flushPendingRecompute();
+        }
+        if (!dialogGuard || !parameterGuard || parameter != parameterGuard.data()
+            || !originalGuard.isLive() || BooleanView->getObject() != obj
+            || Gui::Control().activeDialog(obj->getDocument()) != editOwner) {
+            return false;
+        }
+        BooleanView->Visibility.setValue(true);
         std::vector<std::string> bodies = parameter->getBodies();
         if (bodies.empty()) {
             QMessageBox::warning(parameter, tr("Empty body list"), tr("The body list cannot be empty"));
             return false;
         }
-        const bool previewSettled = !parameter->hasOutstandingRecompute()
-            && parameter->canReuseAcceptedPreviewResult();
-        if (!previewSettled) {
-            parameter->stopPendingRecompute();
-        }
-        else {
-            parameter->flushPendingRecompute();
+        if (!dialogGuard || !parameterGuard || parameter != parameterGuard.data()
+            || !originalGuard.isLive() || BooleanView->getObject() != obj
+            || Gui::Control().activeDialog(obj->getDocument()) != editOwner) {
+            return false;
         }
         std::stringstream str;
         str << Gui::Command::getObjectCmd(obj) << ".setObjects( [";
@@ -581,11 +609,30 @@ bool TaskDlgBooleanParameters::accept()
         if (!runAsyncAcceptDocumentRecompute(document, options)) {
             return false;
         }
+        if (!dialogGuard || !parameterGuard || parameter != parameterGuard.data()
+            || !originalGuard.isLive() || BooleanView->getObject() != obj
+            || Gui::Control().activeDialog(obj->getDocument()) != editOwner) {
+            return false;
+        }
+        if (!obj->isValid()) {
+            Base::Console().error("%s\n", obj->getStatusString());
+            return false;
+        }
         Gui::cmdGuiDocument(document, "resetEdit()");
-        document->commitTransaction();
+        if (!documentGuard.expired()) {
+            document->commitTransaction();
+        }
     }
     catch (const Base::Exception& e) {
-        document->abortTransaction();
+        if (!dialogGuard || !parameterGuard || parameter != parameterGuard.data()
+            || documentGuard.expired() || objectGuard.expired()) {
+            return false;
+        }
+        if (!document->tryAbortTransaction()) {
+            Base::Console().error("Boolean rollback is busy; the editable transaction is retained.\n");
+            e.reportException();
+            return false;
+        }
         QMessageBox::warning(
             parameter,
             tr("Boolean: Accept: Input error"),
@@ -598,26 +645,44 @@ bool TaskDlgBooleanParameters::accept()
 
 bool TaskDlgBooleanParameters::performReject()
 {
-    if (!parameter) {
+    if (!parameter || !BooleanView) {
         return false;
     }
-
-    // Show the bodies again
-    PartDesign::Boolean* obj = BooleanView->getObject<PartDesign::Boolean>();
-    Gui::Document* doc = Gui::Application::Instance->activeDocument();
-    if (doc) {
-        if (obj->BaseFeature.getValue()) {
-            doc->setShow(obj->BaseFeature.getValue()->getNameInDocument());
-            std::vector<App::DocumentObject*> bodies = obj->Group.getValues();
-            for (auto body : bodies) {
-                doc->setShow(body->getNameInDocument());
-            }
-        }
-        // roll back the done things
-        doc->abortCommand();
-        Gui::Command::doCommand(Gui::Command::Gui, "Gui.activeDocument().resetEdit()");
+    auto* object = BooleanView->getObject<PartDesign::Boolean>();
+    if (!object || !object->isAttachedToDocument()) {
+        return false;
     }
-
+    auto admission = App::RecomputeDetail::Coordinator::instance().tryAtomic();
+    if (!admission) {
+        return false;
+    }
+    auto* document = object->getDocument();
+    try {
+        admission->include({}, {document});
+    }
+    catch (const App::RecomputeDetail::AdmissionRefusal&) {
+        return false;
+    }
+    App::DocumentWeakPtrT documentGuard(document);
+    std::vector<std::unique_ptr<App::DocumentObjectWeakPtrT>> showAfterAbort;
+    if (auto* base = object->BaseFeature.getValue()) {
+        showAfterAbort.push_back(std::make_unique<App::DocumentObjectWeakPtrT>(base));
+        for (auto* body : object->Group.getValues()) {
+            showAfterAbort.push_back(std::make_unique<App::DocumentObjectWeakPtrT>(body));
+        }
+    }
+    if (!document->tryAbortTransaction()) {
+        return false;
+    }
+    if (documentGuard.expired()) {
+        return true;
+    }
+    for (const auto& target : showAfterAbort) {
+        if (!target->expired()) {
+            Gui::cmdAppObjectShow(**target);
+        }
+    }
+    Gui::cmdGuiDocument(document, "resetEdit()");
     return true;
 }
 

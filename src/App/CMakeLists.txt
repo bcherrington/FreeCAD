@@ -306,6 +306,7 @@ SET(FreeCADApp_CPP_SRCS
     ${Document_CPP_SRCS}
     ${Properties_CPP_SRCS}
     Application.cpp
+    private/RecomputeAdmission.cpp
     MainThreadSignal.cpp
     ApplicationDirectories.cpp
     ApplicationDirectoriesPyImp.cpp
@@ -363,6 +364,7 @@ SET(FreeCADApp_HPP_SRCS
     ProgramInformation.h
     Services.h
     StringHasher.h
+    private/RecomputeAdmission.h
     MainThreadSignal.h
 )
 

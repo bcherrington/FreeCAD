@@ -33,10 +33,6 @@
 
 #include <BRepAdaptor_Curve.hxx>
 #include <BRepAdaptor_CompCurve.hxx>
-#if OCC_VERSION_HEX < 0x070600
-# include <BRepAdaptor_HCurve.hxx>
-# include <BRepAdaptor_HCompCurve.hxx>
-#endif
 
 #include <BRepAlgoAPI_Defeaturing.hxx>
 #include <BRepBndLib.hxx>
@@ -118,12 +114,6 @@
 #include "Tools.h"
 
 FC_LOG_LEVEL_INIT("TopoShape", true, true)  // NOLINT
-
-#if OCC_VERSION_HEX >= 0x070600
-using Adaptor3d_HCurve = Adaptor3d_Curve;
-using BRepAdaptor_HCurve = BRepAdaptor_Curve;
-using BRepAdaptor_HCompCurve = BRepAdaptor_CompCurve;
-#endif
 
 namespace Part
 {
@@ -270,32 +260,18 @@ void TopoShape::setShape(const TopoDS_Shape& shape, bool resetElementMap)
 
 TopoDS_Shape& TopoShape::move(TopoDS_Shape& tds, const TopLoc_Location& location)
 {
-#if OCC_VERSION_HEX < 0x070600
-    tds.Move(location);
-#else
     tds.Move(location, false);
-#endif
     return tds;
 }
 
 TopoDS_Shape TopoShape::moved(const TopoDS_Shape& tds, const TopLoc_Location& location)
 {
-#if OCC_VERSION_HEX < 0x070600
-    return tds.Moved(location);
-#else
     return tds.Moved(location, false);
-#endif
 }
 
 TopoDS_Shape& TopoShape::move(TopoDS_Shape& tds, const gp_Trsf& transfer)
 {
-#if OCC_VERSION_HEX < 0x070600
-    static constexpr double scalePrecision {1e-14};
-    if (std::abs(transfer.ScaleFactor()) > scalePrecision)
-#else
-    if (std::abs(transfer.ScaleFactor()) > TopLoc_Location::ScalePrec())
-#endif
-    {
+    if (std::abs(transfer.ScaleFactor()) > TopLoc_Location::ScalePrec()) {
         auto transferCopy(transfer);
         transferCopy.SetScaleFactor(1.0);
         tds.Move(transferCopy);
@@ -2333,19 +2309,19 @@ TopoShape& TopoShape::makeElementRuledSurface(
 
     if (orientation == 0) {
         // Automatic
-        Handle(Adaptor3d_HCurve) a1;
-        Handle(Adaptor3d_HCurve) a2;
+        Handle(Adaptor3d_Curve) a1;
+        Handle(Adaptor3d_Curve) a2;
         if (!isWire) {
-            BRepAdaptor_HCurve adapt1(TopoDS::Edge(S1.getShape()));
-            BRepAdaptor_HCurve adapt2(TopoDS::Edge(S2.getShape()));
-            a1 = new BRepAdaptor_HCurve(adapt1);
-            a2 = new BRepAdaptor_HCurve(adapt2);
+            BRepAdaptor_Curve adapt1(TopoDS::Edge(S1.getShape()));
+            BRepAdaptor_Curve adapt2(TopoDS::Edge(S2.getShape()));
+            a1 = new BRepAdaptor_Curve(adapt1);
+            a2 = new BRepAdaptor_Curve(adapt2);
         }
         else {
-            BRepAdaptor_HCompCurve adapt1(TopoDS::Wire(S1.getShape()));
-            BRepAdaptor_HCompCurve adapt2(TopoDS::Wire(S2.getShape()));
-            a1 = new BRepAdaptor_HCompCurve(adapt1);
-            a2 = new BRepAdaptor_HCompCurve(adapt2);
+            BRepAdaptor_CompCurve adapt1(TopoDS::Wire(S1.getShape()));
+            BRepAdaptor_CompCurve adapt2(TopoDS::Wire(S2.getShape()));
+            a1 = new BRepAdaptor_CompCurve(adapt1);
+            a2 = new BRepAdaptor_CompCurve(adapt2);
         }
 
         if (!a1.IsNull() && !a2.IsNull()) {
@@ -4376,11 +4352,7 @@ TopoShape& TopoShape::makeElementDefeaturing(
         mkDefeaturing.AddFaceToRemove(faceShape);
     }
 
-#if OCC_VERSION_HEX >= 0x070600
     mkDefeaturing.Build(std::make_unique<Part::ProgressIndicator>()->Start());
-#else
-    mkDefeaturing.Build();
-#endif
     if (!mkDefeaturing.IsDone()) {
         Standard_SStream ss;
         mkDefeaturing.DumpErrors(ss);

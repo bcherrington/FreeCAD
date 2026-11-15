@@ -62,6 +62,7 @@
 
 
 #include <App/Application.h>
+#include <App/private/RecomputeAdmission.h>
 #include <App/Document.h>
 #include <App/FeaturePythonPyImp.h>
 #include <App/GeoFeature.h>
@@ -1480,8 +1481,10 @@ void Feature::onBeforeChange(const App::Property* prop)
             && !getDocument()->isPerformingTransaction()) {
             std::vector<App::DocumentObject*> objs;
             std::vector<std::string> subs;
-            for (auto prop : App::PropertyLinkBase::getElementReferences(this)) {
-                if (!prop->getContainer()) {
+            auto references = App::PropertyLinkBase::getElementReferences(this);
+            for (auto* property : references.properties()) {
+                auto* prop = freecad_cast<App::PropertyLinkBase*>(property);
+                if (!prop || !prop->getContainer()) {
                     continue;
                 }
                 objs.clear();

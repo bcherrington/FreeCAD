@@ -25,8 +25,10 @@
 
 #pragma once
 
+#include <cstdint>
 #include <memory>
 #include <string>
+#include <vector>
 
 #include <QMetaObject>
 #include <Gui/TaskView/TaskDialog.h>
@@ -42,8 +44,10 @@ class QDialogButtonBox;
 
 namespace App
 {
+class DocumentObject;
+class GeoFeature;
 class Property;
-}
+}  // namespace App
 
 namespace Gui
 {
@@ -72,6 +76,7 @@ public:
     void accept();
     void flushPendingRecompute();
     void stopPendingRecompute();
+    bool stopPendingRecomputeAndWait();
     bool hasOutstandingRecompute() const;
     bool canReuseAcceptedPreviewResult() const;
     void setDeferredClosePending(bool pending);
@@ -96,9 +101,10 @@ protected:
     selectionModes selectionMode = none;
 
     void removeFromListWidget(QListWidget* w, QString name);
-    bool referenceSelected(const Gui::SelectionChanges& msg) const;
+    bool referenceSelected(const Gui::SelectionChanges& msg);
 
 private:
+    friend class TaskDlgShapeBinder;
     void setupButtonGroup();
     void setupContextMenu();
     void onSelectionChanged(const Gui::SelectionChanges& msg) override;
@@ -110,6 +116,10 @@ private:
     void exitSelectionMode();
     void requestRecompute(bool waitForCompletion);
     void updateRecomputeUi();
+    void setSupportCandidate(App::DocumentObject*, const std::vector<std::string>&);
+    bool applySupportCandidate();
+    bool supportReferences(App::GeoFeature*&, std::vector<std::string>&) const;
+    void onPreviewRecomputeSettled();
 
 private:
     QWidget* proxy;
@@ -117,6 +127,12 @@ private:
     Gui::ButtonGroup* buttonGroup;
     Gui::WeakPtrT<ViewProviderShapeBinder> vp;
     std::unique_ptr<Gui::AsyncPreviewSession> asyncPreviewSession;
+    struct SupportCandidate;
+    std::shared_ptr<SupportCandidate> pendingSupport;
+    std::uint64_t supportActivitySerial {0};
+    bool settlingAcceptedSupport {false};
+    bool previewReplayStopped {false};
+    bool closing {false};
 };
 
 

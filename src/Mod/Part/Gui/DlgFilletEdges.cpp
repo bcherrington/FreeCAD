@@ -30,6 +30,7 @@
 #include <QItemSelectionModel>
 #include <QLocale>
 #include <QMessageBox>
+#include <QPointer>
 #include <QTimer>
 #include <QVBoxLayout>
 
@@ -48,6 +49,7 @@
 #include <App/Application.h>
 #include <App/Document.h>
 #include <App/DocumentObject.h>
+#include <App/DocumentObserver.h>
 #include <App/ElementNamingUtils.h>
 #include <Base/UnitsApi.h>
 #include <Base/Tools.h>
@@ -55,6 +57,7 @@
 #include <Gui/AsyncRecomputeProgressDialog.h>
 #include <Gui/BitmapFactory.h>
 #include <Gui/Command.h>
+#include <Gui/Document.h>
 #include <Gui/QuantitySpinBox.h>
 #include <Gui/Selection/Selection.h>
 #include <Gui/Selection/SelectionFilter.h>
@@ -217,6 +220,19 @@ public:
     App::DocumentObject* object;
     EdgeFaceSelection* selection;
     Part::FilletBase* fillet;
+    App::DocumentObjectWeakPtrT candidate {nullptr};
+    App::DocumentObjectWeakPtrT base {nullptr};
+    std::unique_ptr<App::DocumentWeakPtrT> editDocument;
+    int transactionId = 0;
+    bool openedTransaction = false;
+    bool initialCandidate = false;
+    bool createdCandidate = false;
+    bool creationPending = false;
+    bool candidateRetired = false;
+    bool sourceRetired = false;
+    bool capturedVisibility = false;
+    bool baseWasVisible = true;
+    bool candidateWasVisible = true;
     QTimer* highlighttimer;
     FilletType filletType;
     std::vector<int> edge_ids;
@@ -268,6 +284,21 @@ DlgFilletEdges::DlgFilletEdges(
     setSelectionGate();
 
     d->fillet = fillet;
+    d->candidate = fillet;
+    d->initialCandidate = fillet != nullptr;
+    if (fillet) {
+        d->editDocument = std::make_unique<App::DocumentWeakPtrT>(fillet->getDocument());
+        d->base = fillet->Base.getValue();
+        if (auto* source = d->base.get<App::DocumentObject>()) {
+            if (auto* view = Gui::Application::Instance->getViewProvider(source)) {
+                d->baseWasVisible = view->isShow();
+                d->capturedVisibility = true;
+            }
+        }
+        if (auto* view = Gui::Application::Instance->getViewProvider(fillet)) {
+            d->candidateWasVisible = view->isShow();
+        }
+    }
     // NOLINTBEGIN
     d->connectApplicationDeletedObject = App::GetApplication().signalDeletedObject.connect(
         std::bind(&DlgFilletEdges::onDeleteObject, this, sp::_1)
@@ -315,6 +346,16 @@ DlgFilletEdges::DlgFilletEdges(
     header->setSectionsMovable(false);
     onFilletTypeActivated(0);
     findShapes();
+    if (!d->editDocument && d->object) {
+        d->editDocument = std::make_unique<App::DocumentWeakPtrT>(d->object->getDocument());
+    }
+    if (d->editDocument && !d->editDocument->expired()) {
+        auto* document = **d->editDocument;
+        const int id = document->getBookedTransactionID();
+        if (document->hasPendingTransaction() || App::GetApplication().transactionIsActive(id)) {
+            d->transactionId = id;
+        }
+    }
 }
 
 /*
@@ -366,7 +407,7 @@ void DlgFilletEdges::onSelectionChanged(const Gui::SelectionChanges& msg)
         std::string docname = doc->getName();
         std::string objname = d->object->getNameInDocument();
         if (docname == msg.pDocName && objname == msg.pObjectName) {
-            QString subelement = QString::fromLatin1(msg.pSubName);
+            QString subelement = QString::fromUtf8(msg.pSubName);
             if (subelement.startsWith(QLatin1String("Edge"))) {
                 onSelectEdge(subelement, msg.Type);
             }
@@ -501,7 +542,7 @@ void DlgFilletEdges::onSelectEdgesOfFace(const QString& subelement, int type)
                     Gui::Selection().addSelection(
                         d->object->getDocument()->getName(),
                         d->object->getNameInDocument(),
-                        (const char*)name.toLatin1()
+                        (const char*)name.toUtf8()
                     );
                 }
             }
@@ -513,7 +554,21 @@ void DlgFilletEdges::onSelectEdgesOfFace(const QString& subelement, int type)
 
 void DlgFilletEdges::onDeleteObject(const App::DocumentObject& obj)
 {
+    if (d->creationPending && !d->fillet && d->editDocument
+        && **d->editDocument == obj.getDocument()) {
+        // An earlier creation observer may remove the new object before our
+        // observer sees it. Never bind a later object with the same name.
+        d->candidateRetired = true;
+    }
+    if (d->object == &obj || *d->base == &obj) {
+        d->sourceRetired = true;
+        d->base.reset();
+    }
     if (d->fillet == &obj) {
+        // Unlike the undo-aware weak holder, retirement of an in-flight
+        // candidate is permanent for this task, even if its address is reused.
+        d->candidateRetired = true;
+        d->candidate.reset();
         d->fillet = nullptr;
     }
     else if (d->fillet && d->fillet->Base.getValue() == &obj) {
@@ -529,7 +584,7 @@ void DlgFilletEdges::onDeleteObject(const App::DocumentObject& obj)
         onShapeObjectActivated(0);
     }
     else {
-        QString shape = QString::fromLatin1(obj.getNameInDocument());
+        QString shape = QString::fromUtf8(obj.getNameInDocument());
         // start from the second item
         for (int i = 1; i < ui->shapeObject->count(); i++) {
             if (ui->shapeObject->itemData(i).toString() == shape) {
@@ -542,6 +597,12 @@ void DlgFilletEdges::onDeleteObject(const App::DocumentObject& obj)
 
 void DlgFilletEdges::onDeleteDocument(const App::Document& doc)
 {
+    if (d->object && d->object->getDocument() == &doc) {
+        d->sourceRetired = true;
+        d->candidateRetired = true;
+        d->candidate.reset();
+        d->base.reset();
+    }
     if (d->object) {
         if (d->object->getDocument() == &doc) {
             ui->shapeObject->setCurrentIndex(0);
@@ -574,7 +635,7 @@ void DlgFilletEdges::toggleCheckState(const QModelIndex& index)
         Gui::Selection().addSelection(
             doc->getName(),
             d->object->getNameInDocument(),
-            (const char*)name.toLatin1()
+            (const char*)name.toUtf8()
         );
     }
     else {
@@ -582,7 +643,7 @@ void DlgFilletEdges::toggleCheckState(const QModelIndex& index)
         Gui::Selection().rmvSelection(
             doc->getName(),
             d->object->getNameInDocument(),
-            (const char*)name.toLatin1()
+            (const char*)name.toUtf8()
         );
     }
 
@@ -604,7 +665,7 @@ void DlgFilletEdges::findShapes()
     for (std::vector<App::DocumentObject*>::iterator it = objs.begin(); it != objs.end();
          ++it, ++index) {
         ui->shapeObject->addItem(QString::fromUtf8((*it)->Label.getValue()));
-        ui->shapeObject->setItemData(index, QString::fromLatin1((*it)->getNameInDocument()));
+        ui->shapeObject->setItemData(index, QString::fromUtf8((*it)->getNameInDocument()));
         if (current_index == 0) {
             if (Gui::Selection().isSelected(*it)) {
                 current_index = index;
@@ -838,6 +899,19 @@ void DlgFilletEdges::onShapeObjectActivated(int itemPos)
     }
     App::DocumentObject* part = doc->getObject((const char*)name);
     if (part && part->isDerivedFrom<Part::Feature>()) {
+        // An initially-null task may recover from removal of its source before
+        // it has created a candidate. This explicit new selection starts a new
+        // binding; it must not revive a retired candidate or document.
+        if (!d->initialCandidate && !d->createdCandidate && !d->openedTransaction
+            && (!d->editDocument || (!d->editDocument->expired() && **d->editDocument == doc))) {
+            d->sourceRetired = false;
+            d->candidateRetired = false;
+            d->base = part;
+            d->capturedVisibility = false;
+            if (!d->editDocument) {
+                d->editDocument = std::make_unique<App::DocumentWeakPtrT>(doc);
+            }
+        }
         d->object = part;
         TopoDS_Shape myShape = static_cast<Part::Feature*>(part)->Shape.getValue();
 
@@ -1034,7 +1108,7 @@ const char* DlgFilletEdges::getFilletType() const
 
 bool DlgFilletEdges::accept()
 {
-    if (!d->object) {
+    if (!d->object || d->sourceRetired || d->candidateRetired) {
         QMessageBox::warning(
             this,
             tr("No shape selected"),
@@ -1043,33 +1117,38 @@ bool DlgFilletEdges::accept()
         );
         return false;
     }
-    App::Document* activeDoc = App::GetApplication().getActiveDocument();
+    QPointer<DlgFilletEdges> guard(this);
+    App::Document* activeDoc = d->object->getDocument();
+    if (!activeDoc || (d->editDocument && **d->editDocument != activeDoc)
+        || (d->initialCandidate && d->candidate.expired())) {
+        return false;
+    }
+    if (!d->editDocument) {
+        d->editDocument = std::make_unique<App::DocumentWeakPtrT>(activeDoc);
+    }
+    App::DocumentWeakPtrT documentGuard(activeDoc);
     QAbstractItemModel* model = ui->treeView->model();
     bool end_radius = !ui->treeView->isColumnHidden(2);
     bool todo = false;
 
     QString shape, type, name;
     std::string fillet = getFilletType();
-    int index = ui->shapeObject->currentIndex();
-    shape = ui->shapeObject->itemData(index).toString();
-    type = QStringLiteral("Part::%1").arg(QString::fromLatin1(fillet.c_str()));
+    shape = QString::fromUtf8(d->object->getNameInDocument());
+    type = QStringLiteral("Part::%1").arg(QString::fromUtf8(fillet.c_str()));
 
     if (d->fillet) {
-        name = QString::fromLatin1(d->fillet->getNameInDocument());
+        name = QString::fromUtf8(d->fillet->getNameInDocument());
     }
     else {
-        name = QString::fromLatin1(activeDoc->getUniqueObjectName(fillet.c_str()).c_str());
+        name = QString::fromStdString(activeDoc->getUniqueObjectName(fillet.c_str()));
     }
 
-    QString code;
-    if (!d->fillet) {
-        code = QStringLiteral(
-                   "FreeCAD.ActiveDocument.addObject(\"%1\",\"%2\")\n"
-                   "FreeCAD.ActiveDocument.%2.Base = FreeCAD.ActiveDocument.%3\n"
-        )
-                   .arg(type, name, shape);
-    }
-    code += QStringLiteral("__fillets__ = []\n");
+    const QString documentCommand = QString::fromStdString(
+        std::string("App.getDocument('") + activeDoc->getName() + "')"
+    );
+    const auto expectedType = d->filletType == FILLET ? Part::Fillet::getClassTypeId()
+                                                      : Part::Chamfer::getClassTypeId();
+    QString code = QStringLiteral("__fillets__ = []\n");
     for (int i = 0; i < model->rowCount(); ++i) {
         QVariant value = model->index(i, 0).data(Qt::CheckStateRole);
         Qt::CheckState checkState = static_cast<Qt::CheckState>(value.toInt());
@@ -1102,39 +1181,189 @@ bool DlgFilletEdges::accept()
     }
 
     code += QStringLiteral(
-                "FreeCAD.ActiveDocument.%1.Edges = __fillets__\n"
+                "%2.%1.Edges = __fillets__\n"
                 "del __fillets__\n"
-                "FreeCADGui.ActiveDocument.%2.Visibility = False\n"
     )
-                .arg(name, shape);
+                .arg(name, documentCommand);
 
-    const QString operationLabel = QString::fromLatin1(fillet.c_str());
-    bool transactionOpen = false;
+    const QString operationLabel = QString::fromStdString(fillet);
+    auto& application = App::GetApplication();
+    const auto transactionMatches = [&]() {
+        return !documentGuard.expired() && d->transactionId != 0
+            && activeDoc->getBookedTransactionID() == d->transactionId
+            && application.transactionIsActive(d->transactionId)
+            && (application.getGlobalTransaction() == 0
+                || application.getGlobalTransaction() == d->transactionId);
+    };
+    const auto restoreBase = [&]() {
+        if (auto* source = d->base.get<App::DocumentObject>()) {
+            if (auto* view = Gui::Application::Instance->getViewProvider(source)) {
+                view->show();
+            }
+        }
+    };
+    const auto closeTrackedTransaction = [&](bool abort) {
+        if (!transactionMatches()) {
+            return false;
+        }
+        const int id = d->transactionId;
+        const bool closed = abort ? application.abortTransaction(id)
+                                  : application.commitTransaction(id);
+        if (!guard || documentGuard.expired()) {
+            return closed;
+        }
+        if (!closed || application.transactionIsActive(id)
+            || activeDoc->getBookedTransactionID() == id || d->transactionId != id) {
+            Base::Console().error(
+                "The fillet transaction could not be closed; the edit remains open.\n"
+            );
+            return false;
+        }
+        d->transactionId = 0;
+        d->openedTransaction = false;
+        return true;
+    };
     try {
-        activeDoc->openTransaction(fillet.c_str());
-        transactionOpen = true;
+        if (d->transactionId == 0) {
+            // An unrelated edit that appeared after this task opened is not ours.
+            if (activeDoc->getBookedTransactionID() != 0 || activeDoc->hasPendingTransaction()
+                || application.getGlobalTransaction() != 0) {
+                Base::Console().error(
+                    "Another transaction is active; finish it before applying the fillet.\n"
+                );
+                return false;
+            }
+            const int openedId = activeDoc->openTransaction(fillet.c_str());
+            if (!guard || documentGuard.expired() || d->candidateRetired || d->sourceRetired) {
+                return false;
+            }
+            d->transactionId = openedId;
+            d->openedTransaction = openedId != 0;
+        }
+        if (!transactionMatches()) {
+            Base::Console().error("The fillet edit transaction is no longer active.\n");
+            return false;
+        }
+        if (!d->capturedVisibility) {
+            d->base = d->object;
+            if (auto* view = Gui::Application::Instance->getViewProvider(d->object)) {
+                d->baseWasVisible = view->isShow();
+            }
+            d->capturedVisibility = true;
+        }
+        const auto candidateMatches = [&](bool allowUnboundBase = false) {
+            if (!guard || documentGuard.expired() || d->candidateRetired || d->sourceRetired
+                || d->candidate.expired() || d->base.expired()) {
+                return false;
+            }
+            auto* candidate = d->candidate.get<Part::FilletBase>();
+            auto* source = d->base.get<App::DocumentObject>();
+            return candidate && candidate == d->fillet && candidate->getTypeId() == expectedType
+                && candidate->getDocument() == activeDoc
+                && activeDoc->getObject(name.toUtf8().constData()) == candidate
+                && (candidate->Base.getValue() == source
+                    || (allowUnboundBase && !candidate->Base.getValue()));
+        };
+        if (!d->fillet) {
+            d->creationPending = true;
+            bool captured = false;
+            fastsignals::scoped_connection createdConnection = activeDoc->signalNewObject.connect(
+                [&, guard](const App::DocumentObject& object) {
+                    if (!guard || documentGuard.expired() || d->candidateRetired || d->sourceRetired) {
+                        return;
+                    }
+                    // A nested or additional creation cannot establish the origin
+                    // of this attempt. Refuse it instead of adopting by name.
+                    if (captured || object.getTypeId() != expectedType
+                        || name != QString::fromUtf8(object.getNameInDocument())) {
+                        d->candidateRetired = true;
+                        return;
+                    }
+                    auto* candidate = freecad_cast<Part::FilletBase*>(
+                        const_cast<App::DocumentObject*>(&object)
+                    );
+                    if (!candidate
+                        || (candidate->Base.getValue()
+                            && candidate->Base.getValue() != d->base.get<App::DocumentObject>())) {
+                        d->candidateRetired = true;
+                        return;
+                    }
+                    captured = true;
+                    d->fillet = candidate;
+                    d->candidate = candidate;
+                    d->createdCandidate = true;
+                }
+            );
+            const QString creationCode
+                = QStringLiteral("%3.addObject(\"%1\",\"%2\")\n").arg(type, name, documentCommand);
+            Gui::Command::runCommand(Gui::Command::App, creationCode.toUtf8());
+            if (!guard) {
+                return false;
+            }
+            d->creationPending = false;
+            if (!captured || !candidateMatches(true) || !transactionMatches()) {
+                return false;
+            }
+        }
+        // A command exception may leave the exact captured new candidate with
+        // no Base. A retry can complete it without creating or adopting another.
+        if (d->createdCandidate && !d->initialCandidate) {
+            if (!candidateMatches(true) || !transactionMatches()) {
+                return false;
+            }
+            if (!d->fillet->Base.getValue()) {
+                const QString baseCode
+                    = QStringLiteral("%3.%1.Base = %3.%2\n").arg(name, shape, documentCommand);
+                Gui::Command::runCommand(Gui::Command::App, baseCode.toUtf8());
+            }
+        }
+        if (!candidateMatches() || !transactionMatches()) {
+            return false;
+        }
+        ui->shapeObject->setEnabled(false);
         {
             Gui::WaitCursor wc;
-            Gui::Command::runCommand(Gui::Command::App, code.toLatin1());
+            if (!candidateMatches() || !transactionMatches()) {
+                return false;
+            }
+            Gui::Command::runCommand(Gui::Command::App, code.toUtf8());
         }
-
-        const QByteArray objectName = name.toLatin1();
-        App::DocumentObject* resultObject = activeDoc->getObject(objectName.constData());
+        if (!candidateMatches() || !transactionMatches()) {
+            return false;
+        }
+        auto* resultObject = d->candidate.get<Part::FilletBase>();
+        App::DocumentObjectWeakPtrT resultGuard(resultObject);
         const auto outcome = Gui::runAsyncDocumentObjectRecomputeProgressDialog(
             this,
             operationLabel,
             tr("Computing %1...").arg(operationLabel.toLower()),
             resultObject,
             /*recursive=*/true,
-            [resultObject]() {
-                if (resultObject && resultObject->getDocument()) {
-                    resultObject->getDocument()->recomputeFeature(resultObject, /*recursive=*/true);
+            [resultObject]() { return Gui::recomputeDocumentObjectWithResult(resultObject, true); }
+        );
+        if (!candidateMatches() || resultGuard.expired()) {
+            return false;
+        }
+        if (!outcome.success) {
+            // Model errors remain editable. A borrowed creation/edit transaction
+            // must also survive progress cancellation or an execution exception.
+            restoreBase();
+            if (!guard || documentGuard.expired()) {
+                return false;
+            }
+            if (outcome.failure != App::RecomputeFailure::ModelError && d->openedTransaction
+                && transactionMatches()) {
+                if (!closeTrackedTransaction(true) || !guard || documentGuard.expired()) {
+                    return false;
+                }
+                if (!d->initialCandidate) {
+                    d->candidate.reset();
+                    d->fillet = nullptr;
+                    d->candidateRetired = false;
+                    d->createdCandidate = false;
+                    ui->shapeObject->setEnabled(true);
                 }
             }
-        );
-        if (!outcome.success) {
-            activeDoc->abortTransaction();
-            transactionOpen = false;
             if (!outcome.canceled) {
                 Base::Console().error(
                     "%s\n",
@@ -1144,32 +1373,166 @@ bool DlgFilletEdges::accept()
             }
             return false;
         }
-
-        activeDoc->commitTransaction();
-        transactionOpen = false;
+        if (!transactionMatches()) {
+            return false;
+        }
+        if (!resultObject->isValid()) {
+            const std::string status = resultObject->getStatusString();
+            restoreBase();
+            if (!candidateMatches() || resultGuard.expired()) {
+                return false;
+            }
+            Base::Console().error("%s\n", status.c_str());
+            return false;
+        }
+        if (auto* view = Gui::Application::Instance->getViewProvider(d->object)) {
+            view->hide();
+        }
+        if (!candidateMatches() || resultGuard.expired()) {
+            return false;
+        }
+        if (auto* view = Gui::Application::Instance->getViewProvider(resultObject)) {
+            view->show();
+        }
+        if (!candidateMatches() || resultGuard.expired()) {
+            return false;
+        }
+        Gui::Command::copyVisual(resultObject, "LineColor", d->object);
+        if (!candidateMatches() || resultGuard.expired()) {
+            return false;
+        }
+        Gui::Command::copyVisual(resultObject, "PointColor", d->object);
+        if (!candidateMatches() || !transactionMatches() || resultGuard.expired()) {
+            return false;
+        }
+        if (!closeTrackedTransaction(false)) {
+            if (guard && !documentGuard.expired()) {
+                restoreBase();
+            }
+            return false;
+        }
+        if (!guard || documentGuard.expired()) {
+            return true;
+        }
+        if (activeDoc->getBookedTransactionID() != 0 || activeDoc->hasPendingTransaction()
+            || application.getGlobalTransaction() != 0) {
+            return false;
+        }
     }
     catch (const Base::Exception& e) {
-        if (transactionOpen) {
-            activeDoc->abortTransaction();
+        if (!guard) {
+            return false;
+        }
+        // Only the creation observer may bind a candidate. A partial command
+        // retains that exact object on a borrowed transaction; never look it up
+        // by name after an exception.
+        d->creationPending = false;
+        restoreBase();
+        if (!guard || documentGuard.expired()) {
+            return false;
+        }
+        if (d->openedTransaction && transactionMatches()) {
+            if (!closeTrackedTransaction(true)) {
+                e.reportException();
+                return false;
+            }
+            if (guard && !documentGuard.expired()) {
+                if (!d->initialCandidate) {
+                    d->candidate.reset();
+                    d->fillet = nullptr;
+                    d->candidateRetired = false;
+                    d->createdCandidate = false;
+                    ui->shapeObject->setEnabled(true);
+                }
+            }
         }
         e.reportException();
         return false;
     }
 
-    if (d->fillet) {
-        Gui::ViewProvider* vp;
-        vp = Gui::Application::Instance->getViewProvider(d->fillet);
-        if (vp) {
-            vp->show();
-        }
-    }
-
-    QByteArray to = name.toLatin1();
-    QByteArray from = shape.toLatin1();
-    Gui::Command::copyVisual(to, "LineColor", from);
-    Gui::Command::copyVisual(to, "PointColor", from);
     return true;
 }
+
+bool DlgFilletEdges::reject()
+{
+    QPointer<DlgFilletEdges> guard(this);
+    auto* document = d->editDocument ? **d->editDocument : nullptr;
+    App::DocumentWeakPtrT documentGuard(document);
+    if (document && d->transactionId != 0) {
+        const int global = App::GetApplication().getGlobalTransaction();
+        const bool matches = document->getBookedTransactionID() == d->transactionId
+            && (global == 0 || global == d->transactionId);
+        if (!matches && (document->hasPendingTransaction() || global != 0)) {
+            Base::Console().error("The fillet transaction changed; no unrelated edit was discarded.\n");
+            return false;
+        }
+        if (matches) {
+            const int id = d->transactionId;
+            const bool closed = App::GetApplication().abortTransaction(id);
+            if (!guard || documentGuard.expired()) {
+                return closed;
+            }
+            if (!closed || App::GetApplication().transactionIsActive(id)
+                || document->getBookedTransactionID() == id || d->transactionId != id) {
+                Base::Console().error(
+                    "The fillet transaction could not be discarded; the edit remains open.\n"
+                );
+                return false;
+            }
+        }
+    }
+    else if (
+        App::GetApplication().getGlobalTransaction() != 0
+        || (document && (document->getBookedTransactionID() != 0 || document->hasPendingTransaction()))
+    ) {
+        return false;
+    }
+    d->transactionId = 0;
+    d->openedTransaction = false;
+    if ((document && (document->getBookedTransactionID() != 0 || document->hasPendingTransaction()))
+        || App::GetApplication().getGlobalTransaction() != 0) {
+        return false;
+    }
+    if (auto* source = d->base.get<App::DocumentObject>()) {
+        if (auto* view = Gui::Application::Instance->getViewProvider(source)) {
+            view->setVisible(d->baseWasVisible);
+        }
+    }
+    if (!guard || (document && documentGuard.expired())) {
+        return true;
+    }
+    if (auto* candidate = d->candidate.get<App::DocumentObject>()) {
+        if (auto* view = Gui::Application::Instance->getViewProvider(candidate)) {
+            view->setVisible(d->candidateWasVisible);
+        }
+    }
+    return true;
+}
+
+bool DlgFilletEdges::finishEditing()
+{
+    auto* document = d->editDocument ? **d->editDocument : nullptr;
+    if (!document) {
+        return true;
+    }
+    // resetEdit commits a booked transaction. Never let it finalize a newer edit.
+    if (App::GetApplication().getGlobalTransaction() != 0 || document->getBookedTransactionID() != 0
+        || document->hasPendingTransaction()) {
+        return false;
+    }
+    auto* guiDocument = Gui::Application::Instance->getDocument(document);
+    if (!guiDocument || !guiDocument->getInEdit()) {
+        return true;
+    }
+    auto* candidate = d->candidate.get<App::DocumentObject>();
+    if (!candidate
+        || guiDocument->getInEdit() != Gui::Application::Instance->getViewProvider(candidate)) {
+        return false;
+    }
+    guiDocument->resetEdit();
+    return true;
+}
+
 void DlgFilletEdges::setSelectionGate()
 {
     d->selection = new EdgeFaceSelection(d->object);
@@ -1204,8 +1567,19 @@ FilletEdgesDialog::~FilletEdgesDialog() = default;
 
 void FilletEdgesDialog::accept()
 {
-    if (widget->accept()) {
+    QPointer<FilletEdgesDialog> guard(this);
+    QPointer<DlgFilletEdges> widgetGuard(widget);
+    if (widget->accept() && guard && widgetGuard && widgetGuard->finishEditing() && guard) {
         QDialog::accept();
+    }
+}
+
+void FilletEdgesDialog::reject()
+{
+    QPointer<FilletEdgesDialog> guard(this);
+    QPointer<DlgFilletEdges> widgetGuard(widget);
+    if (widget->reject() && guard && (!widgetGuard || widgetGuard->finishEditing()) && guard) {
+        QDialog::reject();
     }
 }
 
@@ -1230,17 +1604,20 @@ void TaskFilletEdges::clicked(int)
 
 bool TaskFilletEdges::accept()
 {
-    bool ok = widget->accept();
-    if (ok) {
-        Gui::Command::doCommand(Gui::Command::Gui, "Gui.activeDocument().resetEdit()");
-    }
-    return ok;
+    QPointer<TaskFilletEdges> guard(this);
+    QPointer<DlgFilletEdges> widgetGuard(widget);
+    const bool ok = widget->accept();
+    return ok && (!guard || !widgetGuard || widgetGuard->finishEditing());
 }
 
 bool TaskFilletEdges::reject()
 {
-    Gui::Command::doCommand(Gui::Command::Gui, "Gui.activeDocument().resetEdit()");
-    return true;
+    QPointer<TaskFilletEdges> guard(this);
+    QPointer<DlgFilletEdges> widgetGuard(widget);
+    if (!widget->reject()) {
+        return false;
+    }
+    return !guard || !widgetGuard || widgetGuard->finishEditing();
 }
 
 // --------------------------------------------------------------
@@ -1282,17 +1659,20 @@ void TaskChamferEdges::clicked(int)
 
 bool TaskChamferEdges::accept()
 {
-    bool ok = widget->accept();
-    if (ok) {
-        Gui::Command::doCommand(Gui::Command::Gui, "Gui.activeDocument().resetEdit()");
-    }
-    return ok;
+    QPointer<TaskChamferEdges> guard(this);
+    QPointer<DlgFilletEdges> widgetGuard(widget);
+    const bool ok = widget->accept();
+    return ok && (!guard || !widgetGuard || widgetGuard->finishEditing());
 }
 
 bool TaskChamferEdges::reject()
 {
-    Gui::Command::doCommand(Gui::Command::Gui, "Gui.activeDocument().resetEdit()");
-    return true;
+    QPointer<TaskChamferEdges> guard(this);
+    QPointer<DlgFilletEdges> widgetGuard(widget);
+    if (!widget->reject()) {
+        return false;
+    }
+    return !guard || !widgetGuard || widgetGuard->finishEditing();
 }
 
 #include "moc_DlgFilletEdges.cpp"

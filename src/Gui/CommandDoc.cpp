@@ -614,7 +614,7 @@ void StdCmdExport::activated(int iMsg)
     );
     if (!filename.isEmpty()) {
         const auto& selectedFilter = filterList[selectedFilterIndex];
-        hPath->SetASCII("FileExportFilter", selectedFilter.name.toLatin1().constData());
+        hPath->SetASCII("FileExportFilter", selectedFilter.name.toUtf8());
 
         SelectModule::Dict dict
             = SelectModule::exportHandler(filename, selectedFilter.toFilterString());
@@ -1682,10 +1682,10 @@ void StdCmdDelete::activated(int iMsg)
                             autoDeletion = false;
                             QString label;
                             if (parent->getDocument() != obj->getDocument()) {
-                                label = QLatin1String(parent->getFullName().c_str());
+                                label = QString::fromUtf8(parent->getFullName().c_str());
                             }
                             else {
-                                label = QLatin1String(parent->getNameInDocument());
+                                label = QString::fromUtf8(parent->getNameInDocument());
                             }
                             if (parent->Label.getStrValue() != parent->getNameInDocument()) {
                                 label += QStringLiteral(" (%1)").arg(
@@ -1769,7 +1769,7 @@ void StdCmdDelete::activated(int iMsg)
         QMessageBox::critical(
             getMainWindow(),
             QObject::tr("Delete Failed"),
-            QString::fromLatin1(e.what())
+            QString::fromUtf8(e.what())
         );
         e.reportException();
         App::GetApplication().abortTransaction(tid);
@@ -2502,7 +2502,7 @@ protected:
             QMessageBox::critical(
                 getMainWindow(),
                 QObject::tr("Failed to paste expressions"),
-                QString::fromLatin1(e.what())
+                QString::fromUtf8(e.what())
             );
             e.reportException();
         }

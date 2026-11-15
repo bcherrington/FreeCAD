@@ -86,6 +86,7 @@
 #include "AssemblyObjectPy.h"
 #include "AssemblyUtils.h"
 #include "Groups.h"
+#include "MotionSuspension.h"
 
 FC_LOG_LEVEL_INIT("Assembly", true, true, true)
 
@@ -105,6 +106,23 @@ struct RotationJointSide
     const char* carrierPlcName = nullptr;
 };
 
+// All solver bodies use the owning assembly's coordinates. The component's
+// Placement remains local to its actual spatial parent in the document.
+Base::Placement solverPlacement(const AssemblyObject* assembly, App::DocumentObject* object)
+{
+    return Assembly::detail::getContainingPlacement(object, assembly)
+        * App::GeoFeature::getPlacementFromProp(object, "Placement");
+}
+
+Base::Placement localPlacement(
+    const AssemblyObject* assembly,
+    App::DocumentObject* object,
+    const Base::Placement& solverPose
+)
+{
+    return Assembly::detail::getContainingPlacement(object, assembly).inverse() * solverPose;
+}
+
 Base::Placement getJointSideGlobalPlacement(
     App::DocumentObject* joint,
     const char* refName,
@@ -120,7 +138,8 @@ Base::Placement getJointSideGlobalPlacement(
         return {};
     }
 
-    return App::GeoFeature::getGlobalPlacement(nullptr, ref)
+    return Assembly::detail::getContainingPlacement(ref->getValue())
+        * App::GeoFeature::getGlobalPlacement(nullptr, ref)
         * App::GeoFeature::getPlacementFromProp(joint, plcName);
 }
 
@@ -310,14 +329,446 @@ void AssemblyObject::onChanged(const App::Property* prop)
     App::Part::onChanged(prop);
 }
 
+namespace
+{
+// Link property lookup may return a source definition's property. Extensions set
+// their properties' container to the host object, so this also retains real
+// local Group and ElementList properties without granting source authority.
+App::Property* ownedProperty(App::DocumentObject* object, const char* name)
+{
+    auto* property = object->getPropertyByName(name);
+    return property && property->getContainer() == object ? property : nullptr;
+}
+
+template<typename Property>
+Property* ownedProperty(App::DocumentObject* object, const char* name)
+{
+    return dynamic_cast<Property*>(ownedProperty(object, name));
+}
+
+// Admission reads the raw local graph, before the solver's filtering and repair helpers.
+// Source geometry reached through a local link is input, never a writable component.
+class AssemblyAdmission
+{
+public:
+    explicit AssemblyAdmission(AssemblyObject& assembly)
+        : assembly(assembly)
+        , document(assembly.getDocument())
+    {}
+
+    bool validate()
+    {
+        owners.emplace(&assembly, Owner {});
+        if (!document || !visit(&assembly, {&assembly, true})) {
+            return false;
+        }
+        // Axis and current-value helpers also compose the document containing
+        // frame. Validate outer spatial ownership before grounding reconciliation.
+        Assembly::detail::getContainingPlacement(&assembly);
+        // Collection is safe only after the raw containment traversal checked cycles.
+        for (auto& [owner, data] : owners) {
+            const auto localComponents
+                = Assembly::detail::getAssemblyComponents(owner->Group.getValues(), true);
+            for (auto* component : localComponents) {
+                if (!component || component->getDocument() != document
+                    || !component->getPlacementProperty()) {
+                    return false;
+                }
+                // Resolve every local structural component before any native
+                // preparation, including metadata below rigid boundaries.
+                Assembly::detail::getContainingPlacement(component, &assembly);
+                data.components.insert(component);
+            }
+            data.groundable = data.components;
+            auto* origin = owner->Origin.getValue();
+            if (!origin || origin->getDocument() != document) {
+                return false;
+            }
+            Assembly::detail::getContainingPlacement(origin, &assembly);
+            data.groundable.insert(origin);
+            for (auto* object : owner->Group.getValues()) {
+                if (object->isDerivedFrom<App::LocalCoordinateSystem>()
+                    || object->isDerivedFrom<App::DatumElement>()) {
+                    Assembly::detail::getContainingPlacement(object, &assembly);
+                    data.groundable.insert(object);
+                }
+            }
+        }
+        for (auto* component : getAssemblyComponents(&assembly)) {
+            components.insert(component);
+        }
+        groundable = components;
+        groundable.insert(assembly.Origin.getValue());
+        for (auto* object : assembly.Group.getValues()) {
+            if (object->isDerivedFrom<App::LocalCoordinateSystem>()
+                || object->isDerivedFrom<App::DatumElement>()) {
+                groundable.insert(object);
+            }
+        }
+        for (auto* record : records) {
+            if (!validateRecord(record)) {
+                return false;
+            }
+        }
+        for (auto* motion : motionRecords) {
+            const auto context = contexts.at(motion);
+            auto* reference = ownedProperty<App::PropertyXLinkSub>(motion, "Joint");
+            auto* type = ownedProperty<App::PropertyEnumeration>(motion, "MotionType");
+            if (!reference || !standardJoints.contains(reference->getValue()) || !type
+                || !ownedProperty<App::PropertyString>(motion, "Formula")) {
+                return false;
+            }
+            // An internal drive cannot acquire authority over a different occurrence.
+            auto* jointOwner = contexts.at(reference->getValue()).owner;
+            while (jointOwner && jointOwner != context.owner) {
+                jointOwner = owners.at(jointOwner).parent;
+            }
+            if (!jointOwner || (context.active && !activeJoints.contains(reference->getValue()))) {
+                return false;
+            }
+            // Native motion evaluation uses the root joint, not a subobject path.
+            for (const auto& subname : reference->getSubValues()) {
+                if (!subname.empty()) {
+                    return false;
+                }
+            }
+            const std::string motionType = type->getValueAsString();
+            const auto jointType = getJointType(reference->getValue());
+            if (motionType == "Angular") {
+                if (jointType != JointType::Revolute && jointType != JointType::Cylindrical) {
+                    return false;
+                }
+            }
+            else if (motionType == "Linear") {
+                if (jointType != JointType::Slider && jointType != JointType::Cylindrical) {
+                    return false;
+                }
+            }
+            else {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    const std::vector<App::DocumentObject*>& groundedTargets() const
+    {
+        return grounds;
+    }
+
+    const std::unordered_set<App::DocumentObject*>& admittedComponents() const
+    {
+        return groundable;
+    }
+
+private:
+    struct Context
+    {
+        App::Part* owner;
+        bool active;
+    };
+    struct Owner
+    {
+        App::Part* parent = nullptr;
+        JointGroup* jointGroup = nullptr;
+        std::unordered_set<App::DocumentObject*> components;
+        std::unordered_set<App::DocumentObject*> groundable;
+    };
+
+    bool visit(App::DocumentObject* object, Context context)
+    {
+        if (!object || object->getDocument() != document || visiting.contains(object)) {
+            return false;
+        }
+        context.active = context.active && !isSuppressedLinkElement(object);
+        if (auto found = contexts.find(object); found != contexts.end()) {
+            // App::Part membership can also list a JointGroup's records directly.
+            // Such overlap is valid within one owner/activity context. Sharing a
+            // writable object between different occurrences is ambiguous.
+            return found->second.owner == context.owner && found->second.active == context.active;
+        }
+        contexts.emplace(object, context);
+        visiting.insert(object);
+
+        if (auto* link = freecad_cast<App::Link*>(object)) {
+            std::unordered_set<App::DocumentObject*> chain;
+            App::DocumentObject* source = link;
+            while (source) {
+                if (!chain.insert(source).second) {
+                    return false;
+                }
+                if (auto* sourceLink = freecad_cast<App::Link*>(source)) {
+                    source = sourceLink->getTrueLinkedObject(false);
+                }
+                else if (auto* sourceLink = freecad_cast<AssemblyLink*>(source)) {
+                    source = sourceLink->LinkedObject.getValue();
+                }
+                else {
+                    break;
+                }
+            }
+            if (!source) {
+                return false;
+            }
+        }
+        Context children = context;
+        if (auto* link = freecad_cast<AssemblyLink*>(object)) {
+            std::unordered_set<App::DocumentObject*> chain;
+            App::DocumentObject* source = link;
+            while (auto* sourceLink = freecad_cast<AssemblyLink*>(source)) {
+                if (!chain.insert(source).second) {
+                    return false;
+                }
+                source = sourceLink->LinkedObject.getValue();
+            }
+            if (!source || !source->isDerivedFrom<AssemblyObject>()) {
+                return false;
+            }
+            Owner owner;
+            owner.parent = context.owner;
+            owners.emplace(link, std::move(owner));
+            children = {link, context.active && !link->isRigid()};
+        }
+        if (auto* jointGroup = freecad_cast<JointGroup*>(object)) {
+            auto& owner = owners.at(context.owner);
+            const auto& members = context.owner->Group.getValues();
+            if (std::ranges::find(members, jointGroup) == members.end() || owner.jointGroup) {
+                return false;
+            }
+            owner.jointGroup = jointGroup;
+        }
+        if (ownedProperty(object, "Joint") || ownedProperty(object, "MotionType")
+            || ownedProperty(object, "Formula")) {
+            motionRecords.insert(object);
+        }
+
+        if (auto* groupProperty = ownedProperty(object, "Group")) {
+            auto* group = dynamic_cast<App::PropertyLinkList*>(groupProperty);
+            if (!group) {
+                return false;
+            }
+            for (auto* child : group->getValues()) {
+                if (object->isDerivedFrom<SimulationGroup>()) {
+                    auto* drives = child ? ownedProperty<App::PropertyLinkList>(child, "Group")
+                                         : nullptr;
+                    if (!drives) {
+                        return false;
+                    }
+                    motionRecords.insert(drives->getValues().begin(), drives->getValues().end());
+                }
+                if (!visit(child, children)) {
+                    return false;
+                }
+                if (object->isDerivedFrom<JointGroup>()) {
+                    records.push_back(child);
+                }
+            }
+        }
+        // Expanded link arrays are writable through their local LinkElement instances.
+        if (object->isLinkGroup()) {
+            auto* elements = ownedProperty<App::PropertyLinkList>(object, "ElementList");
+            if (!elements) {
+                return false;
+            }
+            for (auto* element : elements->getValues()) {
+                if (!visit(element, children)) {
+                    return false;
+                }
+            }
+        }
+        visiting.erase(object);
+        return true;
+    }
+
+    bool endpoint(App::DocumentObject* record, const char* propertyName) const
+    {
+        auto* reference = ownedProperty<App::PropertyXLinkSub>(record, propertyName);
+        const auto& local = owners.at(contexts.at(record).owner).components;
+        if (!reference || !local.contains(reference->getValue())) {
+            return false;
+        }
+        const auto& subnames = reference->getSubValues();
+        if (subnames.empty()) {
+            return false;
+        }
+        for (const auto& subname : subnames) {
+            if (subname.find('?') != std::string::npos) {
+                return false;
+            }
+            PyObject* geometry = nullptr;
+            auto* resolved = reference->getValue()->getSubObject(subname.c_str(), &geometry);
+            const bool valid = resolved && (subname.empty() || (geometry && geometry != Py_None));
+            Py_XDECREF(geometry);
+            if (!valid) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    bool validateRecord(App::DocumentObject* record)
+    {
+        const auto context = contexts.at(record);
+        const auto& owner = owners.at(context.owner);
+        const bool hasEndpoints = ownedProperty(record, "Reference1")
+            || ownedProperty(record, "Reference2");
+        const bool hasGround = ownedProperty(record, "ObjectToGround");
+        const bool hasRigid = ownedProperty(record, "ObjectsToRigidGroup");
+        if (static_cast<int>(hasEndpoints) + static_cast<int>(hasGround) + static_cast<int>(hasRigid)
+            != 1) {
+            return false;
+        }
+        if (hasGround) {
+            auto* property = ownedProperty<App::PropertyLink>(record, "ObjectToGround");
+            auto* target = property ? property->getValue() : nullptr;
+            if (!target || target->getDocument() != document || !owner.groundable.contains(target)) {
+                return false;
+            }
+            // Native grounding belongs to the root JointGroup. Nested metadata must
+            // not lock children or consume deferred grounding changes for this solve.
+            if (context.owner == &assembly && context.active && groundable.contains(target)) {
+                grounds.push_back(target);
+            }
+            return true;
+        }
+        auto* suppressed = ownedProperty<App::PropertyBool>(record, "Suppressed");
+        if (!suppressed) {
+            return false;
+        }
+        if (hasRigid) {
+            auto* property = ownedProperty<App::PropertyLinkList>(record, "ObjectsToRigidGroup");
+            if (!property || property->getValues().size() < 2) {
+                return false;
+            }
+            std::unordered_set<App::DocumentObject*> members;
+            for (auto* member : property->getValues()) {
+                if (!owner.components.contains(member) || !members.insert(member).second) {
+                    return false;
+                }
+            }
+            return true;
+        }
+        const auto* type = ownedProperty<App::PropertyEnumeration>(record, "JointType");
+        if (!type || type->getValue() < 0 || type->getValue() > static_cast<long>(JointType::Belt)
+            || !ownedProperty<App::PropertyPlacement>(record, "Placement1")
+            || !ownedProperty<App::PropertyPlacement>(record, "Placement2")
+            || !ownedProperty<App::PropertyPlacement>(record, "Offset1")
+            || !ownedProperty<App::PropertyPlacement>(record, "Offset2")
+            || !endpoint(record, "Reference1") || !endpoint(record, "Reference2")) {
+            return false;
+        }
+        auto* first = ownedProperty<App::PropertyXLinkSub>(record, "Reference1")->getValue();
+        auto* second = ownedProperty<App::PropertyXLinkSub>(record, "Reference2")->getValue();
+        if (first == second) {
+            return false;
+        }
+        standardJoints.insert(record);
+        if (context.active && !record->isError() && !suppressed->getValue()
+            && components.contains(first) && components.contains(second)) {
+            activeJoints.insert(record);
+        }
+        return true;
+    }
+
+    AssemblyObject& assembly;
+    App::Document* document;
+    std::unordered_map<App::DocumentObject*, Context> contexts;
+    std::unordered_map<App::Part*, Owner> owners;
+    std::unordered_set<App::DocumentObject*> visiting;
+    std::unordered_set<App::DocumentObject*> components;
+    std::unordered_set<App::DocumentObject*> groundable;
+    std::unordered_set<App::DocumentObject*> standardJoints;
+    std::unordered_set<App::DocumentObject*> activeJoints;
+    std::vector<App::DocumentObject*> records;
+    std::unordered_set<App::DocumentObject*> motionRecords;
+    std::vector<App::DocumentObject*> grounds;
+};
+
+// Follow local containment only. A flexible child cannot reactivate joints below
+// a rigid ancestor, and linked source definitions are never traversed here.
+void collectActiveSubAssemblies(
+    const std::vector<App::DocumentObject*>& objects,
+    std::vector<AssemblyLink*>& result,
+    std::unordered_set<App::DocumentObject*>& visited
+)
+{
+    for (auto* object : objects) {
+        if (!object || isSuppressedLinkElement(object) || !visited.insert(object).second) {
+            continue;
+        }
+        if (auto* link = freecad_cast<AssemblyLink*>(object)) {
+            if (link->isRigid()) {
+                continue;
+            }
+            result.push_back(link);
+        }
+        if (auto* group = ownedProperty<App::PropertyLinkList>(object, "Group")) {
+            collectActiveSubAssemblies(group->getValues(), result, visited);
+        }
+        if (object->isLinkGroup()) {
+            if (auto* elements = ownedProperty<App::PropertyLinkList>(object, "ElementList")) {
+                collectActiveSubAssemblies(elements->getValues(), result, visited);
+            }
+        }
+    }
+}
+}  // namespace
+
+int AssemblyObject::solveValidated(bool enableRedo)
+{
+    if (!getDocument() || solveInProgress) {
+        return -8;
+    }
+    // Keep automatic callbacks disabled even when explicitly called outside another scope.
+    AutomaticMotionSuspension suspension(*getDocument());
+    Base::PyGILStateLocker lock;
+    AssemblyAdmission admission(*this);
+    try {
+        if (!admission.validate()) {
+            return -8;
+        }
+    }
+    catch (const Base::Exception&) {
+        return -8;
+    }
+    catch (const Py::Exception&) {
+        PyErr_Clear();
+        return -8;
+    }
+    // Grounded-joint callbacks intentionally leave status untouched during construction.
+    // Reconcile it only once every target has passed the nonmutating admission check.
+    reconcileDeferredGroundedReleases(
+        *getDocument(),
+        this,
+        admission.admittedComponents(),
+        admission.groundedTargets()
+    );
+    for (auto* target : admission.groundedTargets()) {
+        for (const char* name : {"Placement", "LinkPlacement"}) {
+            if (auto* property = target->getPropertyByName(name)) {
+                property->setReadOnly(true);
+            }
+        }
+    }
+    return runSolve(enableRedo);
+}
+
 int AssemblyObject::solve(bool enableRedo)
+{
+    if (isAutomaticMotionSuspended(getDocument())) {
+        return -7;
+    }
+    return runSolve(enableRedo);
+}
+
+int AssemblyObject::runSolve(bool enableRedo)
 {
     // updateSolveStatus() solves on demand; suppress that while a solve is running.
     Base::StateLocker lock(solveInProgress);
 
-    ensureIdentityPlacements();
+    ensureIdentityPlacementsImpl();
 
-    syncGroundedJoints();
+    syncGroundedJointsImpl();
 
     mbdAssembly = makeMbdAssembly();
     objectPartMap.clear();
@@ -348,27 +799,35 @@ int AssemblyObject::solve(bool enableRedo)
     catch (const std::exception& e) {
         FC_ERR("Solve failed: " << e.what());
         lastSolverStatus = -1;
-        updateSolveStatus();
+        updateSolveStatusImpl(false);
         return -1;
     }
     catch (...) {
         FC_ERR("Solve failed: unhandled exception");
         lastSolverStatus = -1;
-        updateSolveStatus();
+        updateSolveStatusImpl(false);
         return -1;
     }
 
-    setNewPlacements();
+    setNewPlacementsImpl();
     updateRigidPlacementCache();
 
     redrawJointPlacements(joints);
 
-    updateSolveStatus();
+    updateSolveStatusImpl(false);
 
     return 0;
 }
 
 void AssemblyObject::updateSolveStatus()
+{
+    if (isAutomaticMotionSuspended(getDocument())) {
+        return;
+    }
+    updateSolveStatusImpl(true);
+}
+
+void AssemblyObject::updateSolveStatusImpl(bool allowLazySolve)
 {
     lastRedundantJoints.clear();
     lastHasRedundancies = false;
@@ -391,7 +850,7 @@ void AssemblyObject::updateSolveStatus()
 
     // Solve on demand when queried before the system is solved, but not from within
     // a solve: solve() calls this, so a failed solve would recurse indefinitely.
-    if (!solveInProgress && (!mbdAssembly || !mbdAssembly->mbdSystem)) {
+    if (allowLazySolve && !solveInProgress && (!mbdAssembly || !mbdAssembly->mbdSystem)) {
         solve();
     }
 
@@ -462,6 +921,9 @@ void AssemblyObject::updateSolveStatus()
 
 int AssemblyObject::generateSimulation(App::DocumentObject* sim)
 {
+    if (isAutomaticMotionSuspended(getDocument())) {
+        return -7;
+    }
     mbdAssembly = makeMbdAssembly();
     objectPartMap.clear();
 
@@ -511,6 +973,9 @@ std::vector<App::DocumentObject*> AssemblyObject::getMotionsFromSimulation(App::
 
 int Assembly::AssemblyObject::updateForFrame(size_t index)
 {
+    if (isAutomaticMotionSuspended(getDocument())) {
+        return -7;
+    }
     if (!mbdAssembly) {
         return -1;
     }
@@ -543,6 +1008,9 @@ bool AssemblyObject::requiresRigidSolveForMove(const std::vector<App::DocumentOb
 
 void AssemblyObject::preDrag(std::vector<App::DocumentObject*> dragParts)
 {
+    if (isAutomaticMotionSuspended(getDocument())) {
+        return;
+    }
     bundleFixed = true;
     bool hasUnconnectedDragPart = std::ranges::any_of(dragParts, [this](App::DocumentObject* part) {
         return part && !isPartConnected(part);
@@ -600,6 +1068,9 @@ void AssemblyObject::preDrag(std::vector<App::DocumentObject*> dragParts)
 
 void AssemblyObject::prepareMbdForIslandDrag(std::vector<App::DocumentObject*> dragParts)
 {
+    if (isAutomaticMotionSuspended(getDocument())) {
+        return;
+    }
     ensureIdentityPlacements();
     syncGroundedJoints();
 
@@ -643,6 +1114,9 @@ void AssemblyObject::prepareMbdForIslandDrag(std::vector<App::DocumentObject*> d
 
 void AssemblyObject::doDragStep()
 {
+    if (isAutomaticMotionSuspended(getDocument())) {
+        return;
+    }
     if (!mbdAssembly || draggedParts.empty()) {
         return;
     }
@@ -667,7 +1141,7 @@ void AssemblyObject::doDragStep()
 
             dragMbdParts.push_back(mbdPart);
 
-            Base::Placement plc = getPlacementFromProp(part, "Placement");
+            Base::Placement plc = solverPlacement(this, part);
             if (auto it = objectPartMap.find(part);
                 it != objectPartMap.end() && !it->second.offsetPlc.isIdentity()) {
                 plc = plc * it->second.offsetPlc.inverse();
@@ -733,7 +1207,7 @@ bool AssemblyObject::validateNewPlacements()
     for (auto* obj : groundedParts) {
         auto* propPlacement = obj->getPlacementProperty();
         if (propPlacement) {
-            Base::Placement oldPlc = propPlacement->getValue();
+            Base::Placement oldPlc = solverPlacement(this, obj);
 
             auto it = objectPartMap.find(obj);
             if (it != objectPartMap.end()) {
@@ -761,6 +1235,9 @@ bool AssemblyObject::validateNewPlacements()
 
 void AssemblyObject::postDrag()
 {
+    if (isAutomaticMotionSuspended(getDocument())) {
+        return;
+    }
     if (!mbdAssembly) {
         return;
     }
@@ -795,6 +1272,9 @@ void AssemblyObject::savePlacementsForUndo()
 
 void AssemblyObject::undoSolve()
 {
+    if (isAutomaticMotionSuspended(getDocument())) {
+        return;
+    }
     if (previousPositions.size() == 0) {
         return;
     }
@@ -826,6 +1306,9 @@ void AssemblyObject::clearUndo()
 
 void AssemblyObject::exportAsASMT(std::string fileName)
 {
+    if (isAutomaticMotionSuspended(getDocument())) {
+        return;
+    }
     mbdAssembly = makeMbdAssembly();
     objectPartMap.clear();
     rebuildRigidClusters();
@@ -970,7 +1453,7 @@ void AssemblyObject::syncActiveRigidGroupPlacements()
                 break;
             }
 
-            Base::Placement currentPlc = getPlacementFromProp(member, "Placement");
+            Base::Placement currentPlc = solverPlacement(this, member);
             if (!cacheIt->second.isSame(currentPlc)) {
                 movedMembers.push_back(member);
             }
@@ -981,7 +1464,7 @@ void AssemblyObject::syncActiveRigidGroupPlacements()
                 if (!member) {
                     continue;
                 }
-                rigidPlacementCache[member] = getPlacementFromProp(member, "Placement");
+                rigidPlacementCache[member] = solverPlacement(this, member);
             }
             continue;
         }
@@ -992,7 +1475,7 @@ void AssemblyObject::syncActiveRigidGroupPlacements()
 
         App::DocumentObject* driver = movedMembers.front();
         const Base::Placement oldDriverPlc = rigidPlacementCache.at(driver);
-        const Base::Placement newDriverPlc = getPlacementFromProp(driver, "Placement");
+        const Base::Placement newDriverPlc = solverPlacement(this, driver);
         const Base::Placement delta = newDriverPlc * oldDriverPlc.inverse();
 
         for (auto* member : members) {
@@ -1002,7 +1485,7 @@ void AssemblyObject::syncActiveRigidGroupPlacements()
 
             if (auto cacheIt = rigidPlacementCache.find(member);
                 cacheIt != rigidPlacementCache.end()) {
-                Base::Placement targetPlc = delta * cacheIt->second;
+                Base::Placement targetPlc = localPlacement(this, member, delta * cacheIt->second);
                 auto* propPlacement = member->getPlacementProperty();
                 if (propPlacement && !propPlacement->getValue().isSame(targetPlc)) {
                     propPlacement->setValue(targetPlc);
@@ -1015,7 +1498,7 @@ void AssemblyObject::syncActiveRigidGroupPlacements()
             if (!member) {
                 continue;
             }
-            rigidPlacementCache[member] = getPlacementFromProp(member, "Placement");
+            rigidPlacementCache[member] = solverPlacement(this, member);
         }
     }
 }
@@ -1031,7 +1514,7 @@ void AssemblyObject::updateRigidPlacementCache()
                 continue;
             }
             activeMembers.insert(member);
-            rigidPlacementCache[member] = getPlacementFromProp(member, "Placement");
+            rigidPlacementCache[member] = solverPlacement(this, member);
         }
     }
 
@@ -1060,6 +1543,14 @@ bool isFinitePlacement(const Base::Placement& plc)
 
 void AssemblyObject::setNewPlacements()
 {
+    if (isAutomaticMotionSuspended(getDocument())) {
+        return;
+    }
+    setNewPlacementsImpl();
+}
+
+void AssemblyObject::setNewPlacementsImpl()
+{
     for (auto& pair : objectPartMap) {
         App::DocumentObject* obj = pair.first;
         std::shared_ptr<ASMTPart> mbdPart = pair.second.part;
@@ -1079,6 +1570,7 @@ void AssemblyObject::setNewPlacements()
         if (!pair.second.offsetPlc.isIdentity()) {
             newPlacement = newPlacement * pair.second.offsetPlc;
         }
+        newPlacement = localPlacement(this, obj, newPlacement);
         if (!isFinitePlacement(newPlacement)) {
             Base::Console().warning(
                 "Assembly: solver returned a non-finite placement for '{}'; keeping its "
@@ -1280,12 +1772,11 @@ std::vector<App::DocumentObject*> AssemblyObject::getJoints(bool delBadJoints, b
     std::vector<App::DocumentObject*> joints = {};
 
     JointGroup* jointGroup = getJointGroup();
-    if (!jointGroup) {
-        return {};
-    }
 
     Base::PyGILStateLocker lock;
-    for (auto joint : jointGroup->getObjects()) {
+    const auto rootJoints = jointGroup ? jointGroup->getObjects()
+                                       : std::vector<App::DocumentObject*> {};
+    for (auto joint : rootJoints) {
         if (!joint) {
             continue;
         }
@@ -1317,12 +1808,41 @@ std::vector<App::DocumentObject*> AssemblyObject::getJoints(bool delBadJoints, b
 
     // add sub assemblies joints.
     if (subJoints) {
-        for (auto& assembly : getSubAssemblies()) {
-            auto subJoints = assembly->getJoints();
-            joints.insert(joints.end(), subJoints.begin(), subJoints.end());
+        std::vector<AssemblyLink*> subAssemblies;
+        std::unordered_set<App::DocumentObject*> visited;
+        collectActiveSubAssemblies(Group.getValues(), subAssemblies, visited);
+        for (auto* subAssembly : subAssemblies) {
+            const auto childJoints = subAssembly->getJoints();
+            joints.insert(joints.end(), childJoints.begin(), childJoints.end());
         }
     }
 
+    // Local-only enumeration also supplies occurrence copying and reference
+    // remapping. Preserve those records when components are temporarily dormant.
+    if (!subJoints) {
+        return joints;
+    }
+
+    const auto componentList = getAssemblyComponents(this);
+    std::unordered_set<App::DocumentObject*> components(componentList.begin(), componentList.end());
+    // Ordinary joints can use fixed root datums and the origin. These are
+    // eligible endpoints, but must not become moving assembly components.
+    components.insert(Origin.getValue());
+    for (auto* object : Group.getValues()) {
+        if (object->isDerivedFrom<App::LocalCoordinateSystem>()
+            || object->isDerivedFrom<App::DatumElement>()) {
+            auto* attachment = object->getExtensionByType<PartApp::AttachExtension>(true);
+            if (!attachment || std::string(attachment->MapMode.getValueAsString()) == "Deactivated") {
+                components.insert(object);
+            }
+        }
+    }
+    std::unordered_set<App::DocumentObject*> seen;
+    std::erase_if(joints, [&](auto* joint) {
+        return joint->isError() || !components.contains(getMovingPartFromRef(joint, "Reference1"))
+            || !components.contains(getMovingPartFromRef(joint, "Reference2"))
+            || !seen.insert(joint).second;
+    });
     return joints;
 }
 
@@ -1360,6 +1880,16 @@ std::vector<App::DocumentObject*> AssemblyObject::getRigidGroups()
         return {};
     }
 
+    const auto componentList = getAssemblyComponents(this);
+    const std::unordered_set<App::DocumentObject*> components(
+        componentList.begin(),
+        componentList.end()
+    );
+    const auto structuralList = Assembly::detail::getAssemblyComponents(Group.getValues(), true);
+    const std::unordered_set<App::DocumentObject*> structuralComponents(
+        structuralList.begin(),
+        structuralList.end()
+    );
     Base::PyGILStateLocker lock;
     for (auto const obj : jointGroup->getObjects()) {
         if (!obj || obj->isError()) {
@@ -1375,6 +1905,15 @@ std::vector<App::DocumentObject*> AssemblyObject::getRigidGroups()
             = dynamic_cast<App::PropertyLinkList*>(obj->getPropertyByName("ObjectsToRigidGroup"));
             prop) {
             const std::vector<App::DocumentObject*> rawMembers = prop->getValues();
+            // Suppression and rigid ancestry remove solver participation, not stored
+            // membership. Do not repair dormant metadata into an active group.
+            if (std::ranges::any_of(rawMembers, [&](auto* member) {
+                    return member && !member->isError() && structuralComponents.contains(member)
+                        && member->getPropertyByName("Placement") != nullptr
+                        && !components.contains(member);
+                })) {
+                continue;
+            }
             std::vector<App::DocumentObject*> validMembers;
             validMembers.reserve(rawMembers.size());
             std::unordered_set<App::DocumentObject*> seen;
@@ -1384,8 +1923,10 @@ std::vector<App::DocumentObject*> AssemblyObject::getRigidGroups()
                     continue;
                 }
 
-                // Keep only parts that belong to this assembly and have placement.
-                if (!hasObject(member) || member->getPropertyByName("Placement") == nullptr) {
+                // Active components include flexible descendants in distinct local
+                // parents. Direct Part membership does not describe solver membership.
+                if (!components.contains(member)
+                    || member->getPropertyByName("Placement") == nullptr) {
                     continue;
                 }
 
@@ -1513,7 +2054,7 @@ std::unordered_set<App::DocumentObject*> AssemblyObject::fixGroundedParts()
             continue;
         }
 
-        Base::Placement plc = getPlacementFromProp(obj, "Placement");
+        Base::Placement plc = solverPlacement(this, obj);
         std::string str = obj->getFullName();
         fixGroundedPart(obj, plc, str);
     }
@@ -1530,10 +2071,12 @@ void AssemblyObject::fixGroundedPart(App::DocumentObject* obj, Base::Placement& 
     auto mbdMarker1 = makeMbdMarker(markerName1, plc);
     mbdAssembly->addMarker(mbdMarker1);
 
-    std::shared_ptr<ASMTPart> mbdPart = getMbDPart(obj);
+    const MbDPartData data = getMbDData(obj);
+    std::shared_ptr<ASMTPart> mbdPart = data.part;
 
-    std::string markerName2 = "FixingMarker";
-    Base::Placement basePlc = Base::Placement();
+    // Several grounded members can share a bundled body with different offsets.
+    std::string markerName2 = "FixingMarker-" + obj->getFullName();
+    Base::Placement basePlc = data.offsetPlc;
     auto mbdMarker2 = makeMbdMarker(markerName2, basePlc);
     mbdPart->addMarker(mbdMarker2);
 
@@ -2388,9 +2931,11 @@ void AssemblyObject::getRackPinionMarkers(
     if (!ref1 || !ref2) {
         return;
     }
-    Base::Placement pinion_global_plc = getGlobalPlacement(obj2, ref2);
+    Base::Placement pinion_global_plc = Assembly::detail::getContainingPlacement(ref2->getValue())
+        * getGlobalPlacement(obj2, ref2);
     plc2 = pinion_global_plc * plc2;
-    Base::Placement rack_global_plc = getGlobalPlacement(obj1, ref1);
+    Base::Placement rack_global_plc = Assembly::detail::getContainingPlacement(ref1->getValue())
+        * getGlobalPlacement(obj1, ref1);
     plc2 = rack_global_plc.inverse() * plc2;
 
     // The rot of the rack placement should be the same as the pinion, but with X axis along the
@@ -2423,7 +2968,8 @@ void AssemblyObject::getRackPinionMarkers(
     if (obj1->getNameInDocument() != part1->getNameInDocument()) {
         plc1 = rack_global_plc * plc1;
 
-        Base::Placement part_global_plc = getGlobalPlacement(part1, ref1);
+        Base::Placement part_global_plc = Assembly::detail::getContainingPlacement(ref1->getValue())
+            * getGlobalPlacement(part1, ref1);
         plc1 = part_global_plc.inverse() * plc1;
     }
     // check if we need to add an offset in case of bundled parts.
@@ -2515,7 +3061,7 @@ AssemblyObject::MbDPartData AssemblyObject::getMbDData(App::DocumentObject* part
 
     // Associate objects that belong to an active rigid cluster.
     if (auto* rep = getRigidRepresentative(part)) {
-        Base::Placement repPlc = getPlacementFromProp(rep, "Placement");
+        Base::Placement repPlc = solverPlacement(this, rep);
 
         std::shared_ptr<ASMTPart> mbdPart;
         const auto repMapped = objectPartMap.find(rep);
@@ -2535,7 +3081,7 @@ AssemblyObject::MbDPartData AssemblyObject::getMbDData(App::DocumentObject* part
                     continue;
                 }
 
-                Base::Placement memberPlc = getPlacementFromProp(member, "Placement");
+                Base::Placement memberPlc = solverPlacement(this, member);
                 objectPartMap[member] = {mbdPart, repPlc.inverse() * memberPlc};
             }
         }
@@ -2548,7 +3094,7 @@ AssemblyObject::MbDPartData AssemblyObject::getMbDData(App::DocumentObject* part
 
     // part has not been associated with an ASMTPart before
     std::string str = part->getFullName();
-    Base::Placement plc = getPlacementFromProp(part, "Placement");
+    Base::Placement plc = solverPlacement(this, part);
     std::shared_ptr<ASMTPart> mbdPart = makeMbdPart(str, plc);
     mbdAssembly->addPart(mbdPart);
     MbDPartData data = {mbdPart, Base::Placement()};
@@ -2570,7 +3116,7 @@ AssemblyObject::MbDPartData AssemblyObject::getMbDData(App::DocumentObject* part
                         continue;
                     }
 
-                    Base::Placement plci = getPlacementFromProp(partToAdd, "Placement");
+                    Base::Placement plci = solverPlacement(this, partToAdd);
                     MbDPartData partData = {mbdPart, plc.inverse() * plci};
                     objectPartMap[partToAdd] = partData;  // Store the association
 
@@ -2737,6 +3283,14 @@ std::vector<AssemblyLink*> AssemblyObject::getSubAssemblies()
 
 void AssemblyObject::ensureIdentityPlacements()
 {
+    if (isAutomaticMotionSuspended(getDocument())) {
+        return;
+    }
+    ensureIdentityPlacementsImpl();
+}
+
+void AssemblyObject::ensureIdentityPlacementsImpl()
+{
     std::vector<App::DocumentObject*> group = Group.getValues();
     for (auto* obj : group) {
         // When used in assembly, link groups must have identity placements.
@@ -2767,6 +3321,14 @@ void AssemblyObject::ensureIdentityPlacements()
 }
 
 void AssemblyObject::syncGroundedJoints()
+{
+    if (isAutomaticMotionSuspended(getDocument())) {
+        return;
+    }
+    syncGroundedJointsImpl();
+}
+
+void AssemblyObject::syncGroundedJointsImpl()
 {
     if (App::GetApplication().isRestoring()) {
         return;

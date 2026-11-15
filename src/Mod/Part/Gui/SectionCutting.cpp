@@ -116,10 +116,8 @@ SectionCut::SectionCut(QWidget* parent)
         return object ? App::RecomputeRequest::fromDocumentObject(*object, /*recursive=*/true)
                       : App::RecomputeRequest {};
     };
-    callbacks.runSync = [this]() {
-        if (auto* object = getPreviewRequestObject(); object && object->getDocument()) {
-            object->getDocument()->recomputeFeature(object, /*recursive=*/true);
-        }
+    callbacks.runSyncWithResult = [this]() {
+        return Gui::recomputeDocumentObjectWithResult(getPreviewRequestObject(), true);
     };
     asyncPreviewSession = std::make_unique<Gui::AsyncPreviewSession>(std::move(callbacks), this);
     asyncPreviewSession->setSchedulerInterval(

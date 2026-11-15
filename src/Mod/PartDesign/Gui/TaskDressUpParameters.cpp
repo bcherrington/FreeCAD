@@ -102,11 +102,16 @@ TaskDressUpParameters::TaskDressUpParameters(
         auto* object = getObject<PartDesign::DressUp>();
         return object ? App::RecomputeRequest::fromDocumentObject(*object) : App::RecomputeRequest {};
     };
-    callbacks.runSync = [this]() {
+    callbacks.runSyncWithResult = [this]() -> App::RecomputeResult {
         if (auto* dressUp = getObject<PartDesign::DressUp>()) {
-            dressUp->recomputeFeature();
-            dressUp->recomputePreview();
+            PreviewRecomputeGuard guard(dressUp, this, getViewObject());
+            auto result = Gui::recomputeDocumentObjectWithResult(dressUp);
+            if (guard.isLive()) {
+                dressUp->recomputePreview();
+            }
+            return result;
         }
+        return Gui::recomputeDocumentObjectWithResult(nullptr);
     };
     callbacks.onAppliedResult = [this](bool, bool canceled) {
         if (shouldRestoreReferenceHighlightAfterRecompute()) {
@@ -860,7 +865,7 @@ const std::vector<std::string> TaskDressUpParameters::getReferences() const
 // TODO: This code is identical with TaskTransformedParameters::removeItemFromListWidget()
 void TaskDressUpParameters::removeItemFromListWidget(QListWidget* widget, const char* itemstr)
 {
-    QList<QListWidgetItem*> items = widget->findItems(QString::fromLatin1(itemstr), Qt::MatchExactly);
+    QList<QListWidgetItem*> items = widget->findItems(QString::fromUtf8(itemstr), Qt::MatchExactly);
     if (!items.empty()) {
         for (auto item : items) {
             QListWidgetItem* it = widget->takeItem(widget->row(item));
@@ -983,6 +988,16 @@ bool TaskDlgDressUpParameters::accept()
         return false;
     }
 
+    QPointer<TaskDlgDressUpParameters> dialogGuard(this);
+    QPointer<TaskDressUpParameters> parameterGuard(parameter);
+    auto* original = getObject();
+    PreviewRecomputeGuard originalGuard(original, parameter, getViewObject());
+    auto* editOwner = original ? Gui::Control().activeDialog(original->getDocument()) : nullptr;
+    if (!parameter->stopPendingRecomputeAndWait() || !dialogGuard || !parameterGuard
+        || parameter != parameterGuard.data() || !originalGuard.isLive() || getObject() != original
+        || Gui::Control().activeDialog(original->getDocument()) != editOwner) {
+        return false;
+    }
     prepareDeferredReject(parameter, &TaskDressUpParameters::recomputeSettled, [this]() {
         return TaskDlgFeatureParameters::reject();
     });

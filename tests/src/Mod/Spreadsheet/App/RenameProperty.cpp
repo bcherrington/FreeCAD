@@ -23,7 +23,10 @@
  ****************************************************************************/
 
 #include <gtest/gtest.h>
+#include <memory>
+#include <algorithm>
 
+#include <Mod/Spreadsheet/App/PropertySheet.h>
 #include <Mod/Spreadsheet/App/Sheet.h>
 
 #include "src/App/Property.h"
@@ -77,4 +80,61 @@ TEST_F(SpreadsheetRenameProperty, renameProperty)
 
     EXPECT_EQ(cellContent, "=VarSet.NewName");
     EXPECT_EQ(propSpreadsheet->getValue(), value);
+}
+
+TEST_F(SpreadsheetRenameProperty, copiedCellsFollowPropertyRename)
+{
+    sheet->setCell("A1", "=VarSet.Variable");
+    doc->recompute();
+    auto* cells = dynamic_cast<Spreadsheet::PropertySheet*>(sheet->getPropertyByName("cells"));
+    ASSERT_NE(cells, nullptr);
+    std::unique_ptr<App::Property, decltype(&App::Property::destroy)> copy(
+        cells->Copy(),
+        &App::Property::destroy
+    );
+    auto* copiedCells = dynamic_cast<Spreadsheet::PropertySheet*>(copy.get());
+    ASSERT_NE(copiedCells, nullptr);
+    ASSERT_TRUE(varSet->renameDynamicProperty(prop, "NewName"));
+    doc->recompute();
+    std::string liveContent;
+    std::string copiedContent;
+    sheet->getCell(App::CellAddress("A1"))->getStringContent(liveContent);
+    auto* copiedCell = copiedCells->getValue(App::CellAddress("A1"));
+    ASSERT_NE(copiedCell, nullptr);
+    copiedCell->getStringContent(copiedContent);
+    EXPECT_EQ(liveContent, "=VarSet.NewName");
+    EXPECT_EQ(copiedContent, "=VarSet.NewName");
+}
+
+TEST_F(SpreadsheetRenameProperty, transformedCopyReleasesOldTarget)
+{
+    auto* replacement = freecad_cast<App::VarSet*>(doc->addObject("App::VarSet", "Replacement"));
+    auto* replacementProperty = freecad_cast<App::PropertyInteger*>(
+        replacement->addDynamicProperty("App::PropertyInteger", "Variable", "Variables")
+    );
+    replacementProperty->setValue(value);
+    sheet->setCell("A1", "=VarSet.Variable");
+    doc->recompute();
+    auto* cells = dynamic_cast<Spreadsheet::PropertySheet*>(sheet->getPropertyByName("cells"));
+    ASSERT_NE(cells, nullptr);
+    std::unique_ptr<App::Property, decltype(&App::Property::destroy)> copy(
+        cells->CopyOnLinkReplace(sheet, varSet, replacement),
+        &App::Property::destroy
+    );
+    auto* copiedCells = dynamic_cast<Spreadsheet::PropertySheet*>(copy.get());
+    ASSERT_NE(copiedCells, nullptr);
+    std::vector<App::DocumentObject*> endpoints;
+    copiedCells->collectAdmissionTargets(endpoints);
+    EXPECT_EQ(std::find(endpoints.begin(), endpoints.end(), varSet), endpoints.end());
+    EXPECT_NE(std::find(endpoints.begin(), endpoints.end(), replacement), endpoints.end());
+    doc->removeObject(varSet->getNameInDocument());
+    // Keep the fixture cleanup attached to the surviving replacement.
+    varSet = replacement;
+    prop = replacementProperty;
+    ASSERT_TRUE(varSet->renameDynamicProperty(prop, "NewName"));
+    std::string content;
+    auto* copiedCell = copiedCells->getValue(App::CellAddress("A1"));
+    ASSERT_NE(copiedCell, nullptr);
+    copiedCell->getStringContent(content);
+    EXPECT_EQ(content, "=Replacement.NewName");
 }

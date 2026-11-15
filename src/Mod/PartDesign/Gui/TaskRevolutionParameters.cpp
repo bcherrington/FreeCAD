@@ -125,11 +125,16 @@ TaskRevolutionParameters::TaskRevolutionParameters(
         auto* object = getObject<PartDesign::Revolved>();
         return object ? App::RecomputeRequest::fromDocumentObject(*object) : App::RecomputeRequest {};
     };
-    callbacks.runSync = [this]() {
+    callbacks.runSyncWithResult = [this]() -> App::RecomputeResult {
         if (auto* revolution = getObject<PartDesign::Revolved>()) {
-            revolution->recomputeFeature();
-            revolution->recomputePreview();
+            PreviewRecomputeGuard guard(revolution, this, getViewObject());
+            auto result = Gui::recomputeDocumentObjectWithResult(revolution);
+            if (guard.isLive()) {
+                revolution->recomputePreview();
+            }
+            return result;
         }
+        return Gui::recomputeDocumentObjectWithResult(nullptr);
     };
     callbacks.onAppliedResult = [this](bool success, bool canceled) {
         if (!canceled && success) {
@@ -1111,7 +1116,7 @@ void TaskRevolutionParameters::apply()
     if (static_cast<Mode>(getMode2()) == Mode::ToFace) {
         facename2 = getFaceName(ui->lineFaceName2);
     }
-    FCMD_OBJ_CMD(tobj, "UpToFace = " << facename.toLatin1().data());
+    FCMD_OBJ_CMD(tobj, "UpToFace = " << facename.toUtf8().data());
     FCMD_OBJ_CMD(tobj, "UpToFace2 = " << facename2.toLatin1().data());
 }
 

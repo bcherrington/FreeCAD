@@ -326,8 +326,8 @@ TaskHoleParameters::TaskHoleParameters(ViewProviderHole* HoleView, QWidget* pare
         auto* object = getObject<PartDesign::Hole>();
         return object ? App::RecomputeRequest::fromDocumentObject(*object) : App::RecomputeRequest {};
     };
-    callbacks.runSync = [this]() {
-        recomputeFeature();
+    callbacks.runSyncWithResult = [this]() {
+        return recomputeFeatureWithResult();
     };
     callbacks.onCompleted = [](bool, bool, App::RecomputeFailure failure, const std::string& message) {
         reportHoleAsyncRecomputeFailure(failure, message);

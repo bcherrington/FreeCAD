@@ -151,11 +151,6 @@
 #include <BOPAlgo_ArgumentAnalyzer.hxx>
 #include <BOPAlgo_ListOfCheckResult.hxx>
 
-#if OCC_VERSION_HEX < 0x070600
-# include <BRepAdaptor_HCurve.hxx>
-# include <BRepAdaptor_HCompCurve.hxx>
-#endif
-
 #include <boost/algorithm/string/predicate.hpp>
 #include <boost/core/ignore_unused.hpp>
 
@@ -938,7 +933,6 @@ void TopoShape::exportStep(const char* filename) const
 
 void TopoShape::exportBrep(const char* filename) const
 {
-#if OCC_VERSION_HEX >= 0x070600
     if (!BRepTools::Write(
             this->_Shape,
             encodeFilename(filename).c_str(),
@@ -948,11 +942,6 @@ void TopoShape::exportBrep(const char* filename) const
         )) {
         throw Base::FileWriteException(filename);
     }
-#else
-    if (!BRepTools::Write(this->_Shape, encodeFilename(filename).c_str())) {
-        throw Base::FileWriteException(filename);
-    }
-#endif
 }
 
 void TopoShape::exportBrep(std::ostream& out) const
@@ -2168,23 +2157,12 @@ TopoDS_Shape TopoShape::makeTube(double radius, double tol, int cont, int maxdeg
         throw Standard_Failure("Cannot sweep along empty spine");
     }
 
-#if OCC_VERSION_HEX >= 0x070600
-
     Handle(Adaptor3d_Curve) myPath;
 
     if (this->_Shape.ShapeType() == TopAbs_EDGE) {
         const TopoDS_Edge& path_edge = TopoDS::Edge(this->_Shape);
         myPath = new BRepAdaptor_Curve(path_edge);
     }
-#else
-    Handle(Adaptor3d_HCurve) myPath;
-    if (this->_Shape.ShapeType() == TopAbs_EDGE) {
-        const TopoDS_Edge& path_edge = TopoDS::Edge(this->_Shape);
-        BRepAdaptor_Curve path_adapt(path_edge);
-        myPath = new BRepAdaptor_HCurve(path_adapt);
-    }
-#endif
-
     else {
         throw Standard_Failure("Spine shape is not an edge");
     }

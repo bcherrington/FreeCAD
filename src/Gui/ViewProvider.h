@@ -860,6 +860,12 @@ protected:
     ) const;
 
 protected:
+    // Observation only: callbacks may destroy this provider synchronously.
+    std::weak_ptr<void> updateLifetimeToken() const noexcept
+    {
+        return updateLifetime;
+    }
+
     /// The root Separator of the ViewProvider
     SoSeparator* pcRoot;
     /// this is transformation for the provider
@@ -879,6 +885,8 @@ protected:
     friend class ViewProviderPy;
 
 private:
+    friend class Document;
+    std::shared_ptr<void> updateLifetime {std::make_shared<char>()};
     int _iActualMode {-1};
     int _iEditMode {-1};
     int viewOverrideMode {-1};

@@ -250,6 +250,7 @@ void TaskMirroredParameters::apply()
 
 TaskMirroredParameters::~TaskMirroredParameters()
 {
+    beginPreviewTeardown();
     // hide the parts coordinate system axis for selection
     try {
         PartDesign::Body* body = PartDesign::Body::findBodyOf(getObject());

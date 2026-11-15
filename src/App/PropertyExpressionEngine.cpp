@@ -38,6 +38,7 @@
 
 #include "PropertyExpressionEngine.h"
 #include "ExpressionVisitors.h"
+#include "private/RecomputeAdmission.h"
 
 
 FC_LOG_LEVEL_INIT("App", true);
@@ -49,51 +50,133 @@ namespace sp = std::placeholders;
 
 TYPESYSTEM_SOURCE_ABSTRACT(App::PropertyExpressionContainer, App::PropertyXLinkContainer)
 
-static std::set<PropertyExpressionContainer*> _ExprContainers;
+namespace
+{
+struct ExpressionAdmissionRecord
+{
+    std::set<RecomputeDetail::Generation> documents;
+    std::set<const DocumentObject*> objects;
+};
+std::map<PropertyExpressionContainer*, ExpressionAdmissionRecord> expressionContainers;
+}  // namespace
 
 PropertyExpressionContainer::PropertyExpressionContainer()
 {
-    static bool inited;
-    if (!inited) {
-        inited = true;
+    static const bool connected = [] {
         GetApplication().signalRelabelDocument.connect(
-            PropertyExpressionContainer::slotRelabelDocument);
+            PropertyExpressionContainer::slotRelabelDocument
+        );
         GetApplication().signalMoveDynamicProperty.connect(
-            PropertyExpressionContainer::slotMoveDynamicProperty);
-    }
-    _ExprContainers.insert(this);
+            PropertyExpressionContainer::slotMoveDynamicProperty
+        );
+        return true;
+    }();
+    (void)connected;
+    RecomputeDetail::IndexLock lock;
+    expressionContainers.emplace(this, ExpressionAdmissionRecord());
 }
 
 PropertyExpressionContainer::~PropertyExpressionContainer()
 {
-    _ExprContainers.erase(this);
+    RecomputeDetail::IndexLock lock;
+    expressionContainers.erase(this);
+}
+
+void PropertyExpressionContainer::publishAdmissionTargets(const std::vector<DocumentObject*>& targets)
+{
+    ExpressionAdmissionRecord record;
+    // Registry-only identity lookup: publication adds no admission or native read.
+    // The caller supplies dependencies already computed by its graph update.
+    for (auto* target : targets) {
+        if (target) {
+            record.objects.insert(target);
+            const auto binding = RecomputeDetail::Coordinator::instance().bindObject(target);
+            if (binding->documentGeneration) {
+                record.documents.insert(binding->documentGeneration);
+            }
+        }
+    }
+    RecomputeDetail::IndexLock lock;
+    expressionContainers[this] = std::move(record);
+}
+
+void PropertyExpressionContainer::copyAdmissionMetadata(const PropertyExpressionContainer& source)
+{
+    RecomputeDetail::IndexLock lock;
+    expressionContainers[this] = expressionContainers.at(
+        const_cast<PropertyExpressionContainer*>(&source)
+    );
+}
+
+std::vector<DocumentObject*> PropertyExpressionContainer::admissionMetadataTargets() const
+{
+    RecomputeDetail::IndexLock lock;
+    const auto& record = expressionContainers.at(const_cast<PropertyExpressionContainer*>(this));
+    std::vector<DocumentObject*> result;
+    for (auto* target : record.objects) {
+        result.push_back(const_cast<DocumentObject*>(target));
+    }
+    return result;
+}
+
+void PropertyExpressionContainer::collectAdmissionTargets(std::vector<DocumentObject*>& targets) const
+{
+    PropertyXLinkContainer::collectAdmissionTargets(targets);
+    const auto indexed = admissionMetadataTargets();
+    targets.insert(targets.end(), indexed.begin(), indexed.end());
+}
+
+RecomputeDetail::PropertySnapshot PropertyExpressionContainer::snapshotForAdmission(
+    const Document* document,
+    const DocumentObject* object
+)
+{
+    std::vector<Property*> interested;
+    const auto binding = document ? RecomputeDetail::Coordinator::instance().bindDocument(document)
+                                  : RecomputeDetail::BindingPtr {};
+    {
+        RecomputeDetail::IndexLock lock;
+        for (const auto& entry : expressionContainers) {
+            if ((document && entry.second.documents.contains(binding->documentGeneration))
+                || (object && entry.second.objects.contains(object))) {
+                interested.push_back(entry.first);
+            }
+        }
+    }
+    return RecomputeDetail::Coordinator::instance().snapshotProperties(interested);
 }
 
 void PropertyExpressionContainer::slotRelabelDocument(const App::Document& doc)
 {
-    // For use a private _ExprContainers to track all living
-    // PropertyExpressionContainer including those inside undo/redo stack,
-    // because document relabel is not undoable/redoable.
-
     if (doc.getOldLabel() != doc.Label.getValue()) {
-        for (auto prop : _ExprContainers) {
-            prop->onRelabeledDocument(doc);
+        auto snapshot = snapshotForAdmission(&doc);
+        for (auto* property : snapshot.properties()) {
+            static_cast<PropertyExpressionContainer*>(property)->onRelabeledDocument(doc);
         }
     }
 }
 
-void PropertyExpressionContainer::handleDynamicPropertyRename(const App::Property& prop, const char* oldName)
+void PropertyExpressionContainer::handleDynamicPropertyRename(
+    const App::Property& prop,
+    const char* oldName
+)
 {
-    for (auto container : _ExprContainers) {
-        container->onRenameDynamicProperty(prop, oldName);
+    auto snapshot
+        = snapshotForAdmission(nullptr, dynamic_cast<const DocumentObject*>(prop.getContainer()));
+    for (auto* property : snapshot.properties()) {
+        static_cast<PropertyExpressionContainer*>(property)->onRenameDynamicProperty(prop, oldName);
     }
 }
 
-void PropertyExpressionContainer::slotMoveDynamicProperty(const App::Property& prop,
-                                                          const App::DocumentObject& targetObj)
+void PropertyExpressionContainer::slotMoveDynamicProperty(
+    const App::Property& prop,
+    const App::DocumentObject& targetObj
+)
 {
-    for (auto container : _ExprContainers) {
-        container->onMoveDynamicProperty(prop, targetObj);
+    auto snapshot
+        = snapshotForAdmission(nullptr, dynamic_cast<const DocumentObject*>(prop.getContainer()));
+    for (auto* property : snapshot.properties()) {
+        static_cast<PropertyExpressionContainer*>(property)->onMoveDynamicProperty(prop, targetObj);
     }
 }
 
@@ -135,10 +218,12 @@ struct PropertyExpressionEngine::Private
      * @param g Graph to update. May contain additional nodes than in revNodes, because of outside
      * dependencies.
      */
-    static void buildGraph(const ExpressionMap& exprs,
-                    boost::unordered_map<int, App::ObjectIdentifier>& revNodes,
-                    DiGraph& g,
-                    ExecuteOption option = ExecuteAll)
+    static void buildGraph(
+        const ExpressionMap& exprs,
+        boost::unordered_map<int, App::ObjectIdentifier>& revNodes,
+        DiGraph& g,
+        ExecuteOption option = ExecuteAll
+    )
     {
         boost::unordered_map<ObjectIdentifier, int> nodes;
         std::vector<Edge> edges;
@@ -150,8 +235,8 @@ struct PropertyExpressionEngine::Private
                 if (!prop) {
                     throw Base::RuntimeError("Path does not resolve to a property.");
                 }
-                bool is_output =
-                    prop->testStatus(App::Property::Output) || (prop->getType() & App::Prop_Output);
+                bool is_output = prop->testStatus(App::Property::Output)
+                    || (prop->getType() & App::Prop_Output);
                 if ((is_output && option == ExecuteNonOutput)
                     || (!is_output && option == ExecuteOutput)) {
                     continue;
@@ -190,11 +275,12 @@ struct PropertyExpressionEngine::Private
     }
 
     static void buildGraphStructures(
-    const ObjectIdentifier& path,
-    const std::shared_ptr<Expression> expression,
-    boost::unordered_map<ObjectIdentifier, int>& nodes,
-    boost::unordered_map<int, ObjectIdentifier>& revNodes,
-    std::vector<Edge>& edges)
+        const ObjectIdentifier& path,
+        const std::shared_ptr<Expression> expression,
+        boost::unordered_map<ObjectIdentifier, int>& nodes,
+        boost::unordered_map<int, ObjectIdentifier>& revNodes,
+        std::vector<Edge>& edges
+    )
     {
         /* Insert target property into nodes structure */
         if (nodes.find(path) == nodes.end()) {
@@ -250,6 +336,7 @@ unsigned int PropertyExpressionEngine::getMemSize() const
 
 Property* PropertyExpressionEngine::Copy() const
 {
+    auto mutation = RecomputeDetail::Coordinator::instance().mutation(*this);
     PropertyExpressionEngine* engine = new PropertyExpressionEngine();
 
     for (const auto& it : expressions) {
@@ -261,15 +348,132 @@ Property* PropertyExpressionEngine::Copy() const
     }
 
     engine->validator = validator;
+    mutation.include(admissionTargets(engine->expressions));
+    engine->refreshAdmissionMetadata();
 
     return engine;
 }
 
+PropertyExpressionEngine::ExpressionMap PropertyExpressionEngine::copyExpressions() const
+{
+    ExpressionMap result;
+    for (const auto& entry : expressions) {
+        result.emplace(
+            entry.first,
+            ExpressionInfo(
+                entry.second.expression ? std::shared_ptr<Expression>(entry.second.expression->copy())
+                                        : nullptr
+            )
+        );
+    }
+    return result;
+}
+
+std::vector<DocumentObject*> PropertyExpressionEngine::admissionTargets(const ExpressionMap& values)
+{
+    std::vector<DocumentObject*> targets;
+    for (const auto& entry : values) {
+        targets.push_back(entry.first.getOwner());
+        if (auto* owner = entry.first.getDocumentObject()) {
+            targets.push_back(owner);
+        }
+        if (entry.second.expression) {
+            targets.push_back(entry.second.expression->getOwner());
+            std::map<DocumentObject*, bool> dependencies;
+            std::map<std::pair<std::string, DocumentObject*>, bool> properties;
+            entry.second.expression->getDepObjects(dependencies, nullptr, &properties);
+            for (const auto& dependency : dependencies) {
+                targets.push_back(dependency.first);
+            }
+            for (const auto& property : properties) {
+                targets.push_back(property.first.second);
+            }
+        }
+    }
+    return targets;
+}
+
+void PropertyExpressionEngine::commitExpressions(ExpressionMap&& proposed, bool notify)
+{
+    commitExpressions(std::move(proposed), notify, {});
+}
+
+void PropertyExpressionEngine::commitExpressions(
+    ExpressionMap&& proposed,
+    bool notify,
+    const std::set<ObjectIdentifier>& changedPaths
+)
+{
+    auto mutation = RecomputeDetail::Coordinator::instance().mutation(*this);
+    auto targets = admissionTargets(expressions);
+    auto next = admissionTargets(proposed);
+    targets.insert(targets.end(), next.begin(), next.end());
+    mutation.include(targets);
+    if (!notify) {
+        expressions = std::move(proposed);
+        refreshAdmissionMetadata();
+        return;
+    }
+    std::set<ObjectIdentifier> paths = changedPaths;
+    for (const auto& entry : expressions) {
+        if (!proposed.contains(entry.first)) {
+            paths.insert(entry.first);
+        }
+    }
+    for (const auto& entry : proposed) {
+        auto old = expressions.find(entry.first);
+        if (old == expressions.end()) {
+            paths.insert(entry.first);
+            continue;
+        }
+        const auto& previous = old->second.expression;
+        const auto& nextExpression = entry.second.expression;
+        if (previous != nextExpression
+            && (!previous || !nextExpression || !previous->isSame(*nextExpression))) {
+            paths.insert(entry.first);
+        }
+    }
+    if (paths.empty()) {
+        return;
+    }
+    preflightAdmissionStorage();
+    AtomicPropertyChange signaller(*this);
+    expressions = std::move(proposed);
+    for (const auto& path : paths) {
+        expressionChanged(path);
+    }
+    signaller.tryInvoke();
+}
+
+void PropertyExpressionEngine::collectAdmissionTargets(std::vector<DocumentObject*>& targets) const
+{
+    PropertyExpressionContainer::collectAdmissionTargets(targets);
+    const auto* owner = freecad_cast<DocumentObject*>(getContainer());
+    if (!admissionStaging && (!owner || !owner->isAttachedToDocument())) {
+        // Copy factories publish their committed footprint. A history-owned
+        // model also retains its embedded engine after detachment, while its
+        // native name is null. Both consume only the indexed identities.
+        return;
+    }
+    // Live receivers and unpublished staging engines still discover their
+    // current/prospective AST footprint under their caller's native scope.
+    auto own = admissionTargets(expressions);
+    targets.insert(targets.end(), own.begin(), own.end());
+}
+
+void PropertyExpressionEngine::refreshAdmissionMetadata()
+{
+    if (admissionStaging) {
+        return;
+    }
+    publishAdmissionTargets(admissionTargets(expressions));
+}
+
 void PropertyExpressionEngine::hasSetValue()
 {
+    refreshAdmissionMetadata();
     auto* owner = freecad_cast<App::DocumentObject*>(getContainer());
-    if (!owner || !owner->isAttachedToDocument() || owner->isRestoring()
-        || testFlag(LinkDetached)) {
+    if (!owner || !owner->isAttachedToDocument() || owner->isRestoring() || testFlag(LinkDetached)) {
         PropertyExpressionContainer::hasSetValue();
         return;
     }
@@ -328,17 +532,23 @@ void PropertyExpressionEngine::hasSetValue()
                             // NOLINTBEGIN
                             if (!propName.empty()) {
                                 pimpl->conns.emplace_back(obj->signalChanged.connect(
-                                    std::bind(&PropertyExpressionEngine::slotChangedProperty,
-                                              this,
-                                              sp::_1,
-                                              sp::_2)));
+                                    std::bind(
+                                        &PropertyExpressionEngine::slotChangedProperty,
+                                        this,
+                                        sp::_1,
+                                        sp::_2
+                                    )
+                                ));
                             }
                             else {
                                 pimpl->conns.emplace_back(obj->signalChanged.connect(
-                                    std::bind(&PropertyExpressionEngine::slotChangedObject,
-                                              this,
-                                              sp::_1,
-                                              sp::_2)));
+                                    std::bind(
+                                        &PropertyExpressionEngine::slotChangedObject,
+                                        this,
+                                        sp::_1,
+                                        sp::_2
+                                    )
+                                ));
                             }
                             // NOLINTEND
                         }
@@ -378,51 +588,58 @@ void PropertyExpressionEngine::updateHiddenReference(const std::string& key)
                 myProp->setPathValue(var, value);
             }
         }
+        catch (const RecomputeDetail::AdmissionRefusal&) {
+            throw;
+        }
         catch (Base::Exception& e) {
             e.reportException();
-            FC_ERR("Failed to evaluate property binding " << myProp->getFullName()
-                                                          << " on change of " << key);
+            FC_ERR(
+                "Failed to evaluate property binding " << myProp->getFullName() << " on change of "
+                                                       << key
+            );
         }
         catch (std::bad_cast&) {
-            FC_ERR("Invalid type '" << value.type().name() << "' in property binding "
-                                    << myProp->getFullName() << " on change of " << key);
+            FC_ERR(
+                "Invalid type '" << value.type().name() << "' in property binding "
+                                 << myProp->getFullName() << " on change of " << key
+            );
         }
         catch (std::exception& e) {
             FC_ERR(e.what());
-            FC_ERR("Failed to evaluate property binding " << myProp->getFullName()
-                                                          << " on change of " << key);
+            FC_ERR(
+                "Failed to evaluate property binding " << myProp->getFullName() << " on change of "
+                                                       << key
+            );
         }
     }
 }
 
-void PropertyExpressionEngine::slotChangedObject(const App::DocumentObject& obj,
-                                                 const App::Property&)
+void PropertyExpressionEngine::slotChangedObject(const App::DocumentObject& obj, const App::Property&)
 {
     updateHiddenReference(obj.getFullName());
 }
 
-void PropertyExpressionEngine::slotChangedProperty(const App::DocumentObject&,
-                                                   const App::Property& prop)
+void PropertyExpressionEngine::slotChangedProperty(const App::DocumentObject&, const App::Property& prop)
 {
     updateHiddenReference(prop.getFullName());
 }
 
 void PropertyExpressionEngine::Paste(const Property& from)
 {
-    const PropertyExpressionEngine& fromee = dynamic_cast<const PropertyExpressionEngine&>(from);
-
+    const auto& fromee = dynamic_cast<const PropertyExpressionEngine&>(from);
+    auto mutation = RecomputeDetail::Coordinator::instance().mutation(*this);
+    auto source = RecomputeDetail::Coordinator::instance().mutation(fromee);
+    auto proposed = fromee.copyExpressions();
+    auto targets = admissionTargets(proposed);
+    mutation.include(targets);
+    // Validator is part of the same admitted commit as the expression map.
+    preflightAdmissionStorage();
     AtomicPropertyChange signaller(*this);
-
-    expressions.clear();
-    for (auto& e : fromee.expressions) {
-        ExpressionInfo info;
-        if (e.second.expression) {
-            info.expression = std::shared_ptr<Expression>(e.second.expression->copy());
-        }
-        expressions[e.first] = info;
-        expressionChanged(e.first);
-    }
+    expressions = std::move(proposed);
     validator = fromee.validator;
+    for (const auto& entry : expressions) {
+        expressionChanged(entry.first);
+    }
     signaller.tryInvoke();
 }
 
@@ -459,6 +676,8 @@ void PropertyExpressionEngine::Save(Base::Writer& writer) const
 
 void PropertyExpressionEngine::Restore(Base::XMLReader& reader)
 {
+    auto restoration = RecomputeDetail::Coordinator::instance().atomicForRestore(*this);
+    auto mutation = RecomputeDetail::Coordinator::instance().mutation(*this);
     reader.readElement("ExpressionEngine");
     int count = reader.getAttribute<double>("count");
 
@@ -520,8 +739,11 @@ size_t PropertyExpressionEngine::numExpressions() const
 
 void PropertyExpressionEngine::afterRestore()
 {
+    auto restoration = RecomputeDetail::Coordinator::instance().atomicForRestore(*this);
+    auto mutation = RecomputeDetail::Coordinator::instance().mutation(*this);
     DocumentObject* docObj = freecad_cast<DocumentObject*>(getContainer());
     if (restoredExpressions && docObj) {
+        preflightAdmissionStorage();
         Base::FlagToggler<bool> flag(restoring);
         AtomicPropertyChange signaller(*this);
 
@@ -536,31 +758,45 @@ void PropertyExpressionEngine::afterRestore()
     restoredExpressions.reset();
 }
 
-void PropertyExpressionEngine::tryRestoreExpression(DocumentObject* docObj,
-                                                    const RestoredExpression& info)
+void PropertyExpressionEngine::tryRestoreExpression(DocumentObject* docObj, const RestoredExpression& info)
 {
     try {
         ObjectIdentifier path = ObjectIdentifier::parse(docObj, info.path);
         if (!info.expr.empty()) {
-            std::shared_ptr<Expression> expression(
-                Expression::parse(docObj, info.expr));
+            std::shared_ptr<Expression> expression(Expression::parse(docObj, info.expr));
             if (expression) {
                 expression->comment = info.comment;
             }
             setValue(path, expression);
         }
     }
+    catch (const RecomputeDetail::AdmissionRefusal&) {
+        throw;
+    }
     catch (const Base::Exception& e) {
-        FC_ERR("Failed to restore " << docObj->getFullName()
-                                    << '.'
-                                    << getName()
-                                    << ": "
-                                    << e.what());
+        FC_ERR("Failed to restore " << docObj->getFullName() << '.' << getName() << ": " << e.what());
     }
 }
 
 void PropertyExpressionEngine::onContainerRestored()
 {
+    auto mutation = RecomputeDetail::Coordinator::instance().mutation(*this);
+    PropertyExpressionEngine staged;
+    staged.admissionStaging = true;
+    staged.expressions = copyExpressions();
+    {
+        UpdateElementReferenceExpressionVisitor<PropertyExpressionEngine> plan(staged);
+        for (auto& entry : staged.expressions) {
+            if (entry.second.expression) {
+                entry.second.expression->visit(plan);
+            }
+        }
+    }
+    std::vector<DocumentObject*> plannedTargets;
+    staged.collectAdmissionTargets(plannedTargets);
+    mutation.include(plannedTargets);
+    preflightAdmissionStorage();
+
     Base::FlagToggler<bool> flag(restoring);
     unregisterElementReference();
     UpdateElementReferenceExpressionVisitor<PropertyExpressionEngine> v(*this);
@@ -585,45 +821,37 @@ const boost::any PropertyExpressionEngine::getPathValue(const App::ObjectIdentif
     return boost::any();
 }
 
-void PropertyExpressionEngine::setValue(const ObjectIdentifier& path,
-                                        std::shared_ptr<Expression> expr)
+void PropertyExpressionEngine::setValue(const ObjectIdentifier& path, std::shared_ptr<Expression> expr)
 {
+    auto mutation = RecomputeDetail::Coordinator::instance().mutation(*this);
     ObjectIdentifier usePath(canonicalPath(path));
     const Property* prop = usePath.getProperty();
-
-    // Try to access value; it should trigger an exception if it is not supported, or if the path is
-    // invalid
     prop->getPathValue(usePath);
-
-    // Check if the current expression equals the new one and do nothing if so to reduce unneeded
-    // computations
     auto it = expressions.find(usePath);
     if (it != expressions.end()
         && (expr == it->second.expression
             || (expr && it->second.expression && expr->isSame(*it->second.expression)))) {
         return;
     }
-
+    ExpressionMap proposed = expressions;
     if (expr) {
+        proposed[usePath] = ExpressionInfo(expr);
+        mutation.include(admissionTargets(proposed));
         std::string error = validateExpression(usePath, expr);
         if (!error.empty()) {
             throw Base::RuntimeError(error.c_str());
         }
-        AtomicPropertyChange signaller(*this);
-        expressions[usePath] = ExpressionInfo(expr);
-        expressionChanged(usePath);
-        signaller.tryInvoke();
     }
     else if (it != expressions.end()) {
-        AtomicPropertyChange signaller(*this);
-        expressions.erase(it);
-        expressionChanged(usePath);
-        signaller.tryInvoke();
+        proposed.erase(usePath);
     }
+    else {
+        return;
+    }
+    commitExpressions(std::move(proposed));
 }
 
-std::vector<App::ObjectIdentifier>
-PropertyExpressionEngine::computeEvaluationOrder(ExecuteOption option)
+std::vector<App::ObjectIdentifier> PropertyExpressionEngine::computeEvaluationOrder(ExecuteOption option)
 {
     std::vector<App::ObjectIdentifier> evaluationOrder;
     boost::unordered_map<int, ObjectIdentifier> revNodes;
@@ -646,8 +874,7 @@ PropertyExpressionEngine::computeEvaluationOrder(ExecuteOption option)
     return evaluationOrder;
 }
 
-DocumentObjectExecReturn* App::PropertyExpressionEngine::execute(ExecuteOption option,
-                                                                 bool* touched)
+DocumentObjectExecReturn* App::PropertyExpressionEngine::execute(ExecuteOption option, bool* touched)
 {
     DocumentObject* docObj = freecad_cast<DocumentObject*>(getContainer());
 
@@ -666,8 +893,7 @@ DocumentObjectExecReturn* App::PropertyExpressionEngine::execute(ExecuteOption o
             if (!prop) {
                 continue;
             }
-            if (prop->testStatus(App::Property::Transient)
-                || (prop->getType() & App::Prop_Transient)
+            if (prop->testStatus(App::Property::Transient) || (prop->getType() & App::Prop_Transient)
                 || prop->testStatus(App::Property::EvalOnRestore)) {
                 found = true;
                 break;
@@ -757,6 +983,9 @@ DocumentObjectExecReturn* App::PropertyExpressionEngine::execute(ExecuteOption o
                 prop->setPathValue(*it, value);
             }
         }
+        catch (const RecomputeDetail::AdmissionRefusal&) {
+            throw;
+        }
         catch (Base::Exception& e) {
             std::ostringstream ss;
             ss << e.what() << std::endl << "in property binding '" << prop->getFullName() << "'";
@@ -780,7 +1009,8 @@ DocumentObjectExecReturn* App::PropertyExpressionEngine::execute(ExecuteOption o
 
 void PropertyExpressionEngine::getPathsToDocumentObject(
     DocumentObject* obj,
-    std::vector<App::ObjectIdentifier>& paths) const
+    std::vector<App::ObjectIdentifier>& paths
+) const
 {
     DocumentObject* owner = freecad_cast<DocumentObject*>(getContainer());
 
@@ -814,9 +1044,19 @@ bool PropertyExpressionEngine::depsAreTouched() const
     return false;
 }
 
-std::string
-PropertyExpressionEngine::validateExpression(const ObjectIdentifier& path,
-                                             std::shared_ptr<const Expression> expr) const
+std::string PropertyExpressionEngine::validateExpression(
+    const ObjectIdentifier& path,
+    std::shared_ptr<const Expression> expr
+) const
+{
+    return validateExpressionPlan(path, std::move(expr), expressions);
+}
+
+std::string PropertyExpressionEngine::validateExpressionPlan(
+    const ObjectIdentifier& path,
+    std::shared_ptr<const Expression> expr,
+    const ExpressionMap& baseline
+) const
 {
     std::string error;
     ObjectIdentifier usePath(canonicalPath(path));
@@ -866,7 +1106,7 @@ PropertyExpressionEngine::validateExpression(const ObjectIdentifier& path,
     // Check for internal document object dependencies
 
     // Copy current expressions
-    ExpressionMap newExpressions = expressions;
+    ExpressionMap newExpressions = baseline;
 
     // Add expression in question
     std::shared_ptr<Expression> exprClone(expr->copy());
@@ -879,6 +1119,9 @@ PropertyExpressionEngine::validateExpression(const ObjectIdentifier& path,
 
         Private::buildGraph(newExpressions, revNodes, g);
     }
+    catch (const RecomputeDetail::AdmissionRefusal&) {
+        throw;
+    }
     catch (const Base::Exception& e) {
         return e.what();
     }
@@ -887,8 +1130,10 @@ PropertyExpressionEngine::validateExpression(const ObjectIdentifier& path,
 }
 
 void PropertyExpressionEngine::renameExpressions(
-    const std::map<ObjectIdentifier, ObjectIdentifier>& paths)
+    const std::map<ObjectIdentifier, ObjectIdentifier>& paths
+)
 {
+    auto mutation = RecomputeDetail::Coordinator::instance().mutation(*this);
     ExpressionMap newExpressions;
     std::map<ObjectIdentifier, ObjectIdentifier> canonicalPaths;
 
@@ -909,8 +1154,10 @@ void PropertyExpressionEngine::renameExpressions(
         }
     }
 
+    mutation.include(admissionTargets(newExpressions));
+    preflightAdmissionStorage();
     aboutToSetValue();
-    expressions = newExpressions;
+    expressions = std::move(newExpressions);
     for (auto i = expressions.begin(); i != expressions.end(); ++i) {
         expressionChanged(i->first);
     }
@@ -919,12 +1166,49 @@ void PropertyExpressionEngine::renameExpressions(
 }
 
 void PropertyExpressionEngine::renameObjectIdentifiers(
-    const std::map<ObjectIdentifier, ObjectIdentifier>& paths)
+    const std::map<ObjectIdentifier, ObjectIdentifier>& paths
+)
 {
-    for (const auto& it : expressions) {
-        RenameObjectIdentifierExpressionVisitor<PropertyExpressionEngine> v(*this, paths, it.first);
-        it.second.expression->visit(v);
+    auto mutation = RecomputeDetail::Coordinator::instance().mutation(*this);
+    auto proposed = copyExpressions();
+    class RenamePlan: public ExpressionVisitor
+    {
+    public:
+        RenamePlan(
+            const std::map<ObjectIdentifier, ObjectIdentifier>& paths,
+            const ObjectIdentifier& owner
+        )
+            : paths(paths)
+            , owner(owner)
+        {}
+        void visit(Expression& node) override
+        {
+            renameObjectIdentifier(node, paths, owner);
+        }
+
+        void aboutToChange() override
+        {
+            modified = true;
+        }
+        bool modified = false;
+
+    private:
+        const std::map<ObjectIdentifier, ObjectIdentifier>& paths;
+        const ObjectIdentifier& owner;
+    };
+    std::set<ObjectIdentifier> changedPaths;
+    for (auto& entry : proposed) {
+        if (entry.second.expression) {
+            RenamePlan visitor(paths, entry.first);
+            entry.second.expression->visit(visitor);
+            if (visitor.modified) {
+                changedPaths.insert(entry.first);
+            }
+        }
     }
+    // A rewrite can change identifier owner while preserving its serialized
+    // text. The visitor's actual edit, not text equality, decides publication.
+    commitExpressions(std::move(proposed), true, changedPaths);
 }
 
 PyObject* PropertyExpressionEngine::getPyObject()
@@ -975,13 +1259,14 @@ void PropertyExpressionEngine::breakLink(App::DocumentObject *obj, bool clear) {
 
 bool PropertyExpressionEngine::adjustLink(const std::set<DocumentObject*>& inList)
 {
-    auto owner = dynamic_cast<App::DocumentObject*>(getContainer());
+    auto mutation = RecomputeDetail::Coordinator::instance().mutation(*this);
+    auto* owner = dynamic_cast<DocumentObject*>(getContainer());
     if (!owner) {
         return false;
     }
     bool found = false;
-    for (auto& v : _Deps) {
-        if (inList.contains(v.first)) {
+    for (const auto& dependency : _Deps) {
+        if (inList.contains(dependency.first)) {
             found = true;
             break;
         }
@@ -989,28 +1274,40 @@ bool PropertyExpressionEngine::adjustLink(const std::set<DocumentObject*>& inLis
     if (!found) {
         return false;
     }
-
-    AtomicPropertyChange signaler(*this);
-    for (auto& v : expressions) {
-        try {
-            if (v.second.expression && v.second.expression->adjustLinks(inList)) {
-                expressionChanged(v.first);
-            }
-        }
-        catch (Base::Exception& e) {
-            std::ostringstream ss;
-            ss << "Failed to adjust link for " << owner->getFullName() << " in expression "
-               << v.second.expression->toString() << ": " << e.what();
-            throw Base::RuntimeError(ss.str());
+    auto proposed = copyExpressions();
+    for (auto& entry : proposed) {
+        if (entry.second.expression) {
+            entry.second.expression->adjustLinks(inList);
         }
     }
+    commitExpressions(std::move(proposed));
     return true;
 }
 
-void PropertyExpressionEngine::updateElementReference(DocumentObject* feature,
-                                                      bool reverse,
-                                                      bool notify)
+void PropertyExpressionEngine::updateElementReference(DocumentObject* feature, bool reverse, bool notify)
 {
+    auto mutation = RecomputeDetail::Coordinator::instance().mutation(*this);
+    if (feature) {
+        mutation.include({feature});
+    }
+    PropertyExpressionEngine staged;
+    staged.admissionStaging = true;
+    staged.expressions = copyExpressions();
+    {
+        UpdateElementReferenceExpressionVisitor<PropertyExpressionEngine> plan(staged, feature, reverse);
+        for (auto& entry : staged.expressions) {
+            if (entry.second.expression) {
+                entry.second.expression->visit(plan);
+            }
+        }
+    }
+    std::vector<DocumentObject*> plannedTargets;
+    staged.collectAdmissionTargets(plannedTargets);
+    mutation.include(plannedTargets);
+    preflightAdmissionStorage();
+    // Only after the complete staged footprint is reserved may the original
+    // visitor update live ASTs and element-registration metadata.
+
     (void)notify;
     if (!feature) {
         unregisterElementReference();
@@ -1039,8 +1336,10 @@ bool PropertyExpressionEngine::referenceChanged() const
 }
 
 Property* PropertyExpressionEngine::CopyOnImportExternal(
-    const std::map<std::string, std::string>& nameMap) const
+    const std::map<std::string, std::string>& nameMap
+) const
 {
+    auto mutation = RecomputeDetail::Coordinator::instance().mutation(*this);
     std::unique_ptr<PropertyExpressionEngine> engine;
     for (auto it = expressions.begin(); it != expressions.end(); ++it) {
 #ifdef BOOST_NO_CXX11_SMART_PTR
@@ -1054,8 +1353,9 @@ Property* PropertyExpressionEngine::CopyOnImportExternal(
         if (!engine) {
             engine = std::make_unique<PropertyExpressionEngine>();
             for (auto it2 = expressions.begin(); it2 != it; ++it2) {
-                engine->expressions[it2->first] =
-                    ExpressionInfo(std::shared_ptr<Expression>(it2->second.expression->copy()));
+                engine->expressions[it2->first] = ExpressionInfo(
+                    std::shared_ptr<Expression>(it2->second.expression->copy())
+                );
             }
         }
         else if (!expr) {
@@ -1067,21 +1367,28 @@ Property* PropertyExpressionEngine::CopyOnImportExternal(
         return nullptr;
     }
     engine->validator = validator;
+    mutation.include(admissionTargets(engine->expressions));
+    engine->refreshAdmissionMetadata();
     return engine.release();
 }
 
-Property* PropertyExpressionEngine::CopyOnLabelChange(App::DocumentObject* obj,
-                                                      const std::string& ref,
-                                                      const char* newLabel) const
+Property* PropertyExpressionEngine::CopyOnLabelChange(
+    App::DocumentObject* obj,
+    const std::string& ref,
+    const char* newLabel
+) const
 {
+    auto mutation = RecomputeDetail::Coordinator::instance().mutation(*this);
     std::unique_ptr<PropertyExpressionEngine> engine;
     for (auto it = expressions.begin(); it != expressions.end(); ++it) {
 #ifdef BOOST_NO_CXX11_SMART_PTR
         std::shared_ptr<Expression> expr(
-            it->second.expression->updateLabelReference(obj, ref, newLabel).release());
+            it->second.expression->updateLabelReference(obj, ref, newLabel).release()
+        );
 #else
         std::shared_ptr<Expression> expr(
-            it->second.expression->updateLabelReference(obj, ref, newLabel));
+            it->second.expression->updateLabelReference(obj, ref, newLabel)
+        );
 #endif
         if (!expr && !engine) {
             continue;
@@ -1105,21 +1412,26 @@ Property* PropertyExpressionEngine::CopyOnLabelChange(App::DocumentObject* obj,
         return nullptr;
     }
     engine->validator = validator;
+    mutation.include(admissionTargets(engine->expressions));
+    engine->refreshAdmissionMetadata();
     return engine.release();
 }
 
-Property* PropertyExpressionEngine::CopyOnLinkReplace(const App::DocumentObject* parent,
-                                                      App::DocumentObject* oldObj,
-                                                      App::DocumentObject* newObj) const
+Property* PropertyExpressionEngine::CopyOnLinkReplace(
+    const App::DocumentObject* parent,
+    App::DocumentObject* oldObj,
+    App::DocumentObject* newObj
+) const
 {
+    auto mutation = RecomputeDetail::Coordinator::instance().mutation(*this);
     std::unique_ptr<PropertyExpressionEngine> engine;
     for (auto it = expressions.begin(); it != expressions.end(); ++it) {
 #ifdef BOOST_NO_CXX11_SMART_PTR
         std::shared_ptr<Expression> expr(
-            it->second.expression->replaceObject(parent, oldObj, newObj).release());
+            it->second.expression->replaceObject(parent, oldObj, newObj).release()
+        );
 #else
-        std::shared_ptr<Expression> expr(
-            it->second.expression->replaceObject(parent, oldObj, newObj));
+        std::shared_ptr<Expression> expr(it->second.expression->replaceObject(parent, oldObj, newObj));
 #endif
         if (!expr && !engine) {
             continue;
@@ -1143,11 +1455,12 @@ Property* PropertyExpressionEngine::CopyOnLinkReplace(const App::DocumentObject*
         return nullptr;
     }
     engine->validator = validator;
+    mutation.include(admissionTargets(engine->expressions));
+    engine->refreshAdmissionMetadata();
     return engine.release();
 }
 
-std::map<App::ObjectIdentifier, const App::Expression*>
-PropertyExpressionEngine::getExpressions() const
+std::map<App::ObjectIdentifier, const App::Expression*> PropertyExpressionEngine::getExpressions() const
 {
     std::map<App::ObjectIdentifier, const Expression*> res;
     for (auto& v : expressions) {
@@ -1157,28 +1470,53 @@ PropertyExpressionEngine::getExpressions() const
 }
 
 void PropertyExpressionEngine::setExpressions(
-    std::map<App::ObjectIdentifier, App::ExpressionPtr>&& exprs)
+    std::map<App::ObjectIdentifier, App::ExpressionPtr>&& exprs
+)
 {
+    auto mutation = RecomputeDetail::Coordinator::instance().mutation(*this);
+    ExpressionMap proposed = expressions;
+    for (auto& entry : exprs) {
+        ObjectIdentifier path(canonicalPath(entry.first));
+        path.getProperty()->getPathValue(path);
+        if (entry.second) {
+            proposed[path] = ExpressionInfo(std::shared_ptr<Expression>(std::move(entry.second)));
+        }
+        else {
+            proposed.erase(path);
+        }
+    }
+    mutation.include(admissionTargets(proposed));
+    // Validate the entire final graph and every custom validator before any
+    // live-map assignment, transaction notification, or expressionChanged signal.
+    boost::unordered_map<int, ObjectIdentifier> nodes;
+    DiGraph graph;
+    Private::buildGraph(proposed, nodes, graph);
+    for (const auto& entry : proposed) {
+        if (entry.second.expression) {
+            auto error = validateExpressionPlan(entry.first, entry.second.expression, proposed);
+            if (!error.empty()) {
+                throw Base::RuntimeError(error.c_str());
+            }
+        }
+    }
+    preflightAdmissionStorage();
     AtomicPropertyChange signaller(*this);
-#ifdef BOOST_NO_CXX11_SMART_PTR
-    for (auto& v : exprs) {
-        setValue(v.first, std::shared_ptr<Expression>(v.second.release()));
-    }
-#else
-    for (auto& v : exprs) {
-        setValue(v.first, std::move(v.second));
-    }
-#endif
+    commitExpressions(std::move(proposed));
+    signaller.tryInvoke();
 }
 
 void PropertyExpressionEngine::onRelabeledDocument(const App::Document& doc)
 {
-    RelabelDocumentExpressionVisitor v(doc);
-    for (auto& e : expressions) {
-        if (e.second.expression) {
-            e.second.expression->visit(v);
+    auto mutation = RecomputeDetail::Coordinator::instance().mutation(*this);
+    auto proposed = copyExpressions();
+    RelabelDocumentExpressionVisitor visitor(doc);
+    for (auto& entry : proposed) {
+        if (entry.second.expression) {
+            entry.second.expression->visit(visitor);
         }
     }
+    // Relabel remains deliberately silent; admission still covers the AST write.
+    commitExpressions(std::move(proposed), false);
 }
 
 void PropertyExpressionEngine::onRenameDynamicProperty(const App::Property& prop, const char* oldName)
@@ -1192,8 +1530,10 @@ void PropertyExpressionEngine::onRenameDynamicProperty(const App::Property& prop
     renameObjectIdentifiers(paths);
 }
 
-void PropertyExpressionEngine::onMoveDynamicProperty(const App::Property& prop,
-                                                     const DocumentObject& targetObj)
+void PropertyExpressionEngine::onMoveDynamicProperty(
+    const App::Property& prop,
+    const DocumentObject& targetObj
+)
 {
     ObjectIdentifier oldNameId = ObjectIdentifier(prop);
     ObjectIdentifier newNameId = ObjectIdentifier(&targetObj, std::string(prop.getName()));
@@ -1204,13 +1544,15 @@ void PropertyExpressionEngine::onMoveDynamicProperty(const App::Property& prop,
     renameObjectIdentifiers(paths);
 }
 
-void PropertyExpressionEngine::getLinksTo(std::vector<App::ObjectIdentifier>& identifiers,
-                                          App::DocumentObject* obj,
-                                          const char* subname,
-                                          bool all) const
+void PropertyExpressionEngine::getLinksTo(
+    std::vector<App::ObjectIdentifier>& identifiers,
+    App::DocumentObject* obj,
+    const char* subname,
+    bool all
+) const
 {
-    Expression::DepOption option =
-        all ? Expression::DepOption::DepAll : Expression::DepOption::DepNormal;
+    Expression::DepOption option = all ? Expression::DepOption::DepAll
+                                       : Expression::DepOption::DepNormal;
 
     App::SubObjectT objT(obj, subname);
     auto sobj = objT.getSubObject();
@@ -1234,8 +1576,7 @@ void PropertyExpressionEngine::getLinksTo(std::vector<App::ObjectIdentifier>& id
                     }
 
                     App::SubObjectT sobjT(obj, path.getSubObjectName().c_str());
-                    return (sobjT.getSubObject() == sobj
-                            && sobjT.getOldElementName() == subElement);
+                    return (sobjT.getSubObject() == sobj && sobjT.getOldElementName() == subElement);
                 })) {
                 identifiers.push_back(expressionId);
             }

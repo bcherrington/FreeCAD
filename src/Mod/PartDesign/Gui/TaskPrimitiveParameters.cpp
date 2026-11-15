@@ -472,10 +472,11 @@ TaskBoxPrimitives::TaskBoxPrimitives(ViewProviderPrimitive* vp, QWidget* parent)
         auto* object = getObject<PartDesign::FeaturePrimitive>();
         return object ? App::RecomputeRequest::fromDocumentObject(*object) : App::RecomputeRequest {};
     };
-    callbacks.runSync = [this]() {
+    callbacks.runSyncWithResult = [this]() -> App::RecomputeResult {
         if (auto* primitive = getObject<PartDesign::FeaturePrimitive>()) {
-            primitive->recomputeFeature();
+            return Gui::recomputeDocumentObjectWithResult(primitive);
         }
+        return Gui::recomputeDocumentObjectWithResult(nullptr);
     };
     asyncPreviewSession = std::make_unique<Gui::AsyncPreviewSession>(std::move(callbacks), this);
     connect(

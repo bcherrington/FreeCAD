@@ -3,8 +3,16 @@
 // SPDX-FileNotice: Part of the FreeCAD project.
 
 #include <algorithm>
+#include <atomic>
+#include <future>
+#include <boost/scope_exit.hpp>
+#include <App/FeatureTest.h>
+#include <App/private/RecomputeAdmission.h>
+#include <Gui/AsyncPreviewController.h>
 #include <condition_variable>
 #include <chrono>
+#include <cmath>
+#include <BRepBuilderAPI_Transform.hxx>
 #include <cstdio>
 #include <memory>
 #include <mutex>
@@ -652,6 +660,212 @@ private Q_SLOTS:
         QVERIFY(!guiDoc->hasPendingCommand());
         QCOMPARE(pattern->Occurrences.getValue(), finalOccurrences);
         QCOMPARE(getBlockingTransformedTotalExecutionCount(), 2);
+    }
+
+    void retiredNativePreviewDoesNotNotifyPartiallyDestroyedPanel()  // NOLINT
+    {
+        prepareTransformedFixture(TransformedKind::Linear);
+        auto* pattern = dynamic_cast<PartDesign::BlockingLinearPatternTest*>(
+            doc->getObject("BlockingLinearPattern")
+        );
+        QVERIFY(pattern);
+        auto* dialog = new PartDesignGui::TaskDlgLinearPatternParameters(transformedView);
+        QPointer<PartDesignGui::TaskDlgLinearPatternParameters> guard(dialog);
+        Gui::Control().showDialog(dialog, doc);
+        QCoreApplication::processEvents();
+        auto* taskBox = findTaskBox<PartDesignGui::TaskPatternParameters>(dialog);
+        QVERIFY(taskBox);
+        QTRY_VERIFY_WITH_TIMEOUT(!taskBox->hasOutstandingRecompute(), 3000);
+        auto* controller
+            = taskBox->findChild<Gui::AsyncPreviewController*>(QString(), Qt::FindDirectChildrenOnly);
+        QVERIFY(controller);
+        QVERIFY(App::MainThreadSignalConfig::canPumpEvents());
+        if (App::FeatureTestAsyncBlocker::getClassTypeId().isBad()) {
+            App::FeatureTestAsyncBlocker::init();
+        }
+        auto& app = App::GetApplication();
+        const auto gateName = app.getUniqueDocumentName("retired_preview_gate");
+        auto* gateDocument = app.newDocument(gateName.c_str());
+        auto* gate = gateDocument->addObject<App::FeatureTestAsyncBlocker>("Gate");
+        BOOST_SCOPE_EXIT_ALL(&)
+        {
+            App::FeatureTestAsyncBlocker::releaseBlocker();
+            app.closeDocument(gateName.c_str());
+        };
+        app.setActiveDocument(doc);
+        App::FeatureTestAsyncBlocker::resetBlocker();
+        gate->touch();
+        auto gateTicket = std::make_shared<App::RecomputeDetail::Retirement>();
+        app.queueRecomputeRequestWithRetirement(
+            App::RecomputeRequest::fromDocumentObject(*gate),
+            gateTicket
+        );
+        QTRY_VERIFY_WITH_TIMEOUT(
+            App::FeatureTestAsyncBlocker::waitUntilStarted(std::chrono::milliseconds(0)),
+            3000
+        );
+        PartDesign::BlockingLinearPatternTest::resetBlocker();
+        pattern->touch();
+        controller->requestRecompute(false);
+        QVERIFY(taskBox->hasOutstandingRecompute());
+        struct CallbackFence
+        {
+            std::promise<void> observed;
+            std::shared_future<void> done {observed.get_future().share()};
+            std::atomic<bool> delivered {false};
+            std::atomic<bool> timedOut {false};
+            std::atomic<bool> success {false};
+            std::atomic<unsigned> calls {0};
+        };
+        auto fence = std::make_shared<CallbackFence>();
+        auto request = App::RecomputeRequest::fromDocumentObject(
+            *pattern,
+            true,
+            static_cast<int>(App::RecomputeOption::InteractivePreview)
+        );
+        request.callback = [fence](App::RecomputeRequest&, App::RecomputeResult& result) {
+            ++fence->calls;
+            fence->success = result.success;
+            // This registration coalesces behind the real controller callback.
+            // FIFO owned dispatch observes that GUI callback while ALL bundle
+            // retirement tickets are still false, without synthetic signals.
+            App::MainThreadSignalConfig::invoke(
+                [fence] {
+                    fence->delivered = true;
+                    fence->observed.set_value();
+                },
+                false
+            );
+            if (fence->done.wait_for(std::chrono::seconds(10)) != std::future_status::ready) {
+                fence->timedOut = true;
+            }
+        };
+        auto retired = std::make_shared<App::RecomputeDetail::Retirement>();
+        app.queueRecomputeRequestWithRetirement(std::move(request), retired);
+        QCOMPARE(getBlockingTransformedTotalExecutionCount(), 0);
+        App::FeatureTestAsyncBlocker::releaseBlocker();
+        {
+            std::unique_ptr<Base::PyGILStateRelease> release;
+            if (Py_IsInitialized() && PyGILState_Check()) {
+                release = std::make_unique<Base::PyGILStateRelease>();
+            }
+            const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(10);
+            while (!fence->delivered && !retired->retired()
+                   && std::chrono::steady_clock::now() < deadline) {
+                App::MainThreadSignalConfig::pumpEvents();
+                std::this_thread::yield();
+            }
+            // No further GUI or timer pumping: let the actual native bundle
+            // finish, retaining its success-ready registration in the panel.
+            while (!retired->retired() && std::chrono::steady_clock::now() < deadline) {
+                std::this_thread::yield();
+            }
+        }
+        QVERIFY(fence->delivered);
+        QVERIFY(!fence->timedOut);
+        QVERIFY(retired->retired());
+        QVERIFY(fence->success);
+        QCOMPARE(fence->calls.load(), 1U);
+        QCOMPARE(getBlockingTransformedTotalExecutionCount(), 1);
+        QVERIFY(taskBox->hasOutstandingRecompute());
+        bool destroying = false;
+        unsigned callbacksDuringDestruction = 0;
+        QObject completionContext;
+        QObject::connect(dialog, &Gui::TaskView::TaskDialog::aboutToBeDestroyed, &completionContext, [&] {
+            destroying = true;
+        });
+        QObject::connect(
+            taskBox,
+            &PartDesignGui::TaskTransformedParameters::recomputeSettled,
+            &completionContext,
+            [&] {
+                if (destroying) {
+                    ++callbacksDuringDestruction;
+                }
+            }
+        );
+        Gui::Control().closeDialog(doc);
+        QVERIFY(destroying);
+        QVERIFY(guard.isNull());
+        QCOMPARE(callbacksDuringDestruction, 0U);
+        QVERIFY(guiDoc->hasPendingCommand());
+    }
+
+    void linearAcceptPreservesIndependentSettledCallbackEdit_data()  // NOLINT
+    {
+        QTest::addColumn<bool>("editBeforeRetirement");
+        QTest::newRow("edit-in-early-owned-pump") << true;
+        QTest::newRow("edit-in-settled-callback") << false;
+    }
+
+    void linearAcceptPreservesIndependentSettledCallbackEdit()  // NOLINT
+    {
+        QFETCH(bool, editBeforeRetirement);
+        prepareTransformedFixture(TransformedKind::Linear);
+        auto* pattern = dynamic_cast<PartDesign::BlockingLinearPatternTest*>(
+            doc->getObject("BlockingLinearPattern")
+        );
+        QVERIFY(pattern != nullptr);
+        auto* dialog = new PartDesignGui::TaskDlgLinearPatternParameters(transformedView);
+        QPointer<PartDesignGui::TaskDlgLinearPatternParameters> guard(dialog);
+        Gui::Control().showDialog(dialog, doc);
+        QCoreApplication::processEvents();
+        auto* taskBox = findTaskBox<PartDesignGui::TaskPatternParameters>(dialog);
+        QVERIFY(taskBox != nullptr);
+        QTRY_VERIFY_WITH_TIMEOUT(!taskBox->hasOutstandingRecompute(), 3000);
+        auto* widget = findPrimaryPatternParametersWidget(taskBox);
+        auto* occurrences = findOccurrencesSpinBox(widget);
+        QVERIFY(occurrences != nullptr);
+        PartDesign::BlockingLinearPatternTest::armBlocker();
+        occurrences->setValue(occurrences->value() + 1);
+        QCoreApplication::processEvents();
+        QTRY_COMPARE_WITH_TIMEOUT(PartDesign::BlockingLinearPatternTest::getExecutionCount(), 1, 3000);
+        occurrences->setValue(occurrences->value() + 1);
+        QCoreApplication::processEvents();
+        const int independentOccurrences = occurrences->value() + 1;
+        bool editedDuringSettlement = false;
+        QObject completionContext;
+        QObject::connect(
+            taskBox,
+            &PartDesignGui::TaskTransformedParameters::recomputeSettled,
+            &completionContext,
+            [&] {
+                if (!editBeforeRetirement && !editedDuringSettlement) {
+                    editedDuringSettlement = true;
+                    occurrences->setValue(independentOccurrences);
+                }
+            }
+        );
+        App::MainThreadSignalConfig::invoke(
+            [&] {
+                if (editBeforeRetirement) {
+                    editedDuringSettlement = true;
+                    occurrences->setValue(independentOccurrences);
+                }
+                PartDesign::BlockingLinearPatternTest::releaseBlocker();
+            },
+            false
+        );
+        Gui::Control().accept(doc);
+        QVERIFY(editedDuringSettlement);
+        QVERIFY(!guard.isNull());
+        QCOMPARE(Gui::Control().activeDialog(doc), static_cast<Gui::TaskView::TaskDialog*>(dialog));
+        QVERIFY(guiDoc->hasPendingCommand());
+        QCOMPARE(occurrences->value(), independentOccurrences);
+        if (editBeforeRetirement) {
+            // Input staged while the old run was held is preserved without an
+            // automatic replay. A new explicit OK computes that exact candidate.
+            Gui::Control().accept(doc);
+            QTRY_VERIFY_WITH_TIMEOUT(guard.isNull(), 3000);
+            QVERIFY(!guiDoc->hasPendingCommand());
+        }
+        else {
+            // Independent post-retirement scheduling remains useful; acceptance
+            // must not erase it to force the old finalization to proceed.
+            QTRY_VERIFY_WITH_TIMEOUT(!taskBox->hasOutstandingRecompute(), 3000);
+        }
+        QTRY_COMPARE_WITH_TIMEOUT(pattern->Occurrences.getValue(), independentOccurrences, 3000);
+        QTRY_COMPARE_WITH_TIMEOUT(getBlockingTransformedTotalExecutionCount(), 2, 3000);
     }
 
     void polarRejectDefersCloseUntilAsyncPreviewSettles()  // NOLINT
@@ -1535,6 +1749,11 @@ private Q_SLOTS:
 
         auto* subTaskOk = taskBox->findChild<QPushButton*>(QStringLiteral("buttonOK"));
         QVERIFY(subTaskOk != nullptr);
+        QPointer<Gui::AsyncPreviewController> sharedController(
+            taskBox->findChild<Gui::AsyncPreviewController*>(QString(), Qt::FindDirectChildrenOnly)
+        );
+        QVERIFY(sharedController);
+        const auto sharedIdentity = sharedController->recomputeActivityToken().controllerIdentity;
 
         PartDesign::BlockingMultiTransformTest::armBlocker();
         extent->setValue(extent->rawValue() - 45.0);
@@ -1560,11 +1779,70 @@ private Q_SLOTS:
         QTRY_VERIFY_WITH_TIMEOUT(!taskBox->hasOutstandingRecompute(), 3000);
         QVERIFY(!guard.isNull());
         QVERIFY(taskBox->findChild<PartGui::PatternParametersWidget*>() == nullptr);
+
+        // Destroying just the embedded receiver must preserve the parent's
+        // original shared controller and its real completion forwarding.
+        QVERIFY(sharedController);
+        QCOMPARE(sharedController->recomputeActivityToken().controllerIdentity, sharedIdentity);
+        unsigned parentSettlements = 0;
+        QObject completionContext;
+        QObject::connect(
+            taskBox,
+            &PartDesignGui::TaskTransformedParameters::recomputeSettled,
+            &completionContext,
+            [&] { ++parentSettlements; }
+        );
+        auto* parent = dynamic_cast<PartDesign::BlockingMultiTransformTest*>(
+            doc->getObject("BlockingMultiTransform")
+        );
+        QVERIFY(parent);
+        parent->touch();
+        sharedController->requestRecompute(true);
+        QCOMPARE(parentSettlements, 1U);
+        QVERIFY(sharedController->didLastRecomputeSucceed());
+        QVERIFY(!taskBox->hasOutstandingRecompute());
+        QCOMPARE(getBlockingTransformedTotalExecutionCount(), 3);
+        QVERIFY(parent->isValid());
+        QVERIFY(!parent->PreviewShape.getShape().isNull());
+        QVERIFY(!guard.isNull());
+        QCOMPARE(Gui::Control().activeDialog(doc), static_cast<Gui::TaskView::TaskDialog*>(dialog));
+        QVERIFY(guiDoc->hasPendingCommand());
     }
 
-    void multiTransformAcceptFlushesOpenSubTaskQueuedPreview()  // NOLINT
+    void multiTransformAcceptPreservesLatestGeometryWithoutPreviewReplay_data()  // NOLINT
     {
+        QTest::addColumn<bool>("explicitLegacyPreviewFlush");
+        QTest::newRow("direct-final-two-computes") << false;
+        QTest::newRow("explicit-legacy-flush-three-computes-control") << true;
+    }
+
+    void multiTransformAcceptPreservesLatestGeometryWithoutPreviewReplay()  // NOLINT
+    {
+        QFETCH(bool, explicitLegacyPreviewFlush);
         prepareTransformedFixture(TransformedKind::MultiTransformPolar);
+        auto* parent = dynamic_cast<PartDesign::BlockingMultiTransformTest*>(
+            doc->getObject("BlockingMultiTransform")
+        );
+        auto* child = dynamic_cast<PartDesign::PolarPattern*>(doc->getObject("MultiTransformPolar"));
+        QVERIFY(parent && child);
+        const double originalAngle = child->Angle.getValue();
+        const auto originalOccurrences = child->Occurrences.getValue();
+        auto* originalAxis = child->Axis.getValue();
+        const auto originalAxisSubs = child->Axis.getSubValues();
+        const auto originalChildOriginals = child->Originals.getValues();
+        const auto originalParentOriginals = parent->Originals.getValues();
+        const auto originalTransforms = parent->Transformations.getValues();
+        const Part::TopoShape originalShape = parent->Shape.getShape();
+        const auto originalBounds = originalShape.getBoundBox();
+        const auto originalUndoCount = doc->getAvailableUndoNames().size();
+        unsigned successfulParentCompletions = 0;
+        fastsignals::scoped_connection recomputed(
+            doc->signalRecomputedObject.connect([&](const App::DocumentObject& object) {
+                if (&object == parent && parent->isValid()) {
+                    ++successfulParentCompletions;
+                }
+            })
+        );
 
         auto* multiTransformView = dynamic_cast<PartDesignGui::ViewProviderMultiTransform*>(
             transformedView
@@ -1600,7 +1878,8 @@ private Q_SLOTS:
         QCOMPARE(getBlockingTransformedTotalExecutionCount(), 1);
         QVERIFY(taskBox->hasOutstandingRecompute());
 
-        extent->setValue(extent->rawValue() + 15.0);
+        const double finalExtent = extent->rawValue() + 15.0;
+        extent->setValue(finalExtent);
         QCoreApplication::processEvents();
         QVERIFY(taskBox->hasOutstandingRecompute());
 
@@ -1609,13 +1888,71 @@ private Q_SLOTS:
             PartDesign::BlockingMultiTransformTest::releaseBlocker();
         });
 
+        int executionsAfterExplicitFlush = 0;
+        if (explicitLegacyPreviewFlush) {
+            // Reproduce the prior child-flush workflow using its real public
+            // API: settle old preview, compute staged preview, then final apply.
+            // This is a workflow comparison, not a historical binary claim.
+            taskBox->flushPendingRecompute();
+            executionsAfterExplicitFlush = getBlockingTransformedTotalExecutionCount();
+        }
         Gui::Control().accept(doc);
         releaser.join();
+        if (explicitLegacyPreviewFlush) {
+            QCOMPARE(executionsAfterExplicitFlush, 2);
+        }
 
         QTRY_VERIFY_WITH_TIMEOUT(guard.isNull(), 3000);
         QCOMPARE(Gui::Control().activeDialog(doc), nullptr);
         QVERIFY(!guiDoc->hasPendingCommand());
-        QCOMPARE(getBlockingTransformedTotalExecutionCount(), 3);
+        const int expectedExecutions = explicitLegacyPreviewFlush ? 3 : 2;
+        QCOMPARE(getBlockingTransformedTotalExecutionCount(), expectedExecutions);
+        QVERIFY(successfulParentCompletions > 0);
+        QCOMPARE(child->Angle.getValue(), finalExtent);
+        QCOMPARE(child->Occurrences.getValue(), originalOccurrences);
+        QCOMPARE(child->Axis.getValue(), originalAxis);
+        QCOMPARE(child->Axis.getSubValues(), originalAxisSubs);
+        QCOMPARE(child->Originals.getValues(), originalChildOriginals);
+        QCOMPARE(parent->Originals.getValues(), originalParentOriginals);
+        QCOMPARE(parent->Transformations.getValues(), originalTransforms);
+        QVERIFY(parent->isValid());
+        QVERIFY(!parent->Shape.getShape().isNull());
+        QVERIFY(parent->Shape.getShape().isValid());
+        auto expectedBounds = baseBox->Shape.getShape().getBoundBox();
+        for (const auto& transform : parent->getTransformations(parent->getOriginals())) {
+            const TopoDS_Shape transformed
+                = BRepBuilderAPI_Transform(baseBox->Shape.getShape().getShape(), transform, true).Shape();
+            expectedBounds.Add(Part::TopoShape(transformed).getBoundBox());
+        }
+        const auto boundError = [](const Base::BoundBox3d& a, const Base::BoundBox3d& b) {
+            return std::max(
+                {std::abs(a.MinX - b.MinX),
+                 std::abs(a.MinY - b.MinY),
+                 std::abs(a.MinZ - b.MinZ),
+                 std::abs(a.MaxX - b.MaxX),
+                 std::abs(a.MaxY - b.MaxY),
+                 std::abs(a.MaxZ - b.MaxZ)}
+            );
+        };
+        const auto finalBounds = parent->Shape.getShape().getBoundBox();
+        QVERIFY2(
+            boundError(finalBounds, expectedBounds) < 1e-6,
+            "Parent shape must contain the expected latest transformed instance bounds"
+        );
+        QVERIFY(boundError(finalBounds, originalBounds) > 1e-3);
+        QCOMPARE(doc->getAvailableUndoNames().size(), originalUndoCount + 1);
+        QVERIFY(doc->undo());
+        QCOMPARE(doc->getAvailableUndoNames().size(), originalUndoCount);
+        QCOMPARE(child->Angle.getValue(), originalAngle);
+        QCOMPARE(child->Occurrences.getValue(), originalOccurrences);
+        QCOMPARE(child->Axis.getValue(), originalAxis);
+        QCOMPARE(child->Axis.getSubValues(), originalAxisSubs);
+        QCOMPARE(child->Originals.getValues(), originalChildOriginals);
+        QCOMPARE(parent->Transformations.getValues(), originalTransforms);
+        QCOMPARE(parent->Originals.getValues(), originalParentOriginals);
+        QVERIFY(parent->Shape.getShape().isValid());
+        QVERIFY(boundError(parent->Shape.getShape().getBoundBox(), originalBounds) < 1e-6);
+        QCOMPARE(getBlockingTransformedTotalExecutionCount(), expectedExecutions);
     }
 
 private:

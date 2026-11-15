@@ -21,6 +21,7 @@
  ***************************************************************************/
 
 #include <tuple>
+#include <cstdint>
 #include <memory>
 #include <list>
 #include <string>
@@ -35,6 +36,7 @@
 #include <QFileInfo>
 #include <QMessageBox>
 #include <QOpenGLWidget>
+#include <QPointer>
 #include <QTextStream>
 #include <QStatusBar>
 #include <QTimer>
@@ -47,6 +49,7 @@
 #include <App/DocumentObject.h>
 #include <App/DocumentObjectGroup.h>
 #include <App/Transactions.h>
+#include <App/private/RecomputeAdmission.h>
 #include <App/ElementNamingUtils.h>
 #include <Base/Console.h>
 #include <Base/Exception.h>
@@ -57,6 +60,7 @@
 
 #include "Document.h"
 #include "DocumentPy.h"
+#include "DocumentObserver.h"
 #include "Application.h"
 #include "Command.h"
 #include "Control.h"
@@ -79,6 +83,103 @@ FC_LOG_LEVEL_INIT("Gui", true, true)
 using namespace Gui;
 namespace sp = std::placeholders;
 
+namespace
+{
+// These are observations, not native owner pins: supported GUI callbacks retain
+// their existing ability to retire/delete the exact receiver synchronously.
+class DisplayModelObservation
+{
+public:
+    explicit DisplayModelObservation(const App::DocumentObject* object = nullptr)
+        : object(object)
+        , binding(object ? App::RecomputeDetail::Coordinator::instance().bindObject(object) : nullptr)
+    {
+        // Initially untracked annotation/initialization receivers have no
+        // attachment to observe. A binding captured while attached stays invalid
+        // after that attachment retires; this fallback cannot identify a raw
+        // pointer which was already detached before this observation began.
+        if (binding && binding->missing && !binding->attachmentGeneration) {
+            binding.reset();
+        }
+    }
+    bool current()
+    {
+        retired = retired
+            || (binding
+                && App::RecomputeDetail::Coordinator::instance().resolveObject(binding) != object);
+        return !retired;
+    }
+
+private:
+    const App::DocumentObject* object;
+    App::RecomputeDetail::BindingPtr binding;
+    bool retired {false};
+};
+
+class DisplayReceiverObservation
+{
+public:
+    DisplayReceiverObservation(
+        Gui::Document* document,
+        Gui::ViewProvider* provider,
+        std::weak_ptr<void> lifetime,
+        const App::DocumentObject* object = nullptr
+    )
+        : document(document)
+        , lifetime(std::move(lifetime))
+        , model(object)
+        , deleted(document->signalDeletedObject.connect(
+              [this, provider](const Gui::ViewProviderDocumentObject& removed) {
+                  retired = retired || static_cast<const Gui::ViewProvider*>(&removed) == provider;
+              }
+          ))
+    {}
+    bool current()
+    {
+        // Never read an old Document/provider member while determining validity.
+        retired = retired || document.expired() || lifetime.expired() || !model.current();
+        return !retired;
+    }
+
+private:
+    Gui::DocumentWeakPtrT document;
+    std::weak_ptr<void> lifetime;
+    DisplayModelObservation model;
+    bool retired {false};
+    fastsignals::scoped_connection deleted;
+};
+
+class DisplayPropertyObservation
+{
+public:
+    explicit DisplayPropertyObservation(const App::Property* original)
+        : removed(
+              App::GetApplication().signalRemoveDynamicProperty.connect(
+                  [this, original](const App::Property& property) {
+                      retired = retired || &property == original;
+                  }
+              )
+          )
+        , moved(
+              App::GetApplication().signalMoveDynamicProperty.connect(
+                  [this, original](const App::Property& property, const App::DocumentObject&) {
+                      retired = retired || &property == original;
+                  }
+              )
+          )
+    {}
+    bool current() const
+    {
+        return !retired;
+    }
+
+private:
+    bool retired {false};
+    fastsignals::scoped_connection removed;
+    fastsignals::scoped_connection moved;
+};
+}  // namespace
+
 namespace Gui
 {
 
@@ -97,6 +198,7 @@ struct DocumentP
     bool _editWantsRestore;
     bool _editWantsRestorePrevious;
     int _editMode;
+    std::uint64_t _editGeneration {0};
     int _editModePrevious;
     ViewProvider* _editViewProvider;
     ViewProvider* _editViewProviderPrevious;
@@ -318,6 +420,7 @@ struct DocumentP
 
     bool startEditing(ViewProviderDocumentObject* svp, App::DocumentObject* sobj, int ModNum)
     {
+        ++_editGeneration;
         _editingObject = sobj;
         _editMode = ModNum;
         _editViewProvider = svp;  // Used to resolve start editing (find the document in edit from
@@ -766,6 +869,7 @@ void Document::resetEdit()
 
 void Document::_resetEdit()
 {
+    ++d->_editGeneration;
     if (d->_editViewProvider) {
         for (auto* v : d->baseViews) {
             auto activeView = dynamic_cast<View3DInventor*>(v);
@@ -843,6 +947,7 @@ ViewProvider* Document::getEditViewProvider() const
 
 void Document::setInEdit(ViewProviderDocumentObject* parentVp, const char* subname)
 {
+    ++d->_editGeneration;
     if (d->_editViewProvider) {
         d->_editViewProviderParent = parentVp;
         d->_editSubname = subname ? subname : "";
@@ -1157,6 +1262,7 @@ void Document::schedulePendingObjectUpdateFlush()
 
 void Document::flushPendingObjectUpdates()
 {
+    Gui::DocumentWeakPtrT document(this);
     d->pendingObjectUpdateFlushScheduled = false;
     if (d->_isClosing || Application::Instance->isClosing() || d->pendingObjectUpdates.empty()) {
         d->pendingObjectUpdates.clear();
@@ -1165,27 +1271,41 @@ void Document::flushPendingObjectUpdates()
 
     auto pendingObjectUpdates = std::move(d->pendingObjectUpdates);
     d->pendingObjectUpdates.clear();
-
     for (auto& [key, objectInfo] : pendingObjectUpdates) {
         auto* object = objectInfo.getObject();
         if (!object) {
             continue;
         }
-
-        auto* viewProvider = getViewProvider(object);
-        if (!viewProvider) {
+        auto* provider = getViewProvider(object);
+        if (!provider) {
             continue;
         }
-
-        App::Property* property = objectInfo.getPropertyByName(key.second.c_str());
-        if (!property) {
-            // A property can be removed or renamed before this queued pass.
-            // update() requires a live property; nullptr is not a full refresh.
+        DisplayReceiverObservation receiver(this, provider, provider->updateLifetimeToken(), object);
+        const std::string& propertyName = key.second;
+        App::Property* property = propertyName.empty()
+            ? nullptr
+            : objectInfo.getPropertyByName(propertyName.c_str());
+        if (document.expired()) {
+            return;
+        }
+        if (!receiver.current()) {
             continue;
         }
-        applyChangedObject(viewProvider, *object, property);
+        // A named property may be removed or renamed before this queued pass.
+        // An empty key retains the existing explicit full-refresh semantics.
+        if (!propertyName.empty() && !property) {
+            continue;
+        }
+        applyChangedObject(provider, *object, property);
+        // A local moved map can unwind after this is deleted. No old d access,
+        // including the next iteration or rearm, is permitted after close.
+        if (document.expired()) {
+            return;
+        }
+        if (d->_isClosing) {
+            return;
+        }
     }
-
     if (!d->pendingObjectUpdates.empty()) {
         schedulePendingObjectUpdateFlush();
     }
@@ -1200,39 +1320,74 @@ void Document::applyChangedObject(
     if (!viewProvider) {
         return;
     }
-
+    DisplayReceiverObservation receiver(this, viewProvider, viewProvider->updateLifetimeToken(), &Obj);
+    DisplayPropertyObservation property(Prop);
+    const std::string fullName = Obj.getFullName();
+    const char* name = Prop ? Prop->getName() : nullptr;
+    const bool affectsTransform = Prop
+        && (Prop->isDerivedFrom<App::PropertyPlacement>() || (name && strstr(name, "Scale")));
+    if (!receiver.current()) {
+        return;
+    }
     try {
         viewProvider->update(Prop);
-        if (Prop && d->_editingViewer && d->_editingObject && d->_editViewProviderParent
-            && (Prop->isDerivedFrom<App::PropertyPlacement>()
-                // Issue ID 0004230 : getName() can return null in which case strstr() crashes
-                || (Prop->getName() && strstr(Prop->getName(), "Scale")))
-            && d->_editObjs.contains(&Obj)) {
-            Base::Matrix4D mat;
-            auto sobj = d->_editViewProviderParent->getObject()
-                            ->getSubObject(d->_editSubname.c_str(), nullptr, &mat);
-            if (sobj == d->_editingObject && d->_editingTransform != mat) {
-                d->_editingTransform = mat;
-                d->_editingViewer->setEditingTransform(d->_editingTransform);
+        if (!receiver.current()) {
+            return;
+        }
+        if (d->_isClosing) {
+            return;
+        }
+        if (property.current() && affectsTransform && d->_editingViewer && d->_editingObject
+            && d->_editViewProviderParent && d->_editViewProvider && d->_editObjs.contains(&Obj)) {
+            auto* parent = d->_editViewProviderParent;
+            auto* editing = d->_editViewProvider;
+            auto* editingObject = d->_editingObject;
+            const auto generation = d->_editGeneration;
+            const std::string subname = d->_editSubname;
+            QPointer<View3DInventorViewer> viewer = d->_editingViewer;
+            DisplayReceiverObservation
+                parentReceiver(this, parent, parent->updateLifetimeToken(), parent->getObject());
+            DisplayReceiverObservation
+                editingReceiver(this, editing, editing->updateLifetimeToken(), editingObject);
+            Base::Matrix4D matrix;
+            auto* subobject = parent->getObject()->getSubObject(subname.c_str(), nullptr, &matrix);
+            if (!receiver.current() || !parentReceiver.current() || !editingReceiver.current()) {
+                return;
+            }
+            if (!d->_isClosing && property.current() && viewer && d->_editGeneration == generation
+                && d->_editingViewer == viewer.data() && d->_editingObject == editingObject
+                && d->_editViewProviderParent == parent && d->_editViewProvider == editing
+                && d->_editSubname == subname && subobject == editingObject
+                && d->_editingTransform != matrix) {
+                d->_editingTransform = matrix;
+                viewer->setEditingTransform(matrix);
             }
         }
     }
     catch (const Base::MemoryException& e) {
-        FC_ERR("Memory exception in " << Obj.getFullName() << " thrown: " << e.what());
+        FC_ERR("Memory exception in " << fullName << " thrown: " << e.what());
     }
     catch (Base::Exception& e) {
         e.reportException();
     }
     catch (const std::exception& e) {
-        FC_ERR("C++ exception in " << Obj.getFullName() << " thrown " << e.what());
+        FC_ERR("C++ exception in " << fullName << " thrown " << e.what());
     }
     catch (...) {
-        FC_ERR("Cannot update representation for " << Obj.getFullName());
+        FC_ERR("Cannot update representation for " << fullName);
     }
-
+    if (!receiver.current()) {
+        return;
+    }
+    if (d->_isClosing) {
+        return;
+    }
     handleChildren3D(viewProvider);
-
-    if (Prop && viewProvider->isDerivedFrom<ViewProviderDocumentObject>()) {
+    if (!receiver.current()) {
+        return;
+    }
+    if (!d->_isClosing && property.current() && Prop
+        && viewProvider->isDerivedFrom<ViewProviderDocumentObject>()) {
         signalChangedObject(static_cast<ViewProviderDocumentObject&>(*viewProvider), *Prop);
     }
 }
@@ -1257,6 +1412,9 @@ void Document::beforeDelete()
 
 void Document::slotChangedObject(const App::DocumentObject& Obj, const App::Property& Prop)
 {
+    Gui::DocumentWeakPtrT document(this);
+    const bool modifiesDocument = !Prop.testStatus(App::Property::NoModify);
+    const std::string fullName = Prop.getFullName();
     ViewProvider* viewProvider = getViewProvider(&Obj);
     const char* propName = Prop.getName();
     const bool shouldDeferUpdate = viewProvider && !d->_isClosing && qApp
@@ -1273,13 +1431,28 @@ void Document::slotChangedObject(const App::DocumentObject& Obj, const App::Prop
         applyChangedObject(viewProvider, Obj, &Prop);
     }
 
-    // a property of an object has changed
-    if (!Prop.testStatus(App::Property::NoModify) && !isModified()) {
-        FC_LOG(Prop.getFullName() << " modified");
+    if (document.expired()) {
+        return;
+    }
+    if (d->_isClosing) {
+        return;
+    }
+    if (modifiesDocument && !isModified()) {
+        FC_LOG(fullName << " modified");
+        if (document.expired()) {
+            return;
+        }
+        if (d->_isClosing) {
+            return;
+        }
         setModified(true);
     }
-
-    getMainWindow()->updateActions(true);
+    if (document.expired()) {
+        return;
+    }
+    if (!d->_isClosing) {
+        getMainWindow()->updateActions(true);
+    }
 }
 
 void Document::slotRelabelObject(const App::DocumentObject& Obj)
@@ -1952,7 +2125,7 @@ void Document::saveAll()
                 getMainWindow(),
                 QObject::tr("Failed to save document")
                     + QStringLiteral(": %1").arg(QString::fromUtf8(doc->getName())),
-                QString::fromLatin1(e.what())
+                QString::fromUtf8(e.what())
             );
             break;
         }
@@ -3023,9 +3196,55 @@ std::vector<std::string> Document::getRedoVector() const
     return getDocument()->getAvailableRedoNames();
 }
 
-bool Document::checkTransactionID(bool undo, int iSteps)
+struct Document::TransactionPlan
 {
-    if (!iSteps) {
+    struct Entry
+    {
+        App::Document* document;
+        std::unique_ptr<App::DocumentWeakPtrT> lifetime;
+        std::vector<int> ids;
+        std::vector<std::uint64_t> generations;
+    };
+    std::vector<Entry> entries;
+
+    bool append(App::Document* document, bool undo, int steps)
+    {
+        if (steps <= 0) {
+            return false;
+        }
+        Entry entry {document, std::make_unique<App::DocumentWeakPtrT>(document), {}, {}};
+        for (int i = 0; i < steps; ++i) {
+            const int id = document->getTransactionID(undo, i);
+            if (!id) {
+                return false;
+            }
+            entry.ids.push_back(id);
+            entry.generations.push_back(document->getTransactionGeneration(undo, i));
+        }
+        entries.push_back(std::move(entry));
+        return true;
+    }
+
+    bool isCurrent(bool undo) const
+    {
+        for (const auto& entry : entries) {
+            if (entry.lifetime->expired()) {
+                return false;
+            }
+            for (std::size_t i = 0; i < entry.ids.size(); ++i) {
+                if (entry.document->getTransactionID(undo, i) != entry.ids[i]
+                    || entry.document->getTransactionGeneration(undo, i) != entry.generations[i]) {
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+};
+
+bool Document::checkTransactionID(bool undo, int iSteps, TransactionPlan& plan)
+{
+    if (iSteps <= 0) {
         return false;
     }
 
@@ -3056,6 +3275,16 @@ bool Document::checkTransactionID(bool undo, int iSteps)
                 currentSteps = steps;
             }
         }
+    }
+    // Capture every selected native document and exact range before the modal
+    // prompt. A close or stack change during its event loop invalidates the plan.
+    for (const auto& entry : dmap) {
+        if (!plan.append(entry.first, undo, entry.second)) {
+            return false;
+        }
+    }
+    if (!plan.append(getDocument(), undo, static_cast<int>(ids.size()))) {
+        return false;
     }
     if (!prompts.empty()) {
         std::ostringstream str;
@@ -3090,20 +3319,12 @@ bool Document::checkTransactionID(bool undo, int iSteps)
             return false;
         }
         if (ret == QMessageBox::No) {
-            return true;
+            auto active = std::move(plan.entries.back());
+            plan.entries.clear();
+            plan.entries.push_back(std::move(active));
         }
     }
-    for (auto& v : dmap) {
-        for (int i = 0; i < v.second; ++i) {
-            if (undo) {
-                v.first->undo();
-            }
-            else {
-                v.first->redo();
-            }
-        }
-    }
-    return true;
+    return plan.isCurrent(undo);
 }
 
 bool Document::isPerformingTransaction() const
@@ -3111,39 +3332,62 @@ bool Document::isPerformingTransaction() const
     return d->_isTransacting;
 }
 
+bool Document::applyTransactionPlan(bool undo, int iSteps)
+{
+    TransactionPlan plan;
+    if (!checkTransactionID(undo, iSteps, plan)) {
+        return false;
+    }
+    // Arbitrary native/Python/GUI undo observers make the structural footprint
+    // opaque. Acquire once, after the prompt, before ANY selected document changes.
+    auto admission = App::RecomputeDetail::Coordinator::instance().tryAtomic();
+    if (!admission || !plan.isCurrent(undo)) {
+        return false;
+    }
+    std::vector<App::Document*> cohort;
+    for (const auto& entry : plan.entries) {
+        cohort.push_back(entry.document);
+    }
+    try {
+        admission->include({}, cohort);
+    }
+    catch (const App::RecomputeDetail::AdmissionRefusal&) {
+        return false;
+    }
+    Base::FlagToggler<> flag(d->_isTransacting);
+    for (const auto& entry : plan.entries) {
+        if (entry.lifetime->expired()) {
+            return false;
+        }
+        const bool applied = undo ? entry.document->undo(entry.ids.back())
+                                  : entry.document->redo(entry.ids.back());
+        if (!applied) {
+            return false;
+        }
+    }
+    if (undo) {
+        App::GetApplication().signalUndo();
+    }
+    else {
+        App::GetApplication().signalRedo();
+        for (auto it : d->_redoViewProviders) {
+            handleChildren3D(it);
+        }
+        d->_redoViewProviders.clear();
+    }
+    return true;
+}
+
 /// Will UNDO one or more steps
 void Document::undo(int iSteps)
 {
-    Base::FlagToggler<> flag(d->_isTransacting);
-
-    if (!checkTransactionID(true, iSteps)) {
-        return;
-    }
-
-    for (int i = 0; i < iSteps; i++) {
-        getDocument()->undo();
-    }
-    App::GetApplication().signalUndo();
+    applyTransactionPlan(true, iSteps);
 }
 
 /// Will REDO one or more steps
 void Document::redo(int iSteps)
 {
-    Base::FlagToggler<> flag(d->_isTransacting);
-
-    if (!checkTransactionID(false, iSteps)) {
-        return;
-    }
-
-    for (int i = 0; i < iSteps; i++) {
-        getDocument()->redo();
-    }
-    App::GetApplication().signalRedo();
-
-    for (auto it : d->_redoViewProviders) {
-        handleChildren3D(it);
-    }
-    d->_redoViewProviders.clear();
+    applyTransactionPlan(false, iSteps);
 }
 
 PyObject* Document::getPyObject()
@@ -3154,108 +3398,237 @@ PyObject* Document::getPyObject()
 
 void Document::handleChildren3D(ViewProvider* viewProvider, bool deleting)
 {
-    // check for children
-    if (viewProvider && viewProvider->getChildRoot()) {
-        std::vector<App::DocumentObject*> children = viewProvider->claimChildren3D();
-        SoGroup* childGroup = viewProvider->getChildRoot();
-        SoGroup* frontGroup = viewProvider->getFrontRoot();
-        SoGroup* backGroup = viewProvider->getFrontRoot();
+    if (!viewProvider) {
+        return;
+    }
+    auto* objectProvider = dynamic_cast<ViewProviderDocumentObject*>(viewProvider);
+    DisplayReceiverObservation receiver(
+        this,
+        viewProvider,
+        viewProvider->updateLifetimeToken(),
+        !deleting && objectProvider ? objectProvider->getObject() : nullptr
+    );
+    if (!receiver.current()) {
+        return;
+    }
+    // Each root getter can call native extension code. Ref only a returned node
+    // whose original receiver survived, then retain it across subsequent calls.
+    auto* initialRoot = viewProvider->getChildRoot();
+    if (!receiver.current() || !initialRoot) {
+        return;
+    }
+    SoRefPtr<SoGroup> initialRootHold(initialRoot);
+    auto children = viewProvider->claimChildren3D();
+    if (!receiver.current()) {
+        return;
+    }
+    struct ClaimedChild
+    {
+        App::DocumentObject* object;
+        DisplayModelObservation model;
+    };
+    std::vector<ClaimedChild> claimed;
+    claimed.reserve(children.size());
+    for (auto* child : children) {
+        claimed.push_back({child, DisplayModelObservation(child)});
+    }
+    auto* childRoot = viewProvider->getChildRoot();
+    if (!receiver.current() || !childRoot) {
+        return;
+    }
+    SoRefPtr<SoGroup> childGroup(childRoot);
+    auto* frontRoot = viewProvider->getFrontRoot();
+    if (!receiver.current()) {
+        return;
+    }
+    SoRefPtr<SoSeparator> frontGroup(frontRoot);
+    // Preserve the existing root selection; this repair changes receiver/drain
+    // lifetime, not foreground/background grouping semantics.
+    auto* backRoot = viewProvider->getFrontRoot();
+    if (!receiver.current()) {
+        return;
+    }
+    SoRefPtr<SoSeparator> backGroup(backRoot);
+    if (!deleting && childGroup->getNumChildren() == static_cast<int>(children.size())) {
+        return;
+    }
 
-        // size not the same -> build up the list new
-        if (deleting || childGroup->getNumChildren() != static_cast<int>(children.size())) {
-
-            std::set<ViewProviderDocumentObject*> oldChildren;
-            for (int i = 0, count = childGroup->getNumChildren(); i < count; ++i) {
-                auto it = d->_CoinMap.find(static_cast<SoSeparator*>(childGroup->getChild(i)));
-                if (it == d->_CoinMap.end()) {
+    std::map<ViewProviderDocumentObject*, std::unique_ptr<DisplayReceiverObservation>> oldChildren;
+    for (int index = 0, count = childGroup->getNumChildren(); index < count; ++index) {
+        auto it = d->_CoinMap.find(static_cast<SoSeparator*>(childGroup->getChild(index)));
+        if (it != d->_CoinMap.end() && !oldChildren.contains(it->second)) {
+            auto* provider = it->second;
+            oldChildren.emplace(
+                provider,
+                std::make_unique<DisplayReceiverObservation>(
+                    this,
+                    provider,
+                    provider->updateLifetimeToken(),
+                    provider->getObject()
+                )
+            );
+        }
+    }
+    std::vector<QPointer<View3DInventor>> views;
+    for (auto* view : d->baseViews) {
+        if (auto* view3d = dynamic_cast<View3DInventor*>(view)) {
+            views.emplace_back(view3d);
+        }
+    }
+    Gui::coinRemoveAllChildren(childGroup.get());
+    if (!receiver.current()) {
+        return;
+    }
+    Gui::coinRemoveAllChildren(frontGroup.get());
+    if (!receiver.current()) {
+        return;
+    }
+    Gui::coinRemoveAllChildren(backGroup.get());
+    if (!receiver.current()) {
+        return;
+    }
+    if (!deleting) {
+        for (auto& child : claimed) {
+            if (!child.object || !child.model.current()) {
+                continue;
+            }
+            auto* provider = dynamic_cast<ViewProviderDocumentObject*>(getViewProvider(child.object));
+            if (!provider) {
+                continue;
+            }
+            DisplayReceiverObservation
+                childReceiver(this, provider, provider->updateLifetimeToken(), child.object);
+            if (!childReceiver.current()) {
+                continue;
+            }
+            const std::string childName = child.object->getNameInDocument();
+            oldChildren.erase(provider);
+            auto* node = provider->getRoot();
+            if (!receiver.current()) {
+                return;
+            }
+            if (!childReceiver.current()) {
+                continue;
+            }
+            SoRefPtr<SoSeparator> nodeHold(node);
+            if (node) {
+                if (node == childGroup.get()) {
+                    Base::Console().warning(
+                        "Document::handleChildren3D: Do not add group of '{}' to itself\n",
+                        childName
+                    );
+                }
+                else {
+                    childGroup->addChild(node);
+                }
+            }
+            if (!receiver.current()) {
+                return;
+            }
+            if (!childReceiver.current()) {
+                continue;
+            }
+            auto* front = provider->getFrontRoot();
+            if (!receiver.current()) {
+                return;
+            }
+            if (!childReceiver.current()) {
+                continue;
+            }
+            SoRefPtr<SoSeparator> frontHold(front);
+            if (front) {
+                if (front == frontGroup.get()) {
+                    Base::Console()
+                        .warning("Document::handleChildren3D: Do not add foreground group of '{}' to itself\n", childName);
+                }
+                else if (frontGroup.get()) {
+                    frontGroup->addChild(front);
+                }
+            }
+            if (!receiver.current()) {
+                return;
+            }
+            if (!childReceiver.current()) {
+                continue;
+            }
+            auto* back = provider->getBackRoot();
+            if (!receiver.current()) {
+                return;
+            }
+            if (!childReceiver.current()) {
+                continue;
+            }
+            SoRefPtr<SoSeparator> backHold(back);
+            if (back) {
+                if (back == backGroup.get()) {
+                    Base::Console()
+                        .warning("Document::handleChildren3D: Do not add background group of '{}' to itself\n", childName);
+                }
+                else if (backGroup.get()) {
+                    backGroup->addChild(back);
+                }
+            }
+            if (!receiver.current()) {
+                return;
+            }
+            if (!childReceiver.current()) {
+                continue;
+            }
+            for (const auto& view : views) {
+                if (!view
+                    || std::find(d->baseViews.begin(), d->baseViews.end(), view.data())
+                        == d->baseViews.end()) {
                     continue;
                 }
-                oldChildren.insert(it->second);
-            }
-
-            Gui::coinRemoveAllChildren(childGroup);
-            Gui::coinRemoveAllChildren(frontGroup);
-            Gui::coinRemoveAllChildren(backGroup);
-
-            if (!deleting) {
-                for (const auto& it : children) {
-                    if (auto ChildViewProvider
-                        = dynamic_cast<ViewProviderDocumentObject*>(getViewProvider(it))) {
-                        auto itOld = oldChildren.find(ChildViewProvider);
-                        if (itOld != oldChildren.end()) {
-                            oldChildren.erase(itOld);
-                        }
-
-                        if (SoSeparator* childRootNode = ChildViewProvider->getRoot()) {
-                            if (childRootNode == childGroup) {
-                                Base::Console().warning(
-                                    "Document::handleChildren3D: Do not add "
-                                    "group of '{}' to itself\n",
-                                    it->getNameInDocument()
-                                );
-                            }
-                            else if (childGroup) {
-                                childGroup->addChild(childRootNode);
-                            }
-                        }
-
-                        if (SoSeparator* childFrontNode = ChildViewProvider->getFrontRoot()) {
-                            if (childFrontNode == frontGroup) {
-                                Base::Console().warning(
-                                    "Document::handleChildren3D: Do not add "
-                                    "foreground group of '{}' to itself\n",
-                                    it->getNameInDocument()
-                                );
-                            }
-                            else if (frontGroup) {
-                                frontGroup->addChild(childFrontNode);
-                            }
-                        }
-
-                        if (SoSeparator* childBackNode = ChildViewProvider->getBackRoot()) {
-                            if (childBackNode == backGroup) {
-                                Base::Console().warning(
-                                    "Document::handleChildren3D: Do not add "
-                                    "background group of '{}' to itself\n",
-                                    it->getNameInDocument()
-                                );
-                            }
-                            else if (backGroup) {
-                                backGroup->addChild(childBackNode);
-                            }
-                        }
-
-                        // cycling to all views of the document to remove the viewprovider from the
-                        // viewer itself
-                        for (Gui::BaseView* vIt : d->baseViews) {
-                            auto activeView = dynamic_cast<View3DInventor*>(vIt);
-                            if (activeView
-                                && activeView->getViewer()->hasViewProvider(ChildViewProvider)) {
-                                // @Note hasViewProvider()
-                                // remove the viewprovider serves the purpose of detaching the
-                                // inventor nodes from the top level root in the viewer. However, if
-                                // some of the children were grouped beneath the object earlier they
-                                // are not anymore part of the toplevel inventor node. we need to
-                                // check for that.
-                                activeView->getViewer()->removeViewProvider(ChildViewProvider);
-                            }
-                        }
+                QPointer<View3DInventorViewer> viewer = view->getViewer();
+                const bool shown = viewer && viewer->hasViewProvider(provider);
+                if (!receiver.current()) {
+                    return;
+                }
+                if (!childReceiver.current()) {
+                    break;
+                }
+                if (viewer && shown) {
+                    viewer->removeViewProvider(provider);
+                    if (!receiver.current()) {
+                        return;
+                    }
+                    if (!childReceiver.current()) {
+                        break;
                     }
                 }
             }
-
-            // add the remaining old children back to toplevel invertor node
-            for (auto vpd : oldChildren) {
-                auto obj = vpd->getObject();
-                if (!obj || !obj->isAttachedToDocument()) {
-                    continue;
+        }
+    }
+    for (auto& [provider, original] : oldChildren) {
+        if (!original->current()) {
+            continue;
+        }
+        auto* object = provider->getObject();
+        if (!object || !object->isAttachedToDocument()) {
+            continue;
+        }
+        for (const auto& view : views) {
+            if (!view
+                || std::find(d->baseViews.begin(), d->baseViews.end(), view.data())
+                    == d->baseViews.end()) {
+                continue;
+            }
+            QPointer<View3DInventorViewer> viewer = view->getViewer();
+            const bool shown = viewer && viewer->hasViewProvider(provider);
+            if (!receiver.current()) {
+                return;
+            }
+            if (!original->current()) {
+                break;
+            }
+            if (viewer && !shown) {
+                viewer->addViewProvider(provider);
+                if (!receiver.current()) {
+                    return;
                 }
-
-                for (BaseView* view : d->baseViews) {
-                    auto activeView = dynamic_cast<View3DInventor*>(view);
-                    if (activeView && !activeView->getViewer()->hasViewProvider(vpd)) {
-                        activeView->getViewer()->addViewProvider(vpd);
-                    }
+                if (!original->current()) {
+                    break;
                 }
             }
         }

@@ -157,11 +157,16 @@ TaskLoftParameters::TaskLoftParameters(ViewProviderLoft* LoftView, bool /*newObj
         auto* object = getObject<PartDesign::Loft>();
         return object ? App::RecomputeRequest::fromDocumentObject(*object) : App::RecomputeRequest {};
     };
-    callbacks.runSync = [this]() {
+    callbacks.runSyncWithResult = [this]() -> App::RecomputeResult {
         if (auto* loft = getObject<PartDesign::Loft>()) {
-            loft->recomputeFeature();
-            loft->recomputePreview();
+            PreviewRecomputeGuard guard(loft, this, getViewObject());
+            auto result = Gui::recomputeDocumentObjectWithResult(loft);
+            if (guard.isLive()) {
+                loft->recomputePreview();
+            }
+            return result;
         }
+        return Gui::recomputeDocumentObjectWithResult(nullptr);
     };
     callbacks.onAppliedResult = [this](bool success, bool canceled) {
         if (!canceled && success) {

@@ -8,6 +8,7 @@
 #include <exception>
 #include <functional>
 #include <memory>
+#include <type_traits>
 #include <utility>
 
 #include <QDialogButtonBox>
@@ -454,14 +455,22 @@ AsyncRecomputeProgressOutcome runAsyncDocumentObjectRecomputeProgressDialog(
         return outcome;
     }
 
-    const App::RecomputeRequest recomputeRequest
-        = App::RecomputeRequest::fromDocumentObject(*object, recursive);
+    const App::RecomputeRequest recomputeRequest = App::RecomputeRequest::fromDocumentObject(
+        *object,
+        recursive,
+        App::currentRecomputeOptions()
+    );
 
     AsyncPreviewController::Callbacks callbacks;
     callbacks.makeRequest = [recomputeRequest]() {
         return recomputeRequest;
     };
-    callbacks.runSync = std::forward<RunSyncFn>(runSync);
+    if constexpr (std::is_same_v<std::invoke_result_t<RunSyncFn&>, App::RecomputeResult>) {
+        callbacks.runSyncWithResult = std::forward<RunSyncFn>(runSync);
+    }
+    else {
+        callbacks.runSync = std::forward<RunSyncFn>(runSync);
+    }
     callbacks.onCompleted = [&outcome](
                                 bool success,
                                 bool canceled,
@@ -532,14 +541,19 @@ AsyncRecomputeProgressOutcome runAsyncDocumentRecomputeProgressDialog(
     }
 
     const App::RecomputeRequest recomputeRequest
-        = App::RecomputeRequest::fromDocument(*document, force);
+        = App::RecomputeRequest::fromDocument(*document, force, App::currentRecomputeOptions());
 
     AsyncRecomputeProgressOutcome outcome;
     AsyncPreviewController::Callbacks callbacks;
     callbacks.makeRequest = [recomputeRequest]() {
         return recomputeRequest;
     };
-    callbacks.runSync = std::forward<RunSyncFn>(runSync);
+    if constexpr (std::is_same_v<std::invoke_result_t<RunSyncFn&>, App::RecomputeResult>) {
+        callbacks.runSyncWithResult = std::forward<RunSyncFn>(runSync);
+    }
+    else {
+        callbacks.runSync = std::forward<RunSyncFn>(runSync);
+    }
     callbacks.onCompleted = [&outcome](
                                 bool success,
                                 bool canceled,

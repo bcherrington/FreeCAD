@@ -31,6 +31,8 @@
 
 #include <App/Application.h>
 #include <App/Document.h>
+#include <App/DocumentObserver.h>
+#include <App/private/RecomputeAdmission.h>
 #include <Base/Console.h>
 #include <Gui/AsyncPreviewSession.h>
 #include <Gui/Application.h>
@@ -54,6 +56,13 @@
 
 using namespace PartDesignGui;
 using namespace Gui;
+
+struct PartDesignGui::TaskShapeBinder::SupportCandidate
+{
+    bool clear;
+    App::RecomputeRequest target;
+    std::vector<std::string> subelements;
+};
 
 /* TRANSLATOR PartDesignGui::TaskShapeBinder */
 
@@ -103,21 +112,22 @@ TaskShapeBinder::TaskShapeBinder(ViewProviderShapeBinder* view, bool newObj, QWi
         auto* object = vp.expired() ? nullptr : vp->getObject<PartDesign::ShapeBinder>();
         return object ? App::RecomputeRequest::fromDocumentObject(*object) : App::RecomputeRequest {};
     };
-    callbacks.runSync = [this]() {
+    callbacks.runSyncWithResult = [this]() -> App::RecomputeResult {
         if (!vp.expired()) {
             if (auto* binder = vp->getObject<PartDesign::ShapeBinder>()) {
-                binder->getDocument()->recomputeFeature(binder);
+                return Gui::recomputeDocumentObjectWithResult(binder);
             }
         }
+        return Gui::recomputeDocumentObjectWithResult(nullptr);
     };
     asyncPreviewSession = std::make_unique<Gui::AsyncPreviewSession>(std::move(callbacks), this);
     connect(
         asyncPreviewSession->controller(),
         &AsyncPreviewController::recomputeSettled,
         this,
-        &TaskShapeBinder::recomputeSettled
+        &TaskShapeBinder::onPreviewRecomputeSettled
     );
-    asyncPreviewSession->bindWidgets(
+    asyncPreviewSession->bindWidgetsWithCancelAction(
         {
             ui->previewStatusWidget,
             ui->progressBarPreview,
@@ -125,7 +135,8 @@ TaskShapeBinder::TaskShapeBinder(ViewProviderShapeBinder* view, bool newObj, QWi
             ui->buttonCancelPreview,
         },
         [](const char* text) { return TaskShapeBinder::tr(text); },
-        proxy
+        proxy,
+        [this] { stopPendingRecompute(); }
     );
 
     updateUI();
@@ -133,6 +144,7 @@ TaskShapeBinder::TaskShapeBinder(ViewProviderShapeBinder* view, bool newObj, QWi
 
 TaskShapeBinder::~TaskShapeBinder()
 {
+    closing = true;
     stopPendingRecompute();
 }
 
@@ -202,8 +214,7 @@ void TaskShapeBinder::setupContextMenu()
 void TaskShapeBinder::supportChanged(const QString& text)
 {
     if (!vp.expired() && text.isEmpty()) {
-        PartDesign::ShapeBinder* binder = vp->getObject<PartDesign::ShapeBinder>();
-        binder->Support.setValue(nullptr, nullptr);
+        setSupportCandidate(nullptr, {});
         ui->listWidgetReferences->clear();
         clearButtons();
         exitSelectionMode();
@@ -252,22 +263,23 @@ void TaskShapeBinder::deleteItem()
     int row = ui->listWidgetReferences->currentRow();
     QListWidgetItem* item = ui->listWidgetReferences->takeItem(row);
     if (item) {
-        QByteArray data = item->text().toLatin1();
+        QByteArray data = item->text().toUtf8();
         delete item;
 
         // search inside the list of sub-elements
         App::GeoFeature* obj = nullptr;
         std::vector<std::string> subs;
 
-        PartDesign::ShapeBinder* binder = vp->getObject<PartDesign::ShapeBinder>();
-        PartDesign::ShapeBinder::getFilteredReferences(&binder->Support, obj, subs);
+        if (!supportReferences(obj, subs)) {
+            return;
+        }
 
         const std::string subname = data.constData();
 
         // if something was found, delete it and update the support
         if (const auto it = std::ranges::find(subs, subname); it != subs.end()) {
             subs.erase(it);
-            binder->Support.setValue(obj, subs);
+            setSupportCandidate(obj, subs);
 
             clearButtons();
             exitSelectionMode();
@@ -329,7 +341,7 @@ void TaskShapeBinder::onSelectionChanged(const Gui::SelectionChanges& msg)
     }
 }
 
-bool TaskShapeBinder::referenceSelected(const SelectionChanges& msg) const
+bool TaskShapeBinder::referenceSelected(const SelectionChanges& msg)
 {
     if (vp.expired()) {
         return false;
@@ -356,11 +368,11 @@ bool TaskShapeBinder::referenceSelected(const SelectionChanges& msg) const
         App::GeoFeature* obj = nullptr;
         std::vector<std::string> refs;
 
-        PartDesign::ShapeBinder::getFilteredReferences(
-            &vp->getObject<PartDesign::ShapeBinder>()->Support,
-            obj,
-            refs
-        );
+        // A new object selection replaces the old candidate independently of
+        // whether its original target was meanwhile retired or name-reused.
+        if (selectionMode != refObjAdd && !supportReferences(obj, refs)) {
+            return false;
+        }
 
         // get selected object
         auto docObj = vp->getObject()->getDocument()->getObject(msg.pObjectName);
@@ -408,7 +420,7 @@ bool TaskShapeBinder::referenceSelected(const SelectionChanges& msg) const
             obj = selectedObj;
         }
 
-        vp->getObject<PartDesign::ShapeBinder>()->Support.setValue(obj, refs);
+        setSupportCandidate(obj, refs);
 
         return true;
     }
@@ -478,7 +490,7 @@ bool TaskShapeBinder::hasOutstandingRecompute() const
 
 bool TaskShapeBinder::canReuseAcceptedPreviewResult() const
 {
-    return asyncPreviewSession && asyncPreviewSession->didLastRecomputeSucceed();
+    return !pendingSupport && asyncPreviewSession && asyncPreviewSession->didLastRecomputeSucceed();
 }
 
 void TaskShapeBinder::setDeferredClosePending(bool pending)
@@ -514,6 +526,94 @@ void TaskShapeBinder::updateRecomputeUi()
     asyncPreviewSession->updateUi();
 }
 
+void TaskShapeBinder::setSupportCandidate(
+    App::DocumentObject* target,
+    const std::vector<std::string>& subelements
+)
+{
+    if (closing) {
+        return;
+    }
+    ++supportActivitySerial;
+    previewReplayStopped = false;
+    pendingSupport = std::make_shared<SupportCandidate>(SupportCandidate {
+        !target,
+        target ? App::RecomputeRequest::fromDocumentObject(*target) : App::RecomputeRequest {},
+        subelements
+    });
+    if (!hasOutstandingRecompute() && !settlingAcceptedSupport) {
+        applySupportCandidate();
+    }
+}
+
+bool TaskShapeBinder::supportReferences(App::GeoFeature*& object, std::vector<std::string>& subs) const
+{
+    if (pendingSupport) {
+        object = pendingSupport->clear
+            ? nullptr
+            : dynamic_cast<App::GeoFeature*>(pendingSupport->target.resolveDocumentObject());
+        if (!pendingSupport->clear && !object) {
+            return false;
+        }
+        subs = pendingSupport->subelements;
+        return true;
+    }
+    if (vp.expired()) {
+        return false;
+    }
+    PartDesign::ShapeBinder::getFilteredReferences(
+        &vp->getObject<PartDesign::ShapeBinder>()->Support,
+        object,
+        subs
+    );
+    return true;
+}
+
+bool TaskShapeBinder::applySupportCandidate()
+{
+    auto candidate = pendingSupport;
+    if (!candidate) {
+        return true;
+    }
+    if (vp.expired()) {
+        return false;
+    }
+    auto* target = candidate->clear ? nullptr : candidate->target.resolveDocumentObject();
+    if (!candidate->clear && !target) {
+        return false;
+    }
+    QPointer<TaskShapeBinder> self(this);
+    PreviewRecomputeGuard guard(vp->getObject(), this, vp.get());
+    try {
+        vp->getObject<PartDesign::ShapeBinder>()->Support.setValue(target, candidate->subelements);
+    }
+    catch (const App::RecomputeDetail::AdmissionRefusal&) {
+        // The candidate remains available for a later owner-thread attempt.
+        return false;
+    }
+    if (!self || !guard.isLive()) {
+        return false;
+    }
+    // Preserve independently staged input arriving through native notifications.
+    if (self->pendingSupport == candidate) {
+        self->pendingSupport.reset();
+    }
+    return !self->pendingSupport;
+}
+
+void TaskShapeBinder::onPreviewRecomputeSettled()
+{
+    QPointer<TaskShapeBinder> self(this);
+    if (pendingSupport && !settlingAcceptedSupport && !previewReplayStopped && !closing) {
+        if (applySupportCandidate() && self) {
+            requestRecompute(false);
+        }
+    }
+    if (self && !self->closing) {
+        Q_EMIT self->recomputeSettled();
+    }
+}
+
 void TaskShapeBinder::flushPendingRecompute()
 {
     if (asyncPreviewSession) {
@@ -521,8 +621,43 @@ void TaskShapeBinder::flushPendingRecompute()
     }
 }
 
+bool TaskShapeBinder::stopPendingRecomputeAndWait()
+{
+    PreviewRecomputeGuard guard(
+        vp.expired() ? nullptr : vp->getObject(),
+        this,
+        vp.expired() ? nullptr : vp.operator->()
+    );
+    if (!guard.isLive()) {
+        return false;
+    }
+    QPointer<TaskShapeBinder> self(this);
+    const auto originalActivity = supportActivitySerial;
+    const bool previous = settlingAcceptedSupport;
+    settlingAcceptedSupport = true;
+    bool settled;
+    try {
+        auto* session = asyncPreviewSession.get();
+        settled = !session || session->stopPendingRecomputeAndWait();
+    }
+    catch (...) {
+        if (self) {
+            self->settlingAcceptedSupport = previous;
+        }
+        throw;
+    }
+    if (!self) {
+        return false;
+    }
+    self->settlingAcceptedSupport = previous;
+    return settled && guard.isLive() && self->supportActivitySerial == originalActivity;
+}
+
 void TaskShapeBinder::stopPendingRecompute()
 {
+    // Cancel Preview retains the visible candidate for explicit OK, but a
+    // canceled run must not autonomously install it or submit more work.
+    previewReplayStopped = true;
     if (asyncPreviewSession) {
         asyncPreviewSession->stopPendingRecompute();
     }
@@ -530,6 +665,19 @@ void TaskShapeBinder::stopPendingRecompute()
 
 void TaskShapeBinder::requestRecompute(bool waitForCompletion)
 {
+    if (closing || previewReplayStopped) {
+        return;
+    }
+    // An accepted native run is computing the previous immutable support. Its
+    // terminal callback will submit the latest staged candidate once retired.
+    if (pendingSupport) {
+        if (hasOutstandingRecompute() || settlingAcceptedSupport) {
+            return;
+        }
+        if (!applySupportCandidate()) {
+            return;
+        }
+    }
     if (asyncPreviewSession) {
         asyncPreviewSession->requestRecompute(waitForCompletion);
     }
@@ -589,11 +737,7 @@ bool TaskDlgShapeBinder::rejectNow()
             doc,
             /*force=*/false,
             shapeBinderRollbackDialogOptions(),
-            [doc]() {
-                if (doc) {
-                    doc->recompute();
-                }
-            }
+            [doc]() { return Gui::recomputeDocumentWithResult(doc); }
         );
         if (!outcome.success && !outcome.canceled) {
             Base::Console().error(
@@ -615,19 +759,55 @@ bool TaskDlgShapeBinder::accept()
     try {
         if (!vp.expired()) {
             PartDesign::ShapeBinder* binder = vp->getObject<PartDesign::ShapeBinder>();
-            parameter->clearInteractiveSelection();
-            parameter->accept();
+            if (!binder || !binder->isAttachedToDocument()) {
+                return false;
+            }
+            QPointer<TaskDlgShapeBinder> dialogGuard(this);
+            QPointer<TaskShapeBinder> parameterGuard(parameter);
+            PreviewRecomputeGuard originalGuard(binder, parameter, vp.operator->());
+            auto* editOwner = Gui::Control().activeDialog(binder->getDocument());
+            App::DocumentObjectWeakPtrT binderGuard(binder);
             const bool previewSettled = !parameter->hasOutstandingRecompute()
                 && parameter->canReuseAcceptedPreviewResult();
             if (previewSettled) {
                 parameter->flushPendingRecompute();
+                if (!dialogGuard || !parameterGuard || parameter != parameterGuard.data()
+                    || !originalGuard.isLive() || vp->getObject() != binder
+                    || Gui::Control().activeDialog(binder->getDocument()) != editOwner) {
+                    return false;
+                }
+                if (!parameter->applySupportCandidate()) {
+                    return false;
+                }
+                if (!dialogGuard || !parameterGuard || parameter != parameterGuard.data()
+                    || !originalGuard.isLive() || vp.expired() || vp->getObject() != binder
+                    || Gui::Control().activeDialog(binder->getDocument()) != editOwner) {
+                    return false;
+                }
+                parameter->clearInteractiveSelection();
+                parameter->accept();
                 Gui::cmdAppDocument(binder, "purgeTouched()");
                 if (!binder->isValid()) {
                     throw Base::RuntimeError(binder->getStatusString());
                 }
             }
             else {
-                parameter->stopPendingRecompute();
+                if (!parameter->stopPendingRecomputeAndWait() || !dialogGuard || !parameterGuard
+                    || parameter != parameterGuard.data() || !originalGuard.isLive()
+                    || vp->getObject() != binder
+                    || Gui::Control().activeDialog(binder->getDocument()) != editOwner) {
+                    return false;
+                }
+                if (!parameter->applySupportCandidate()) {
+                    return false;
+                }
+                if (!dialogGuard || !parameterGuard || parameter != parameterGuard.data()
+                    || !originalGuard.isLive() || vp.expired() || vp->getObject() != binder
+                    || Gui::Control().activeDialog(binder->getDocument()) != editOwner) {
+                    return false;
+                }
+                parameter->clearInteractiveSelection();
+                parameter->accept();
                 auto progressTarget = parameter->makeAcceptedRecomputeProgressTarget(
                     buttonBox,
                     tr("Applying changes...")
@@ -640,6 +820,11 @@ bool TaskDlgShapeBinder::accept()
                 if (!runAsyncAcceptDocumentRecompute(binder->getDocument(), options)) {
                     return false;
                 }
+                if (!dialogGuard || !parameterGuard || parameter != parameterGuard.data()
+                    || !originalGuard.isLive() || vp->getObject() != binder
+                    || Gui::Control().activeDialog(binder->getDocument()) != editOwner) {
+                    return false;
+                }
                 if (!binder->isValid()) {
                     throw Base::RuntimeError(binder->getStatusString());
                 }
@@ -649,6 +834,9 @@ bool TaskDlgShapeBinder::accept()
         }
     }
     catch (const Base::Exception& e) {
+        if (vp.expired()) {
+            return false;
+        }
         vp->getDocument()->abortCommand();
         QMessageBox::warning(
             parameter,

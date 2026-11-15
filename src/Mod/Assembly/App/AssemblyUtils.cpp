@@ -34,9 +34,14 @@
 #include <App/Datums.h>
 #include <App/Document.h>
 #include <App/DocumentObject.h>
+#include <App/GeoFeatureGroupExtension.h>
 #include <App/PropertyStandard.h>
 #include <App/Link.h>
 
+#include <algorithm>
+#include <unordered_set>
+
+#include <Base/Exception.h>
 #include <Base/Placement.h>
 #include <Base/Tools.h>
 #include <Base/Interpreter.h>
@@ -387,15 +392,11 @@ JointGroup* getJointGroup(const App::Part* part)
         return nullptr;
     }
 
-    const auto* doc = part->getDocument();
-
-    const auto jointGroups = doc->getObjectsOfType(JointGroup::getClassTypeId());
-    if (jointGroups.empty()) {
-        return nullptr;
-    }
-    for (auto jointGroup : jointGroups) {
-        if (part->hasObject(jointGroup)) {
-            return freecad_cast<JointGroup*>(jointGroup);
+    // Joint groups belong to their immediate occurrence, not to an arbitrary
+    // descendant selected by document creation order.
+    for (auto* object : part->Group.getValues()) {
+        if (auto* group = freecad_cast<JointGroup*>(object)) {
+            return group;
         }
     }
     return nullptr;
@@ -763,11 +764,12 @@ namespace
 // namespace as it's an implementation detail of getAssemblyComponents.
 void collectComponentsRecursively(
     const std::vector<App::DocumentObject*>& objects,
-    std::vector<App::DocumentObject*>& results
+    std::vector<App::DocumentObject*>& results,
+    bool includeSuppressed
 )
 {
     for (auto* obj : objects) {
-        if (!obj || isSuppressedLinkElement(obj)) {
+        if (!obj || (!includeSuppressed && isSuppressedLinkElement(obj))) {
             continue;
         }
 
@@ -778,14 +780,14 @@ void collectComponentsRecursively(
                 results.push_back(asmLink);
             }
             else {
-                collectComponentsRecursively(asmLink->Group.getValues(), results);
+                collectComponentsRecursively(asmLink->Group.getValues(), results, includeSuppressed);
             }
             continue;
         }
         else if (obj->isLinkGroup()) {
             auto* linkGroup = static_cast<App::Link*>(obj);
             for (auto* elt : linkGroup->ElementList.getValues()) {
-                if (!elt || isSuppressedLinkElement(elt)) {
+                if (!elt || (!includeSuppressed && isSuppressedLinkElement(elt))) {
                     continue;
                 }
                 results.push_back(elt);
@@ -797,7 +799,7 @@ void collectComponentsRecursively(
             continue;
         }
         else if (auto* group = freecad_cast<App::DocumentObjectGroup*>(obj)) {
-            collectComponentsRecursively(group->Group.getValues(), results);
+            collectComponentsRecursively(group->Group.getValues(), results, includeSuppressed);
             continue;
         }
         else if (auto* link = freecad_cast<App::Link*>(obj)) {
@@ -821,15 +823,90 @@ void collectComponentsRecursively(
 }
 }  // namespace
 
+std::vector<App::DocumentObject*> detail::getAssemblyComponents(
+    const std::vector<App::DocumentObject*>& objects,
+    bool includeSuppressed
+)
+{
+    std::vector<App::DocumentObject*> components;
+    collectComponentsRecursively(objects, components, includeSuppressed);
+    return components;
+}
+
 std::vector<App::DocumentObject*> getAssemblyComponents(const AssemblyObject* assembly)
 {
     if (!assembly) {
         return {};
     }
 
-    std::vector<App::DocumentObject*> components;
-    collectComponentsRecursively(assembly->Group.getValues(), components);
-    return components;
+    return detail::getAssemblyComponents(assembly->Group.getValues(), false);
+}
+
+namespace
+{
+const App::DocumentObject* coordinateParent(const App::DocumentObject* object)
+{
+    // InList also contains dependency and source-link references, which are not
+    // owners. Check actual spatial membership, including every array owner of
+    // an expanded element instead of getLinkGroup()'s first matching parent.
+    const bool isElement = object->isDerivedFrom<App::LinkElement>();
+    const App::DocumentObject* parent = nullptr;
+    for (auto* candidate : object->getInList()) {
+        bool owns = false;
+        if (isElement) {
+            if (auto* array = freecad_cast<App::Link*>(candidate); array && array->isLinkGroup()) {
+                const auto& elements = array->ElementList.getValues();
+                owns = std::ranges::find(elements, object) != elements.end();
+            }
+        }
+        if (auto* extension = candidate->getExtensionByType<App::GeoFeatureGroupExtension>(true)) {
+            const auto& members = extension->Group.getValues();
+            auto* origin = candidate->getPropertyByName<App::PropertyLink>("Origin");
+            owns = owns || std::ranges::find(members, object) != members.end()
+                || (origin && origin->getValue() == object);
+        }
+        if (!owns) {
+            continue;
+        }
+        if (parent && parent != candidate) {
+            throw Base::RuntimeError("Assembly component has ambiguous coordinate ownership");
+        }
+        parent = candidate;
+    }
+    return parent;
+}
+}  // namespace
+
+Base::Placement detail::getContainingPlacement(
+    const App::DocumentObject* object,
+    const App::DocumentObject* root
+)
+{
+    Base::Placement frame;
+    std::unordered_set<const App::DocumentObject*> visited;
+    while (object && object != root) {
+        if (!visited.insert(object).second) {
+            throw Base::RuntimeError("Assembly component has cyclic coordinate ownership");
+        }
+        const auto* parent = coordinateParent(object);
+        if (!parent) {
+            if (root) {
+                throw Base::RuntimeError("Assembly component lies outside the solver coordinate root");
+            }
+            return frame;
+        }
+        if (parent->getDocument() != object->getDocument()) {
+            throw Base::RuntimeError("Assembly coordinate ownership crosses documents");
+        }
+        if (parent == root) {
+            return frame;
+        }
+        if (auto* placement = parent->getPlacementProperty()) {
+            frame = placement->getValue() * frame;
+        }
+        object = parent;
+    }
+    return frame;
 }
 
 double getJointCurrentValue(App::DocumentObject* joint, bool isAngle)
@@ -842,8 +919,10 @@ double getJointCurrentValue(App::DocumentObject* joint, bool isAngle)
     if (!ref1 || !ref2) {
         return 0.0;
     }
-    Base::Placement obj_global_plc1 = App::GeoFeature::getGlobalPlacement(nullptr, ref1);
-    Base::Placement obj_global_plc2 = App::GeoFeature::getGlobalPlacement(nullptr, ref2);
+    Base::Placement obj_global_plc1 = detail::getContainingPlacement(ref1->getValue())
+        * App::GeoFeature::getGlobalPlacement(nullptr, ref1);
+    Base::Placement obj_global_plc2 = detail::getContainingPlacement(ref2->getValue())
+        * App::GeoFeature::getGlobalPlacement(nullptr, ref2);
 
     plc1 = obj_global_plc1 * plc1;
     plc2 = obj_global_plc2 * plc2;

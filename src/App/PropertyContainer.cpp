@@ -39,6 +39,7 @@
 
 #include "Property.h"
 #include "PropertyContainer.h"
+#include "private/RecomputeAdmission.h"
 
 
 FC_LOG_LEVEL_INIT("App",true,true)
@@ -323,6 +324,7 @@ void PropertyContainer::Save (Base::Writer &writer) const
 
 void PropertyContainer::Restore(Base::XMLReader &reader)
 {
+    auto restoration = RecomputeDetail::Coordinator::instance().atomicForRestore(*this);
     reader.clearPartialRestoreProperty();
     reader.readElement("Properties");
     int Cnt = reader.getAttribute<long>("Count");
@@ -386,6 +388,9 @@ void PropertyContainer::Restore(Base::XMLReader &reader)
                 Base::Console().error("Property {} of type {} was subject to a partial restore.\n",PropName,TypeName);
                 reader.clearPartialRestoreProperty();
             }
+        }
+        catch (const RecomputeDetail::AdmissionRefusal&) {
+            throw;
         }
         catch (const Base::XMLParseException&) {
             throw; // re-throw

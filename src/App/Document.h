@@ -24,6 +24,7 @@
 
 #pragma once
 
+#include <cstdint>
 #include <CXX/Objects.hxx>
 #include <Base/Observer.h>
 #include <Base/Persistence.h>
@@ -287,6 +288,10 @@ public:
 
     /// Clear the document of all its administration.
     void clearDocument();
+    bool tryCommitTransaction();
+    bool tryAbortTransaction() const;
+    void collectCommitMutationEndpoints(std::vector<DocumentObject*>&) const;
+    std::uint64_t getTransactionGeneration(bool undo, unsigned pos = 0) const;
 
     /** @name File handling of the document
      * @{
@@ -1468,6 +1473,10 @@ protected:
     void _abortTransaction();
 
 private:
+    struct ImportRestoreContext;
+    std::vector<DocumentObject*> readObjectsImpl(Base::XMLReader&, ImportRestoreContext*);
+    bool afterRestoreImpl(const std::vector<DocumentObject*>&, bool checkPartial, ImportRestoreContext*);
+
     /// Whether this thread still has an active recompute call for this document.
     bool isRecomputingOnCurrentThread() const;
 

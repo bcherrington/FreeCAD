@@ -39,6 +39,7 @@
 #include <App/Link.h>
 #include <App/Origin.h>
 #include <Base/Tools.h>
+#include <App/private/RecomputeAdmission.h>
 
 #include "ViewProviderDocumentObjectPy.h"
 #include "ActionFunction.h"
@@ -461,11 +462,33 @@ void ViewProviderDocumentObject::update(const App::Property* prop)
         }
     }
     else {
-        // Disable object visibility syncing
-        Base::ObjectStatusLocker<App::Property::Status, App::Property> guard(
-            App::Property::User1,
-            &Visibility
-        );
+        // Restore only the original surviving receiver, including on exception
+        // unwind. An unconditional member locker outlives deleted providers.
+        const auto lifetime = updateLifetimeToken();
+        auto* object = getObject();
+        auto& admission = App::RecomputeDetail::Coordinator::instance();
+        auto binding = object ? admission.bindObject(object) : nullptr;
+        if (binding && binding->missing && !binding->attachmentGeneration) {
+            binding.reset();
+        }
+        if (lifetime.expired() || (binding && admission.resolveObject(binding) != object)) {
+            return;
+        }
+        auto* visibility = &Visibility;
+        const bool original = visibility->testStatus(App::Property::User1);
+        Base::ScopeGuard restore([&] {
+            // This bit belongs to provider storage, which undo may retain after
+            // the original model attachment retires. Restore its prior state
+            // whenever that exact provider survives; display work stays guarded
+            // independently by the model binding below.
+            if (!lifetime.expired()) {
+                visibility->setStatus(App::Property::User1, original);
+            }
+        });
+        visibility->setStatus(App::Property::User1, true);
+        if (lifetime.expired() || (binding && admission.resolveObject(binding) != object)) {
+            return;
+        }
         ViewProvider::update(prop);
     }
 }

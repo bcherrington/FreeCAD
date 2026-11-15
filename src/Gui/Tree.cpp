@@ -761,6 +761,8 @@ TreeWidget::TreeWidget(const char* name, QWidget* parent)
 
 TreeWidget::~TreeWidget()
 {
+    connectStartOpenDocument.disconnect();
+    connectFinishOpenDocument.disconnect();
     connectNewDocument.disconnect();
     connectDelDocument.disconnect();
     connectRenDocument.disconnect();
@@ -768,8 +770,6 @@ TreeWidget::~TreeWidget()
     connectRelDocument.disconnect();
     connectShowHidden.disconnect();
     connectChangedViewObj.disconnect();
-    connectStartOpenDocument.disconnect();
-    connectFinishOpenDocument.disconnect();
     Instances.erase(this);
     if (_LastSelectedTreeWidget == this) {
         _LastSelectedTreeWidget = nullptr;
@@ -3754,6 +3754,9 @@ void TreeWidget::onUpdateStatus()
 
     updateGeometries();
     statusTimer->stop();
+    if (!ChangedObjects.empty() || !NewObjects.empty()) {
+        _updateStatus();
+    }
 
     FC_LOG("done update status");
 }
@@ -5536,7 +5539,6 @@ void DocumentItem::clearSelection(DocumentObjectItem* exclude)
     // Block signals here otherwise we get a recursion and quadratic runtime
     bool ok = treeWidget()->blockSignals(true);
     FOREACH_ITEM_ALL(item);
-    _v.second->dirtyFlag = false;
     if (item == exclude) {
         if (item->selected > 0) {
             item->selected = -1;
@@ -5544,6 +5546,7 @@ void DocumentItem::clearSelection(DocumentObjectItem* exclude)
         else {
             item->selected = 0;
         }
+        _v.second->dirtyFlag = false;
         updateItemSelection(item);
         // The set has been changed while calling updateItemSelection
         // so that the iterator has become invalid -> Abort
@@ -6631,7 +6634,7 @@ void DocumentObjectItem::displayStatusInfo()
     }
 
     QString status = TreeWidget::tr("%1, Internal name: %2")
-                         .arg(info, QString::fromLatin1(Obj->getNameInDocument()));
+                         .arg(info, QString::fromUtf8(Obj->getNameInDocument()));
 
     if (!Obj->isError()) {
         getMainWindow()->showMessage(status);
