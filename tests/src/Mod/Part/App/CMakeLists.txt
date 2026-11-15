@@ -7,6 +7,7 @@ add_executable(Part_tests_run
         FaceMakerBullseye.cpp
         FaceMakerUnified.cpp
         FeatureChamfer.cpp
+        FeatureDressUpMissingEdges.cpp
         FeatureCompound.cpp
         FeatureExtrusion.cpp
         FeatureFillet.cpp

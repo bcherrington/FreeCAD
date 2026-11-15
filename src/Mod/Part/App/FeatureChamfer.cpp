@@ -78,9 +78,6 @@ App::DocumentObjectExecReturn* Chamfer::execute()
                 fullErrMsg.append(ref);
                 fullErrMsg.append("\n");
 
-                auto removeIt = std::remove(edges.begin(), edges.end(), info);
-                edges.erase(removeIt, edges.end());
-
                 continue;
             }
             // Toponaming project March 2024:  Replaced this code because it wouldn't work:

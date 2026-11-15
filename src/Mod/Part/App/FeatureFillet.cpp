@@ -86,9 +86,6 @@ App::DocumentObjectExecReturn* Fillet::execute()
                 fullErrMsg.append(ref);
                 fullErrMsg.append("\n");
 
-                auto removeIt = std::remove(edges.begin(), edges.end(), info);
-                edges.erase(removeIt, edges.end());
-
                 continue;
             }
 
