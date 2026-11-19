@@ -375,7 +375,7 @@ void TaskChamferParameters::setupGizmos(ViewProviderDressUp* vp)
         onAngleChanged(ui->chamferAngle->value().getValue());
     });
 
-    connect(ui->chamferType, qOverload<int>(&QComboBox::currentIndexChanged), [this](int index) {
+    connect(ui->chamferType, qOverload<int>(&QComboBox::currentIndexChanged), this, [this](int index) {
         auto type = static_cast<Part::ChamferType>(index);
 
         switch (type) {

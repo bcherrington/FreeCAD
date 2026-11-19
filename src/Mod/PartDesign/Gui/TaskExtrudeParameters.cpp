@@ -1631,7 +1631,7 @@ void TaskExtrudeParameters::setupGizmos()
         onTaperChanged(ui->taperEdit2->value().getValue(), Side::Second);
     });
 
-    connect(ui->sidesMode, qOverload<int>(&QComboBox::currentIndexChanged), [this](int) {
+    connect(ui->sidesMode, qOverload<int>(&QComboBox::currentIndexChanged), this, [this](int) {
         setGizmoPositions();
     });
 
