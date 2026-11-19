@@ -769,8 +769,9 @@ class Joint:
         """Do something when a property has changed"""
         # App.Console.PrintMessage("Change property: " + str(prop) + "\n")
 
-        # during loading the onchanged may be triggered before full init.
-        if App.isRestoring():
+        # Loading can notify before initialization; removal clears references after
+        # the native recompute receiver has already retired.
+        if App.isRestoring() or joint.Removing:
             return
 
         if prop == "JointType":

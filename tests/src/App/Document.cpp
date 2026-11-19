@@ -10,6 +10,9 @@
 #include "App/Application.h"
 #include "App/Document.h"
 #include "App/DocumentObject.h"
+#include "App/Datums.h"
+#include "App/Origin.h"
+#include "App/Part.h"
 #include "App/Expression.h"
 #include "App/MergeDocuments.h"
 #include "App/PropertyUnits.h"
@@ -389,3 +392,39 @@ TEST_F(DocumentTest, importObjectsRestoresSourceStringHasher)
 }
 
 // NOLINTEND(readability-magic-numbers)
+
+TEST_F(DocumentTest, RemovingPartWithoutTransactionRemovesItsOriginDatums)
+{
+    auto* part = doc()->addObject<App::Part>("Part");
+    auto* origin = static_cast<App::Origin*>(part->Origin.getValue());
+    ASSERT_NE(origin, nullptr);
+    std::vector<std::string> names {origin->getNameInDocument()};
+    for (auto* datum : origin->OriginFeatures.getValues()) {
+        names.emplace_back(datum->getNameInDocument());
+    }
+    EXPECT_NO_THROW(doc()->removeObject("Part"));
+    EXPECT_EQ(doc()->getObject("Part"), nullptr);
+    for (const auto& name : names) {
+        EXPECT_EQ(doc()->getObject(name.c_str()), nullptr) << name;
+    }
+}
+
+TEST_F(DocumentTest, RemovingPartOriginCanBeUndone)
+{
+    auto* part = doc()->addObject<App::Part>("Part");
+    const auto originName = std::string(part->Origin.getValue()->getNameInDocument());
+    const auto count = doc()->countObjects();
+    doc()->openTransaction("Remove part");
+    doc()->removeObject("Part");
+    doc()->commitTransaction();
+    EXPECT_EQ(doc()->countObjects(), 0);
+    doc()->undo();
+    EXPECT_EQ(doc()->countObjects(), count);
+    auto* restored = dynamic_cast<App::Part*>(doc()->getObject("Part"));
+    ASSERT_NE(restored, nullptr);
+    auto* origin = dynamic_cast<App::Origin*>(restored->Origin.getValue());
+    ASSERT_NE(origin, nullptr);
+    EXPECT_EQ(std::string(origin->getNameInDocument()), originName);
+    EXPECT_EQ(origin->OriginFeatures.getSize(), 7);
+    EXPECT_NO_THROW(doc()->recompute());
+}

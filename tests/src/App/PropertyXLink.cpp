@@ -10,6 +10,7 @@
 #include <App/Document.h>
 #include <App/DocumentObject.h>
 #include <App/PropertyLinks.h>
+#include <App/private/RecomputeAdmission.h>
 #include <Base/Writer.h>
 #include <Base/Reader.h>
 
@@ -148,4 +149,39 @@ TEST_F(PropertyXLinkSaveTest, ExportTogetherKeepsInternalReference)
     reader.readElement("XLink");
     EXPECT_STREQ(reader.getAttribute<const char*>("file", ""), "");
     EXPECT_FALSE(reader.getAttribute<std::string>("name").empty());
+}
+
+TEST_F(PropertyXLinkSaveTest, RemovingUnrelatedObjectDoesNotReserveExternalSource)
+{
+    owner->addObject("App::DocumentObject", "Independent");
+    {
+        // Keep an unrelated external definition leased by a different operation.
+        auto claim = App::RecomputeDetail::Coordinator::instance().claimDocument(target, dependency);
+        EXPECT_NO_THROW(owner->removeObject("Independent"));
+    }
+    EXPECT_EQ(owner->getObject("Independent"), nullptr);
+    EXPECT_EQ(link->getValue(), dependency);
+}
+
+TEST_F(PropertyXLinkSaveTest, RemovingTargetClearsHiddenAndExternalReceivers)
+{
+    auto* local = owner->addObject("App::DocumentObject", "Local");
+    auto* keep = owner->addObject("App::DocumentObject", "Keep");
+    auto* hidden = static_cast<App::PropertyLinkHidden*>(
+        object->addDynamicProperty("App::PropertyLinkHidden", "HiddenReference")
+    );
+    auto* list = static_cast<App::PropertyLinkList*>(
+        object->addDynamicProperty("App::PropertyLinkList", "LocalReferences")
+    );
+    hidden->setValue(local);
+    list->setValues({local, keep});
+    EXPECT_NO_THROW(owner->removeObject("Local"));
+    EXPECT_EQ(hidden->getValue(), nullptr);
+    ASSERT_EQ(list->getValues().size(), 1);
+    EXPECT_EQ(list->getValues().front(), keep);
+    EXPECT_EQ(link->getValue(), dependency);
+
+    EXPECT_NO_THROW(target->removeObject("Definition"));
+    dependency = nullptr;
+    EXPECT_EQ(link->getValue(), nullptr);
 }
