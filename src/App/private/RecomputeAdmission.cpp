@@ -67,7 +67,7 @@ struct ClosureRecord
     bool pending {false};
     bool closing {false};
     bool abort {false};
-    std::vector<Generation> documents;
+    std::vector<Generation> documents {};
 };
 struct Registry
 {
