@@ -477,9 +477,9 @@ def integration_update(
         help="Merge the configured base before selected branches.",
     ),
     fetch: bool = typer.Option(
-        False,
-        "--fetch",
-        help="Run 'git fetch --all --prune' first.",
+        True,
+        "--fetch/--no-fetch",
+        help="Refresh remote refs with 'git fetch --all --prune' before merging.",
     ),
 ) -> None:
     """Merge the base and all or selected tracked branches into the current branch."""
