@@ -5011,9 +5011,13 @@ void PropertyLinkBase::breakLinks(
     endpoints.push_back(link);
     auto admission = coordinator.mutation(endpoints);
     std::set<Property*> selected;
-    for (auto* object : objs) {
+    // Only the removed object's outgoing links and indexed incoming receivers
+    // can change. Scanning every property in the document repeatedly reserves
+    // unrelated XLink cohorts, and can refuse removal because an unrelated
+    // source is executing. The index includes hidden and subelement references.
+    if (std::find(objs.begin(), objs.end(), link) != objs.end()) {
         std::vector<Property*> properties;
-        object->getPropertyList(properties);
+        link->getPropertyList(properties);
         for (auto* property : properties) {
             if (freecad_cast<PropertyLinkBase*>(property)) {
                 selected.insert(property);

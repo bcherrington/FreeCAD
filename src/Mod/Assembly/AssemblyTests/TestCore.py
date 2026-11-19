@@ -1570,3 +1570,30 @@ class TestCore(AssemblyTestBase):
 
     def test_link_array_joint_on_point_pattern(self):
         self._check_pattern_array_joint("Point")
+
+    def test_removing_joint_ignores_reference_notifications(self):
+        _first, _second, joint = self._suspended_joint_fixture()
+        proxy = joint.Proxy
+        notifications = []
+        failures = []
+
+        class Observer:
+            def slotDeletedObject(self, obj):
+                if obj is joint:
+                    notifications.append(obj.Removing)
+                    try:
+                        proxy.onChanged(obj, "Reference1")
+                        proxy.onChanged(obj, "Reference2")
+                    except Exception as error:
+                        failures.append(error)
+
+        observer = Observer()
+        App.addDocumentObserver(observer)
+        name = joint.Name
+        try:
+            self.doc.removeObject(name)
+        finally:
+            App.removeDocumentObserver(observer)
+        self.assertEqual(notifications, [True])
+        self.assertEqual(failures, [])
+        self.assertIsNone(self.doc.getObject(name))

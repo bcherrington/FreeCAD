@@ -24,6 +24,7 @@
  ***************************************************************************/
 
 #include <string>
+#include <utility>
 
 #include <App/Document.h>
 #include <Base/Exception.h>
@@ -319,17 +320,22 @@ void LocalCoordinateSystem::setupObject()
 
 void LocalCoordinateSystem::unsetupObject()
 {
-    const auto& objsLnk = OriginFeatures.getValues();
-    // Copy to set to assert we won't call method more then one time for each object
-    const std::set<App::DocumentObject*> objs(objsLnk.begin(), objsLnk.end());
-    // Remove all controlled objects
-    for (auto obj : objs) {
-        // Check that previous deletes didn't indirectly remove one of our objects
-        const auto& objsLnk2 = OriginFeatures.getValues();
-        if (std::ranges::find(objsLnk2, obj) != objsLnk2.end()) {
-            if (!obj->isRemoving()) {
-                obj->getDocument()->removeObject(obj->getNameInDocument());
-            }
+    auto* document = getDocument();
+    const auto& features = OriginFeatures.getValues();
+    const std::set<App::DocumentObject*> unique(features.begin(), features.end());
+    std::vector<std::pair<std::string, long>> objects;
+    objects.reserve(unique.size());
+    for (auto* object : unique) {
+        objects.emplace_back(object->getNameInDocument(), object->getID());
+    }
+    // This owner's attachment is already retired. Clear its outgoing references
+    // before deleting children, so subsequent cleanup cannot revisit freed datums.
+    OriginFeatures.setValues({});
+    for (const auto& [name, id] : objects) {
+        // An earlier deletion callback may have removed or replaced another datum.
+        auto* object = document->getObject(name.c_str());
+        if (object && object->getID() == id && !object->isRemoving()) {
+            document->removeObject(name.c_str());
         }
     }
 }
