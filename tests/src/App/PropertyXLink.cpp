@@ -4,6 +4,7 @@
 #include <QDir>
 #include <QTemporaryDir>
 #include <sstream>
+#include <unordered_set>
 #include <zipios++/zipinputstream.h>
 
 #include <App/Application.h>
@@ -86,6 +87,39 @@ TEST_F(PropertyXLinkSaveTest, LoadedDependencyUsesOwnerRelativePath)
     // Serialization must not change the live dependency cache's identity.
     EXPECT_EQ(std::string(link->getDocumentPath()), path("parts/Definitions.FCStd"));
     EXPECT_EQ(link->getValue(), dependency);
+}
+
+TEST_F(PropertyXLinkSaveTest, SharedDependencyCohortDoesNotRepeatAdmissionEndpoints)
+{
+    std::vector<App::PropertyXLink*> references {link};
+    std::vector<App::DocumentObject*> receivers {object};
+    for (int i = 0; i < 12; ++i) {
+        auto* receiver = owner->addObject("App::DocumentObject", "Receiver");
+        auto* reference = static_cast<App::PropertyXLink*>(
+            receiver->addDynamicProperty("App::PropertyXLink", "Reference")
+        );
+        reference->setValue(dependency);
+        receivers.push_back(receiver);
+        references.push_back(reference);
+    }
+    // Refresh each member's cached footprint after the whole cohort exists.
+    // The cached footprints overlap, but every endpoint needs admission once.
+    for (auto* reference : references) {
+        reference->setAllowPartial(false);
+    }
+    auto admission = App::RecomputeDetail::Coordinator::instance().mutation(
+        std::vector<App::DocumentObject*> {},
+        {owner, target}
+    );
+    std::vector<App::DocumentObject*> endpoints;
+    link->collectAdmissionTargets(endpoints);
+    const std::unordered_set<App::DocumentObject*> unique(endpoints.begin(), endpoints.end());
+    EXPECT_EQ(unique.count(dependency), 1);
+    for (auto* receiver : receivers) {
+        EXPECT_EQ(unique.count(receiver), 1);
+    }
+    // The direct linked object is also emitted separately from its cohort.
+    EXPECT_LE(endpoints.size(), unique.size() + 1);
 }
 
 TEST_F(PropertyXLinkSaveTest, OwnerSaveAsRebasesPath)

@@ -4128,6 +4128,15 @@ public:
                 );
             }
         }
+        // Cached member/parent footprints overlap across a shared XLink cohort.
+        // Keep their complete union without repeatedly reserving and indexing
+        // every duplicate endpoint during restore or removal.
+        std::unordered_set<DocumentObject*> declared;
+        auto appendEndpoint = [&](DocumentObject* object) {
+            if (declared.insert(object).second) {
+                plan.endpoints.push_back(object);
+            }
+        };
         for (auto* property : plan.storage.properties()) {
             auto* link = freecad_cast<PropertyXLink*>(property);
             if (!link) {
@@ -4137,32 +4146,36 @@ public:
             // getLinks may inspect target attachment. Reserve published/raw old
             // endpoints before invoking it, including detached saved children
             // whose owner alone cannot prevent target destruction.
-            plan.endpoints.push_back(link->_pcLink);
-            plan.endpoints
-                .insert(plan.endpoints.end(), link->_ElementRefs.begin(), link->_ElementRefs.end());
+            appendEndpoint(link->_pcLink);
+            for (auto* endpoint : link->_ElementRefs) {
+                appendEndpoint(endpoint);
+            }
             {
                 RecomputeDetail::IndexLock lock;
                 for (auto* property : {static_cast<PropertyLinkBase*>(link), link->parentProp}) {
                     auto found = _AdmissionPropertyTargets.find(property);
                     if (found != _AdmissionPropertyTargets.end()) {
-                        plan.endpoints.insert(
-                            plan.endpoints.end(),
-                            found->second.begin(),
-                            found->second.end()
-                        );
+                        for (auto* endpoint : found->second) {
+                            appendEndpoint(endpoint);
+                        }
                     }
                 }
             }
         }
         plan.mutation.include(plan.endpoints, {plan.document, proposed, source});
+        std::vector<DocumentObject*> rawTargets;
         for (auto* link : plan.properties) {
-            collectRawTargets(link, plan.endpoints);
+            rawTargets.clear();
+            collectRawTargets(link, rawTargets);
             if (link->parentProp) {
-                collectRawTargets(link->parentProp, plan.endpoints);
+                collectRawTargets(link->parentProp, rawTargets);
+            }
+            for (auto* endpoint : rawTargets) {
+                appendEndpoint(endpoint);
             }
             if (proposed) {
                 if (auto* target = proposed->getObject(link->objectName.c_str())) {
-                    plan.endpoints.push_back(target);
+                    appendEndpoint(target);
                 }
             }
         }
