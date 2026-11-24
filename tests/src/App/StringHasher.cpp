@@ -4,6 +4,7 @@
 #include <gtest/gtest.h>
 
 #include <App/StringHasher.h>
+#include <Base/Writer.h>
 #include <App/StringHasherPy.h>
 #include <App/StringIDPy.h>
 #include <Base/Interpreter.h>
@@ -1590,4 +1591,47 @@ TEST_F(StringHasherTest, compact)  // NOLINT
 
     // Assert
     EXPECT_EQ(0, Hasher()->count());
+}
+
+TEST_F(StringHasherTest, completeSnapshotIncludesUnmarkedEntriesWithoutChangingHasher)
+{
+    auto sid = Hasher()->getID("snapshot-history", -1);
+    Hasher()->setPersistenceFileName("document-hasher");
+    Base::StringWriter before;
+    before.setMode("PropertySnapshot");
+    Hasher()->Save(before);
+    EXPECT_FALSE(sid.isMarked());
+    EXPECT_FALSE(Hasher()->getSaveAll());
+    EXPECT_EQ(Hasher()->getPersistenceFileName(), "document-hasher");
+    EXPECT_NE(before.getString().find("snapshot-history"), std::string::npos);
+    sid.mark();
+    Base::StringWriter after;
+    after.setMode("PropertySnapshot");
+    Hasher()->Save(after);
+    EXPECT_EQ(before.getString(), after.getString());
+    auto added = Hasher()->getID("another-history", -1);
+    Base::StringWriter changed;
+    changed.setMode("PropertySnapshot");
+    Hasher()->Save(changed);
+    EXPECT_NE(before.getString(), changed.getString());
+    EXPECT_FALSE(added.isMarked());
+}
+
+TEST_F(StringHasherTest, completeSnapshotPreservesRelatedSidIndices)
+{
+    auto other = App::StringHasherRef(new App::StringHasher);
+    auto first = Hasher()->getID("related-history", -1);
+    auto second = other->getID("related-history", -1);
+    QVector<App::StringIDRef> refs {Hasher()->getID(first.value(), 3)};
+    QVector<App::StringIDRef> otherRefs {other->getID(second.value(), 4)};
+    auto parent = Hasher()->getID(Data::MappedName("parent-history"), refs);
+    auto otherParent = other->getID(Data::MappedName("parent-history"), otherRefs);
+    ASSERT_EQ(parent.value(), otherParent.value());
+    Base::StringWriter before;
+    before.setMode("PropertySnapshot");
+    Hasher()->Save(before);
+    Base::StringWriter after;
+    after.setMode("PropertySnapshot");
+    other->Save(after);
+    EXPECT_NE(before.getString(), after.getString());
 }

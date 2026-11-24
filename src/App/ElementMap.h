@@ -113,6 +113,10 @@ public:
      */
     void save(std::ostream& stream) const;
 
+    /// Complete witness with map-local IDs and all SID references, independent of save marks.
+    /// This comparison format must not be restored as a document-scoped element map.
+    void saveSnapshot(std::ostream& stream) const;
+
     /**
      * @brief Deserialize and restore this map.
      *
@@ -305,6 +309,8 @@ public:
 
 
 private:
+    void save(std::ostream& stream, bool snapshot) const;
+
     /** Serialize this map
      * @param stream: serialized stream
      * @param childMapSet: where all child element maps are stored
@@ -313,7 +319,8 @@ private:
     void save(std::ostream& stream,
               int index,
               const std::map<const ElementMap*, int>& childMapSet,
-              const std::map<QByteArray, int>& postfixMap) const;
+              const std::map<QByteArray, int>& postfixMap,
+              bool snapshot) const;
 
     /** Deserialize and restore this map.
      * @param hasherRef: where all the StringIDs are stored

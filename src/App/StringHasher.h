@@ -773,6 +773,7 @@ protected:
     StringID* insert(const StringIDRef& sid);
     long lastID() const;
     void saveStream(std::ostream& stream) const;
+    void saveStream(std::ostream& stream, bool snapshot) const;
     void restoreStream(std::istream& stream, std::size_t count);
     void restoreStreamNew(std::istream& stream, std::size_t count);
 

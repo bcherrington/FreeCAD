@@ -18,6 +18,7 @@
 
 #include "App/Application.h"
 #include "Base/Console.h"
+#include <Base/Writer.h>
 #include "Document.h"
 #include "DocumentObject.h"
 
@@ -181,9 +182,10 @@ void ElementMap::beforeSave(const ::App::StringHasherRef& hasherRef) const
 void ElementMap::save(std::ostream& stream,
                       int index,
                       const std::map<const ElementMap*, int>& childMapSet,
-                      const std::map<QByteArray, int>& postfixMap) const
+                      const std::map<QByteArray, int>& postfixMap,
+                      bool snapshot) const
 {
-    stream << "\nElementMap " << index << ' ' << this->_id << ' ' << this->indexedNames.size()
+    stream << "\nElementMap " << index << ' ' << (snapshot ? index : this->_id) << ' ' << this->indexedNames.size()
            << '\n';
 
     for (auto& indexedName : this->indexedNames) {
@@ -207,7 +209,7 @@ void ElementMap::save(std::ostream& stream,
             stream.write(child.postfix.constData(), child.postfix.size());
             stream << ' ' << '0';
             for (auto& sid : child.sids) {
-                if (sid.isMarked()) {
+                if (snapshot || sid.isMarked()) {
                     stream << '.' << sid.value();
                 }
             }
@@ -245,7 +247,7 @@ void ElementMap::save(std::ostream& stream,
                     prefixID = ::App::StringID::fromString(ref->name.dataBytes());
                     if (prefixID.id != 0) {
                         for (auto& sid : ref->sids) {
-                            if (sid.isMarked() && sid.value() == prefixID.id) {
+                            if ((snapshot || sid.isMarked()) && sid.value() == prefixID.id) {
                                 stream << '$';
                                 stream.write(ref->name.dataBytes().constData(),
                                              ref->name.dataBytes().size());
@@ -273,7 +275,7 @@ void ElementMap::save(std::ostream& stream,
                     stream << '.' << it->second;
                 }
                 for (auto& sid : ref->sids) {
-                    if (sid.isMarked() && sid.value() != prefixID.id) {
+                    if ((snapshot || sid.isMarked()) && sid.value() != prefixID.id) {
                         stream << '.' << sid.value();
                     }
                 }
@@ -288,6 +290,16 @@ void ElementMap::save(std::ostream& stream,
 
 void ElementMap::save(std::ostream& stream) const
 {
+    save(stream, false);
+}
+
+void ElementMap::saveSnapshot(std::ostream& stream) const
+{
+    save(stream, true);
+}
+
+void ElementMap::save(std::ostream& stream, bool snapshot) const
+{
     std::map<const ElementMap*, int> childMapSet;
     std::vector<const ElementMap*> childMaps;
     std::map<QByteArray, int> postfixMap;
@@ -295,7 +307,7 @@ void ElementMap::save(std::ostream& stream) const
 
     collectChildMaps(childMapSet, childMaps, postfixMap, postfixes);
 
-    stream << this->_id << " PostfixCount " << postfixes.size() << '\n';
+    stream << (snapshot ? childMaps.size() : this->_id) << " PostfixCount " << postfixes.size() << '\n';
     for (auto& postfix : postfixes) {
         stream.write(postfix.constData(), postfix.size());
         stream << '\n';
@@ -303,7 +315,56 @@ void ElementMap::save(std::ostream& stream) const
     int index = 0;
     stream << "\nMapCount " << childMaps.size() << '\n';
     for (auto& elementMap : childMaps) {
-        elementMap->save(stream, ++index, childMapSet, postfixMap);
+        elementMap->save(stream, ++index, childMapSet, postfixMap, snapshot);
+    }
+    if (snapshot) {
+        std::vector<App::StringHasherRef> hashers;
+        auto hasherIndex = [&hashers](const App::StringHasherRef& hasher) {
+            if (!hasher) {
+                return std::size_t {0};
+            }
+            auto found = std::ranges::find(hashers, hasher);
+            if (found == hashers.end()) {
+                hashers.push_back(hasher);
+                return hashers.size();
+            }
+            return std::size_t(std::distance(hashers.begin(), found) + 1);
+        };
+        index = 0;
+        for (const auto* map : childMaps) {
+            stream << "\nSnapshotMapSIDs " << ++index << ' ' << hasherIndex(map->hasher);
+            auto writeSID = [&](const App::StringIDRef& sid) {
+                stream << ' ' << hasherIndex(sid.getHasher()) << ':' << sid.value()
+                       << ':' << sid.getIndex();
+            };
+            for (const auto& [type, names] : map->indexedNames) {
+                (void)type;
+                for (const auto& [key, child] : names.children) {
+                    (void)key;
+                    for (const auto& sid : child.sids) {
+                        writeSID(sid);
+                    }
+                }
+                for (const auto& name : names.names) {
+                    for (auto* ref = &name; ref; ref = ref->next.get()) {
+                        for (const auto& sid : ref->sids) {
+                            writeSID(sid);
+                        }
+                    }
+                }
+            }
+            stream << '\n';
+        }
+        stream << "SnapshotHashers " << hashers.size() << '\n';
+        for (const auto& hasher : hashers) {
+            Base::StringWriter writer;
+            writer.setMode("PropertySnapshot");
+            hasher->Save(writer);
+            const auto data = writer.getString();
+            stream << data.size() << '\n';
+            stream.write(data.data(), data.size());
+            stream << '\n';
+        }
     }
 }
 

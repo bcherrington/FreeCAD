@@ -462,7 +462,8 @@ const std::string& StringHasher::getPersistenceFileName() const
 void StringHasher::Save(Base::Writer& writer) const
 {
 
-    std::size_t count = _hashes->SaveAll ? _hashes->size() : this->count();
+    const bool snapshot = writer.getMode("PropertySnapshot");
+    std::size_t count = (snapshot || _hashes->SaveAll) ? _hashes->size() : this->count();
 
     writer.Stream() << writer.ind() << "<StringHasher saveall=\"" << _hashes->SaveAll
                     << "\" threshold=\"" << _hashes->Threshold << "\"";
@@ -475,16 +476,31 @@ void StringHasher::Save(Base::Writer& writer) const
     writer.Stream() << " count=\"0\" new=\"1\"/>\n";
 
     writer.Stream() << writer.ind() << "<StringHasher2 ";
-    if (!_filename.empty()) {
+    if (!snapshot && !_filename.empty()) {
         writer.Stream() << " file=\"" << writer.addFile((_filename + ".txt").c_str(), this)
                         << "\"/>\n";
         return;
     }
 
     writer.Stream() << " count=\"" << count << "\">\n";
-    saveStream(writer.beginCharStream() << '\n');
+    saveStream(writer.beginCharStream() << '\n', snapshot);
     writer.endCharStream() << '\n';
     writer.Stream() << writer.ind() << "</StringHasher2>\n";
+    if (snapshot) {
+        // Related indexed references carry history beyond the persisted numeric SID.
+        writer.Stream() << writer.ind() << "<SnapshotSIDIndices>\n";
+        auto& stream = writer.beginCharStream();
+        for (const auto& entry : _hashes->right) {
+            const auto& sid = *entry.second;
+            stream << sid._id;
+            for (const auto& related : sid._sids) {
+                stream << ' ' << related.value() << ':' << related.getIndex();
+            }
+            stream << '\n';
+        }
+        writer.endCharStream();
+        writer.Stream() << writer.ind() << "</SnapshotSIDIndices>\n";
+    }
 }
 
 void StringHasher::SaveDocFile(Base::Writer& writer) const
@@ -495,6 +511,11 @@ void StringHasher::SaveDocFile(Base::Writer& writer) const
 }
 
 void StringHasher::saveStream(std::ostream& stream) const
+{
+    saveStream(stream, false);
+}
+
+void StringHasher::saveStream(std::ostream& stream, bool snapshot) const
 {
     Base::TextOutputStream textStreamWrapper(stream);
     boost::io::ios_flags_saver ifs(stream);
@@ -508,7 +529,7 @@ void StringHasher::saveStream(std::ostream& stream) const
     for (auto& hasher : _hashes->right) {
         auto& d = *hasher.second;
         long id = d._id;
-        if (!_hashes->SaveAll && !d.isMarked() && !d.isPersistent()) {
+        if (!snapshot && !_hashes->SaveAll && !d.isMarked() && !d.isPersistent()) {
             continue;
         }
 
