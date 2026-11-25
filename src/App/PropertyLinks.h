@@ -1778,6 +1778,7 @@ protected:
         std::map<std::pair<std::string, DocumentObject*>, bool>* propDeps = nullptr
     );
     void clearDeps();
+    void removePropDeps(App::DocumentObject* obj, App::DocumentObject* owner);
 
     void _onBreakLink(App::DocumentObject* obj);
 

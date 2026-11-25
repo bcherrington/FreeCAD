@@ -2,6 +2,7 @@
 
 #include <gtest/gtest.h>
 #include <vector>
+#include <Base/CrashReporter/Writer.h>
 #define FC_OS_MACOSX 1
 #include "App/Application.h"
 #include "App/ProgramOptionsUtilities.h"
@@ -58,6 +59,10 @@ protected:
 };
 
 }  // namespace
+TEST_F(ApplicationTest, crashReporterInstalled)
+{
+    EXPECT_FALSE(Base::CrashReporter::Writer::crashReportFilePath().empty());
+}
 
 TEST_F(ApplicationTest, fCustomSyntaxLookup)
 {

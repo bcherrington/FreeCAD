@@ -210,7 +210,8 @@ void TaskFilletParameters::apply()
     ui->filletRadius->apply();
 
     // Alert user if he created an empty feature
-    if (ui->listWidgetReferences->count() == 0) {
+    auto fillet = getObject<PartDesign::Fillet>();
+    if (ui->listWidgetReferences->count() == 0 && !fillet->UseAllEdges.getValue()) {
         std::string text = tr("Empty fillet created!").toStdString();
         Base::Console().warning("{}\n", text);
     }
@@ -300,8 +301,6 @@ bool TaskDlgFilletParameters::accept()
     if (!obj->isError()) {
         getViewObject()->showPreviousFeature(false);
     }
-
-    parameter->apply();
 
     return TaskDlgDressUpParameters::accept();
 }
