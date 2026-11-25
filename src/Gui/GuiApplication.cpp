@@ -54,6 +54,7 @@
 #include "GuiApplication.h"
 #include "Application.h"
 #include "MainWindow.h"
+#include "PythonTracing.h"
 #include "SpaceballEvent.h"
 
 
@@ -75,6 +76,7 @@ GUIApplication::~GUIApplication() = default;
 
 bool GUIApplication::notify(QObject* receiver, QEvent* event)
 {
+    PythonTracingEventScope eventScope;
     if (!receiver) {
         Base::Console().log(
             "GUIApplication::notify: Unexpected null receiver, event type: {}\n",

@@ -34,6 +34,7 @@ add_executable(Gui_tests_run
 )
 
 # Qt tests
+setup_qt_test(PythonTracing)
 # TreeWidget is internal and has no Windows DLL export; keep this test off Windows.
 if(NOT WIN32)
     setup_qt_test(TreeWidgetLifetime)
