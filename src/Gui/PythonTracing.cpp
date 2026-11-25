@@ -39,6 +39,22 @@ using Clock = std::chrono::steady_clock;
 using TimePoint = std::chrono::time_point<Clock>;
 
 
+namespace
+{
+thread_local unsigned eventDispatchDepth = 0;
+thread_local unsigned traceDispatchDepth = 0;
+}  // namespace
+
+PythonTracingEventScope::PythonTracingEventScope()
+{
+    ++eventDispatchDepth;
+}
+
+PythonTracingEventScope::~PythonTracingEventScope()
+{
+    --eventDispatchDepth;
+}
+
 struct PythonTracing::Private
 {
     bool active {false};
@@ -114,6 +130,8 @@ void PythonTracing::setPythonTraceEnabled(bool enabled) const
     Py_tracefunc trace = nullptr;
     if (enabled && timeout() > 0) {
         Private::profilerInterval = timeout();
+        // Console/macro execution may itself start inside a Qt notification.
+        traceDispatchDepth = eventDispatchDepth;
         trace = &tracer_callback;
     }
     else {
@@ -139,6 +157,14 @@ int PythonTracing::tracer_callback(PyObject* obj, PyFrameObject* frame, int what
     Q_UNUSED(frame)
     Q_UNUSED(what)
     Q_UNUSED(arg)
+
+    // A Python event filter can run while Qt is constructing a widget. Pumping
+    // posted events there can polish/layout that widget before its constructor
+    // has finished. Resume pumping when the outer console/macro scope returns
+    // from synchronous event delivery; callbacks themselves remain enabled.
+    if (eventDispatchDepth > traceDispatchDepth) {
+        return 0;
+    }
 
     // no need to check the time at every single Python opcode execution
     static int skipCounter = 0;

@@ -33,6 +33,19 @@
 namespace Gui
 {
 
+// Marks synchronous Qt event delivery, including calls into Python event filters.
+class GuiExport PythonTracingEventScope
+{
+public:
+    PythonTracingEventScope();
+    ~PythonTracingEventScope();
+
+    PythonTracingEventScope(const PythonTracingEventScope&) = delete;
+    PythonTracingEventScope& operator=(const PythonTracingEventScope&) = delete;
+    PythonTracingEventScope(PythonTracingEventScope&&) = delete;
+    PythonTracingEventScope& operator=(PythonTracingEventScope&&) = delete;
+};
+
 class GuiExport PythonTracing
 {
 public:
