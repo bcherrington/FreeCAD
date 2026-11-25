@@ -2,6 +2,10 @@
 
 #include <gtest/gtest.h>
 
+#include <iomanip>
+#include <locale>
+#include <sstream>
+
 #include "Base/Exception.h"
 #include "Base/Writer.h"
 
@@ -128,4 +132,113 @@ TEST_F(WriterTest, charStreamBase64Encoded)
     // Assert
     // Conversion done using https://www.base64encode.org for testing purposes
     EXPECT_EQ(std::string("RnJlZUNBRCByb2NrcyEg8J+qqPCfqqjwn6qo\n"), _writer.getString());
+}
+
+
+TEST_F(WriterTest, rawTextPreservesEscapingAcrossAllSplitPositions)
+{
+    const std::string text = std::string(4095, 'a') + "]]><&\"\n😀]]>tail]";
+    const std::string expected = "<![CDATA[" + std::string(4095, 'a')
+        + "]]]]><![CDATA[><&\"\n😀]]]]><![CDATA[>tail]]]>";
+    // Cover caller writes/flushes on both sides of each escape and the filter buffer.
+    for (std::size_t split = 4088; split <= text.size(); ++split) {
+        SCOPED_TRACE(split);
+        Base::StringWriter writer;
+        auto& stream = writer.beginCharStream();
+        stream.write(text.data(), static_cast<std::streamsize>(split));
+        stream.flush();
+        stream.write(text.data() + split, static_cast<std::streamsize>(text.size() - split));
+        writer.endCharStream();
+        EXPECT_EQ(writer.getString(), expected);
+    }
+}
+
+TEST_F(WriterTest, rawTextPreservesConsecutiveBracketBytes)
+{
+    // Preserve the established format, including its handling of longer bracket runs.
+    const std::string text = "]]]> ]]]]> ]]]]]>";
+    const std::string expected = "<![CDATA[]]]> ]]]]> ]]]]]]]><![CDATA[>]]>";
+    Base::StringWriter writer;
+    auto& stream = writer.beginCharStream();
+    for (char ch : text) {
+        stream.put(ch);
+        stream.flush();
+    }
+    writer.endCharStream();
+    EXPECT_EQ(writer.getString(), expected);
+}
+
+TEST_F(WriterTest, rawTextPreservesNumericAndLocaleFormatting)
+{
+    class Punctuation: public std::numpunct<char>
+    {
+        char do_decimal_point() const override
+        {
+            return ',';
+        }
+        char do_thousands_sep() const override
+        {
+            return '_';
+        }
+        std::string do_grouping() const override
+        {
+            return "\3";
+        }
+    };
+    const std::locale locale(std::locale::classic(), new Punctuation);
+    auto emit = [](std::ostream& stream) {
+        stream << std::hex << std::showbase << 123456789L << ' ' << std::dec << -123456789L << ' '
+               << std::boolalpha << true << ' ' << std::scientific << std::setprecision(16)
+               << 1.2345678901234567 << ' ' << std::setw(12) << std::setfill('0') << 42;
+    };
+    std::ostringstream reference;
+    reference.imbue(locale);
+    emit(reference);
+    auto& stream = _writer.beginCharStream();
+    stream.imbue(locale);
+    emit(stream);
+    _writer.endCharStream();
+    EXPECT_EQ(_writer.getString(), "<![CDATA[" + reference.str() + "]]>");
+}
+
+TEST_F(WriterTest, rawTextPropagatesSinkException)
+{
+    class Buffer: public std::streambuf
+    {
+    public:
+        bool fail = false;
+        std::streamsize xsputn(const char*, std::streamsize size) override
+        {
+            if (fail) {
+                throw std::runtime_error("injected writer failure");
+            }
+            return size;
+        }
+        int_type overflow(int_type ch) override
+        {
+            if (fail) {
+                throw std::runtime_error("injected writer failure");
+            }
+            return traits_type::not_eof(ch);
+        }
+    };
+    class Writer: public Base::StringWriter
+    {
+    public:
+        Buffer buffer;
+        std::ostream output {&buffer};
+        std::ostream& Stream() override
+        {
+            return output;
+        }
+    } writer;
+    auto& stream = writer.beginCharStream();
+    stream.exceptions(std::ios::badbit | std::ios::failbit);
+    writer.buffer.fail = true;
+    EXPECT_ANY_THROW(stream << std::string(16384, 'x') << std::flush);
+    EXPECT_TRUE(stream.fail());
+    writer.buffer.fail = false;
+    stream.exceptions(std::ios::goodbit);
+    stream.clear();
+    writer.endCharStream();
 }

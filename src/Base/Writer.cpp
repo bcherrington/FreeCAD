@@ -23,6 +23,7 @@
  ***************************************************************************/
 
 
+#include <cstring>
 #include <memory>
 #include <set>
 #include <vector>
@@ -52,7 +53,7 @@ struct cdata_filter
 {
 
     using char_type = char;
-    using category = boost::iostreams::output_filter_tag;
+    using category = boost::iostreams::multichar_output_filter_tag;
 
     template<typename Device>
     inline bool put(Device& dev, char ch)
@@ -76,6 +77,42 @@ struct cdata_filter
                 break;
         }
         return boost::iostreams::put(dev, ch);
+    }
+
+    template<typename Device>
+    std::streamsize write(Device& dev, const char* data, std::streamsize size)
+    {
+        std::streamsize consumed = 0;
+        while (consumed < size) {
+            if (state == 0) {
+                // Most snapshot table text needs no escaping. Send it to the sink in
+                // blocks rather than dispatching a device put for every character.
+                const char* begin = data + consumed;
+                const auto* bracket = static_cast<const char*>(
+                    std::memchr(begin, ']', static_cast<std::size_t>(size - consumed))
+                );
+                const auto count = bracket ? bracket - begin : size - consumed;
+                if (count > 0) {
+                    const auto written = boost::iostreams::write(dev, begin, count);
+                    if (written <= 0) {
+                        return consumed;
+                    }
+                    consumed += written;
+                    if (written != count) {
+                        return consumed;
+                    }
+                }
+                if (consumed == size) {
+                    break;
+                }
+            }
+            // Keep the existing escaping transitions, also across write/flush boundaries.
+            if (!put(dev, data[consumed])) {
+                return consumed;
+            }
+            ++consumed;
+        }
+        return consumed;
     }
 
     int state = 0;
