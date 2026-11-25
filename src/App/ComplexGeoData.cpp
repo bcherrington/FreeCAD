@@ -467,13 +467,19 @@ void ComplexGeoData::Save(Base::Writer& writer) const
     // New layout of element map, so we use new xml tag, ElementMap2
     writer.Stream() << writer.ind() << "<ElementMap2";
 
-    if (!_persistenceName.empty()) {
+    if (!writer.getMode("PropertySnapshot") && !_persistenceName.empty()) {
         writer.Stream() << " file=\"" << writer.addFile((_persistenceName + ".txt").c_str(), this)
                         << "\"/>\n";
         return;
     }
     writer.Stream() << " count=\"" << _elementMap->size() << "\">\n";
-    _elementMap->save(writer.beginCharStream(Base::CharStreamFormat::Raw) << '\n');
+    auto& stream = writer.beginCharStream(Base::CharStreamFormat::Raw) << '\n';
+    if (writer.getMode("PropertySnapshot")) {
+        _elementMap->saveSnapshot(stream);
+    }
+    else {
+        _elementMap->save(stream);
+    }
     writer.endCharStream() << '\n';
     writer.Stream() << writer.ind() << "</ElementMap2>\n";
 }

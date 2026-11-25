@@ -1046,3 +1046,64 @@ TEST_F(ElementMapTest, restoreMissingAndMalformedChildSids)
 }
 
 // NOLINTEND(readability-magic-numbers)
+
+TEST_F(ElementMapTest, completeSnapshotIgnoresSaveBookkeepingAndRetainsUnmarkedSids)
+{
+    Data::ElementMap map;
+    auto sid = _hasher->getID("snapshot-history", -1);
+    Data::ElementIDRefs refs {sid};
+    map.setElementName(Data::IndexedName("Face", 1), Data::MappedName("snapshot-face"), 42, &refs);
+    ASSERT_FALSE(sid.isMarked());
+    std::ostringstream ordinaryBefore;
+    map.save(ordinaryBefore);
+    std::ostringstream before;
+    map.saveSnapshot(before);
+    EXPECT_FALSE(sid.isMarked());
+    map.beforeSave(_hasher);
+    ASSERT_TRUE(sid.isMarked());
+    std::ostringstream ordinaryAfter;
+    map.save(ordinaryAfter);
+    EXPECT_NE(ordinaryBefore.str(), ordinaryAfter.str());
+    std::ostringstream after;
+    map.saveSnapshot(after);
+    EXPECT_EQ(before.str(), after.str());
+    EXPECT_NE(before.str().find("snapshot-face"), std::string::npos);
+    EXPECT_NE(before.str().find(".1 "), std::string::npos);
+    auto sid2 = _hasher->getID("another-history", -1);
+    refs.push_back(sid2);
+    map.setElementName(Data::IndexedName("Face", 2), Data::MappedName("second-face"), 42, &refs);
+    std::ostringstream changed;
+    map.saveSnapshot(changed);
+    EXPECT_NE(before.str(), changed.str());
+    EXPECT_FALSE(sid2.isMarked());
+}
+
+TEST_F(ElementMapTest, completeSnapshotPreservesForeignHasherAndWriterFailureState)
+{
+    Data::ElementMap map;
+    auto foreign = App::StringHasherRef(new App::StringHasher);
+    auto first = _hasher->getID("primary-history", -1);
+    auto second = foreign->getID("foreign-history", -1);
+    ASSERT_EQ(first.value(), second.value());
+    Data::ElementIDRefs refs {first, second};
+    map.setElementName(Data::IndexedName("Face", 1), Data::MappedName("face-history"), 42, &refs);
+    std::ostringstream before;
+    map.saveSnapshot(before);
+    EXPECT_NE(before.str().find("primary-history"), std::string::npos);
+    EXPECT_NE(before.str().find("foreign-history"), std::string::npos);
+    class FailingBuffer: public std::streambuf
+    {
+        int_type overflow(int_type) override
+        {
+            throw std::runtime_error("injected snapshot writer failure");
+        }
+    } buffer;
+    std::ostream failing(&buffer);
+    failing.exceptions(std::ios::badbit);
+    EXPECT_ANY_THROW(map.saveSnapshot(failing));
+    EXPECT_FALSE(first.isMarked());
+    EXPECT_FALSE(second.isMarked());
+    std::ostringstream after;
+    map.saveSnapshot(after);
+    EXPECT_EQ(before.str(), after.str());
+}

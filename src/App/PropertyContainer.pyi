@@ -144,7 +144,9 @@ class PropertyContainer(Persistence):
         """
 
     @constmethod
-    def dumpPropertyContent(self, Property: str, *, Compression: int = 3) -> bytearray:
+    def dumpPropertyContent(
+        self, Property: str, *, Compression: int = 3, Snapshot: bool = False
+    ) -> bytearray:
         """
         Dumps the content of the property, both the XML representation and the additional
         data files required, into a byte representation.
@@ -153,6 +155,14 @@ class PropertyContainer(Persistence):
             Property Name.
         Compression : int
             Set the data compression level in the range [0, 9]. Set to 0 for no compression.
+        Snapshot : bool
+            Return a versioned comparison witness independent of document-save bookkeeping.
+            Mapped Part shapes include the complete element-map graph and full SID table,
+            without changing live map IDs, SID marks or persistence settings. Compare ZIP
+            member contents, not ZIP timestamps. Conservative full hasher inclusion can
+            also detect changes to shared naming data outside this property. This opt-in
+            witness is not accepted by restorePropertyContent; use normal persistence
+            for recovery. Other property serializers keep their existing semantics.
         """
 
     def restorePropertyContent(self, name: str, obj: object, /) -> None:

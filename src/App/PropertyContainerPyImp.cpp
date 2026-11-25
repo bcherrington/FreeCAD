@@ -25,6 +25,7 @@
 #include "Property.h"
 #include "DocumentObject.h"
 #include <Base/PyWrapParseTupleAndKeywords.h>
+#include <Base/Writer.h>
 
 #include <boost/iostreams/device/array.hpp>
 #include <boost/iostreams/stream.hpp>
@@ -510,14 +511,17 @@ PyObject* PropertyContainerPy::dumpPropertyContent(PyObject* args, PyObject* kwd
 {
     int compression = 3;
     const char* property {};
-    static const std::array<const char*, 3> kwds_def {"Property", "Compression", nullptr};
+    PyObject* snapshot = Py_False;
+    static const std::array<const char*, 4> kwds_def {"Property", "Compression", "Snapshot", nullptr};
     PyErr_Clear();
     if (!Base::Wrapped_ParseTupleAndKeywords(args,
                                              kwds,
-                                             "s|i",
+                                             "s|iO!",
                                              kwds_def,
                                              &property,
-                                             &compression)) {
+                                             &compression,
+                                             &PyBool_Type,
+                                             &snapshot)) {
         return nullptr;
     }
 
@@ -531,7 +535,25 @@ PyObject* PropertyContainerPy::dumpPropertyContent(PyObject* args, PyObject* kwd
     std::stringstream stream(std::stringstream::out | std::stringstream::in
                              | std::stringstream::binary);
     try {
-        prop->dumpToStream(stream, compression);
+        if (snapshot == Py_True) {
+            // A complete comparison witness, not a restorePropertyContent archive.
+            // Writer-local policy never changes live map IDs, SID marks or save flags.
+            Base::ZipWriter writer(stream);
+            writer.setLevel(compression);
+            writer.setMode("BinaryBrep");
+            writer.setMode("PropertySnapshot");
+            writer.putNextEntry("Persistence.xml");
+            writer.Stream() << "<PropertySnapshot version=\"1\">\n";
+            prop->Save(writer);
+            writer.Stream() << "</PropertySnapshot>\n";
+            writer.writeFiles();
+            if (writer.hasErrors()) {
+                throw Base::RuntimeError("Property snapshot serialization failed");
+            }
+        }
+        else {
+            prop->dumpToStream(stream, compression);
+        }
     }
     catch (...) {
         PyErr_SetString(PyExc_IOError, "Unable to parse content into binary representation");

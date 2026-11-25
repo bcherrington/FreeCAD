@@ -387,9 +387,14 @@ void PropertyPartShape::beforeSave() const
 void PropertyPartShape::Save(Base::Writer& writer) const
 {
     // See SaveDocFile(), RestoreDocFile()
+    const bool snapshot = writer.getMode("PropertySnapshot");
     writer.Stream() << writer.ind() << "<Part";
+    if (snapshot) {
+        writer.Stream() << " snapshotTag=\"" << _Shape.Tag << '"';
+    }
     auto owner = dynamic_cast<App::DocumentObject*>(getContainer());
-    if (owner && !_Shape.isNull() && _Shape.getElementMapSize() > 0 && !_Shape.Hasher.isNull()) {
+    if (!snapshot && owner && !_Shape.isNull() && _Shape.getElementMapSize() > 0
+        && !_Shape.Hasher.isNull()) {
         writer.Stream() << " HasherIndex=\"" << _HasherIndex << '"';
         if (_SaveHasher) {
             writer.Stream() << " SaveHasher=\"1\"";
@@ -399,7 +404,7 @@ void PropertyPartShape::Save(Base::Writer& writer) const
     // If exporting, do not export mapped element name, but still make a mark
     auto const version_valid = _Ver.size() && (_Ver != "?");
     if (owner) {
-        if (!owner->isExporting()) {
+        if (snapshot || !owner->isExporting()) {
             version = version_valid ? _Ver : owner->getElementMapVersion(this);
         }
     }
@@ -426,7 +431,10 @@ void PropertyPartShape::Save(Base::Writer& writer) const
         writer.endCharStream() << '\n' << writer.ind() << "</Part>\n";
     }
 
-    if (_SaveHasher) {
+    if (snapshot && !_Shape.Hasher.isNull()) {
+        _Shape.Hasher->Save(writer);
+    }
+    else if (_SaveHasher) {
         if (!toXML) {
             _Shape.Hasher->setPersistenceFileName(getFileName(".Table").c_str());
         }
@@ -436,6 +444,11 @@ void PropertyPartShape::Save(Base::Writer& writer) const
         _Shape.Hasher->Save(writer);
     }
     if (version.size()) {
+        if (snapshot) {
+            // Inline complete map witness; do not mutate the live persistence filename.
+            _Shape.Save(writer);
+            return;
+        }
         if (!toXML) {
             _Shape.setPersistenceFileName(getFileName(".Map").c_str());
         }
