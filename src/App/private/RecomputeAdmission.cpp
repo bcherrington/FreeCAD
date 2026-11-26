@@ -1154,6 +1154,24 @@ MutationScope Coordinator::mutation(const Property& property, const std::vector<
     }
     return scope;
 }
+MutationScope Coordinator::pinDocumentLifetime(Document* pointer)
+{
+    if (!current.authority || !current.operation || borrowedContext() || onWorker()) {
+        throw AdmissionRefusal("Document lifetime requires an admitted owner operation");
+    }
+    MutationScope result;
+    result.state = std::make_shared<ScopeState>();
+    result.state->registry = impl->registry;
+    result.state->operation = current.operation;
+    std::lock_guard lock(impl->registry->mutex);
+    auto found = impl->registry->documents.find(pointer);
+    if (found == impl->registry->documents.end() || !found->second->live
+        || found->second->retiring) {
+        throw AdmissionRefusal("Document lifetime target is unavailable");
+    }
+    pinScopeOwner(result.state, nullptr, found->second);
+    return result;
+}
 std::optional<MutationScope> Coordinator::tryAtomic()
 {
     return tryAtomicImpl(false);
@@ -2241,6 +2259,20 @@ void Coordinator::requestCleanup()
         impl->registry->cleanupRequested = true;
     }
     wake(impl->registry);
+}
+bool Coordinator::hasActiveOperations() const
+{
+    std::lock_guard lock(impl->registry->mutex);
+    // A property/storage scope may have no registered document (for example a
+    // view property). Its lexical operation still blocks a nested continuation.
+    for (const CurrentContext* context = &current; context;
+         context = context->previous ? &context->previous->context : nullptr) {
+        if (context->operation) {
+            return true;
+        }
+    }
+    return impl->registry->atomicOwner || impl->registry->writers
+        || !impl->registry->native.empty();
 }
 bool Coordinator::hasOwnerNativeWork() const noexcept
 {

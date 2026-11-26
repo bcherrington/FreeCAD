@@ -19,6 +19,7 @@
 #include "App/StringHasher.h"
 #include "Base/Tools.h"
 #include "Base/Writer.h"
+#include "App/private/RecomputeAdmission.h"
 #include <src/App/InitApplication.h>
 
 using ::testing::Eq;
@@ -65,6 +66,189 @@ private:
     App::Document* _doc {};
 };
 
+
+TEST_F(DocumentTest, RestoreProtectsReceiverThroughCallbacks)
+{
+    auto& app = App::GetApplication();
+    const std::string name = doc()->getName();
+    const std::string path = App::Application::getTempFileName();
+    ASSERT_TRUE(doc()->saveAs(path.c_str()));
+    const std::string savedPath = doc()->getFileName();
+    Base::ScopeGuard removeFile([&] { std::remove(savedPath.c_str()); });
+    unsigned callbacks = 0;
+    auto checkLifetime = [&] {
+        auto& coordinator = App::RecomputeDetail::Coordinator::instance();
+        // Do not destroy the receiver when demonstrating the pre-fix failure.
+        const bool protectedNow = coordinator.isObserved(coordinator.bindDocument(doc()));
+        EXPECT_TRUE(protectedNow);
+        if (protectedNow) {
+            EXPECT_FALSE(app.closeDocument(name.c_str()));
+            EXPECT_EQ(app.getDocument(name.c_str()), doc());
+        }
+        ++callbacks;
+    };
+    auto start = app.signalStartRestoreDocument.connect([&](const App::Document& document) {
+        if (&document == doc()) {
+            checkLifetime();
+        }
+    });
+    auto files = doc()->signalRestoreDocument.connect([&](Base::XMLReader&) { checkLifetime(); });
+    auto finish = app.signalFinishRestoreDocument.connect([&](const App::Document& document) {
+        if (&document == doc()) {
+            checkLifetime();
+        }
+    });
+
+    doc()->restore(savedPath.c_str());
+
+    EXPECT_EQ(callbacks, 3);
+    start.disconnect();
+    files.disconnect();
+    finish.disconnect();
+    EXPECT_TRUE(app.closeDocument(name.c_str()));
+}
+
+TEST_F(DocumentTest, RestoreLifetimeUnwindsAfterCallbackException)
+{
+    auto& app = App::GetApplication();
+    const std::string path = App::Application::getTempFileName();
+    ASSERT_TRUE(doc()->saveAs(path.c_str()));
+    const std::string savedPath = doc()->getFileName();
+    Base::ScopeGuard removeFile([&] { std::remove(savedPath.c_str()); });
+    auto connection = app.signalStartRestoreDocument.connect([&](const App::Document& document) {
+        if (&document == doc()) {
+            throw std::runtime_error("owned restore fault");
+        }
+    });
+
+    EXPECT_THROW(doc()->restore(savedPath.c_str()), std::runtime_error);
+
+    connection.disconnect();
+    EXPECT_TRUE(app.closeDocument(doc()->getName()));
+}
+
+TEST_F(DocumentTest, SaveProtectsReceiverAndUnwindsAfterCallbackException)
+{
+    auto& app = App::GetApplication();
+    const std::string path = App::Application::getTempFileName() + ".FCStd";
+    Base::ScopeGuard removeFile([&] { std::remove(path.c_str()); });
+    bool called = false;
+    auto connection = doc()->signalStartSave.connect([&](const App::Document&, const std::string&) {
+        called = true;
+        auto& coordinator = App::RecomputeDetail::Coordinator::instance();
+        const bool protectedNow = coordinator.isObserved(coordinator.bindDocument(doc()));
+        EXPECT_TRUE(protectedNow);
+        if (protectedNow) {
+            EXPECT_FALSE(app.closeDocument(doc()->getName()));
+        }
+        throw std::runtime_error("owned save fault");
+    });
+
+    EXPECT_THROW(doc()->saveCopy(path.c_str()), std::runtime_error);
+
+    EXPECT_TRUE(called);
+    connection.disconnect();
+    EXPECT_TRUE(app.closeDocument(doc()->getName()));
+}
+
+TEST_F(DocumentTest, NestedRestoreProtectsBothReceivers)
+{
+    auto& app = App::GetApplication();
+    const std::string path = App::Application::getTempFileName();
+    ASSERT_TRUE(doc()->saveAs(path.c_str()));
+    const std::string savedPath = doc()->getFileName();
+    auto* other = app.newDocument("NestedRestore");
+    const std::string otherName = other->getName();
+    const std::string name = doc()->getName();
+    Base::ScopeGuard cleanup([&] {
+        app.closeDocument(otherName.c_str());
+        std::remove(savedPath.c_str());
+    });
+    bool nested = false;
+    auto connection = app.signalStartRestoreDocument.connect([&](const App::Document& document) {
+        if (&document == doc()) {
+            other->restore(savedPath.c_str());
+        }
+        else if (&document == other) {
+            nested = true;
+            EXPECT_FALSE(app.closeDocument(name.c_str()));
+            EXPECT_FALSE(app.closeDocument(otherName.c_str()));
+        }
+    });
+
+    doc()->restore(savedPath.c_str());
+
+    EXPECT_TRUE(nested);
+    connection.disconnect();
+    EXPECT_TRUE(app.closeDocument(otherName.c_str()));
+    EXPECT_TRUE(app.closeDocument(name.c_str()));
+}
+
+TEST_F(DocumentTest, OpenProtectsGraphUntilFinalNotification)
+{
+    auto& app = App::GetApplication();
+    const std::string path = App::Application::getTempFileName();
+    ASSERT_TRUE(doc()->saveAs(path.c_str()));
+    const std::string savedPath = doc()->getFileName();
+    Base::ScopeGuard cleanup([&] { std::remove(savedPath.c_str()); });
+    ASSERT_TRUE(app.closeDocument(doc()->getName()));
+    std::string openedName;
+    bool finalCalled = false;
+    auto created = app.signalNewDocument.connect([&](const App::Document& document, bool) {
+        openedName = document.getName();
+        EXPECT_FALSE(app.closeDocument(openedName.c_str()));
+    });
+    auto start = app.signalStartRestoreDocument.connect([&](const App::Document&) {
+        EXPECT_THROW(app.openDocument(savedPath.c_str()), Base::RuntimeError);
+    });
+    auto finish = app.signalFinishOpenDocument.connect([&] {
+        finalCalled = true;
+        EXPECT_FALSE(app.closeDocument(openedName.c_str()));
+    });
+
+    auto* opened = app.openDocument(savedPath.c_str());
+
+    ASSERT_NE(opened, nullptr);
+    EXPECT_TRUE(finalCalled);
+    EXPECT_EQ(app.getDocument(openedName.c_str()), opened);
+    created.disconnect();
+    start.disconnect();
+    finish.disconnect();
+    EXPECT_TRUE(app.closeDocument(openedName.c_str()));
+}
+
+TEST_F(DocumentTest, NativeOperationObservationIncludesDetachedPropertyStorage)
+{
+    auto& coordinator = App::RecomputeDetail::Coordinator::instance();
+    App::PropertyString detached;
+    EXPECT_FALSE(coordinator.hasActiveOperations());
+    {
+        auto storage = coordinator.snapshotProperties({&detached});
+        EXPECT_TRUE(coordinator.hasActiveOperations());
+    }
+    EXPECT_FALSE(coordinator.hasActiveOperations());
+}
+
+TEST_F(DocumentTest, NativeOperationObservationUnwindsWithPersistence)
+{
+    auto& coordinator = App::RecomputeDetail::Coordinator::instance();
+    EXPECT_FALSE(coordinator.hasActiveOperations());
+    {
+        auto atomic = coordinator.atomic();
+        EXPECT_TRUE(coordinator.hasActiveOperations());
+    }
+    EXPECT_FALSE(coordinator.hasActiveOperations());
+    auto connection = doc()->signalStartSave.connect([&](const App::Document&, const std::string&) {
+        EXPECT_TRUE(coordinator.hasActiveOperations());
+    });
+    const std::string path = App::Application::getTempFileName() + ".FCStd";
+    Base::ScopeGuard cleanup([&] { std::remove(path.c_str()); });
+
+    ASSERT_TRUE(doc()->saveCopy(path.c_str()));
+
+    connection.disconnect();
+    EXPECT_FALSE(coordinator.hasActiveOperations());
+}
 
 TEST_F(DocumentTest, RecomputeRejectsReentrantClose)
 {

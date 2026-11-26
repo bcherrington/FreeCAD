@@ -38,6 +38,8 @@
 #include "DocumentObserverPython.h"
 #include "DocumentObjectPy.h"
 #include "RecoverySnapshot.h"
+#include "MainThreadSignal.h"
+#include "private/RecomputeAdmission.h"
 
 #include <Base/CrashReporter/Manager.h>
 
@@ -103,6 +105,19 @@ PyObject* ApplicationPy::sLoadFile(PyObject* /*self*/, PyObject* args)
         PyErr_Format(PyExc_IOError, "Invalid project file %s: %s", path, e.what());
         return nullptr;
     }
+}
+
+PyObject* ApplicationPy::sIsNativeOperationActive(PyObject* /*self*/, PyObject* args)
+{
+    if (!PyArg_ParseTuple(args, "")) {
+        return nullptr;
+    }
+    if (!MainThreadSignalConfig::isMainThread()) {
+        PyErr_SetString(PyExc_RuntimeError, "isNativeOperationActive requires the GUI owner thread");
+        return nullptr;
+    }
+    return PyBool_FromLong(GetApplication().isRestoring()
+                           || RecomputeDetail::Coordinator::instance().hasActiveOperations());
 }
 
 PyObject* ApplicationPy::sIsRestoring(PyObject* /*self*/, PyObject* args)

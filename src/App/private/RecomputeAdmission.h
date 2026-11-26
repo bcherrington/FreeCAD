@@ -284,6 +284,8 @@ public:
         bool destructive = false
     );
     MutationScope mutation(const Property&, const std::vector<DocumentObject*>& proposed = {});
+    // Lexical receiver pin within an existing admitted owner operation.
+    MutationScope pinDocumentLifetime(Document*);
     std::optional<MutationScope> tryAtomic();
     MutationScope atomic();
     // Import creates new objects and may run inside a synchronous owner execute.
@@ -322,6 +324,7 @@ public:
     void requestCleanup();
     bool hasDeferredWork() const noexcept;
     bool hasOwnerNativeWork() const noexcept;
+    bool hasActiveOperations() const;
     bool tryBeginShutdown() noexcept;
     void shutdown();
 

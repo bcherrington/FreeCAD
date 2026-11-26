@@ -73,6 +73,7 @@ public:
     static PyObject* sAddDocumentObserver    (PyObject *self,PyObject *args);
     static PyObject* sRemoveDocumentObserver (PyObject *self,PyObject *args);
     static PyObject *sIsRestoring            (PyObject *self,PyObject *args);
+    static PyObject* sIsNativeOperationActive(PyObject *self, PyObject *args);
 
     static PyObject *sSetLogLevel            (PyObject *self,PyObject *args);
     static PyObject *sGetLogLevel            (PyObject *self,PyObject *args);
