@@ -106,6 +106,69 @@ class TestCore(AssemblyTestBase):
         joint.Proxy.setJointConnectors(joint, [(first, ["Face1"]), (second, ["Face1"])])
         return first, second, joint
 
+    def test_solve_retains_receiver_during_python_callbacks(self):
+        with AssemblyApp.suspendAutomaticMotion(self.doc):
+            self.assembly.Type = "Assembly"
+            definition = self.doc.addObject("Part::Feature", "Definition")
+            definition.Shape = Part.makeBox(2, 3, 4)
+            first = self.assembly.newObject("App::Link", "First")
+            second = self.assembly.newObject("App::Link", "Second")
+            first.LinkedObject = second.LinkedObject = definition
+            first.LinkTransform = second.LinkTransform = False
+            second.LinkPlacement = App.Placement(App.Vector(50, 20, 10), App.Rotation())
+            joint = self.jointgroup.newObject("App::FeaturePython", "Joint")
+            JointObject.Joint(joint, JointObject.JointTypes.index("Fixed"))
+            if App.GuiUp:
+                JointObject.ViewProviderJoint(joint.ViewObject)
+            joint.Detach1 = joint.Detach2 = True
+            joint.Reference1 = (first, ["Face1", ""])
+            joint.Reference2 = (second, ["Face1", ""])
+            joint.Placement1 = joint.Placement2 = App.Placement()
+            ground = self.jointgroup.newObject("App::FeaturePython", "Ground")
+            JointObject.GroundedJoint(ground, first)
+            if App.GuiUp:
+                JointObject.ViewProviderGroundedJoint(ground.ViewObject)
+            self.doc.recompute()
+
+        self.assertIn(
+            joint,
+            self.assembly.Joints,
+            repr((joint.State, joint.Reference1, joint.Reference2, self.assembly.Group)),
+        )
+        observations = []
+        observed_proxy = joint.Proxy
+        original = JointObject.Joint.__getattribute__
+        had_override = "__getattribute__" in JointObject.Joint.__dict__
+
+        def observe_attribute(proxy, name):
+            # Native joint enumeration invokes Python attribute lookup before
+            # any placement writes. Avoid deleting the receiver on old builds.
+            if proxy is observed_proxy and name == "setJointConnectors":
+                busy = App.isNativeOperationActive()
+                refused = False
+                if busy:
+                    try:
+                        App.closeDocument(self.doc.Name)
+                    except RuntimeError:
+                        refused = True
+                observations.append((busy, refused))
+            return original(proxy, name)
+
+        JointObject.Joint.__getattribute__ = observe_attribute
+        try:
+            for solve in (self.assembly.solve, self.assembly.solveValidated):
+                observations.clear()
+                self.assertEqual(solve(False), 0)
+                self.assertTrue(observations)
+                self.assertTrue(all(busy and refused for busy, refused in observations))
+                self.assertFalse(App.isNativeOperationActive())
+                self.assertEqual(App.getDocument(self.doc.Name), self.doc)
+        finally:
+            if had_override:
+                JointObject.Joint.__getattribute__ = original
+            else:
+                del JointObject.Joint.__getattribute__
+
     def test_motion_suspension_nesting_exception_and_gc(self):
         self.assertFalse(AssemblyApp.isAutomaticMotionSuspended(self.doc))
         with AssemblyApp.suspendAutomaticMotion(self.doc):
