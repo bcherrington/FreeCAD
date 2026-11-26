@@ -145,6 +145,16 @@ public:
     static inline thread_local const RecomputeLifetimeGuard* active = nullptr;
 };
 
+// Keep the receiver alive through native persistence and synchronous callbacks.
+// Unlike a persistent Restoring bit this lexical pin also unwinds on exceptions.
+RecomputeDetail::MutationScope protectPersistenceLifetime(const Document* document)
+{
+    auto& coordinator = RecomputeDetail::Coordinator::instance();
+    auto scope = coordinator.mutation(std::vector<DocumentObject*> {}, {});
+    scope.pinBindings({coordinator.bindDocument(document)});
+    return scope;
+}
+
 template<typename Fn>
 void notifyAfterNativeCommit(Fn&& notification) noexcept
 {
@@ -2105,6 +2115,7 @@ static std::string checkFileName(const char* file)
 
 bool Document::saveAs(const char* _file)
 {
+    auto lifetime = protectPersistenceLifetime(this);
     const std::string file = checkFileName(_file);
     const Base::FileInfo fi(file.c_str());
     if (this->FileName.getStrValue() != file) {
@@ -2118,6 +2129,7 @@ bool Document::saveAs(const char* _file)
 
 bool Document::saveCopy(const char* file) const
 {
+    auto lifetime = protectPersistenceLifetime(this);
     const std::string checked = checkFileName(file);
     return this->FileName.getStrValue() != checked ? saveToFile(checked.c_str()) : false;
 }
@@ -2132,6 +2144,7 @@ bool Document::canWriteRecoverySnapshot() const
 // Save the document under the name it has been opened
 bool Document::save()
 {
+    auto lifetime = protectPersistenceLifetime(this);
     if (testStatus(Document::PartialDoc)) {
         FC_ERR("Partial loaded document '" << Label.getValue() << "' cannot be saved");
         // TODO We don't make this a fatal error and return 'true' to make it possible to
@@ -2175,6 +2188,7 @@ bool Document::save()
 
 bool Document::saveToFile(const char* filename) const
 {
+    auto lifetime = protectPersistenceLifetime(this);
     signalStartSave(*this, filename);
 
     auto hGrp = GetApplication().GetParameterGroupByPath(
@@ -2357,6 +2371,7 @@ void Document::restore(const char* filename,
                        bool delaySignal,
                        const std::vector<std::string>& objNames)
 {
+    auto lifetime = protectPersistenceLifetime(this);
     refuseClosingStructuralTransaction(*this);
     auto atomic = RecomputeDetail::Coordinator::instance().atomic();
     clearUndos();
@@ -2449,6 +2464,7 @@ void Document::restore(const char* filename,
 
 bool Document::afterRestore(const bool checkPartial)
 {
+    auto lifetime = protectPersistenceLifetime(this);
     refuseClosingStructuralTransaction(*this);
     auto atomic = RecomputeDetail::Coordinator::instance().atomic();
     Base::FlagToggler<> flag(globalIsRestoring, false);
@@ -2702,7 +2718,9 @@ void Document::setClosable(bool c) // NOLINT
 
 bool Document::isClosable() const
 {
-    return testStatus(Document::Closable) && !isRecomputingOnCurrentThread();
+    auto& coordinator = RecomputeDetail::Coordinator::instance();
+    return testStatus(Document::Closable) && !isRecomputingOnCurrentThread()
+        && !coordinator.isObserved(coordinator.bindDocument(this));
 }
 
 bool Document::isRecomputingOnCurrentThread() const

@@ -24,6 +24,7 @@
 #include "PropertyContainer.h"
 #include "Property.h"
 #include "DocumentObject.h"
+#include "private/RecomputeAdmission.h"
 #include <Base/PyWrapParseTupleAndKeywords.h>
 #include <Base/Writer.h>
 
@@ -535,6 +536,7 @@ PyObject* PropertyContainerPy::dumpPropertyContent(PyObject* args, PyObject* kwd
     std::stringstream stream(std::stringstream::out | std::stringstream::in
                              | std::stringstream::binary);
     try {
+        auto storage = RecomputeDetail::Coordinator::instance().snapshotProperties({prop});
         if (snapshot == Py_True) {
             // A complete comparison witness, not a restorePropertyContent archive.
             // Writer-local policy never changes live map IDs, SID marks or save flags.

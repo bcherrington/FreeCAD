@@ -226,6 +226,23 @@ def getActiveTransaction() -> tuple[str, int] | None:
 def closeActiveTransaction(abort: bool = False, id: int = 0, /) -> None:
     """Close or abort the current transaction."""
 
+def isNativeOperationActive() -> bool:
+    """Return whether registered native work currently prevents a continuation.
+
+    Call on the GUI owner thread, immediately before resuming or cleaning up an
+    owner-thread observation. True includes document opening/restoring, native
+    recomputation, persistence reservations and atomic structural phases. Defer
+    until the outer native call returns; never wait synchronously on this thread.
+
+    False is a metadata observation, not a lease or permission to process Qt
+    events. Revalidate operation authority, document generations and observation
+    epochs in the same owner-thread turn. This does not detect arbitrary addon
+    critical sections or certify widget construction, callback or transaction
+    coherence. It does not provide cancellation or release the Python GIL.
+
+    Raise RuntimeError on a non-owner thread when GUI affinity hooks exist.
+    """
+
 def isRestoring() -> bool:
     """Return whether FreeCAD is currently restoring document state."""
 

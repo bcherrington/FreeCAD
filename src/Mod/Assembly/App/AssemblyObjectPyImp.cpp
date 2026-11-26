@@ -60,8 +60,12 @@ PyObject* AssemblyObjectPy::solve(PyObject* args) const
         enableUndo = Base::asBoolean(enableUndoPy);
     }
 
-    int ret = this->getAssemblyObjectPtr()->solve(enableUndo);
-    return Py_BuildValue("i", ret);
+    PY_TRY
+    {
+        int ret = this->getAssemblyObjectPtr()->solve(enableUndo);
+        return Py_BuildValue("i", ret);
+    }
+    PY_CATCH;
 }
 
 PyObject* AssemblyObjectPy::solveValidated(PyObject* args) const

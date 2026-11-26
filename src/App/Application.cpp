@@ -1466,6 +1466,10 @@ Document* Application::newDocument(const char * proposedName, const char * propo
 
     // add the document to the internal list
     DocMap[name] = doc;
+    auto& coordinator = RecomputeDetail::Coordinator::instance();
+    auto lifetime = coordinator.mutation(std::vector<DocumentObject*> {}, {});
+    lifetime.pinBindings({coordinator.bindDocument(doc)});
+
 
     //NOLINTBEGIN
     // clang-format off
@@ -2106,6 +2110,16 @@ std::vector<Document*> Application::openDocuments(const std::vector<std::string>
     if (errs)
         errs->resize(filenames.size());
 
+    // openDocuments owns shared pending queues and raw graph pointers. A nested
+    // open must not clear those queues while an outer restore is still active.
+    static thread_local bool opening = false;
+    if (opening) {
+        throw Base::RuntimeError("Cannot open documents reentrantly during document restore");
+    }
+    auto& coordinator = RecomputeDetail::Coordinator::instance();
+    auto atomic = coordinator.atomic();
+    Base::FlagToggler<bool> openingGuard(opening);
+    std::map<Document*, RecomputeDetail::MutationScope> lifetimes;
     DocOpenGuard guard(_isRestoring, signalFinishOpenDocument);
     _pendingDocs.clear();
     _pendingDocsReopen.clear();
@@ -2164,6 +2178,7 @@ std::vector<Document*> Application::openDocuments(const std::vector<std::string>
                 auto doc = openDocumentPrivate(path, name.c_str(), label, isMainDoc, initFlags, std::move(objNames));
                 timing.d1 += std::chrono::duration_cast<std::chrono::duration<double>>(std::chrono::high_resolution_clock::now() - startTime);
                 if (doc) {
+                    lifetimes.try_emplace(doc, coordinator.pinDocumentLifetime(doc));
                     timings[doc].d1 += timing.d1;
                     newDocs.emplace(doc);
                 }
@@ -2209,8 +2224,10 @@ std::vector<Document*> Application::openDocuments(const std::vector<std::string>
                 _pendingDocsReopen.clear();
                 for(const auto &file : _pendingDocs) {
                     auto doc = getDocumentByPath(file.c_str());
-                    if(doc)
+                    if(doc) {
+                        lifetimes.erase(doc);
                         closeDocument(doc->getName());
+                    }
                 }
             }
         }
@@ -2288,8 +2305,10 @@ std::vector<Document*> Application::openDocuments(const std::vector<std::string>
             }
         }
         // Close the document for reloading
-        for(const auto doc : docs)
+        for(const auto doc : docs) {
+            lifetimes.erase(doc);
             closeDocument(doc->getName());
+        }
 
     }while(!_pendingDocs.empty());
 
@@ -2393,6 +2412,7 @@ Document* Application::openDocumentPrivate(const char * FileName,
 
     initFlags.createView &= isMainDoc;
     Document* newDoc = newDocument(name.c_str(), label, initFlags);
+    auto lifetime = RecomputeDetail::Coordinator::instance().pinDocumentLifetime(newDoc);
     newDoc->FileName.setValue(propFileName==FileName?File.filePath():propFileName);
 
     try {
@@ -2405,10 +2425,12 @@ Document* Application::openDocumentPrivate(const char * FileName,
     // if the project file itself is corrupt then
     // close the document
     catch (const Base::FileException&) {
+        lifetime = {};
         closeDocument(newDoc->getName());
         throw;
     }
     catch (const std::ios_base::failure&) {
+        lifetime = {};
         closeDocument(newDoc->getName());
         throw;
     }

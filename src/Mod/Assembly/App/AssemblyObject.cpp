@@ -36,6 +36,7 @@
 #include <App/FeaturePythonPyImp.h>
 #include <App/Link.h>
 #include <App/PropertyPythonObject.h>
+#include <App/private/RecomputeAdmission.h>
 #include <Base/Console.h>
 #include <Base/Placement.h>
 #include <Base/Rotation.h>
@@ -717,6 +718,9 @@ int AssemblyObject::solveValidated(bool enableRedo)
     if (!getDocument() || solveInProgress) {
         return -8;
     }
+    auto& coordinator = App::RecomputeDetail::Coordinator::instance();
+    auto lifetime = coordinator.mutation(std::vector<App::DocumentObject*> {}, {});
+    lifetime.pinBindings({coordinator.bindObject(this)});
     // Keep automatic callbacks disabled even when explicitly called outside another scope.
     AutomaticMotionSuspension suspension(*getDocument());
     Base::PyGILStateLocker lock;
@@ -753,6 +757,12 @@ int AssemblyObject::solveValidated(bool enableRedo)
 
 int AssemblyObject::solve(bool enableRedo)
 {
+    if (!getDocument()) {
+        return -8;
+    }
+    auto& coordinator = App::RecomputeDetail::Coordinator::instance();
+    auto lifetime = coordinator.mutation(std::vector<App::DocumentObject*> {}, {});
+    lifetime.pinBindings({coordinator.bindObject(this)});
     if (isAutomaticMotionSuspended(getDocument())) {
         return -7;
     }

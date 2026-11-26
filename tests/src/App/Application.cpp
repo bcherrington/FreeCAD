@@ -5,6 +5,8 @@
 #include <Base/CrashReporter/Writer.h>
 #define FC_OS_MACOSX 1
 #include "App/Application.h"
+#include "App/private/RecomputeAdmission.h"
+#include "Base/Interpreter.h"
 #include "App/ProgramOptionsUtilities.h"
 #include "Base/Sequencer.h"
 
@@ -223,4 +225,29 @@ TEST_F(ApplicationTest, RecomputeProgressKeepsCompletedLeafTextOnScopeExit)
 
     EXPECT_EQ(sequencer.text, "Finalizing transform...");
     EXPECT_EQ(sequencer.lastProgress, 100);
+}
+
+TEST_F(ApplicationTest, NativeOperationObservationPythonContract)
+{
+    ASSERT_NO_THROW(
+        Base::Interpreter().runString(
+            "import FreeCAD as _native_observation\n"
+            "assert _native_observation.isNativeOperationActive() is False\n"
+            "try:\n"
+            "    _native_observation.isNativeOperationActive(1)\n"
+            "except TypeError:\n"
+            "    pass\n"
+            "else:\n"
+            "    raise AssertionError('arguments must be rejected')\n"
+        )
+    );
+    {
+        auto atomic = App::RecomputeDetail::Coordinator::instance().atomic();
+        ASSERT_NO_THROW(
+            Base::Interpreter().runString("assert _native_observation.isNativeOperationActive() is True")
+        );
+    }
+    ASSERT_NO_THROW(
+        Base::Interpreter().runString("assert _native_observation.isNativeOperationActive() is False")
+    );
 }
