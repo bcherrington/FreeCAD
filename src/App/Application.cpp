@@ -710,13 +710,38 @@ bool Application::closeDocument(const char* name)
 
 void Application::closeAllDocuments()
 {
+    tryCloseAllDocuments();
+}
+
+bool Application::tryCloseAllDocuments(std::string* blockedDocument)
+{
+    if (blockedDocument) {
+        blockedDocument->clear();
+    }
     Base::FlagToggler<bool> flag(_isClosingAll);
-    std::map<std::string,Document*>::iterator pos;
-    while ((pos = DocMap.begin()) != DocMap.end()) {
-        if (!closeDocument(pos->first.c_str())) {
-            break;
+    while (!DocMap.empty()) {
+        const std::string name = DocMap.begin()->first;
+        if (!closeDocument(name.c_str())) {
+            if (blockedDocument) {
+                *blockedDocument = name;
+            }
+            const auto* document = getDocument(name.c_str());
+            if (document && document->isRecomputingOnCurrentThread()) {
+                Base::Console().warning(
+                    "Cannot close document '{}' while it is being recomputed. "
+                    "Try again after recompute finishes. Remaining documents are still open.\n",
+                    name
+                );
+            }
+            else {
+                Base::Console().warning(
+                    "Could not close document '{}'. Remaining documents are still open.\n", name
+                );
+            }
+            return false;
         }
     }
+    return true;
 }
 
 Document* Application::getDocument(const char *Name) const

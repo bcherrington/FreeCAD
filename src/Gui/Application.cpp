@@ -92,6 +92,7 @@
 #include "InputHintPy.h"
 #include "LinkViewPy.h"
 #include "MainWindow.h"
+#include "DocumentCloseFeedback.h"
 #include "Macro.h"
 #include "FreeCADGuiModulePy.h"
 #include "PreferencePackManager.h"
@@ -1802,7 +1803,10 @@ void Application::tryClose(QCloseEvent* e)
             itp = d->passive.begin();
         }
 
-        App::GetApplication().closeAllDocuments();
+        if (!closeAllDocumentsWithFeedback(getMainWindow())) {
+            d->isClosing = false;
+            e->ignore();
+        }
     }
 }
 

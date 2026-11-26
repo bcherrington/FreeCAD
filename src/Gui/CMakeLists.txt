@@ -1283,6 +1283,8 @@ SET(FreeCADGui_CPP_SRCS
     AutoSaver.cpp
     BitmapFactory.cpp
     Document.cpp
+    DocumentCloseFeedback.cpp
+    DocumentCloseFeedback.h
     DocumentModel.cpp
     DocumentPyImp.cpp
     DocumentObserver.cpp

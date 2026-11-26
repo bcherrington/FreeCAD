@@ -226,7 +226,17 @@ PyObject* ApplicationPy::sCloseDocument(PyObject* /*self*/, PyObject* args)
             return nullptr;
         }
         if (!doc->isClosable()) {
-            PyErr_Format(PyExc_RuntimeError, "The document '%s' is not closable for the moment", pstr);
+            if (doc->isRecomputingOnCurrentThread()) {
+                PyErr_Format(
+                    PyExc_RuntimeError,
+                    "Cannot close document '%s' while it is being recomputed. "
+                    "Try again after recompute finishes.",
+                    pstr
+                );
+            }
+            else {
+                PyErr_Format(PyExc_RuntimeError, "The document '%s' is not closable for the moment", pstr);
+            }
             return nullptr;
         }
 
@@ -248,7 +258,17 @@ PyObject* ApplicationPy::sCloseDocument(PyObject* /*self*/, PyObject* args)
         }
 
         if (!doc->isClosable()) {
-            PyErr_Format(PyExc_RuntimeError, "The document '%s' is not closable for the moment", doc->getName());
+            if (doc->isRecomputingOnCurrentThread()) {
+                PyErr_Format(
+                    PyExc_RuntimeError,
+                    "Cannot close document '%s' while it is being recomputed. "
+                    "Try again after recompute finishes.",
+                    doc->getName()
+                );
+            }
+            else {
+                PyErr_Format(PyExc_RuntimeError, "The document '%s' is not closable for the moment", doc->getName());
+            }
             return nullptr;
         }
 

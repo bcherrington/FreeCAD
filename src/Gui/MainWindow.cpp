@@ -85,6 +85,7 @@
 #include <TaskView/TaskView.h>
 
 #include "MainWindow.h"
+#include "DocumentCloseFeedback.h"
 #include "Action.h"
 #include "Assistant.h"
 #include "BitmapFactory.h"
@@ -1138,11 +1139,7 @@ bool MainWindow::closeAllDocuments(bool close)
         }
     }
 
-    if (close) {
-        App::GetApplication().closeAllDocuments();
-    }
-
-    return true;
+    return !close || closeAllDocumentsWithFeedback(this);
 }
 
 void MainWindow::activateNextWindow()

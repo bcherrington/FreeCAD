@@ -783,6 +783,9 @@ public:
     /// Check whether the document can be closed from the current thread.
     bool isClosable() const;
 
+    /// Whether this thread still has an active recompute call for this document.
+    bool isRecomputingOnCurrentThread() const;
+
     /// Set the document to autoCreated, this is off by default.
     void setAutoCreated(bool);
 
@@ -1465,9 +1468,6 @@ protected:
     void _abortTransaction();
 
 private:
-    /// Whether this thread still has an active recompute call for this document.
-    bool isRecomputingOnCurrentThread() const;
-
     void changePropertyOfObject(TransactionalObject* obj, const Property* prop,
                                 const std::function<void()>& changeFunc);
     [[nodiscard]] Base::ScopeGuard setDefiningTransaction();

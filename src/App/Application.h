@@ -304,8 +304,16 @@ public:
     /// Set the active document.
     void setActiveDocument(const char* Name);
 
-    /// Close all documents (without saving)
+    /// Close documents without saving; log and stop if a close is refused.
     void closeAllDocuments();
+
+    /** Close documents without saving, stopping at the first refused close.
+     * Like closeDocument(), this may wait for an in-flight worker recompute.
+     * @return True only if every document was closed.
+     * @param blockedDocument Receives the refused document name on failure;
+     * cleared on success. May be nullptr.
+     */
+    bool tryCloseAllDocuments(std::string* blockedDocument = nullptr);
 
     /**
      * @brief Add a pending document to open together with the current opening

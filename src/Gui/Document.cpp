@@ -54,6 +54,7 @@
 #include <Base/Tools.h>
 
 #include "Document.h"
+#include "DocumentCloseFeedback.h"
 #include "DocumentPy.h"
 #include "Application.h"
 #include "Command.h"
@@ -2581,11 +2582,7 @@ bool Document::canClose(bool checkModify, bool checkLink)
         return true;
     }
     if (!getDocument()->isClosable()) {
-        QMessageBox::warning(
-            getActiveView(),
-            QObject::tr("Document not closable"),
-            QObject::tr("The document is not closable for the moment.")
-        );
+        showDocumentCloseWarning(getActiveView(), *getDocument());
         return false;
     }
     // else if (!Gui::Control().isAllowedAlterDocument()) {

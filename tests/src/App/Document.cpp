@@ -13,6 +13,7 @@
 #include "App/Document.h"
 #include "App/MergeDocuments.h"
 #include "App/StringHasher.h"
+#include "Base/Console.h"
 #include "Base/Interpreter.h"
 #include "Base/Tools.h"
 #include "Base/Writer.h"
@@ -268,7 +269,9 @@ TEST_P(RecomputeCloseAllOrderTest, StopsAtProtectedDocumentAndClosesRemainingDoc
     bool called = false;
     auto connection = doc()->signalBeforeRecompute.connect([&](const App::Document&) {
         called = true;
-        app.closeAllDocuments();
+        std::string blocked = "previous failure";
+        EXPECT_FALSE(app.tryCloseAllDocuments(&blocked));
+        EXPECT_EQ(blocked, protectedName);
         for (std::size_t index = 0; index < orderedNames.size(); ++index) {
             EXPECT_EQ(app.getDocument(orderedNames[index].c_str()) != nullptr, index >= protectedIndex);
         }
@@ -279,7 +282,9 @@ TEST_P(RecomputeCloseAllOrderTest, StopsAtProtectedDocumentAndClosesRemainingDoc
     EXPECT_TRUE(called);
     EXPECT_TRUE(doc()->isClosable());
     connection.disconnect();
-    app.closeAllDocuments();
+    std::string blocked = "previous failure";
+    EXPECT_TRUE(app.tryCloseAllDocuments(&blocked));
+    EXPECT_TRUE(blocked.empty());
     for (const auto& name : orderedNames) {
         EXPECT_EQ(app.getDocument(name.c_str()), nullptr);
     }
@@ -309,13 +314,17 @@ def check_python_close_contract():
         def check(self, changed, callback_phase):
             if changed.Name != name or callback_phase != phase:
                 return
-            result = {"closable": changed.isClosable(), "runtime_error": False}
-            try:
-                App.closeDocument(name)
-            except RuntimeError:
-                result["runtime_error"] = True
-            result["alive"] = name in App.listDocuments()
-            observations.append(result)
+            for target in (name, changed):
+                result = {"closable": changed.isClosable(), "runtime_error": False}
+                try:
+                    App.closeDocument(target)
+                except RuntimeError as error:
+                    result["runtime_error"] = True
+                    result["recompute_reason"] = (
+                        name in str(error) and "being recomputed" in str(error)
+                    )
+                result["alive"] = name in App.listDocuments()
+                observations.append(result)
 
         def slotBeforeRecomputeDocument(self, changed):
             self.check(changed, "before")
@@ -327,8 +336,10 @@ def check_python_close_contract():
     App.addDocumentObserver(observer)
     try:
         document.recompute()
-        expected = {"closable": False, "runtime_error": True, "alive": True}
-        assert observations == [expected], observations
+        expected = {
+            "closable": False, "runtime_error": True, "recompute_reason": True, "alive": True
+        }
+        assert observations == [expected, expected], observations
         assert document.isClosable(), "recompute close protection did not unwind"
     finally:
         App.removeDocumentObserver(observer)
@@ -346,6 +357,85 @@ INSTANTIATE_TEST_SUITE_P(
     PythonRecomputeCloseTest,
     ::testing::Values("before", "recomputed")
 );
+
+
+TEST_F(DocumentTest, LegacyCloseAllReportsProtectedDocument)
+{
+    class WarningRecorder: public Base::ILogger
+    {
+    public:
+        void sendLog(
+            const std::string&,
+            const std::string& text,
+            Base::LogStyle level,
+            Base::IntendedRecipient,
+            Base::ContentType
+        ) override
+        {
+            if (level == Base::LogStyle::Warning) {
+                messages += text;
+            }
+        }
+        const char* name() override
+        {
+            return "RecomputeCloseWarningTest";
+        }
+        std::string messages;
+    } recorder;
+    Base::Console().attachObserver(&recorder);
+    Base::ScopeGuard detach([&] { Base::Console().detachObserver(&recorder); });
+    const std::string name = doc()->getName();
+    auto connection = doc()->signalBeforeRecompute.connect([&](const App::Document&) {
+        App::GetApplication().closeAllDocuments();
+    });
+    doc()->recompute();
+    connection.disconnect();
+    EXPECT_NE(recorder.messages.find(name), std::string::npos);
+    EXPECT_NE(recorder.messages.find("being recomputed"), std::string::npos);
+    EXPECT_EQ(App::GetApplication().getDocument(name.c_str()), doc());
+    recorder.messages.clear();
+    App::GetApplication().closeAllDocuments();
+    EXPECT_TRUE(recorder.messages.empty());
+    EXPECT_EQ(App::GetApplication().getDocument(name.c_str()), nullptr);
+}
+
+
+TEST_F(DocumentTest, CloseAllReportsSuccessForEmptyApplication)
+{
+    auto& app = App::GetApplication();
+    ASSERT_TRUE(app.closeDocument(doc()->getName()));
+    std::string blocked = "previous failure";
+    EXPECT_TRUE(app.tryCloseAllDocuments(&blocked));
+    EXPECT_TRUE(blocked.empty());
+}
+
+TEST_F(DocumentTest, PythonClosePreservesExplicitRestrictionReason)
+{
+    ASSERT_NO_THROW(Base::Interpreter().runString(R"PY(
+import FreeCAD as App
+
+def check_explicit_close_restriction():
+    document = App.newDocument()
+    name = document.Name
+    try:
+        document.setClosable(False)
+        for target in (name, document):
+            try:
+                App.closeDocument(target)
+            except RuntimeError as error:
+                assert name in str(error), str(error)
+                assert "not closable" in str(error), str(error)
+                assert "recomputed" not in str(error), str(error)
+            else:
+                raise AssertionError("explicit close restriction was ignored")
+        assert name in App.listDocuments()
+    finally:
+        document.setClosable(True)
+        App.closeDocument(name)
+
+check_explicit_close_restriction()
+)PY"));
+}
 
 
 TEST_F(DocumentTest, addStringHasherIndicatesUnwrittenWhenNew)
