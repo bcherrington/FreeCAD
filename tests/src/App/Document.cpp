@@ -81,6 +81,7 @@ TEST_F(DocumentTest, RestoreProtectsReceiverThroughCallbacks)
         // Do not destroy the receiver when demonstrating the pre-fix failure.
         const bool protectedNow = coordinator.isObserved(coordinator.bindDocument(doc()));
         EXPECT_TRUE(protectedNow);
+        EXPECT_FALSE(doc()->isClosable());
         if (protectedNow) {
             EXPECT_FALSE(app.closeDocument(name.c_str()));
             EXPECT_EQ(app.getDocument(name.c_str()), doc());

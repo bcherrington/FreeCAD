@@ -2718,7 +2718,9 @@ void Document::setClosable(bool c) // NOLINT
 
 bool Document::isClosable() const
 {
-    return testStatus(Document::Closable) && !isRecomputingOnCurrentThread();
+    auto& coordinator = RecomputeDetail::Coordinator::instance();
+    return testStatus(Document::Closable) && !isRecomputingOnCurrentThread()
+        && !coordinator.isObserved(coordinator.bindDocument(this));
 }
 
 bool Document::isRecomputingOnCurrentThread() const
